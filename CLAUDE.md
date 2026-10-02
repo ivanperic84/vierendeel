@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Anbauteile alle aus / alle ein (2. Oktober) | «Knopf «alle aus / alle ein» einbauen für die anbauteile»: Knopf in der Anbauteilliste neben «Alle entfernen»; schaltet `aktiv` aller Teile des Tragwerks (aus = nicht gerechnet, nicht gezeichnet, Eingaben bleiben), Strg+Z zurück. Im Browser am Standardjoch hin und zurück |
 | Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sichtbar (2. Oktober) | «hier ein umschalten von resultierende oder einzelgurte. startwert auf resultierende stellen.» - Joch ohne Masten: Umschalter über der Reaktionstabelle, Vorgabe «Resultierende je Jochende», «Einzelgurte» zeigt OG/UG links/rechts je Ende (Ansicht im Browser gemerkt, `tragjoch-reaktionen-gurte`; Blatt, Bericht, Excel folgen). «mach die angaben zur befestigung einfache auswählbar. momentan ist es etwas verstreut und klicky.» - Befestigung als drei Knöpfe Untergurt / Obergurt / beide, das Raster daneben (stand zugeklappt), Gleiszuordnung bleibt zugeklappt (`atBefestigung`). «ein visuelles feedback geben wenn man die richrige stelle hat um per drag and drop die änderung vorzunehmen im 3d.» - über Angriffspunkt, Anbauteil und Masten Zeigerform (grab, ↔ Mast schieben, ↕ Fuss/Kopf), die Mastzone in der Akzentfarbe und ein Satz am Zeiger (`_ziehZiel`, `_hoverMalen`). Im Browser: Mastkopf «Kopf ziehen · Länge ändern, Joch bleibt», Befestigung «Untergurt» kommt im Stand an. Excel-Datei geprüft (XML, Stile, Zeilen-/Zellfolge, Textlängen): kein Befund - beim Auftraggeber nachgefragt, was beim Öffnen geschieht. Prüfstand 193 |
 | Reaktionen und Lastfallwahl; Zeichnung federt zurück (2. Oktober) | Frage «wie soll die logik sein in bezug auf die auswahl zum lastfall?», auf Rückfrage **«Hülle bleibt, dazu der gewählte Fall»**: die Reaktionstabelle zeigt weiter die charakteristische Hülle; ist oben ein Lastfall gewählt, kommt je Auflager «gew. Fall» mit Vorzeichen dazu (Reiter, Blatt, Excel; `reaktionenGewaehlt`, core.reaktionen.js). Mit gültigem Stabwerk fallen die Tabellen des Ersatzbalkens «je Gruppe» im Reiter Auflager weg. Im Browser: LF7 Ständig + Wind +y, M1 M_x 45.79 = Hülle, M_y −0.73. Frage «wie könnte man am intuitivsten die funktion gestalten wenn man bauteile zuordnet und die hintergrundzeichnung eigeblendet hat um beim naviegieren aus der längsansicht zu fallen und neu die eben ausrichten muss um sie wieder zu sehen.», auf Rückfrage **«Federnd zurück»**: von der Längsansicht aus gedreht gleitet die Ansicht nach dem Loslassen in die Längsansicht zurück (Ziel, Verschiebung, Abstand bleiben), nur mit eingemessener, eingeblendeter Zeichnung (`_federtZurZeichnung`, render.3d.js). ⚠ Im Browser noch nicht gesehen (das Laden eines Stands mit Zeichnung gelang in der Prüfseite nicht). Prüfstand 192 |
 | Joch ohne Masten: Reaktionen je Jochende; COM-Ordnerdialog (2. Oktober) | Weisung: «kannst du beim joch ohne masten die reaktionskräfte global pro jochende aufführen. im bericht und excel» - die Reaktionstabelle (Reiter, Blatt, Bericht, Excel) führte ohne Masten jeden der vier Gurtknoten je Ende als «Lager». Jetzt je Jochende eine Zeile (`jochendenZusammenfassen`, core.reaktionen.js): Kräfte summiert global, Momente um die Jochachse am Ende (Σ (r − r0) × F + Knotenmomente), Spalten wie am Mastfuss, Fundament «Jochauflager». Verdrahtung gegengerechnet am Stand des Auftraggebers ohne Masten (Ersatzbalken je Gruppe / Stabwerk): ständig F_z A 20.53 / 20.49, B 17.75 / 17.79 kN; Wind y F_y 8.86 / 8.86, 8.38 / 8.38; Wind x F_z ±0.21 / ±0.14; F_x Summe 3.58 und 5.35 gleich. Tabelle danach: Ende A V 20.35 / 20.63, H_q 8.93 (ganz an A, nur dort ein x-Halt), H_l 8.89; Ende B V 17.65 / 17.93, H_l 8.41. Im Browser: Reiter, Bericht und Excel (Blatt Reaktionen) mit «Jochende A/B». Dazu gemeldet: «COM-Ausleitung nicht möglich: Failed to execute 'showDirectoryPicker' on 'Window': File picker already active.» - Ordner zuerst, Modell danach, ein Wähler zur Zeit, sonst herunterladen (Prüfstand 190). Prüfstand 191 |
@@ -319,7 +320,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6217 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6218 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2595,7 +2596,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6217 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6218 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

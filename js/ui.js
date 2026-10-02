@@ -3041,10 +3041,25 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
      * einzeln gelöscht werden es wäre gut wenn man einen button hätte»).
      * Der Knopf fragt nach; Rückgängig holt die Liste zurück.
      */
-    (liste.length > 1 ? `<div class="at-leiste">
-      <button class="btn btn-mini" data-at-alle-weg type="button"
+    /*
+     * >>> ALLE AUS / ALLE EIN (2. Oktober). <<< Frage «wo kann man alle
+     * bauteile auf einmal ausblenden?», dann «Knopf «alle aus / alle ein»
+     * einbauen für die anbauteile»: schaltet «aktiv» aller Teile dieses
+     * Tragwerks - aus heisst nicht gerechnet und nicht gezeichnet, die
+     * Eingaben bleiben. Steht noch eines an, schaltet er alle aus; sonst
+     * alle ein. Rückgängig mit Strg+Z.
+     */
+    (liste.length ? `<div class="at-leiste">
+      ${(() => {
+        const an = liste.filter((a) => a.aktiv !== false).length;
+        return `<button class="btn btn-mini${an ? '' : ' btn-acc'}" data-at-alle-aktiv="${an ? 'aus' : 'ein'}" type="button"
+              title="${an ? 'Alle Anbauteile ausschalten - nicht gerechnet, nicht gezeichnet, Eingaben bleiben'
+                          : 'Alle Anbauteile wieder einschalten'} (Rückgängig mit Strg+Z)"
+              >${an ? `Alle aus (${an} an)` : `Alle ein (${liste.length})`}</button>`;
+      })()}
+      ${liste.length > 1 ? `<button class="btn btn-mini" data-at-alle-weg type="button"
               title="Alle Anbauteile dieses Tragwerks entfernen (fragt nach, Rückgängig mit Strg+Z)"
-              >Alle entfernen (${liste.length})</button></div>` : '') +
+              >Alle entfernen (${liste.length})</button>` : ''}</div>` : '') +
     `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`;
 }
 
@@ -4651,6 +4666,11 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   container.querySelector('[data-at-alle-weg]')?.addEventListener('click',
     () => beiAnbauAlleWeg?.());
+  // Alle aus / alle ein (2. Oktober) - derselbe Weg wie das Häkchen je Teil.
+  container.querySelector('[data-at-alle-aktiv]')?.addEventListener('click', (e) => {
+    const an = e.currentTarget.dataset.atAlleAktiv === 'ein';
+    onAnbau(liste().map((a) => ({ ...a, aktiv: an })));
+  });
   container.querySelectorAll('[data-at-dup]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
   });

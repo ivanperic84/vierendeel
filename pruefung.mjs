@@ -35611,6 +35611,9 @@ titel('193  Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sich
   wahr('Befestigung als Knopfreihe mit Raster daneben (Radiofelder der Klasse at)',
        ui193.includes('function atBefestigung(i, a)') && /type="radio" class="at" name="at-bef-\$\{i\}" data-k="befestigung"/.test(ui193)
        && ui193.includes("${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}"));
+  // «Knopf «alle aus / alle ein» einbauen für die anbauteile» (2. Oktober).
+  wahr('Anbauteile: Knopf alle aus / alle ein schaltet aktiv aller Teile',
+       ui193.includes('data-at-alle-aktiv') && ui193.includes('onAnbau(liste().map((a) => ({ ...a, aktiv: an })))'));
   const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('3D: über ziehbaren Stellen Zeigerform und Hinweis', r3d.includes('_ziehZiel(e) {')
        && r3d.includes("cursor: zone === 'lage' ? 'ew-resize' : 'ns-resize'") && r3d.includes('this._hoverMalen(c, proj, t)'));
