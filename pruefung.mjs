@@ -35129,8 +35129,44 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
          /b = 100/.test(hB) && /t = 10/.test(hB) && hB.includes('gerechnet: Querschnittsfläche b · t'));
   }
 
+  /*
+   * (e3) «das j90 joch besteht aus unterschiedlichen flachblechen, wo sind
+   * diese aufgeführt?» - Rückfrage «Beides umschaltbar». Die Blechzeilen
+   * nennen die Positionen wie die Legende; die Blattansicht zeigt jedes
+   * Tragwerk mit einer Spalte Tragwerk, einen geteilten Mast einmal.
+   */
+  {
+    wahr('Bleche mit Positionsnummer wie die Legende (J90: Pos 3 · Pos 5, 6 = FL 100×10)',
+         tafel.includes('Vertikalblech Pos 3 · Horizontalblech Pos 5, 6')
+         && tafel.includes('Vertikalblech Pos 4 · Horizontalblech Pos 7'));
+    const C184 = await import(J('core.constants.js'));
+    const w2 = C184.tragwerkHinzu({ ...w }, 'joch', { L: 15 });
+    const satz = (id) => C184.tauscheAktives(w2, id);
+    const ids = C184.tragwerkeVon(w2).map((t) => t.id);
+    const blatt = ids.map((id) => {
+      const s3 = N184.rechensatzMitNachbarn(satz(id));
+      return { label: id, erg: berechne(s3, ...N184.kernArgumente(s3)), werte: satz(id) };
+    });
+    const nur = U184.profilUebersicht(blatt[0].erg, blatt[0].werte, { umfang: 'tragwerk', blatt });
+    wahr('Mehrere Tragwerke: Schalter da, Vorgabe dieses Tragwerk',
+         nur.includes('data-profil-umfang="blatt"') && nur.includes('Profile dieses Tragwerks')
+         && !nur.includes('<th>Tragwerk</th>'));
+    const ganz = U184.profilUebersicht(blatt[0].erg, blatt[0].werte, { umfang: 'blatt', blatt });
+    wahr('Ganzes Blatt: Spalte Tragwerk, beide Tragwerke', ganz.includes('Profile des Blatts')
+         && ganz.includes('<th>Tragwerk</th>') && ids.every((id) => ganz.includes(`<td>${id}</td>`)));
+    // Der geteilte Mast steht einmal: jeder Mastname höchstens in einer Zeile.
+    const mastZeilen = [...ganz.split('Mast: Querschnittsklasse')[0].matchAll(/<td>(Mast M\d[^<]*)<\/td>/g)].map((m) => m[1]);
+    const namen = mastZeilen.flatMap((r) => r.split(' · '));
+    wahr('Ganzes Blatt: geteilter Mast nur einmal', new Set(namen).size === namen.length && namen.length >= 3,
+         mastZeilen.join(' | '));
+    const allein = U184.profilUebersicht(blatt[0].erg, blatt[0].werte, { umfang: 'blatt', blatt: [blatt[0]] });
+    wahr('Ein Tragwerk allein: kein Schalter', !allein.includes('data-profil-umfang'));
+  }
+
   // (f) Die Verdrahtung.
   const ao = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  wahr('Schalter dieses Tragwerk / ganzes Blatt ist verdrahtet',
+       ao.includes("querySelectorAll('[data-profil-umfang]')") && APP_QUELLE().includes('profilUmfangSetzen'));
   wahr('Klick auf eine Profilzeile öffnet das Profilblatt',
        ao.includes("querySelectorAll('[data-profil]')") && ao.includes('profilBlattHtml(e)'));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');

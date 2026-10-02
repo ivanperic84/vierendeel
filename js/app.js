@@ -41,7 +41,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
          mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
-         tragwerkeVon, mastenFuer, lageOrtsnull, anschlusshoehe,
+         tragwerkeVon, mastenFuer, lageOrtsnull, anschlusshoehe, sichtbareTragwerke,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
          jochZuEinzelmasten, kragarme, einzelmastenAufgehen,
@@ -237,6 +237,7 @@ const app = {
   stabwerkRechnen: () => stabwerkRechnen(),
   reaktionsDaten: () => reaktionsDaten(),
   rechneTragwerk: (...a) => rechneTragwerk(...a),
+  profilUmfangSetzen: (...a) => profilUmfangSetzen(...a),
   jochVonTyp: (...a) => jochVonTyp(...a),
   speichern: (...a) => speichern(...a),
   laden: (...a) => laden(...a),
@@ -760,6 +761,54 @@ function reaktionsBlatt() {
  * @param {object} werte  der flache Satz des Tragwerks (aktiv im Blatt)
  * @param {object|null} joch  Typ aus dem Sortiment (`jochVonTyp`)
  */
+/**
+ * >>> DIE PROFILTAFEL ÜBER DAS GANZE BLATT (2. Oktober). <<<
+ *
+ * Rückfrage «Beides umschaltbar» (Frage: «das j90 joch besteht aus
+ * unterschiedlichen flachblechen, wo sind diese aufgeführt?»). Der Umfang
+ * ist eine Ansichtssache dieses Geräts (localStorage, Präfix tragjoch-), kein
+ * Merkmal des Blattes. Im Blatt holt die Tafel je Tragwerk sein Ergebnis über
+ * `rechneTragwerk` - denselben Weg wie der Bericht über das ganze Blatt -,
+ * das aktive aus `letzte`. Gerechnet wird nur, wenn «ganzes Blatt» gewählt
+ * ist, und nur einmal je Eingabestand.
+ */
+const PROFIL_UMFANG = 'tragjoch-profilumfang';
+function profilUmfang() {
+  try { return localStorage.getItem(PROFIL_UMFANG) === 'blatt' ? 'blatt' : 'tragwerk'; }
+  catch { return 'tragwerk'; }
+}
+function profilUmfangSetzen(u) {
+  try { localStorage.setItem(PROFIL_UMFANG, u === 'blatt' ? 'blatt' : 'tragwerk'); } catch { /* nur Ansicht */ }
+  neuRechnen();
+}
+let profilBlattSpeicher = { sig: null, liste: null };
+function profilBlatt() {
+  const alle = sichtbareTragwerke(werte);
+  // Ein Tragwerk allein braucht keinen Schalter - die Liste sagt es der Tafel.
+  if (alle.length < 2) return null;
+  const jetzt = werte.twId ?? alle[0]?.id;
+  const kurz = alle.map((t) => ({ label: tragwerkPos(werte, t), id: t.id }));
+  if (profilUmfang() !== 'blatt') return kurz;
+  const sig = JSON.stringify(werte);
+  if (profilBlattSpeicher.sig === sig) return profilBlattSpeicher.liste;
+  const liste = alle.map((t) => {
+    if (t.id === jetzt) {
+      return { label: tragwerkPos(werte, t), erg: letzte?.anzeige ?? letzte?.erg, werte };
+    }
+    const w = tauscheAktives(werte, t.id);
+    try {
+      const r = rechneTragwerk(JSON.parse(JSON.stringify(w)), jochVonTyp(w));
+      return { label: tragwerkPos(werte, t),
+               erg: mitBauteilen(r.kombi?.huellkurve ?? r.erg, r.erg), werte: w };
+    } catch (e) {
+      console.warn('Profiltafel, Tragwerk', t.id, e);
+      return { label: tragwerkPos(werte, t), erg: null, werte: w };
+    }
+  });
+  profilBlattSpeicher = { sig, liste };
+  return liste;
+}
+
 function rechneTragwerk(werte, joch) {
   const profOG = getProfil(werte.profOG);
   const profUG = getProfil(werte.profUG);
@@ -1193,7 +1242,8 @@ function neuRechnen(neuZeichnen = true) {
            */
           prof: (ausleger ? ui.auslegerUebersichtHtml(werte) : '')
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
-              + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte),
+              + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
+                  { umfang: profilUmfang(), blatt: profilBlatt() }),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);

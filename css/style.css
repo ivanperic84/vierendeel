@@ -1550,6 +1550,8 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .pb-s-zeile { margin: 4px 0 0; }
 .pb-abgeleitet td { font-style: italic; color: var(--dim); }
 tr.pb-zeile { cursor: pointer; }
+.pt-umfang { display: inline-flex; gap: 3px; margin-right: 6px; }
+.pt-umfang .btn.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
 tr.pb-zeile:hover td { background: var(--acc-s); }
 
 /* --- Handbuch --------------------------------------------------------------

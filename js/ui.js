@@ -7486,8 +7486,13 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv,
  * Wert waechst ueber die Laenge. Ein Strich sagt das; eine Null waere eine
  * Behauptung.
  */
-export function profilUebersicht(erg, werte) {
-  if (!erg) return '';
+/**
+ * Die Zeilen der Profiltafel EINES Tragwerks: {zeilen, masten, stahl}.
+ * Herausgelöst (2. Oktober), damit die Ansicht «ganzes Blatt» sie je
+ * Tragwerk holen kann - dieselbe Stelle, kein zweiter Aufbau.
+ */
+function profilZeilen(erg, werte) {
+  if (!erg?.modell) return { zeilen: [], masten: [], stahl: null };
   const m = erg.modell;
   const ab = erg.abfang ?? null;
   const zeilen = [];
@@ -7596,27 +7601,78 @@ export function profilUebersicht(erg, werte) {
       }
     }
   });
+  // Der Stahl steht im MODELL - ein zweiter Weg ueber den Katalog waere
+  // eine zweite Quelle fuer dieselbe Angabe.
+  return { zeilen, masten, stahl: m.stahl ?? null };
+}
+
+/**
+ * >>> DIE PROFILTAFEL: DIESES TRAGWERK ODER DAS GANZE BLATT (2. Oktober). <<<
+ *
+ * Frage mit Bild: «das j90 joch besteht aus unterschiedlichen flachblechen,
+ * wo sind diese aufgeführt?» - die Tafel zeigte nur das AKTIVE Tragwerk
+ * (dort der Tragausleger), die Bleche des J90 erst nach dem Umschalten. Auf
+ * Rückfrage «Beides umschaltbar»: Schalter im Kopf, Vorgabe dieses
+ * Tragwerk. Im Blatt eine Spalte «Tragwerk»; ein geteilter Mast steht
+ * einmal, beim ersten Tragwerk, das ihn trägt.
+ *
+ * @param {object} erg    das aktive Tragwerk (anzeige oder erg)
+ * @param {object} werte  sein Satz
+ * @param {object} opt    { umfang: 'tragwerk'|'blatt', blatt: [{label, erg, werte}] }
+ */
+export function profilUebersicht(erg, werte, opt = {}) {
+  if (!erg) return '';
+  const imBlatt = opt.umfang === 'blatt' && Array.isArray(opt.blatt) && opt.blatt.length > 1;
+  let zeilen, masten, st;
+  if (imBlatt) {
+    zeilen = []; masten = []; st = null;
+    const mastGesehen = new Set();
+    opt.blatt.forEach(({ label, erg: e2, werte: w2 }) => {
+      const r = profilZeilen(e2, w2);
+      st = st ?? r.stahl;
+      r.zeilen.forEach((z0) => {
+        if (z0.art === 'mast') {
+          // «Mast M1 · Mast M2» - nur die Masten, die noch nicht dastehen.
+          const neu = z0.rolle.split(' · ').filter((n) => !mastGesehen.has(n));
+          if (!neu.length) return;
+          neu.forEach((n) => mastGesehen.add(n));
+          zeilen.push({ ...z0, rolle: neu.join(' · '), tw: label });
+          return;
+        }
+        zeilen.push({ ...z0, tw: label });
+      });
+      r.masten.forEach((mm) => {
+        if (!masten.some((x) => x.name === mm.name)) masten.push({ ...mm, erg: e2 });
+      });
+    });
+  } else {
+    ({ zeilen, masten, stahl: st } = profilZeilen(erg, werte));
+    masten = masten.map((mm) => ({ ...mm, erg }));
+  }
   if (!zeilen.length) return '';
   // Fuer den Klick: die Eintraege dieser Tafel, in ihrer Reihenfolge.
   profilEintraege = zeilen.map((r) => (r.art
-    ? { art: r.art, p: r.roh, name: r.name, rolle: r.rolle, quelle: r.quelle }
+    ? { art: r.art, p: r.roh, name: r.name, rolle: r.tw ? `${r.tw} · ${r.rolle}` : r.rolle,
+        quelle: r.quelle }
     : null));
 
   const z = (v, n = 1) => (Number.isFinite(v) ? f2(v) : '–');
-  // Der Stahl steht im MODELL - ein zweiter Weg ueber den Katalog waere
-  // eine zweite Quelle fuer dieselbe Angabe.
-  const st = m.stahl ?? null;
-  return `${abschnitt('Profile dieses Tragwerks',
-      `${zeilen.length} verschiedene`)}
+  const mehrere = Array.isArray(opt.blatt) && opt.blatt.length > 1;
+  const schalter = mehrere ? `<span class="pt-umfang">${[['tragwerk', 'dieses Tragwerk'],
+    ['blatt', 'ganzes Blatt']].map(([k, t]) => `<button type="button"
+      class="btn btn-mini${(imBlatt ? 'blatt' : 'tragwerk') === k ? ' on' : ''}"
+      data-profil-umfang="${k}">${t}</button>`).join('')}</span> ` : '';
+  return `${abschnitt(imBlatt ? 'Profile des Blatts' : 'Profile dieses Tragwerks',
+      `${schalter}${zeilen.length} Zeilen`)}
     <div class="tabellenrahmen"><table class="dt">
-      <thead><tr><th>Rolle</th><th>Profil</th><th class="num">n</th>
+      <thead><tr>${imBlatt ? '<th>Tragwerk</th>' : ''}<th>Rolle</th><th>Profil</th><th class="num">n</th>
         <th class="num">A [cm²]</th><th class="num">I_y [cm⁴]</th>
         <th class="num">I_z [cm⁴]</th><th class="num">W_y [cm³]</th>
         <th class="num">I_t [cm⁴]</th></tr></thead>
       <tbody>${zeilen.map((r, i) => `
         <tr${r.art ? ` class="pb-zeile" data-profil="${i}"` : ''}
           title="${esc(r.quelle)}${r.art ? ' – anklicken: Kenndaten und Schnitt' : ''}">
-          <td>${esc(r.rolle)}</td><td>${r.art ? `<u>${esc(r.name)}</u>` : esc(r.name)}</td>
+          ${imBlatt ? `<td>${esc(r.tw ?? '')}</td>` : ''}<td>${esc(r.rolle)}</td><td>${r.art ? `<u>${esc(r.name)}</u>` : esc(r.name)}</td>
           <td class="num">${r.anzahl}</td>
           ${['A', 'Iy', 'Iz', 'Wy', 'It'].map((k) => (r.abg.has(k)
             ? `<td class="num" title="abgeleitet: ${k === 'It' && r.art === 'winkel'
@@ -7656,7 +7712,22 @@ function blechZeilen(erg, werte) {
     }
     aus.set(k, { rollen: [rolle], b, t, l: l ?? null, n });
   };
-  const liste = () => [...aus.values()].map((x) => ({ ...x, rolle: x.rollen.join(' · ') }));
+  /*
+   * «Vertikalblech Pos 3 · Horizontalblech Pos 5 · Horizontalblech Pos 6»
+   * wird «Vertikalblech Pos 3 · Horizontalblech Pos 5, 6» - in der
+   * Blattansicht stand die Rolle sonst über sechs Zeilen.
+   */
+  const kurz = (rollen) => {
+    const je = new Map();
+    rollen.forEach((r) => {
+      const m = /^(.*) Pos (\S+)$/.exec(r);
+      const k = m ? m[1] : r;
+      if (!je.has(k)) je.set(k, []);
+      if (m) je.get(k).push(m[2]);
+    });
+    return [...je.entries()].map(([k, pos]) => (pos.length ? `${k} Pos ${pos.join(', ')}` : k)).join(' · ');
+  };
+  const liste = () => [...aus.values()].map((x) => ({ ...x, rolle: kurz(x.rollen) }));
   const ab = erg?.abfang ?? null;
   if (ab?.typ) {
     /*
@@ -7682,9 +7753,15 @@ function blechZeilen(erg, werte) {
     if (ta?.blech) zu('Bindeblech', ta.blech.b, ta.blech.t, ta.blech.l, ta.bleche ?? 0);
     return liste();
   }
+  /*
+   * Die Rolle nennt die POSITION wie die Legende im 3D und die
+   * Werkstattzeichnung («Vertikalblech Pos 3»); ohne Typendatenbank steht
+   * statt der Nummer End- bzw. Zwischenblech.
+   */
+  const nameVon = (art, b) => `${art} ${Number.isFinite(Number(b.pos)) ? `Pos ${b.pos}` : (b.pos ?? '')}`.trim();
   (erg?.modell?.stationsListe ?? []).forEach((s) => {
-    if (s.vertikal) zu('Bindeblech stehend', s.vertikal.breite, s.vertikal.dicke, s.vertikal.laenge, 2);
-    if (s.horizontal) zu('Bindeblech liegend', s.horizontal.breite, s.horizontal.dicke, s.horizontal.laenge, 2);
+    if (s.vertikal) zu(nameVon('Vertikalblech', s.vertikal), s.vertikal.breite, s.vertikal.dicke, s.vertikal.laenge, 2);
+    if (s.horizontal) zu(nameVon('Horizontalblech', s.horizontal), s.horizontal.breite, s.horizontal.dicke, s.horizontal.laenge, 2);
   });
   return liste();
 }
@@ -7718,8 +7795,8 @@ export const profilEintrag = (i) => profilEintraege[i] ?? null;
 function mastProfilHtml(erg, masten, st) {
   if (!masten.length) return '';
   const fy = st?.fy ?? 235;
-  const zeilen = masten.map(({ ende, name, profil }) => {
-    const n = erg?.mast?.[ende];
+  const zeilen = masten.map(({ ende, name, profil, erg: eM }) => {
+    const n = (eM ?? erg)?.mast?.[ende];
     let kl = n?.klasse ?? null;
     let quelle = 'Mastnachweis, mit N_Ed,max';
     if (!kl) {

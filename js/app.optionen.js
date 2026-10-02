@@ -508,6 +508,10 @@ export function verdrahteExtras(app) {
   ui.el('maske').querySelectorAll('[data-qsk]').forEach((b) => {
     b.onclick = () => dialogKlassen(app);
   });
+  // Dieses Tragwerk / ganzes Blatt (2. Oktober, «Beides umschaltbar»).
+  ui.el('maske').querySelectorAll('[data-profil-umfang]').forEach((b) => {
+    b.onclick = () => app.profilUmfangSetzen(b.dataset.profilUmfang);
+  });
   // Ein Profil der Tafel «Profile dieses Tragwerks»: Kenndaten und Schnitt.
   ui.el('maske').querySelectorAll('[data-profil]').forEach((z) => {
     z.onclick = () => {
