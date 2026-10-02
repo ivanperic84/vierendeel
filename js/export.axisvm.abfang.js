@@ -63,6 +63,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
          abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
+import { uKontur } from './core.profilgeometrie.js';
 import { linkBedingung, konsolLaenge } from './core.auflager.js';
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
@@ -222,6 +223,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     parameter: istU
       ? [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, radius(p, 10)]
       : [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, radius(p, 15)],
+    /*
+     * >>> DIE KONTUR AUS DEM NORMUMRISS (2. Oktober, «Ja, als Polygon»). <<<
+     * AddU verwirft die Ausrundung (gemessen: UPE 140 -3.4 %, UPE 240 -2.5 %
+     * Fläche). Die Brücke baut das Profil deshalb aus dieser Kontur
+     * (KonturQuerschnitt), in der Lage, die AxisVM einem U gibt.
+     */
+    ...(istU ? { kontur: uKontur('walz', p) } : {}),
     profil: p.name,
     A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
   }];
@@ -315,6 +323,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       parameter: [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10,
                   radius(p, 10)],
       versatz: gabelVersatz,
+      // Dieselbe Kontur wie der Gurt, zweimal, um die Flanschbreite versetzt.
+      kontur: uKontur('walz', p),
       A: A2 / 1e4,
       // Die starke Achse addiert sich schlicht - beide Profile stehen
       // gleich hoch. Um die schwache kommt der Steiner-Anteil dazu, und

@@ -37,6 +37,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { uKontur } from './core.profilgeometrie.js';
 import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung, tragauslegerSpreizung,
          tragauslegerBlechachsen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
@@ -212,6 +213,13 @@ export function tragauslegerModell(satz, opt = {}) {
   const querschnitte = [{
     name: 'GURT', form: 'Channel',
     parameter: [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, (p.r ?? 1) * 10],
+    /*
+     * >>> DIE KONTUR AUS DEM NORMUMRISS (2. Oktober, «Ja, als Polygon»). <<<
+     * AddU verwirft die Ausrundung (gemessen: UPE 140 -3.4 %, UPE 240 -2.5 %
+     * Fläche). Die Brücke baut das Profil deshalb aus dieser Kontur
+     * (KonturQuerschnitt), in der Lage, die AxisVM einem U gibt.
+     */
+    kontur: uKontur('walz', p),
     profil: p.name,
     A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
   }, {

@@ -1723,6 +1723,120 @@ function VerbundQuerschnitt($modell, [string]$name, $par, [double]$versatz) {
     return $modell.CrossSections.AddCustom($name, $liste, 0)
 }
 
+<#  >>> U-PROFILE AUS DEM NORMUMRISS (2. Oktober). <<<
+
+    Weisung des Auftraggebers auf Rueckfrage: "Ja, als Polygon". AddU baut
+    das U SCHARFKANTIG - die Ausrundung R verwirft es (gemessen in frueheren
+    Laeufen: UPE 140 A -3.4 %, UPE 240 -2.5 % gegen die Tabelle; 1780 bzw.
+    3755 mm2 sind genau die Flaechen ohne Ausrundung). Das UNP der Anker
+    bekam zudem parallele statt geneigte Flansche.
+
+    Die Ausleitung liefert deshalb je U-Profil eine KONTUR (mm, y ab dem
+    Stegruecken, Oeffnung nach +y, z ab halber Hoehe) aus dem Normumriss
+    (core.profilgeometrie.js). Hier wird nur ihre LAGE bestimmt, nicht ihre
+    Form: ein Hilfs-U ueber AddU sagt, welche Achse die Hoehe ist, auf
+    welcher Seite der Stegruecken liegt und in welchem Umlaufsinn AxisVM
+    seine Kontur fuehrt. Genau dort hinein wird die Normkontur gelegt - das
+    Profil steht damit, wo das scharfkantige stand.
+
+    Bei der Gabel (zwei U) wie in VerbundQuerschnitt: das zweite Polygon um
+    den Versatz in Coord1 verschoben.                                      #>
+function KonturQuerschnitt($modell, [string]$name, $par, $kontur, [double]$versatz, [int]$anzahl) {
+    if (-not $script:asm) { throw 'keine Interop-Baugruppe' }
+    if (-not $kontur -or @($kontur).Count -lt 4) { throw 'keine Kontur' }
+    $typen  = $script:asm.GetTypes()
+    $tPunkt = $typen | Where-Object { $_.Name -eq 'RPoint2d' } | Select-Object -First 1
+    $kListe = $typen | Where-Object { $_.Name -eq 'AxisVMPolygon2dListClass' } | Select-Object -First 1
+    $kPoly  = $typen | Where-Object { $_.Name -eq 'AxisVMPolygon2dClass' } | Select-Object -First 1
+    $kLinie = $typen | Where-Object { $_.Name -eq 'AxisVMLine2dClass' } | Select-Object -First 1
+    if (-not ($tPunkt -and $kListe -and $kPoly -and $kLinie)) {
+        throw 'CoClasses fuer Polygon2d fehlen'
+    }
+    # Das Hilfs-U - nur fuer die Lage. Es bleibt im Modell stehen und macht
+    # die Herkunft sichtbar (wie die Vorlage der Gabel).
+    $hn = "$name`_Lage"
+    $hilf = $modell.CrossSections.AddU($hn, $par[0] * $mm, $par[1] * $mm,
+                                       $par[2] * $mm, $par[3] * $mm,
+                                       $par[4] * $mm, 0)
+    if ($hilf -le 0) { throw "Hilfs-U meldet $hilf" }
+    $pg0 = $modell.CrossSections.Item($hilf).ShapePolygonList.Item(1)
+    $seg = New-Object System.Collections.Generic.List[object]
+    for ($i = 1; $i -le $pg0.LineCount; $i++) {
+        $ln = $pg0.Line($i)
+        $a = [Activator]::CreateInstance($tPunkt)
+        $b = [Activator]::CreateInstance($tPunkt)
+        $ok = $false
+        try { $null = $ln.GetLinePoints([ref]$a, [ref]$b); $ok = $true } catch { }
+        if (-not $ok) {
+            $null = $ln.GetPoint(1, [ref]$a); $null = $ln.GetPoint(2, [ref]$b)
+        }
+        $seg.Add(@{ ax = $a.Coord1; ay = $a.Coord2; bx = $b.Coord1; by = $b.Coord2 })
+    }
+    if ($seg.Count -lt 3) { throw 'Kontur des Hilfs-U nicht lesbar' }
+    $min1 = [double]::MaxValue; $max1 = [double]::MinValue
+    $min2 = [double]::MaxValue; $max2 = [double]::MinValue
+    $flHilf = 0.0
+    foreach ($k in $seg) {
+        foreach ($v in @($k.ax, $k.bx)) { if ($v -lt $min1) { $min1 = $v }; if ($v -gt $max1) { $max1 = $v } }
+        foreach ($v in @($k.ay, $k.by)) { if ($v -lt $min2) { $min2 = $v }; if ($v -gt $max2) { $max2 = $v } }
+        $flHilf += ($k.ax * $k.by - $k.bx * $k.ay) / 2
+    }
+    $h = [double]$par[0] * $mm
+    # Welche Achse ist die Hoehe? Die, deren Ausdehnung h trifft.
+    $hoehe2 = [Math]::Abs(($max2 - $min2) - $h) -lt [Math]::Abs(($max1 - $min1) - $h)
+    if ($hoehe2) { $wMin = $min1; $wMax = $max1; $mitte = ($min2 + $max2) / 2 }
+    else         { $wMin = $min2; $wMax = $max2; $mitte = ($min1 + $max1) / 2 }
+    # Der Stegruecken: eine Kante parallel zur Hoehe, so lang wie h.
+    $rueckenMin = $null
+    foreach ($k in $seg) {
+        if ($hoehe2) { $w1 = $k.ax; $w2 = $k.bx; $l = [Math]::Abs($k.by - $k.ay) }
+        else         { $w1 = $k.ay; $w2 = $k.by; $l = [Math]::Abs($k.bx - $k.ax) }
+        if ([Math]::Abs($w1 - $w2) -lt 1e-9 -and [Math]::Abs($l - $h) -lt 0.01 * $h) {
+            $rueckenMin = ([Math]::Abs($w1 - $wMin) -lt [Math]::Abs($w1 - $wMax))
+            break
+        }
+    }
+    if ($null -eq $rueckenMin) { throw 'Stegruecken im Hilfs-U nicht gefunden' }
+    if ($rueckenMin) { $w0 = $wMin; $sw = 1.0 } else { $w0 = $wMax; $sw = -1.0 }
+    # Die Normkontur in diese Lage.
+    $pkt = New-Object System.Collections.Generic.List[object]
+    foreach ($q in $kontur) {
+        $w = $w0 + $sw * ([double]$q[0] * $mm)
+        $hh = $mitte + ([double]$q[1] * $mm)
+        if ($hoehe2) { $pkt.Add(@($w, $hh)) } else { $pkt.Add(@($hh, $w)) }
+    }
+    # Derselbe Umlaufsinn wie AxisVMs eigene Kontur.
+    $flNeu = 0.0
+    for ($i = 0; $i -lt $pkt.Count; $i++) {
+        $p1 = $pkt[$i]; $p2 = $pkt[($i + 1) % $pkt.Count]
+        $flNeu += ($p1[0] * $p2[1] - $p2[0] * $p1[1]) / 2
+    }
+    if ([Math]::Sign($flNeu) -ne [Math]::Sign($flHilf)) { $pkt.Reverse() }
+    $liste = [Activator]::CreateInstance($kListe)
+    $versaetze = @(0.0)
+    if ($anzahl -ge 2) { $versaetze = @(0.0, ($versatz * $mm)) }
+    foreach ($dx in $versaetze) {
+        $poly = [Activator]::CreateInstance($kPoly)
+        for ($i = 0; $i -lt $pkt.Count; $i++) {
+            $p1 = $pkt[$i]; $p2 = $pkt[($i + 1) % $pkt.Count]
+            $li = [Activator]::CreateInstance($kLinie)
+            $a2 = [Activator]::CreateInstance($tPunkt)
+            $b2 = [Activator]::CreateInstance($tPunkt)
+            $a2.Coord1 = $p1[0] + $dx; $a2.Coord2 = $p1[1]
+            $b2.Coord1 = $p2[0] + $dx; $b2.Coord2 = $p2[1]
+            $ok2 = $false
+            try { $null = $li.SetLinePoints($a2, $b2); $ok2 = $true } catch { }
+            if (-not $ok2) {
+                $null = $li.SetPoint(1, $a2); $null = $li.SetPoint(2, $b2)
+            }
+            try { $li.LineType = 0 } catch { }
+            $null = $poly.AddLine($li)
+        }
+        if ($liste.Add($poly) -le 0) { throw 'Polygon nicht angenommen' }
+    }
+    return $modell.CrossSections.AddCustom($name, $liste, 0)
+}
+
 $qs = @{}
 foreach ($q in $d.querschnitte) {
     $p = $q.parameter
@@ -1748,6 +1862,12 @@ foreach ($q in $d.querschnitte) {
         @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
             if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
             $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } },
+        @{ name = 'CrossSections.AddCustom(Name, Normkontur, cspOther)'; tu = {
+            # U-Profil oder Gabel aus der Kontur des Normumrisses (2. Oktober).
+            if (-not $q.kontur) { throw 'keine Kontur' }
+            if ($q.form -eq 'Channel') { KonturQuerschnitt $m $q.name $p $q.kontur 0.0 1 }
+            elseif ($q.form -eq 'DoppelU') { KonturQuerschnitt $m $q.name $p $q.kontur ([double]$q.versatz) 2 }
+            else { throw 'kein U-Profil' } } },
         @{ name = 'CrossSections.AddCustom(Name, Polygon2dList, cspOther)'; tu = {
             if ($q.form -ne 'DoppelU') { throw 'kein Doppel-U' }
             VerbundQuerschnitt $m $q.name $p ([double]$q.versatz) } },
@@ -1839,6 +1959,20 @@ foreach ($q in $d.querschnitte) {
     $ab = ($ist - $q.A) / $q.A * 100
     Schreib ("    {0,-16} A = {1,10:N6} m2   Tabelle {2,10:N6}   {3,6:+0.0;-0.0} %" -f
              $q.name, $ist, $q.A, $ab)
+    # Seit dem 2. Oktober auch die Traegheitsmomente (vermessen in
+    # AxisVM_querschnitt_messen.ps1: .Iy und .Iz in m4). AxisVM benennt die
+    # Achsen nach seinem eigenen System - verglichen wird deshalb die
+    # groessere mit der groesseren Zahl der Tabelle.
+    if ($q.Iy -and $q.Iz) {
+        try {
+            $it = $m.CrossSections.Item($qs[$q.name])
+            $gr = [Math]::Max($it.Iy, $it.Iz); $kl = [Math]::Min($it.Iy, $it.Iz)
+            $tg = [Math]::Max($q.Iy, $q.Iz); $tk = [Math]::Min($q.Iy, $q.Iz)
+            Schreib ("    {0,-16} I gross {1,9:N1} cm4 (Tabelle {2,9:N1}, {3,6:+0.0;-0.0} %)   I klein {4,9:N1} cm4 (Tabelle {5,9:N1}, {6,6:+0.0;-0.0} %)" -f
+                     '', ($gr * 1e8), ($tg * 1e8), (($gr - $tg) / $tg * 100),
+                     ($kl * 1e8), ($tk * 1e8), (($kl - $tk) / $tk * 100))
+        } catch { }
+    }
     if ([Math]::Abs($ab) -gt 5) { $schief++ }
 }
 if ($schief -gt 0) {

@@ -35163,6 +35163,45 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
     wahr('Ein Tragwerk allein: kein Schalter', !allein.includes('data-profil-umfang'));
   }
 
+  /*
+   * (e4) U-Profile in AxisVM aus dem Normumriss (2. Oktober, «Ja, als
+   * Polygon»): AddU verwarf die Ausrundung (UPE 140 -3.4 %, UPE 240 -2.5 %
+   * Fläche in früheren Läufen). Die Ausleitung schickt die Kontur, die
+   * Brücke legt sie in die Lage des Hilfs-U.
+   */
+  {
+    const PG = await import(J('core.profilgeometrie.js'));
+    const polyA = (k) => Math.abs(k.reduce((s0, [y0, z0], i) => {
+      const [y1, z1] = k[(i + 1) % k.length];
+      return s0 + (y0 * z1 - y1 * z0) / 2;
+    }, 0)) / 100;
+    for (const name of ['UPE 140', 'UPE 160', 'UPE 240', 'UNP 120']) {
+      const pw = NO.walzprofile().find((x) => x.name === name);
+      const k = PG.uKontur('walz', pw);
+      pruef(`Kontur ${name}: Fläche wie die Tabelle`, polyA(k), pw.A, 0.004 * pw.A, 'cm²');
+    }
+    const kA = PG.uKontur('anker', unp);
+    pruef('Kontur UNP 120 des Ankers (mm-Masse): Fläche wie die Tabelle', polyA(kA), unp.AEinzel, 0.004 * unp.AEinzel, 'cm²');
+    wahr('Kontur: Stegrücken bei y = 0, Höhe von −h/2 bis +h/2',
+         Math.min(...kA.map((q) => q[0])) === 0 && Math.max(...kA.map((q) => q[1])) === 60
+         && Math.min(...kA.map((q) => q[1])) === -60);
+    // Die Ausleitung des Abfangjochs trägt sie an Gurt und Gabel - auch nach
+    // dem Weg durch die Feldliste von stabmodellJson.
+    const AX184 = await import(J('export.axisvm.js'));
+    const wAb = { ...standardwerte(), tragwerksart: 'abfangjoch', abfangTyp: 'A160', L: 12.5 };
+    const mAb = berechne(N184.rechensatzMitNachbarn(wAb), ...N184.kernArgumente(N184.rechensatzMitNachbarn(wAb))).modell;
+    const dAb = AX184.stabmodellJson(mAb, { knotenmodell: 'anschnitt', eingabe: wAb });
+    const qG = dAb.querschnitte.find((q) => q.name === 'GURT');
+    const qGa = dAb.querschnitte.find((q) => q.name === 'GABEL');
+    wahr('Abfangjoch: Gurt und Gabel tragen die Kontur in der Datei',
+         Array.isArray(qG?.kontur) && qG.kontur.length > 8 && Array.isArray(qGa?.kontur));
+    const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+    wahr('Brücke: KonturQuerschnitt, vor dem scharfkantigen AddU versucht',
+         ps1.includes('function KonturQuerschnitt')
+         && ps1.indexOf('AddCustom(Name, Normkontur') < ps1.indexOf("AddU(Name, h, b, e, tw, R, cspOther)'; tu"));
+    wahr('Brücke ist reines ASCII', /^[\x00-\x7f]*$/.test(ps1));
+  }
+
   // (f) Die Verdrahtung.
   const ao = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
   wahr('Schalter dieses Tragwerk / ganzes Blatt ist verdrahtet',

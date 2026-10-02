@@ -62,6 +62,7 @@ import { abfangBau } from './export.axisvm.abfang.js';
 import { tragauslegerBau } from './export.axisvm.tragausleger.js';
 import { getTragausleger, tragauslegerSpreizung } from './data.abfangjoche.js';
 import { winkelwerteFuer, winkelIt } from './core.winkel.js';
+import { uKontur } from './core.profilgeometrie.js';
 import { getProfil } from './data.profiles.js';
 
 /** Wählbare Knotenmodelle. */
@@ -858,6 +859,9 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
       form: 'Channel',
       parameter: [Number(qw.h), Number(qw.b), Number(qw.tw),
                   Number(qw.tf), Number(qw.r) || 0],
+      // UNP mit 8 % Flanschneigung aus dem Normumriss (2. Oktober) - AddU
+      // baute es scharfkantig und mit parallelen Flanschen.
+      kontur: uKontur('anker', qw),
       profil: `${qw.profil} (${qw.quelle})`,
       /*
        * KEIN KATALOGNAME. Die Bruecke versucht ihn vor dem
@@ -4870,6 +4874,9 @@ export function stabmodellJson(m, opt = {}) {
       // parametrischen Weg. Fehlt er, bleibt es beim parametrischen.
       katalog: q.katalog ?? null,
       radienQuelle: q.radienQuelle ?? null,
+      // Die Kontur der U-Profile (2. Oktober). Ohne sie hier fiele sie
+      // still weg - dieselbe Falle wie am 20. September beim `versatz`.
+      kontur: q.kontur ?? null,
       // Der VERSATZ des Verbundquerschnitts (Gabel des Abfangjochs: zwei U,
       // um eine Flanschbreite versetzt). Er fehlte hier - die Bruecke baute
       // beide Profile uebereinander, und die Flaechenprobe meldete -51 %
