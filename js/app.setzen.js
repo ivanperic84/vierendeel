@@ -17,6 +17,7 @@ import { getVorlage, neuesAnbauteil, vorlagen, vorlagePasstAn } from './data.anb
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
+import { vorlageSymbol, vorlageSuchtext, suchtextPasst } from './ui.anbausymbol.js';
 
 export function setzenStarten(app, vorwahl = null) {
   if (app.kalibrierung) kalibrierenEnde(app);
@@ -24,6 +25,18 @@ export function setzenStarten(app, vorwahl = null) {
   app.setzen = { stelle: null, vorwahl };
   app.ansicht.beiStelle = (w) => stelleGewaehlt(app, w);
   ui.el('canvas3d').style.cursor = 'crosshair';
+  /*
+   * Wo geklickt wurde - dort öffnet die Auswahl (3. Oktober). Der Klick
+   * selbst kommt als Weltpunkt; die Stelle im Bild merkt sich der Zeiger.
+   */
+  const cv = ui.el('canvas3d');
+  if (cv && !app._setzZeiger) {
+    app._setzZeiger = (e) => {
+      const r = ui.el('viewer')?.getBoundingClientRect();
+      if (r) app.setzenPunkt = { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    cv.addEventListener('pointerdown', app._setzZeiger);
+  }
   // Der Knopf sagt jetzt «Abbrechen» - er muss deshalb mitgezeichnet werden.
   baueModellWerkzeuge(app);
   app.zeichneBalken();
@@ -32,6 +45,11 @@ export function setzenStarten(app, vorwahl = null) {
 export function setzenEnde(app) {
   app.setzen = null;
   app.ansicht.beiStelle = null;
+  if (app._setzZeiger) {
+    ui.el('canvas3d')?.removeEventListener('pointerdown', app._setzZeiger);
+    app._setzZeiger = null;
+  }
+  setzWahlWeg();
   ui.el('canvas3d')?.style.removeProperty('cursor');
   baueModellWerkzeuge(app);
   app.zeichneBalken();
@@ -365,7 +383,148 @@ export function vorwahlName(app, vw) {
 
 /** Das gewaehlte Bauteil an die gemerkte Stelle setzen. */
 export function setzeVorlageAnStelle(app, vorlageId) {
+  zuletztMerken(vorlageId);
   setzeBaugruppeAnStelle(app, neuesAnbauteil(vorlageId, 0));
+}
+
+/* ===========================================================================
+ * >>> DIE AUSWAHL AN DER STELLE (3. Oktober). <<<
+ * ===========================================================================
+ *
+ * Rückfrage zu den Anbauteilen, im Wortlaut: «die auswahl nur verwenden wenn
+ * bauteil setzen aktiv ist, sonst könnte es zu klicky werden, da wir schon
+ * ein kontextmenue haben im üblichen 3d. da kann man dann auch zuletzt
+ * verwendet aufführen.» Bisher standen die Vorlagen beim Setzen als
+ * Textknöpfe in drei Spalten im Balken oben - weit weg von der Stelle, auf
+ * die man eben geklickt hat. Jetzt öffnet dort ein kleines Fenster: oben
+ * die Suche (sofort im Fokus, Enter setzt den ersten Treffer), dann
+ * «zuletzt verwendet», die Vorlagen als Symbolkacheln nach Rolle (Träger,
+ * Aufbau, Drahtwerk - die Bau-Reihenfolge), darunter was schon im Modell
+ * steht. Es gibt nur, was an dieser Stelle möglich ist (`vorlagenFuer`).
+ *
+ * «Zuletzt verwendet» ist Ansichtssache dieses Browsers (localStorage);
+ * fehlt der Speicher, fehlt die Zeile.
+ */
+const ZULETZT = 'tragjoch-zuletzt-vorlagen';
+
+function zuletztLesen() {
+  try { return JSON.parse(localStorage.getItem(ZULETZT) ?? '[]').filter((x) => typeof x === 'string'); }
+  catch { return []; }
+}
+
+function zuletztMerken(id) {
+  if (!id || id === 'frei') return;
+  try {
+    localStorage.setItem(ZULETZT, JSON.stringify([id, ...zuletztLesen().filter((x) => x !== id)].slice(0, 8)));
+  } catch { /* ohne Speicher keine Zeile */ }
+}
+
+/** Die zuletzt gesetzten Vorlagen, die an diesen Ort passen (höchstens 5). */
+export function zuletztFuer(app, ort) {
+  const passend = new Map(vorlagenFuer(app, ort).map((e) => [e.v.id, e.v]));
+  return zuletztLesen().map((id) => passend.get(id)).filter(Boolean).slice(0, 5);
+}
+
+const ROLLENTITEL = { traeger: 'Träger', aufbau: 'Aufbau', drahtwerk: 'Drahtwerk' };
+
+function wahlKachel(v) {
+  return `<button type="button" class="kachel at-kachel" data-setz-vorlage="${esc(v.id)}"
+      data-suche="${esc(vorlageSuchtext(v))}"
+      title="${esc(`${v.name}${v.beschreibung ? ` - ${v.beschreibung}` : ''}`)}">
+      ${vorlageSymbol(v)}<span class="kachel-name">${esc(v.name)}</span></button>`;
+}
+
+/** Inhalt des Fensters an der Stelle. */
+export function setzWahlHtml(app, st, wo) {
+  const zul = zuletztFuer(app, st.ort);
+  const nachRolle = new Map();
+  vorlagenFuer(app, st.ort).forEach(({ v, rolle }) => {
+    if (v.id === 'frei') return;
+    if (!nachRolle.has(rolle)) nachRolle.set(rolle, []);
+    nachRolle.get(rolle).push(v);
+  });
+  const gruppe = (titel, vs, cls = '') => `<div class="sw-gruppe${cls}">
+      <div class="sw-t">${esc(titel)}</div>
+      <div class="kacheln">${vs.map(wahlKachel).join('')}</div></div>`;
+  return `<div class="sw-kopf"><span>Was kommt ${wo}?</span>
+      <button class="btn btn-mini" data-setz-neu type="button">andere Stelle</button>
+      <button class="btn btn-mini" data-setz-ab type="button">Abbrechen</button></div>
+    <input type="search" class="vl-suche sw-suche" placeholder="Suchen … Enter setzt den ersten"
+      aria-label="Vorlagen an dieser Stelle durchsuchen">
+    <div class="sw-liste">
+      ${zul.length ? gruppe('Zuletzt verwendet', zul, ' sw-zuletzt') : ''}
+      ${[...nachRolle.entries()].map(([r, vs]) => gruppe(ROLLENTITEL[r] ?? r, vs)).join('')}
+      ${kopierbareHtml(app, st.ort)}
+      <p class="notiz sw-keine" hidden>Keine Vorlage passt.</p>
+      <button class="btn btn-mini" data-setz-frei type="button"
+        title="Freies Bauteil - Typ, Länge und Lasten selbst eintragen">Freies Bauteil …</button>
+    </div>`;
+}
+
+export function setzWahlWeg() {
+  document.getElementById('setz-wahl')?.remove();
+}
+
+/**
+ * Das Fenster zeigen (oder stehen lassen, wenn es für dieselbe Stelle schon
+ * offen ist - der Balken wird oft neu gezeichnet, Suche und Fokus bleiben).
+ */
+export function setzWahlZeigen(app, st, wo, { neu, ab }) {
+  const kenn = `${st.ort}|${st.x ?? ''}|${st.hMast ?? ''}`;
+  let el = document.getElementById('setz-wahl');
+  if (el && el.dataset.kenn === kenn) return;
+  setzWahlWeg();
+  const viewer = ui.el('viewer');
+  if (!viewer) return;
+  el = document.createElement('div');
+  el.id = 'setz-wahl';
+  el.className = 'setz-wahl';
+  el.dataset.kenn = kenn;
+  el.innerHTML = setzWahlHtml(app, st, wo);
+  viewer.appendChild(el);
+  // An die Stelle, im Bild gehalten.
+  const r = viewer.getBoundingClientRect();
+  const p = app.setzenPunkt ?? { x: r.width / 2, y: r.height / 3 };
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = `${Math.max(8, Math.min(p.x + 14, r.width - w - 8))}px`;
+  el.style.top = `${Math.max(8, Math.min(p.y - 20, r.height - h - 8))}px`;
+
+  el.querySelectorAll('[data-setz-vorlage]').forEach((b) => {
+    b.onclick = () => setzeVorlageAnStelle(app, b.dataset.setzVorlage);
+  });
+  el.querySelectorAll('[data-setz-kopie]').forEach((b) => {
+    b.onclick = () => setzeKopieAnStelle(app, b.dataset.setzKopie);
+  });
+  el.querySelector('[data-setz-frei]').onclick = () => setzeVorlageAnStelle(app, 'frei');
+  el.querySelector('[data-setz-neu]').onclick = () => { setzWahlWeg(); neu(); };
+  el.querySelector('[data-setz-ab]').onclick = () => ab();
+  const such = el.querySelector('.sw-suche');
+  const filtern = () => {
+    let n = 0;
+    el.querySelectorAll('.sw-gruppe').forEach((g) => {
+      let k = 0;
+      g.querySelectorAll('[data-suche]').forEach((b) => {
+        const an = suchtextPasst(b.dataset.suche, such.value);
+        b.hidden = !an;
+        if (an) k += 1;
+      });
+      g.hidden = k === 0;
+      // «Zuletzt» doppelt die Gruppen - gezählt wird ohne sie.
+      if (!g.classList.contains('sw-zuletzt')) n += k;
+    });
+    // Bei einer Suche stehen die bestehenden Teile nicht im Weg.
+    el.querySelectorAll('.wahl-spalte').forEach((s) => { s.hidden = Boolean(such.value.trim()); });
+    el.querySelector('.sw-keine').hidden = n > 0;
+  };
+  such.addEventListener('input', filtern);
+  such.addEventListener('keydown', (e) => {
+    // Esc beendet das Setzen wie überall (`tastendruck` in app.js).
+    if (e.key !== 'Enter') return;
+    const erste = [...el.querySelectorAll('.sw-gruppe:not([hidden]) [data-setz-vorlage]:not([hidden])')][0];
+    erste?.click();
+  });
+  // Sofort tippen können, ohne erst ins Feld zu klicken.
+  such.focus({ preventScroll: true });
 }
 
 /**

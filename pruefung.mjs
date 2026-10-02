@@ -35864,6 +35864,50 @@ titel('197  Anbauteile finden: Symbolkacheln, Suche, Filter');
 }
 
 // ===========================================================================
+titel('198  Bauteil setzen: Auswahl an der Stelle, zuletzt verwendet');
+/*
+ * Rückfrage 3. Oktober: «die auswahl nur verwenden wenn bauteil setzen
+ * aktiv ist, sonst könnte es zu klicky werden, da wir schon ein
+ * kontextmenue haben im üblichen 3d. da kann man dann auch zuletzt
+ * verwendet aufführen.» Im Browser (Prüfseite): Klick aufs Joch öffnet das
+ * Fenster an der Stelle («Was kommt am Joch bei x = 8.50 m?»), Tippen geht
+ * sofort ins Suchfeld, «nt» + Enter setzt die Hängestütze mit NT-Ausleger;
+ * danach steht sie unter «Zuletzt verwendet»; Esc schliesst Fenster und
+ * Setzmodus.
+ */
+{
+  // Node hat keinen localStorage - für die Probe ein Ersatz im Speicher.
+  const mem = new Map();
+  const vorher = globalThis.localStorage;
+  globalThis.localStorage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)) };
+  try {
+    const SZ = await import(J('app.setzen.js'));
+    const app = { werte: { anbauteile: [] } };
+    const joch = SZ.setzWahlHtml(app, { ort: 'joch', x: 8.5 }, 'am Joch');
+    const mast = SZ.setzWahlHtml(app, { ort: 'mastA', hMast: 6 }, 'am Masten');
+    wahr('Am Joch: Träger, Aufbau, Drahtwerk als Symbolkacheln mit Suche',
+         joch.includes('class="vl-suche sw-suche"') && /<svg class="at-symbol"/.test(joch)
+         && joch.includes('data-setz-vorlage="hs-fahrdraht"'));
+    wahr('Am Masten keine Träger (keine Hängestütze), aber der Ausleger am Mast',
+         !mast.includes('data-setz-vorlage="hs-fahrdraht"') && mast.includes('data-setz-vorlage="mast-nt-ausleger"'));
+    wahr('Ohne Verlauf keine Zeile «Zuletzt verwendet»', !joch.includes('Zuletzt verwendet'));
+    mem.set('tragjoch-zuletzt-vorlagen', JSON.stringify(['hs-nt-ausleger', 'mast-trafo-50']));
+    wahr('Zuletzt verwendet nur, was an die Stelle passt',
+         SZ.zuletztFuer(app, 'joch').map((v) => v.id).join() === 'hs-nt-ausleger'
+         && SZ.zuletztFuer(app, 'mastA').map((v) => v.id).join() === 'mast-trafo-50');
+    wahr('… und steht dann oben im Fenster',
+         SZ.setzWahlHtml(app, { ort: 'joch', x: 8.5 }, 'am Joch').indexOf('Zuletzt verwendet')
+         < SZ.setzWahlHtml(app, { ort: 'joch', x: 8.5 }, 'am Joch').indexOf('Träger'));
+  } finally {
+    globalThis.localStorage = vorher;
+  }
+  const q198 = APP_QUELLE();
+  wahr('Der Balken zeigt beim Setzen das Fenster an der Stelle, nicht mehr die Spalten',
+       q198.includes('setzWahlZeigen(app, st, wo, {'));
+  wahr('Gemerkt wird beim Setzen einer Vorlage', /export function setzeVorlageAnStelle\(app, vorlageId\) \{\s*zuletztMerken\(vorlageId\);/.test(q198));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

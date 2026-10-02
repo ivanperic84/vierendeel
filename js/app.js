@@ -135,7 +135,8 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren } from './app.layout.js';
-import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle } from './app.setzen.js';
+import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
+         setzWahlZeigen, setzWahlWeg } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -3989,6 +3990,8 @@ function zeichneBalken() {
   if (setzen) {
     const st = setzen.stelle;
     if (!st) {
+      // Keine Stelle mehr gewählt - das Fenster daneben gilt nicht mehr.
+      setzWahlWeg();
       n.hidden = false;
       const d = setzen.daneben;
       // Steht die Wahl schon fest, sagt der Balken ihren NAMEN - sonst weiss
@@ -4023,6 +4026,21 @@ function zeichneBalken() {
      * Knoepfe untereinander. Die Reihenfolge ist die des Bauens: was traegt
      * zuerst, dann die Aufbauten, dann das Drahtwerk.
      */
+    /*
+     * >>> SEIT DEM 3. OKTOBER: DIE AUSWAHL STEHT AN DER STELLE. <<<
+     * Ein Fenster neben dem Klick (`setzWahlZeigen`, app.setzen.js) mit
+     * Suche, «zuletzt verwendet» und Symbolkacheln nach Rolle; der Balken
+     * oben bleibt leer. Die Spalten darunter sind der alte Weg - sie
+     * stehen nur noch da, falls das Fenster nicht aufgehen kann.
+     */
+    if (ui.el('viewer')) {
+      n.hidden = true; n.innerHTML = '';
+      setzWahlZeigen(app, st, wo, {
+        neu: () => { setzen = { stelle: null }; zeichneBalken(); },
+        ab: () => setzenEnde(app),
+      });
+      return;
+    }
     const ROLLENTITEL = { traeger: 'Träger', aufbau: 'Aufbau', drahtwerk: 'Drahtwerk' };
     const nachRolle = new Map();
     vorlagenFuer(app, st.ort).forEach(({ v, rolle }) => {

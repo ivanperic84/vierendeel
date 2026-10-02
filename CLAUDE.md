@@ -326,7 +326,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6263 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6270 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -336,8 +336,11 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Skizze je Vorlage aus ihren Bausteinen (`ui.anbausymbol.js`), Suchfeld
   (Wortanfänge, ohne Umlaute, auch Bausteinnamen; Enter setzt den ersten
   Treffer), Filter alle / Joch / Mast; Farbpunkt und Legende entfallen.
-  Offen aus demselben Entscheid: Auswahl an der Stelle beim Setzen mit
-  «zuletzt verwendet», Bausteinwahl mit Suche in der Karte.
+  Danach (Prüfstand 198): beim «Bauteil setzen» öffnet ein Fenster an der
+  geklickten Stelle (`setzWahlZeigen`, app.setzen.js) mit Suche im Fokus,
+  «Zuletzt verwendet» (localStorage `tragjoch-zuletzt-vorlagen`, nur was an
+  die Stelle passt) und Symbolkacheln nach Rolle; Enter setzt den ersten
+  Treffer. Offen: Bausteinwahl mit Suche in der Karte.
 - **2. Okt., Endfeld am Stoss in der Reihe** (Prüfstand 195, siehe
   *Entschieden*): Spalt 10 cm im Joch statt Schieben in der Ausleitung.
 - **2. Okt., Joch ohne Masten: Lagerung einstellbar; Anbauteile alle
@@ -2611,7 +2614,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6263 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6270 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
