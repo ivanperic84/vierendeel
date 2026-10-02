@@ -12,8 +12,10 @@ Stand: **2. Oktober 2026**; Prüfstand 6130 Kontrollen grün,
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
 (`Tragwerk: …`, `Bauteil: …`, `? …`); `python3 qp_markierungen.py` liest sie
-nach `Versand/qp_markierungen/`. Danach Abgleichtabelle und gemeinsame
-Durchsicht (CLAUDE.md, *Laufende Arbeit*).
+nach `Versand/qp_markierungen/`. Legende und Beispiel 1 (nachgebaut, als
+Ablage-Paket mit eingemessenem Plan) in `Versand/qp_beispiele/`; Rückfragen
+dazu offen. Danach Abgleichtabelle und gemeinsame Durchsicht (CLAUDE.md,
+*Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
 - **2. Oktober, unter *Profile*:** Querschnittsklasse je Mast (die des
