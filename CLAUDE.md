@@ -137,6 +137,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Mast im Stabwerk zwischen den Enden; Werte im 3D getönt; Knopf Reaktionsblatt (2. Oktober) | Frage zum Verlauf: «warum ist das hier abgetreppt? kann man noch beim Masten eine unterteilung vornehmen bei der auswertung?» - der unterste Maststab reicht vom Fuss bis unter den Anschluss (7.18 m) und wurde nur an den Enden ausgewertet. Jetzt am Masten alle 0.5 m aus Endkräften und Gleichlast des Stabes (`schnittImStab`, core.stabnachweis.js; exakt für Gleichlasten, Einzellasten stehen an Knoten); Verlauf η, M, V, N über die Höhe als Linie; eine Stelle im Feld über beiden Enden zählt fürs η. **Das Modell (und AxisVM) bleibt unverändert.** Gemessen J90/20 m, HEB 240 des Prüfstands: Mast M1 0.7862 vorher wie nachher (Kragarm: das Grösste am Fuss). «dieser einseitige balken im textfeld ist nicht gut … kann man den text ganz leicht in der farbe des resultats machen»: kein Streifen mehr, Ziffer 40 % zur Resultatfarbe gezogen (`wertTon`). «die anzahl plots beim masten etwas zurücknehmen»: am Masten doppelter Abstand in der Höhe (46 statt 21 px). Knopf «Blatt mit Skizze und Hinweisen …» in der Akzentfarbe («mach diesen button etwas farbig»). Berechnungstest im Browser (Prüfseite, J90/20 m, HEB 260): Kacheln OG 0.429, UG 0.443, Blech 0.484, M1 0.696, M2 0.697, Fundament 0.434, Kopf 0.743 (Verformung M2); Bericht (Stabwerk) dieselben Zahlen, GZG 0.743; AxisVM-JSON 852 Knoten / 973 Stäbe (= Stabwerk der App), 8 Lastfälle, 20 Kombinationen, Füsse eingespannt (nicht gerechnet); Reaktionsblatt M1 F_y 7.38 / 17.0 kN = Fundament 0.434. Prüfstand 186 |
+| Push und QP-Einlesen (2. Oktober) | «pushen wenn es eine funktionierenden stand erlaubt» - gepusht wird ein grüner Stand (Prüfstand und Durchgang). Zum Vorschlag QP einlesen: «Schritten 1–3 für Masten und Joch anfangen und die Anbauteile danach dazunehmen» (1 PDF hinterlegen und einmessen, 2 Kandidaten lesen, 3 Zuordnungsliste mit Abfrage; Anbauteile später) |
 | Mast im 3D ziehen: Lage, Fuss, Kopf (2. Oktober) | Weisung: «ist es möglich beim masten diesen per drag and drop zu schieben und den fusspunkt oder den kopfpunkt zu verlängern oder kürzen? das joch sollte dann an ort bleiben in der höhe.» Drei Griffe am Mastkörper des gerechneten Tragwerks: unteres Stück (15 % der Länge, 0.4-1.0 m) = **Fuss**, oberes = **Kopf**, Schaft = **Lage**; auf 0.10 m, gestrichelte Vorschau mit Weg und neuer Länge; ohne Bewegung bleibt es der Klick (Sprung auf die Anschlusshöhe). Fuss: Fussversatz (positiv nach oben) und Länge gegengleich, Kopf: Länge - die Anschlusshöhe bleibt, das Joch steht still. Lage über `mastStelle` (dieselbe Regel wie die Marke im Lageband). Nie kürzer als `mastLaengeMindestens`, sonst Meldung und nichts geändert. Am Einzelmasten nur Kopf und Lage (Δz_F ausgeblendet, Entscheid 30. Sept.). `mastZiehen` (app.js), `mastZiehen` der Szene (render.3d.js, mit `szeneVerschieben`/`szenenVereinen` mitgeführt - beim ersten Browserlauf fehlte das, der Fuss griff 7.50 m daneben die Lage). Im Browser (Prüfseite, Standarddokument J90/20 m): Kopf M1 8.50 → 10.50 m; Fuss +0.00 → −0.50 m, Länge 8.50 → 9.00 m, H 7.50 bleibt; Lage x 0 → 1.00 (das Joch rückt mit, L 20 bleibt), Strg+Z zurück; Klick ohne Bewegung springt aufs Feld. **Beobachtet:** M2 ohne eigene Länge folgt M1 (bestehende Kopplung «Ende B folgt Ende A») - siehe *Offene Punkte*. Prüfstand 185 |
 | Reaktionsblatt und 3D-Werte schlichter (2. Oktober) | Weisungen: «kann man bei den Bauteil Texten jeweils die M1 und T1 herausnehmen. die Masten sind hier relevant und werden schon am Buss beschriftet. nimm noch die strichlierte linie raus. nimm noch das zum Betrachtet weg und beschrifte die achsen klarer ohne die Lastbeispiele und nimm noch die rechte hand hinweis weg.» und «resultatwerte etwas weniger prägnant anschreiben im 3d.» Bauteiltitel der Skizze ohne die Kennung (nur echte Kennungen aus `tragwerkPos`/`mastName` - ein Muster `A\d+` nahm dem Typ «A160» den Namen), keine Grundlinie, Achssystem «X quer zum Gleis», «Y längs zum Gleis», «Z nach unten», Momentzeilen bleiben, ohne Mastachse, «zum Betrachter» und rechte Hand; Bildunterschrift «Achssystem der Tabelle». 3D-Werte: Schrift wie die Lastanschrift, normal statt fett, Kästchen ohne Rahmen (Deckkraft 0.72), Ziffer in `--on2` - ändert die Weisung vom 29. Sept. («sichtbarer») zurück ins Leise |
 | Lastfallnamen quer/längs zum Gleis; Hinweistext (2. Oktober) | «für den hinweis nicht jochachse verwenden, sondern jeweils quer und längs zum Gleis» - Lastfälle und Wahlliste «Wind +x (quer zum Gleis)», «Wind +y (längs zum Gleis)» statt Jochachse/Gleisrichtung. «kannst du den vorlagetext so anpassen» (mit Bild der gekürzten Hinweise) - der erzeugte Hinweistext des Reaktionsblatts ist jetzt der gekürzte Text des Auftraggebers |
@@ -309,12 +311,16 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6165 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6176 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **2. Okt., Mast im Stabwerk alle 0.5 m ausgewertet, 3D-Werte ohne
+  Streifen, Berechnungstest mit Bericht/AxisVM/Reaktionen** (Prüfstand
+  186, siehe *Entschieden*). Gepusht auf Weisung «pushen wenn es eine
+  funktionierenden stand erlaubt».
 - **2. Okt., Mast im 3D ziehen** (Lage, Fuss, Kopf; Prüfstand 185);
   davor Reaktionsblatt und 3D-Werte schlichter, Lastfallnamen quer/längs
   zum Gleis, Hinweistext nach Vorlage, U-Profile in AxisVM aus dem
@@ -1928,7 +1934,8 @@ Doppelklemme, `E` ignorieren); offen noch die FL-Spannweite (Plan nennt
 keine). Regel fürs Einlesen: was nicht zuzuordnen ist, fragt nach
 (manuell zuweisen oder Vorschlag übernehmen). Der Vorschlag, wie das
 QP-Einlesen an «Zeichnung hinterlegen» und «Bauteile setzen» anschliesst,
-ist dem Auftraggeber am 2. Oktober vorgelegt - Entscheid offen.
+ist dem Auftraggeber am 2. Oktober vorgelegt und angenommen: «Schritten 1–3
+für Masten und Joch anfangen und die Anbauteile danach dazunehmen».
 
 **Laufende Arbeit (28. Sept.): Tragausleger — Etappe 2 erledigt.**
 Das Stabmodell (`export.axisvm.tragausleger.js`) hängt im Stabwerk und ist
@@ -2571,7 +2578,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6165 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6176 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -290,6 +290,46 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
 }
 
 /**
+ * >>> SCHNITTGROESSEN IM STAB (2. Oktober). <<<
+ *
+ * Frage zum Verlauf «Ausnutzung über die Höhe» des Masten: «warum ist das
+ * hier abgetreppt? kann man noch beim Masten eine unterteilung vornehmen bei
+ * der auswertung?» Der unterste Mastabschnitt reicht vom Fuss bis unter den
+ * Jochanschluss (am J90/20 m 7.18 m), und ausgewertet wurde nur an seinen
+ * Enden - der Wert des Fusses stand über die ganze Länge.
+ *
+ * Zwischen den Enden folgt der Verlauf aus den Endkräften und der Gleichlast
+ * des Stabes, die sich aus ihnen ergibt (der Löser zieht die Volleinspann-
+ * kräfte ab, `stabkraft`; ohne Last im Feld heben sich die Querkräfte auf).
+ * Exakt für Gleichlasten - am Masten Wind und Eigengewicht; Einzellasten
+ * stehen an Knoten. Endkräfte in der Konvention des Lösers (Kraft auf den
+ * Stab, örtlich): innen am Ende i −f, am Ende j +f.
+ *
+ * @param {ArrayLike<number>} f  12 Endkräfte
+ * @param {number} L  Stablänge [m]
+ * @param {number} xi  Stelle 0 … 1
+ * @returns {Float64Array} 12 Werte, an i und j dieselben Schnittgrössen -
+ *          so liest `stabSpannung` sie wie ein Stabende.
+ */
+export function schnittImStab(f, L, xi) {
+  const x = xi * L;
+  const q = (a, b) => (L > 0 ? -(f[a] + f[b]) / L : 0);
+  const qx = q(0, 6), qy = q(1, 7), qz = q(2, 8), mt = q(3, 9);
+  const N = -f[0] - qx * x;
+  const Vy = -f[1] - qy * x;
+  const Vz = -f[2] - qz * x;
+  const T = -f[3] - mt * x;
+  const My = -f[4] - x * f[2] - qz * x * x / 2;
+  const Mz = -f[5] + x * f[1] + qy * x * x / 2;
+  const o = new Float64Array(12);
+  [N, Vy, Vz, T, My, Mz].forEach((v, i) => { o[i] = v; o[i + 6] = v; });
+  return o;
+}
+
+/** Abstand der Zwischenpunkte am Masten [m] (2. Oktober), höchstens 24 je Stab. */
+export const MAST_TEILUNG = 0.5;
+
+/**
  * Alle Staebe eines Modells auswerten.
  *
  * @param {object} dat      Modell aus stabmodellJson()
@@ -305,6 +345,7 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
    * aus, wie im Kern bei abgeschalteter Nachweisgruppe.
    */
   const knZ = new Map(dat.knoten.map((k) => [k.name, k.z]));
+  const knXYZ = new Map(dat.knoten.map((k) => [k.name, k]));
   const mastHoehe = new Map();
   if (opt.torsion === true) {
     dat.staebe.forEach((st) => {
@@ -354,10 +395,38 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     const torsion = mh ? { z_i: (knZ.get(st.von) ?? mh.fuss) - mh.fuss,
                            z_j: (knZ.get(st.bis) ?? mh.fuss) - mh.fuss,
                            zO: mh.kopf - mh.fuss } : null;
-    const s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion);
+    let s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion);
     if (!s) { ohneWert += 1; return; }
+    /*
+     * Am Masten auch zwischen den Enden (2. Oktober, siehe `schnittImStab`):
+     * für den Verlauf über die Höhe und, falls eine Stelle im Feld grösser
+     * ist als beide Enden, für das η des Stabes.
+     */
+    let verlauf = null;
+    if (rolle === 'mast') {
+      const a = knXYZ.get(st.von), b = knXYZ.get(st.bis);
+      const L = a && b ? Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) : 0;
+      // Auch ein kurzes Stück bekommt seine beiden Enden - sonst fehlte es
+      // in der Linie über die Höhe.
+      const n = Math.max(1, Math.min(24, Math.ceil(L / MAST_TEILUNG)));
+      if (L > 0) {
+        verlauf = [];
+        for (let k = 0; k <= n; k += 1) {
+          const xi = k / n;
+          const fx = schnittImStab(f, L, xi);
+          const zx = torsion ? torsion.z_i + (torsion.z_j - torsion.z_i) * xi : 0;
+          const sx = stabSpannung(qsMap.get(st.querschnitt), fx, rolle,
+                                  torsion ? { z_i: zx, z_j: zx, zO: torsion.zO } : null);
+          if (!sx) continue;
+          verlauf.push({ xi, sig: sx.sig, N: Math.abs(fx[0]),
+                         V: Math.max(Math.abs(fx[1]), Math.abs(fx[2])),
+                         M: Math.max(Math.abs(fx[4]), Math.abs(fx[5])) });
+          if (k > 0 && k < n && sx.sig > s.sig * (1 + 1e-9)) s = { ...sx, ende: 'feld', xi };
+        }
+      }
+    }
     const eta = fyd > 0 ? s.sig / fyd : null;
-    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta, detail: s };
+    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta, detail: s, verlauf };
     je.set(st.name, eintrag);
     const g = gruppen[rolle] ?? (gruppen[rolle] = { anzahl: 0, sig: 0, eta: 0, wo: null });
     g.anzahl += 1;
@@ -556,6 +625,16 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
         h.V = Math.max(h.V, betrag(fH, 1, 7), betrag(fH, 2, 8));
         h.T = Math.max(h.T, betrag(fH, 3, 9));
         h.M = Math.max(h.M, betrag(fH, 4, 10), betrag(fH, 5, 11));
+        // Der Verlauf im Stab (Masten): je Stelle die Hülle über die Fälle.
+        if (s.verlauf) {
+          if (!h.verlauf) h.verlauf = s.verlauf.map((p) => ({ ...p, sig: 0, N: 0, V: 0, M: 0 }));
+          s.verlauf.forEach((p, k) => {
+            const q = h.verlauf[k];
+            if (!q) return;
+            q.sig = Math.max(q.sig, p.sig); q.N = Math.max(q.N, p.N);
+            q.V = Math.max(q.V, p.V); q.M = Math.max(q.M, p.M);
+          });
+        }
       }
       const vorS = jeStab[s.name];
       if (!vorS || s.sig > vorS.sig) {
@@ -612,6 +691,12 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
     if (h) {
       const A = flaeche.get(stabQs.get(st.name)) ?? 0;   // m²
       z.huelle = { ...h, sigN: A > 0 ? h.N / A / 1000 : null };   // N/mm²
+      // Der Verlauf im Stab mit η, über die Höhe (Masten).
+      if (h.verlauf) {
+        z.verlauf = h.verlauf.map((p) => ({
+          ...p, eta: fyd > 0 ? p.sig / fyd : null,
+          z: a.z + (b.z - a.z) * p.xi }));
+      }
     }
   });
 

@@ -28688,9 +28688,11 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     // die Ziffer in der Textfarbe, voll; die Skalenfarbe als Streifen.
     // Seit dem 2. Oktober zurueckgenommen («etwas weniger prägnant»): die
     // Ziffer in der zweiten Textfarbe, normal, das Kaestchen 0.72.
-    wahr('Die Ziffer steht in der Textfarbe, die Skalenfarbe daneben, nicht fett',
+    // Seit dem 2. Oktober ohne Streifen, die Ziffer leicht zur Resultatfarbe
+    // getoent («den text ganz leicht in der farbe des resultats»).
+    wahr('Die Ziffer steht in der Textfarbe, leicht getoent, nicht fett',
          /_wertMarke\(c, t, text, k\.x, k\.y, farbeVon\(k\.v\)\)/.test(q115)
-         && /c\.fillStyle = t\.on2 \?\? t\.on;\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
+         && /c\.fillStyle = wertTon\(t\.on2 \?\? t\.on, farbe\);\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
          && /`400 \$\{Math\.round\(this\._wertGroesse\(\)/.test(q115)
          && /saum \?\? deckung/.test(q115));
   }
@@ -35253,6 +35255,84 @@ titel('185  Mast im 3D ziehen: Lage, Fuss, Kopf');
   wahr('App: nie kürzer als die Joche brauchen', /function mastZiehen[\s\S]{0,2500}mastLaengeMindestens/.test(q));
   wahr('App: Lage über mastStelle (dieselbe Regel wie das Lageband)',
        /function mastZiehen[\s\S]{0,1200}aendern\('mastStelle'/.test(q));
+}
+
+// ===========================================================================
+titel('186  Mast im Stabwerk zwischen den Enden; Werte im 3D ohne Streifen');
+
+/*
+ * Frage 2. Oktober zum Verlauf über die Höhe: «warum ist das hier
+ * abgetreppt? kann man noch beim Masten eine unterteilung vornehmen bei der
+ * auswertung?» Der unterste Mastabschnitt (Fuss bis unter den Anschluss)
+ * wurde nur an den Enden ausgewertet. `schnittImStab` gibt die
+ * Schnittgrössen dazwischen aus Endkräften und Gleichlast.
+ * Dazu: «dieser einseitige balken im textfeld ist nicht gut … kann man den
+ * text ganz leicht in der farbe des resultats machen» und «die anzahl
+ * plots beim masten etwas zurücknehmen».
+ */
+{
+  const N186 = await import(J('core.nachbarn.js'));
+  const AX186 = await import(J('export.axisvm.js'));
+  const SW186 = await import(J('core.stabwerk.js'));
+  const SN186 = await import(J('core.stabnachweis.js'));
+  const LA186 = await import(J('core.lasten.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const satz = N186.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N186.kernArgumente(satz));
+  const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+  const bau = AX186.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M2' } });
+  bau.lasten = AX186.lasten(erg.modell, bau, opt);
+  const dat = AX186.stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz });
+  const lsg = SW186.loese(dat, { eigengewicht: false });
+  const nw = LA186.lastfaelle(satz).filter((l) => l.nachweis !== false);
+  const h = SN186.stabwerkHuelle(dat, lsg, nw, 235 / 1.05, { torsion: true });
+
+  // a) Am Stabende trifft der Verlauf die Endkräfte des Lösers.
+  const f = lsg.stabkraft('WindY').get('MAST_M1_S1');
+  const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+  const st = dat.staebe.find((x) => x.name === 'MAST_M1_S1');
+  const L = Math.abs(kn.get(st.bis).z - kn.get(st.von).z);
+  const e0 = SN186.schnittImStab(f, L, 0), e1 = SN186.schnittImStab(f, L, 1);
+  let abw = 0;
+  for (let i = 0; i < 6; i += 1) {
+    abw = Math.max(abw, Math.abs(e0[i] + f[i]), Math.abs(e1[i] - f[i + 6]));
+  }
+  pruef('Mast S1 unter Wind +y: Verlauf an beiden Enden = Endkräfte', abw, 0, 1e-9, '');
+  const em = SN186.schnittImStab(f, L, 0.5);
+  const qy = -(f[1] + f[7]) / L, qz = -(f[2] + f[8]) / L;
+  wahr('… dazwischen eine Gleichlast (Mastwind) aus den Endkräften',
+       Math.abs(qy) + Math.abs(qz) > 0.1, `q_y ${qy.toFixed(4)}, q_z ${qz.toFixed(4)} kN/m`);
+  const lin = (Math.abs(e0[4]) + Math.abs(e1[4])) / 2;
+  wahr('… das Moment in der Mitte ist nicht das Mittel der Enden (Parabel)',
+       Math.abs(Math.abs(em[4]) - lin) > 1e-3 || Math.abs(Math.abs(em[5]) - (Math.abs(e0[5]) + Math.abs(e1[5])) / 2) > 1e-3);
+
+  // b) Der Verlauf über die Höhe: Punkte alle 0.5 m, am Fuss das η des Stabes.
+  const z1 = h.jeStab.MAST_M1_S1;
+  wahr('Mast S1 trägt einen Verlauf (alle 0.5 m)', (z1.verlauf?.length ?? 0) >= 15,
+       String(z1.verlauf?.length));
+  pruef('… am Fuss das η des Stabes', z1.verlauf[0].eta, z1.eta, 1e-9, '');
+  wahr('… und fällt zum Kopf hin (Kragarm)',
+       z1.verlauf.at(-1).eta < z1.verlauf[0].eta * 0.6,
+       `${z1.verlauf[0].eta.toFixed(3)} → ${z1.verlauf.at(-1).eta.toFixed(3)}`);
+  // Gemessen 2. Oktober (J90/20 m, HEB 240 des Prüfstands): Mast M1 0.7862 vorher wie nachher -
+  // am Kragarm liegt das Grösste am Fuss, die Zwischenpunkte ändern das η nicht.
+  pruef('Mast M1 im Stabwerk unverändert', z1.eta, 0.7862, 5e-4, '');
+  const RS = await import(J('render.stabwerk.js'));
+  const dia = RS.stabwerkDiagramme(h.jeStab, Object.values(h.jeStab).find((z) => /OGL_S/.test(z.name))?.bauteil,
+    (o) => ({ punkte: o.punkte, werte: o.serien.map((x) => x.werte) }));
+  const mD = dia?.masten?.find((m) => m.name === 'M1');
+  wahr('Diagramm Mast M1: mehr als die Treppe (Zwischenpunkte)', (mD?.eta?.punkte?.length ?? 0) > 20,
+       String(mD?.eta?.punkte?.length));
+
+  // c) Werte im 3D: kein Streifen, die Ziffer leicht getönt.
+  const R186 = await import(J('render.3d.js'));
+  const q3 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
+  wahr('Werteplot ohne Farbstreifen', /const WERT_STREIFEN = 0;/.test(q3));
+  wahr('Ziffer leicht zur Resultatfarbe getönt',
+       R186.wertTon('#b8bac4', 'rgb(60,92,168)') === 'rgb(134,148,185)',
+       R186.wertTon('#b8bac4', 'rgb(60,92,168)'));
+  wahr('am Masten doppelter Abstand der Zahlen', /amMast \? 46 : 21/.test(q3));
 }
 
 // ===========================================================================

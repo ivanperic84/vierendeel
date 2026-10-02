@@ -224,6 +224,17 @@ function treppe(grenzen, serien) {
   return { punkte, werte };
 }
 
+/**
+ * Die Zwischenpunkte der Maststäbe als eine Linie über die Höhe. Am Knoten
+ * zweier Stäbe stehen beide Werte übereinander (ein Sprung aus einer
+ * Einzellast bleibt sichtbar).
+ */
+function verlaufLinie(liste, fuss, felder) {
+  const pkt = liste.flatMap((s) => s.z.verlauf.map((p) => ({ ...p, h: p.z - fuss })))
+    .sort((p, q) => p.h - q.h);
+  return { punkte: pkt.map((p) => p.h), werte: felder.map((f) => pkt.map((p) => p[f] ?? 0)) };
+}
+
 /** Das Grösste der Stäbe, die x überdecken (Feld `feld` der Hülle bzw. η). */
 function ueber(liste, feld) {
   return (x) => {
@@ -286,8 +297,15 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
     const fuss = Math.min(...l.map((z) => z.z0));
     const liste = l.map((z) => ({ z, x0: z.z0 - fuss, x1: z.z1 - fuss }));
     const g = liste.flatMap((s) => [s.x0, s.x1]);
-    const tE = treppe(g, [ueber(liste, 'eta')]);
-    const tS = treppe(g, [ueber(liste, 'M'), ueber(liste, 'V'), ueber(liste, 'N')]);
+    /*
+     * Mit dem Verlauf im Stab (2. Oktober, «kann man noch beim Masten eine
+     * unterteilung vornehmen bei der auswertung?») als Linie über die
+     * Zwischenpunkte; ein Stab ohne Verlauf bleibt Treppe.
+     */
+    const mitVerlauf = liste.every((s) => s.z.verlauf?.length);
+    const tE = mitVerlauf ? verlaufLinie(liste, fuss, ['eta']) : treppe(g, [ueber(liste, 'eta')]);
+    const tS = mitVerlauf ? verlaufLinie(liste, fuss, ['M', 'V', 'N'])
+      : treppe(g, [ueber(liste, 'M'), ueber(liste, 'V'), ueber(liste, 'N')]);
     return {
       name,
       eta: linienDiagramm({

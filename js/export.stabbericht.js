@@ -245,7 +245,8 @@ function grundlagen(d) {
     Winkel): Gurte, Bindebleche, Masten und Anbauteile als Stäbe, die
     Anschlüsse als Starrkörper und Linkelemente; ein Mast, an dem zwei
     Tragwerke hängen, ist <b>ein</b> Stab. Die Spannung wird an beiden
-    Stabenden aus den Endkräften gerechnet - am Winkel über die
+    Stabenden aus den Endkräften gerechnet, an den Masten zusätzlich alle
+    0.5 m aus Endkräften und Gleichlast des Stabes - am Winkel über die
     Hauptachsen mit dem Deviationsmoment, sonst als N/A + M/W, an den
     Bindeblechen als Vergleichsspannung mit dem Schub. Seilanker tragen nur
     Zug (Ausfall über Hilfslastfälle). Die <b>Stabilität</b> der Masten

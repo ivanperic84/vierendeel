@@ -1997,7 +1997,34 @@ export const ANSICHTEN = [
  * waechst nach OBEN, der Fuss bleibt, wo er ist - dort sitzt das Lager.
  */
 /** Breite des Farbstreifens links an einer Zahl des Werteplots (px bei s = 1). */
-const WERT_STREIFEN = 3;
+/*
+ * Breite des Farbstreifens neben einer Zahl des Werteplots - seit dem
+ * 2. Oktober null: «dieser einseitige balken im textfeld ist nicht gut,
+ * dieser vermischt sich mit dem tragwerk (schwerelinie). kann man den text
+ * ganz leicht in der farbe des resultats machen.» Die Farbe steckt jetzt in
+ * der Ziffer (`wertTon`).
+ */
+const WERT_STREIFEN = 0;
+
+/**
+ * Textfarbe einer Zahl im Werteplot: die Textfarbe des Themas, ganz leicht
+ * zur Farbe des Resultats hin gezogen (Anteil `a`). Hell auf dunkel bleibt
+ * hell, dunkel auf hell bleibt dunkel - lesbar in beiden Themen.
+ */
+export function wertTon(text, farbe, a = 0.4) {
+  const rgb = (f) => {
+    const s = String(f ?? '').trim();
+    let m = s.match(/^#([0-9a-f]{6})$/i);
+    if (m) return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+    m = s.match(/^rgba?\(([^)]+)\)/i);
+    if (m) return m[1].split(',').slice(0, 3).map((v) => Number(v));
+    return null;
+  };
+  const t0 = rgb(text), f0 = rgb(farbe);
+  if (!t0 || !f0) return text;
+  const c = t0.map((v, i) => Math.round(v + (f0[i] - v) * a));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
 
 /**
  * IN WELCHER REIHENFOLGE DIE KENNZAHLEN GESETZT WERDEN.
@@ -4303,8 +4330,17 @@ export class Modellansicht {
       if (gesetzt >= grenze) break;
       // Unter sich halten die Zahlen ihren gewohnten Abstand - ein Raster,
       // kein Rechteck: sie sollen nicht Schulter an Schulter stehen.
+      /*
+       * >>> AM MASTEN WENIGER (2. Oktober): «die anzahl plots beim masten
+       * etwas zurücknehmen». <<< Am Masten stand jede Teilfläche mit ihrer
+       * Zahl untereinander (14 Zahlen über 8.50 m). Dort gilt der doppelte
+       * Abstand in der Höhe - die Zahlen stehen in einer Spalte, und die
+       * Farbe zeigt den Verlauf ohnehin.
+       */
+      const amMast = typeof k.teil === 'string' && k.teil.startsWith('MAST');
+      const dy = (amMast ? 46 : 21) * this._s;
       if (belegt.some((b) => Math.abs(b.x - k.x) < 58 * this._s &&
-                             Math.abs(b.y - k.y) < 21 * this._s)) continue;
+                             Math.abs(b.y - k.y) < (amMast || b.amMast ? dy : 21 * this._s))) continue;
       const text = k.v.toFixed(p.nk);
       // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
       // und aus 118 wurde ein lesbares, aber falsches 18. Eine halbe Zahl ist
@@ -4316,7 +4352,7 @@ export class Modellansicht {
       const x = k.x - 3 * s, y = k.y - hoehe + 2 * s, h = hoehe + 3 * s;
       if (!this._frei(x, y, w, h)) continue;
       this._belegt.push({ x, y, w, h });
-      belegt.push(k);
+      belegt.push({ ...k, amMast });
       gesetzt++;
       /*
        * >>> LESBAR, ABER NICHT AUFDRINGLICH. <<<
@@ -4361,9 +4397,9 @@ export class Modellansicht {
   }
 
   /**
-   * Eine Zahl des Werteplots: Kaestchen fast deckend, Farbstreifen der
-   * Skala links, Ziffer in der Textfarbe. Die Masse misst `_imBild` mit
-   * denselben Zahlen.
+   * Eine Zahl des Werteplots: Kaestchen durchscheinend, die Ziffer in der
+   * Textfarbe, leicht zur Farbe des Resultats getoent (2. Oktober, ohne
+   * Streifen). Die Masse misst `_imBild` mit denselben Zahlen.
    */
   _wertMarke(c, t, text, x, y, farbe) {
     const s = this._s;
@@ -4374,12 +4410,9 @@ export class Modellansicht {
     c.globalAlpha = 0.72;
     c.fillStyle = t.s1;
     c.fillRect(x0, y0, b, h);
-    c.globalAlpha = 0.9;
-    c.fillStyle = farbe;
-    c.fillRect(x0, y0, st, h);
-    c.fillStyle = t.on2 ?? t.on;
-    c.fillText(text, x + st, y);
     c.globalAlpha = 1;
+    c.fillStyle = wertTon(t.on2 ?? t.on, farbe);
+    c.fillText(text, x + st, y);
   }
 
   /**

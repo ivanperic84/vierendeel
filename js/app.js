@@ -1588,7 +1588,8 @@ function reaktionsBlockEinfuegen(node) {
       'alle Auflager · Druck positiv · Wind ohne 0.7')}
     ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
       : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
-         <button class="btn btn-mini" type="button" data-reaktionen-blatt>Blatt mit Skizze
+         <button class="btn btn-mini btn-acc" type="button" data-reaktionen-blatt
+           title="Blatt der Reaktionskräfte öffnen (2. Oktober: «mach diesen button etwas farbig»)">Blatt mit Skizze
            und Hinweisen …</button>`}
   </div>`);
   node.querySelector('[data-reaktionen-blatt]')?.addEventListener('click', reaktionsBlatt);
