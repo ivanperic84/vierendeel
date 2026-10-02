@@ -49,7 +49,8 @@ const KOPF = {
  * Tragauslegers hält nur in Gleisrichtung.
  */
 function spaltenVon(z) {
-  if (z.art === 'mast') return new Set(['Mq', 'Hq', 'Ml', 'Hl', 'T']);
+  // Das Jochende ohne Masten (2. Oktober) führt alles wie ein Mastfuss.
+  if (z.art === 'mast' || z.art === 'jochende') return new Set(['Mq', 'Hq', 'Ml', 'Hl', 'T']);
   if (z.art === 'laengsanker') return new Set(['Hl']);
   if (z.art === 'anker') {
     const r = z.anker?.richtung;
@@ -96,6 +97,7 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   const n = 1 + (hav ? 1 : 0) + (zul ? 1 : 0);
   // Der Typ steht auch, wenn die Zeile der Standardlasten aus ist.
   const fund = mast ? esc(z.fundament?.typ ?? '–')
+    : z.art === 'jochende' ? 'Jochauflager'
     : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
     : esc([z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
       .filter(Boolean).join(' · ') || 'Ankerfundament');
@@ -107,7 +109,7 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
     <td rowspan="${n}" class="rk-fund">${fund}</td>
     <td class="rk-art">Einwirkung</td>
     <td class="num"${vTitel(z.haupt)}>${vText(z.haupt)}</td>${werte(z.haupt)}
-    <td class="num"${anteilTitel(z.anteil?.quer)}>${mast ? anteil(z.anteil?.quer) : '–'}</td>
+    <td class="num"${anteilTitel(z.anteil?.quer)}>${mast || z.art === 'jochende' ? anteil(z.anteil?.quer) : '–'}</td>
     ${kurz ? '' : `<td class="rk-anm">${esc(massgebend(z.haupt))}</td>`}</tr>`);
   if (hav) {
     zeilen.push(`<tr class="rk-havarie"><td class="rk-art">Havarie</td>

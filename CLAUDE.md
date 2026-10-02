@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Joch ohne Masten: Reaktionen je Jochende; COM-Ordnerdialog (2. Oktober) | Weisung: «kannst du beim joch ohne masten die reaktionskräfte global pro jochende aufführen. im bericht und excel» - die Reaktionstabelle (Reiter, Blatt, Bericht, Excel) führte ohne Masten jeden der vier Gurtknoten je Ende als «Lager». Jetzt je Jochende eine Zeile (`jochendenZusammenfassen`, core.reaktionen.js): Kräfte summiert global, Momente um die Jochachse am Ende (Σ (r − r0) × F + Knotenmomente), Spalten wie am Mastfuss, Fundament «Jochauflager». Verdrahtung gegengerechnet am Stand des Auftraggebers ohne Masten (Ersatzbalken je Gruppe / Stabwerk): ständig F_z A 20.53 / 20.49, B 17.75 / 17.79 kN; Wind y F_y 8.86 / 8.86, 8.38 / 8.38; Wind x F_z ±0.21 / ±0.14; F_x Summe 3.58 und 5.35 gleich. Tabelle danach: Ende A V 20.35 / 20.63, H_q 8.93 (ganz an A, nur dort ein x-Halt), H_l 8.89; Ende B V 17.65 / 17.93, H_l 8.41. Im Browser: Reiter, Bericht und Excel (Blatt Reaktionen) mit «Jochende A/B». Dazu gemeldet: «COM-Ausleitung nicht möglich: Failed to execute 'showDirectoryPicker' on 'Window': File picker already active.» - Ordner zuerst, Modell danach, ein Wähler zur Zeit, sonst herunterladen (Prüfstand 190). Prüfstand 191 |
 | Teile am Masten ab der Mastachse; Kettenglied ohne Länge (2. Oktober) | Gemeldet vom Arbeitsrechner: «bei einem jochtragwerk wird nicht mehr gerechnet. Die msten sind grau und die bleche auch. die nachweise stehen auf 0.0000 … wenn ich ein ganz neues joch erzeuge wird gerechnet.» Nachgerechnet am Stand des Auftraggebers (J130/24.5 m, c_A = c_B = 0.20, HEM 240 / HEB 260, Rückleiter an M2 mit x −0.20): die Ausleitung setzte die Teile am Masten ab dem JOCHENDE an (xM = 0 bzw. L) statt ab der Mastachse - seit dem Kragarm (30. Sept.) um c falsch; das 3D rechnete richtig. Der Rückleiter fiel damit genau auf die Mastachse, ein Starrstab der Länge null (`ARMM0_0`), und das ganze Stabwerk wurde NaN (η 0, grau). Jetzt xM = Knoten auf der Mastachse; ein Kettenglied ohne Länge wird zusammengelegt (Mast und Joch, `gleicheLage`). Nachher am Stand: Untergurt 0.827, Mast 51 0.724, M2 0.628, Fundament 51 0.854. Die Anker-Vermutung davor war falsch (der Stand hat keinen Anker); der UNP-Ersatz bleibt als Absicherung. Prüfstand 189 (schlägt am alten Code an) |
 | Datenpaket und eingelesener Stand in IndexedDB (2. Oktober) | Gemeldet vom Arbeitsrechner beim Laden des Datenpakets: «failed to execute setlem on storage setting the value of tragjoch-einelesen-v1 exceeded the quota» - danach: «ich musste zuerst den alten stand löschen und dann den neuen laden». Die beiden Kopien des Sortiments (je ~370 000 Zeichen) lagen im localStorage (~5 MB je Herkunft, auf GitHub Pages geteilt mit allen Seiten unter benutzer.github.io). Jetzt in IndexedDB (`data.ablage.js`, Datenbank `tragjoch-daten`), beim Start einmal in den Arbeitsspeicher geholt, alte localStorage-Einträge werden umgezogen und dort gelöscht; ohne IndexedDB wie bisher. Schreiben ist asynchron, vor jedem Neustart wird gewartet. In der Prüfseite: 400 000 Zeichen umgezogen, 3 Mio. geschrieben und gelesen, eingelesener Stand mit allen sechs Sortimenten gespeichert/gelesen/verworfen |
 | Anker ohne UNP-Zeile: Ersatz im Code (2. Oktober) | Gemeldet vom Arbeitsrechner: «bei einem jochtragwerk wird nicht mehr gerechnet. Die msten sind grau und die bleche auch. die nachweise stehen auf 0.0000 … wenn ich ein ganz neues joch erzeuge wird gerechnet.» Vermutete Ursache (am Arbeitsrechner nicht nachgesehen): neues Datenpaket (Anker nur Profil/Anzahl) mit älterem Code ohne UNP-Zeile in normen.json (zwischengespeicherte PWA, ältere Einzeldatei) - `ankerQuerschnitt` gab den Anker ohne A und I zurück, die Rechnung lief auf NaN; ein neues Joch hat keinen Anker. Jetzt `UNP_ERSATZ` (Normwerte, gleich der Tabelle, Prüfstand 188). Normwerte gehören zum Code, die Sortimente zum Datenpaket: beides muss zusammen neu sein |
@@ -316,7 +317,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6199 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6205 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2592,7 +2593,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6199 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6205 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

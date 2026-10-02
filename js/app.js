@@ -669,8 +669,10 @@ function reaktionsDaten() {
              // ein A vornedran machen»).
              name: z.art === 'anker' ? `A${mastAnzeigeText(z.id, anzeigeKarte)}`
                : z.art === 'laengsanker' ? 'Längsanker'
+               // Joch ohne Masten (2. Oktober): je Jochende eine Zeile.
+               : z.art === 'jochende' ? `${z.tw ? `${z.tw} · ` : ''}Jochende ${z.ende}`
                : mastAnzeigeText(z.id, anzeigeKarte),
-             fundament: fund,
+             fundament: z.art === 'jochende' ? 'Jochauflager' : fund,
              anker: z.art === 'anker' ? (m?.anker ?? null) : null };
   });
   /*

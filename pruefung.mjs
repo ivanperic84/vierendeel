@@ -35494,6 +35494,49 @@ titel('190  COM-Skripte: ein Ordnerdialog zur Zeit, sonst herunterladen');
 }
 
 // ===========================================================================
+titel('191  Joch ohne Masten: Reaktionen je Jochende, global');
+/*
+ * Weisung 2. Oktober: «kannst du beim joch ohne masten die reaktionskräfte
+ * global pro jochende aufführen. im bericht und excel». Gemessen am Stand
+ * des Auftraggebers (J130/24.5 m ohne Masten): Ende A V 20.35 / 20.63,
+ * H_q 8.93 (3.58 ständig + 5.35 Wind x), H_l 8.89; Ende B V 17.65 / 17.93,
+ * H_l 8.41 - Ersatzbalken je Gruppe 20.53 / 17.75, Wind y 8.86 / 8.38.
+ */
+{
+  const N191 = await import(J('core.nachbarn.js'));
+  const S191 = await import(J('app.stabwerk.js'));
+  const R191 = await import(J('core.reaktionen.js'));
+  const AB191 = await import(J('data.anbauteile.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = AB191.standAnheben({ ...w, L: 20, xLage: 0, mastVorhanden: false, twId: 'T1', pos: 0 });
+  const satz = N191.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N191.kernArgumente(satz));
+  const r = S191.rechneStabwerk({ werte: w, letzte: { erg } });
+  const z = (r?.reaktionen ?? []).filter((x) => x.art === 'jochende');
+  wahr('Ohne Masten: genau zwei Zeilen, Jochende A und B', z.length === 2
+       && z[0].ende === 'A' && z[1].ende === 'B' && (r.reaktionen ?? []).every((x) => x.art !== 'lager'),
+       (r?.reaktionen ?? []).map((x) => `${x.art}:${x.id}`).join(' '));
+  wahr('… je Ende vier Gurtknoten zusammengefasst', z.every((x) => x.knoten.split(' + ').length === 4));
+  // Summe über beide Enden unter Wind +y = der ganze Wind in y (Kern, alle Gruppen).
+  const blatt = (await import(J('core.vierendeel.js'))).auflagerBlatt(satz, getProfil(satz.profOG),
+    getProfil(satz.profUG), getStahl(satz.stahl), T.getTragjoch(satz.typ));
+  const wy = blatt.zeilen.find((x) => x.key === 'windY');
+  pruef('F_y beider Enden = Wind y des Ersatzbalkens', z[0].haupt.Hl.wert + z[1].haupt.Hl.wert,
+        wy.A.Fy + wy.B.Fy, 0.02, 'kN');
+  const g = blatt.zeilen.find((x) => x.key === 'staendig');
+  wahr('V je Ende umschliesst das ständige F_z des Ersatzbalkens (± Wind)',
+       z[0].haupt.Vmin.wert <= g.A.Fz * 1.01 && z[0].haupt.Vmax.wert >= g.A.Fz * 0.99,
+       `${z[0].haupt.Vmin.wert.toFixed(2)} / ${z[0].haupt.Vmax.wert.toFixed(2)} gegen ${g.A.Fz.toFixed(2)}`);
+  // Moment um die Jochachse am Ende: ein Kräftepaar wird richtig summiert.
+  const a = (knoten, y, z0, uz) => ({ knoten, art: 'lager', x: 0, y, z: z0,
+    proFall: new Map([['f', { ux: 0, uy: 0, uz, fix: 0, fiy: 0, fiz: 0 }]]) });
+  const e = R191.jochendenZusammenfassen([a('OGL_0', -0.2, 0.3, 1), a('OGR_0', 0.2, 0.3, -1),
+    a('UGL_0', -0.2, -0.3, 1), a('UGR_0', 0.2, -0.3, -1)])[0].proFall.get('f');
+  pruef('Kräftepaar in z über ±0.20 m: M_x = Σ y·F_z', e.fix, -0.8, 1e-12, 'kNm');
+  pruef('… F_z hebt sich auf', e.uz, 0, 1e-12, 'kN');
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -119,12 +119,70 @@ export function reaktionenAusStabwerk(dat, lsg, faelle, anteile) {
       je.get(k).set(l.key, r);
     });
   });
-  const auflager = [...je.entries()].map(([knoten, proFall]) => {
+  const einzeln = [...je.entries()].map(([knoten, proFall]) => {
     const k = kn.get(knoten) ?? {};
     return { knoten, ...auflagerArt(knoten), x: Number(k.x) || 0, y: Number(k.y) || 0,
              z: Number(k.z) || 0, proFall };
-  }).sort((a, b) => (a.x - b.x) || (a.art === 'mast' ? -1 : 1));
+  });
+  const auflager = jochendenZusammenfassen(einzeln)
+    .sort((a, b) => (a.x - b.x) || (a.art === 'mast' ? -1 : 1));
   return { auflager, faelle: lfListe };
+}
+
+/*
+ * >>> DAS JOCH OHNE MASTEN: EIN AUFLAGER JE JOCHENDE (2. Oktober). <<<
+ *
+ * Weisung: «kannst du beim joch ohne masten die reaktionskräfte global pro
+ * jochende aufführen. im bericht und excel». Ohne Masten hält das Modell
+ * die vier Gurte am Jochende einzeln (OGL_…, OGR_…, UGL_…, UGR_…); die
+ * Tabelle führte jeden Knoten als eigenes «Lager». Jetzt je Jochende eine
+ * Zeile: die Kräfte summiert in den globalen Achsen (x quer, y längs, z),
+ * die Momente um den Mittelpunkt der vier Knoten (Jochachse am Ende) -
+ * aus den Kräftepaaren der Gurte und den Knotenmomenten.
+ */
+const GURTLAGER = /^(?:(.+)_)?(?:OG|UG)(?:L|R)_[-\d.]+$/;
+
+export function jochendenZusammenfassen(liste) {
+  const gruppen = new Map();
+  const rest = [];
+  liste.forEach((a) => {
+    const m = a.art === 'lager' ? GURTLAGER.exec(a.knoten) : null;
+    if (!m) { rest.push(a); return; }
+    const tw = m[1] ?? '';
+    const k = `${tw}|${Math.round(a.x * 1000)}`;
+    if (!gruppen.has(k)) gruppen.set(k, { tw, x: a.x, teile: [] });
+    gruppen.get(k).teile.push(a);
+  });
+  const jeTw = new Map();
+  gruppen.forEach((g) => {
+    if (!jeTw.has(g.tw)) jeTw.set(g.tw, []);
+    jeTw.get(g.tw).push(g);
+  });
+  const enden = [];
+  jeTw.forEach((gl) => {
+    gl.sort((p, q) => p.x - q.x);
+    gl.forEach((g, i) => {
+      const n = g.teile.length;
+      const y0 = g.teile.reduce((s, a) => s + a.y, 0) / n;
+      const z0 = g.teile.reduce((s, a) => s + a.z, 0) / n;
+      const proFall = new Map();
+      g.teile.forEach((a) => a.proFall.forEach((r, fall) => {
+        if (!proFall.has(fall)) proFall.set(fall, NULL6());
+        const s = proFall.get(fall);
+        const dx = a.x - g.x, dy = a.y - y0, dz = a.z - z0;
+        s.ux += r.ux; s.uy += r.uy; s.uz += r.uz;
+        // M = Σ (r - r0) × F + Σ M_Knoten
+        s.fix += dy * r.uz - dz * r.uy + r.fix;
+        s.fiy += dz * r.ux - dx * r.uz + r.fiy;
+        s.fiz += dx * r.uy - dy * r.ux + r.fiz;
+      }));
+      const ende = gl.length === 2 ? (i === 0 ? 'A' : 'B') : String(i + 1);
+      enden.push({ knoten: g.teile.map((a) => a.knoten).join(' + '), art: 'jochende',
+                   id: `${g.tw ? `${g.tw} · ` : ''}Ende ${ende}`, tw: g.tw || null, ende,
+                   x: g.x, y: y0, z: z0, proFall, knotenAnzahl: n });
+    });
+  });
+  return [...rest, ...enden];
 }
 
 /**
@@ -181,13 +239,16 @@ export function reaktionsZeilen(roh) {
       const v = veraenderlich.reduce((m, l) => Math.max(m, Math.abs(r(l.key)?.[feld] ?? 0)), 0);
       return s + v > 1e-9 ? { staendig: s, veraenderlich: v, prozent: s / (s + v) } : null;
     };
-    const quer = a.art === 'mast' ? 'fiy' : 'ux';
-    const laengs = a.art === 'mast' ? 'fix' : 'uy';
+    const mitMoment = a.art === 'mast' || a.art === 'jochende';
+    const quer = mitMoment ? 'fiy' : 'ux';
+    const laengs = mitMoment ? 'fix' : 'uy';
     // Der Havariefall mit dem ständigen Anteil, wie er gerechnet ist (alle
     // Beiwerte 1, G steckt im Fall).
     const hav = havarie.map((l) => ({ key: l.key, bez: l.bez, r: r(l.key) })).filter((z) => z.r);
     return {
       knoten: a.knoten, art: a.art, id: a.id, x: a.x, y: a.y, z: a.z,
+      // Joch ohne Masten (2. Oktober): Tragwerk und Ende für den Namen.
+      ...(a.art === 'jochende' ? { tw: a.tw, ende: a.ende } : {}),
       haupt: zeile(zustaende),
       havarie: zeile(hav),
       anteil: { quer: anteil(quer), laengs: anteil(laengs) },
