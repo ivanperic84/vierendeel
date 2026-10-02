@@ -58,7 +58,7 @@ import { ankerQuerschnitt } from './data.anker.js';
 import { mastKlasse } from './core.mast.js';
 import { winkelIt } from './core.winkel.js';
 import { blechWerte } from './ui.profilblatt.js';
-import { vorlageSymbol, vorlageSuchtext, suchtextPasst } from './ui.anbausymbol.js';
+import { vorlageSymbol, vorlageSuchtext, suchtextPasst, suchNorm } from './ui.anbausymbol.js';
 
 /*
  * Suche und Filter über den Vorlagen (3. Oktober) - Ansichtssache, sie
@@ -1169,9 +1169,20 @@ function bearbeitenKnopf(werte) {
 const HINWEIS_KURZ = 95;              // Zeichen, ab denen gekürzt wird
 const HINWEIS_LANG = 200;             // ab hier wird auch ohne Satzgrenze gekürzt
 
-export function hinweisHtml(schluessel, text) {
+export function hinweisHtml(schluessel, text, { zu = false } = {}) {
   const t = String(text ?? '').trim();
   if (!t) return '';
+  /*
+   * >>> GANZ ZU (3. Oktober, Bauteilkarte). <<< Auf Rückfrage «Bausteinwahl
+   * mit Suche» - dazu die Erklärsätze der Karte eingeklappt: nur «Hinweis»
+   * mit «mehr» steht da, der Text auf Klick. Wer die Karte zum zehnten Mal
+   * öffnet, liest die Zahlen, nicht die Erklärung.
+   */
+  if (zu) {
+    return `<details class="hinweis-klapp hinweis-zu" data-klapp="hw-${esc(schluessel)}">
+    <summary><small class="hinweis">Hinweis</small></summary>
+    <small class="hinweis">${esc(t)}</small></details>`;
+  }
   const ganz = `<small class="hinweis">${esc(t)}</small>`;
   if (t.length <= HINWEIS_KURZ) return ganz;
 
@@ -2885,12 +2896,12 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
              * Havarie, je Leiter ein eigener Fall; hier nur der Verweis.
              */''}
           ${hatDrahtwerk(a)
-            ? `<p class="notiz at-feld breit2">Ob ein Leiter dieses Teils im Havariefall
-                 reisst, steht unter <b>Lasten → Havarie</b>${(() => {
+            ? `<div class="at-feld breit2">${hinweisHtml(`at-${i}-havarie`,
+                 `Ob ein Leiter dieses Teils im Havariefall reisst, steht unter Lasten → Havarie${(() => {
                    const k = Object.entries(werte.havarie ?? {}).filter(([key, v]) => v?.reisst
                      && (a.module ?? []).some((m, j) => leiterKennung(a, m, j) === key));
-                   return k.length ? ' — angehakt.' : '.';
-                 })()}</p>` : ''}
+                   return k.length ? ' - angehakt.' : '.';
+                 })()}`, { zu: true })}</div>` : ''}
         </div>
         ${/*
            * >>> RASTER UND GLEIS SIND ZWEITE EBENE. <<<
@@ -3333,8 +3344,12 @@ function modulListeHtml(a, i, werte) {
     const alphaAuto = modulWinkel({ ...m, winkel: null }, trasse);
     return `<div class="modul" data-modul="${k}">
       <div class="modul-kopf">
-        <select class="mod" data-mk="bauteil" data-idx="${i}" data-mod="${k}"
-          >${auswahl(m.bauteil)}</select>
+        <span class="bs-wahl">
+          <button type="button" class="bs-knopf" data-bs-oeffnen
+            title="Baustein wählen - mit Suche">${esc(b?.name ?? m.bauteil ?? '–')}</button>
+          <select class="mod bs-liste" data-mk="bauteil" data-idx="${i}" data-mod="${k}"
+            hidden>${auswahl(m.bauteil)}</select>
+        </span>
         ${b?.rolle === 'aufbau' && Math.abs(m.x ?? 0) > 1e-9 ? `
         <button class="btn btn-mini" type="button"
                 data-mod-spiegeln="${k}" data-idx="${i}"
@@ -3955,7 +3970,82 @@ function wirkungHtml(i, k, m) {
                placeholder="${esc(kw ? 'KW1' : '— erst mit Fahrdraht')}">
       </label>
     </div>
-    ${hinweisHtml(`wirk-${i}-${k}`, kurz)}`;
+    ${hinweisHtml(`wirk-${i}-${k}`, kurz, { zu: true })}`;
+}
+
+/**
+ * >>> DIE BAUSTEINWAHL MIT SUCHE (3. Oktober). <<<
+ *
+ * Auf Rückfrage «Bausteinwahl mit Suche»: statt der langen Liste der
+ * Lasttabelle ein kleines Fenster unter dem Knopf - Suchfeld im Fokus, die
+ * Gruppen der Liste (Träger, Aufbauten, Leiter) als Überschriften, Enter
+ * nimmt den ersten Treffer. Die Liste selbst bleibt als verborgenes Feld
+ * stehen: sie trägt die Regeln (was dort stehen darf, die Vielfachen, das
+ * Kettenwerk), und gewählt wird über sie - dasselbe `change` wie bisher,
+ * also derselbe Weg in den Stand, ins Rückgängig und in den Neuaufbau.
+ */
+function bausteinWahlOeffnen(knopf, liste) {
+  if (!knopf || !liste) return;
+  document.getElementById('bs-fenster')?.remove();
+  const gruppen = [...liste.querySelectorAll('optgroup')];
+  const teile = gruppen.length ? gruppen.map((g) => ({ titel: g.label, opts: [...g.querySelectorAll('option')] }))
+    : [{ titel: '', opts: [...liste.options] }];
+  const el = document.createElement('div');
+  el.id = 'bs-fenster';
+  el.className = 'bs-fenster';
+  el.innerHTML = `<input type="search" class="vl-suche" placeholder="Suchen … Enter nimmt den ersten"
+      aria-label="Baustein suchen">
+    <div class="bs-gruppen">${teile.map((t) => `<div class="bs-gruppe">
+      ${t.titel ? `<div class="sw-t">${esc(t.titel)}</div>` : ''}
+      ${t.opts.map((o) => `<button type="button" class="bs-eintrag${o.selected ? ' an' : ''}"
+        data-v="${esc(o.value)}" data-suche="${esc(suchNorm(`${o.textContent} ${t.titel}`))}"
+        >${esc(o.textContent.trim())}</button>`).join('')}</div>`).join('')}
+      <p class="notiz bs-keine" hidden>Kein Baustein passt.</p></div>`;
+  document.body.appendChild(el);
+  const r = knopf.getBoundingClientRect();
+  const w = Math.max(260, r.width);
+  el.style.width = `${w}px`;
+  el.style.left = `${Math.max(6, Math.min(r.left, window.innerWidth - w - 6))}px`;
+  const h = el.offsetHeight;
+  el.style.top = `${r.bottom + 4 + h > window.innerHeight ? Math.max(6, r.top - h - 4) : r.bottom + 4}px`;
+  const zu = () => {
+    el.remove();
+    document.removeEventListener('pointerdown', aussen, true);
+  };
+  const aussen = (e) => { if (!el.contains(e.target) && e.target !== knopf) zu(); };
+  document.addEventListener('pointerdown', aussen, true);
+  const nimm = (v) => {
+    zu();
+    if (v === liste.value) return;
+    liste.value = v;
+    // Der Knopf zeigt die Wahl sofort, auch wenn die Karte nicht neu aufgebaut wird.
+    knopf.textContent = liste.selectedOptions[0]?.textContent.trim() ?? knopf.textContent;
+    liste.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  el.querySelectorAll('.bs-eintrag').forEach((b) => { b.onclick = () => nimm(b.dataset.v); });
+  const such = el.querySelector('.vl-suche');
+  such.addEventListener('input', () => {
+    let n = 0;
+    el.querySelectorAll('.bs-gruppe').forEach((g) => {
+      let k = 0;
+      g.querySelectorAll('.bs-eintrag').forEach((b) => {
+        const an = suchtextPasst(b.dataset.suche, such.value);
+        b.hidden = !an;
+        if (an) k += 1;
+      });
+      g.hidden = k === 0;
+      n += k;
+    });
+    el.querySelector('.bs-keine').hidden = n > 0;
+  });
+  such.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); zu(); knopf.focus(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const erste = [...el.querySelectorAll('.bs-eintrag')].find((b) => !b.hidden && !b.closest('.bs-gruppe')?.hidden);
+    if (erste) nimm(erste.dataset.v);
+  });
+  such.focus({ preventScroll: true });
 }
 
 /** Zahlenfeld eines freien Lastblocks. */
@@ -4486,7 +4576,7 @@ function atBefestigung(i, a) {
       </div>
       ${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}
     </div>
-    ${hinweisHtml(`at-${i}-befestigung`, BEFESTIGUNG_WIRKUNG[wert])}
+    ${hinweisHtml(`at-${i}-befestigung`, BEFESTIGUNG_WIRKUNG[wert], { zu: true })}
   </div>`;
 }
 
@@ -4496,7 +4586,7 @@ function atWahl(i, k, label, wert, optionen, hinweis = '') {
     <select class="at" data-k="${k}" data-idx="${i}">${optionen.map((o) =>
       `<option value="${esc(o.key)}"${o.key === wert ? ' selected' : ''}
         >${esc(o.label)}</option>`).join('')}</select>
-    ${hinweisHtml(`at-${i}-${k}`, hinweis)}
+    ${hinweisHtml(`at-${i}-${k}`, hinweis, { zu: true })}
   </label>`;
 }
 
@@ -5003,6 +5093,12 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     });
   });
 
+  container.querySelectorAll('[data-bs-oeffnen]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bausteinWahlOeffnen(b, b.parentElement.querySelector('select.bs-liste'));
+    });
+  });
   container.querySelectorAll('.mod').forEach((inp) => {
     const ev = inp.tagName === 'SELECT' || inp.type === 'checkbox'
       ? 'change' : 'input';

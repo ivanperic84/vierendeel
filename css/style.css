@@ -518,6 +518,30 @@ input[type=range].rng {
   border: 0; cursor: pointer; }
 .at-ort + .vl-ort { border-left: 1px solid var(--ol); }
 .vl-ort.an { background: var(--acc-s); color: var(--acc); }
+/* Bausteinwahl mit Suche in der Bauteilkarte (3. Oktober). */
+.bs-wahl { display: flex; flex: 1 1 auto; min-width: 0; }
+.bs-knopf { flex: 1 1 auto; min-width: 0; text-align: left; padding: 4px 22px 4px 7px;
+  font: inherit; font-size: 11.5px; color: var(--on); background: var(--s1);
+  border: 1px solid var(--ol); border-radius: var(--m-r1); cursor: pointer; position: relative;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bs-knopf::after { content: '▾'; position: absolute; right: 7px; color: var(--dim); }
+.bs-knopf:hover, .bs-knopf:focus-visible { border-color: var(--acc); }
+.bs-fenster { position: fixed; z-index: 60; max-height: min(60vh, 420px); display: flex;
+  flex-direction: column; gap: 6px; padding: 7px; background: var(--s2);
+  border: 1px solid var(--ol2); border-radius: var(--m-r2); box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.bs-gruppen { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.bs-gruppe { display: flex; flex-direction: column; gap: 2px; }
+.bs-gruppe[hidden], .bs-eintrag[hidden] { display: none; }
+.bs-gruppe .sw-t { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim); margin: 0 0 2px 1px; }
+.bs-eintrag { text-align: left; padding: 4px 7px; font: inherit; font-size: 11.5px;
+  color: var(--on2); background: transparent; border: 1px solid transparent;
+  border-radius: var(--m-r1); cursor: pointer; }
+.bs-eintrag:hover, .bs-eintrag:focus-visible { background: var(--acc-s); color: var(--on); }
+.bs-eintrag.an { border-color: var(--acc); color: var(--acc); }
+/* Ganz eingeklappter Hinweis der Karte: nur «Hinweis mehr». */
+.hinweis-zu > summary .hinweis { color: var(--dim); }
+
 /* Auswahl an der Stelle beim «Bauteil setzen» (3. Oktober). */
 .setz-wahl { position: absolute; z-index: 9; width: 344px; max-height: min(70%, 520px);
   display: flex; flex-direction: column; gap: 6px; padding: 8px 9px 9px;

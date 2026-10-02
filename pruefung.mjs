@@ -14722,7 +14722,8 @@ titel('51  Was ein Leiter an dieser Stelle abgibt');
      * durch diese Funktion laeuft und nicht als fester Absatz dasteht.
      */
     wahr('Der Hinweis laeuft durch hinweisHtml',
-         roh.includes('hinweisHtml(`wirk-${i}-${k}`, kurz)'));
+         // seit dem 3. Oktober ganz eingeklappt (Abschnitt 200)
+         roh.includes('hinweisHtml(`wirk-${i}-${k}`, kurz, { zu: true })'));
     wahr('… und steht nicht mehr als fester Absatz da',
          !roh.includes('class="hinweis wirk-bezug"'));
   }
@@ -24797,7 +24798,8 @@ titel('71  Havariefall am Tragjoch und am Masten');
   // Seit dem 19. September in der Uebersicht unter Lasten, die Karte verweist.
   wahr('Die Bruchwahl steht in der Übersicht, die Karte verweist darauf',
        /data-hav="reisst"/.test(ui71) && /hatDrahtwerk\(a\)/.test(ui71)
-       && ui71.includes('steht unter <b>Lasten → Havarie</b>'));
+       // seit dem 3. Oktober als eingeklappter Hinweis (Abschnitt 200)
+       && ui71.includes('steht unter Lasten → Havarie'));
   wahr('… und die Maske fuehrt jedes Kaestchen mit seinem eigenen Wert nach',
        /inp\.checked = k === 'aktiv' \? a\.aktiv !== false : a\[k\] === true/.test(ui71));
 }
@@ -35956,6 +35958,33 @@ titel('199  3D-Plot: Mast in Abschnitten, Verformung mit dem Joch');
         ...mastA.map((f) => f.werte.w ?? 0)), fig.max * 1000, 0.5, 'mm');
   wahr('… am Fuss ist der Mast fast in Ruhe', Math.min(...unten.map((f) => f.werte.w)) < 5,
        `${Math.min(...unten.map((f) => f.werte.w)).toFixed(2)} mm`);
+}
+
+// ===========================================================================
+titel('200  Bauteilkarte: Bausteinwahl mit Suche, Hinweise eingeklappt');
+/*
+ * Auf Rückfrage 3. Oktober «Bausteinwahl mit Suche»: statt der langen Liste
+ * ein Fenster mit Suchfeld und den Gruppen der Liste; die Liste bleibt als
+ * verborgenes Feld (Regeln und Verdrahtung unverändert). Im Browser
+ * (Prüfseite): «cu 95» lässt genau «Cu 95» stehen, Enter übernimmt, Strg+Z
+ * nimmt es zurück; die Erklärsätze der Karte stehen als «Hinweis mehr».
+ */
+{
+  const ui200 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Bausteinliste ist verborgen, davor der Knopf mit der Wahl',
+       /class="mod bs-liste" data-mk="bauteil"[\s\S]{0,80}hidden>/.test(ui200)
+       && ui200.includes('data-bs-oeffnen'));
+  wahr('Gewählt wird über die Liste mit demselben change-Ereignis',
+       ui200.includes("liste.dispatchEvent(new Event('change', { bubbles: true }));"));
+  const UI200 = await import(J('ui.js'));
+  const zu = UI200.hinweisHtml('at-0-x', 'Ein langer Satz. Und noch einer, der erklärt, was hier geschieht und warum.', { zu: true });
+  wahr('Hinweis ganz eingeklappt: nur «Hinweis», der Text dahinter',
+       zu.includes('hinweis-zu') && zu.includes('<summary><small class="hinweis">Hinweis</small></summary>'));
+  wahr('In der Karte eingeklappt: Befestigung, Feldhinweise, Wirkung, Havarie',
+       ui200.includes("BEFESTIGUNG_WIRKUNG[wert], { zu: true })")
+       && ui200.includes("hinweisHtml(`at-${i}-${k}`, hinweis, { zu: true })")
+       && ui200.includes("hinweisHtml(`wirk-${i}-${k}`, kurz, { zu: true })")
+       && ui200.includes("hinweisHtml(`at-${i}-havarie`,"));
 }
 
 // ===========================================================================
