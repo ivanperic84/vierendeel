@@ -229,21 +229,29 @@ export function dialogAxisvm(app, format = 'json') {
  * `erzeuge` baut die Datei mit `nurDaten` - Name und Text, ohne Download.
  */
 function mitSkripten(app, was, erzeuge) {
-  return app.handlung(was, () => {
-    const r = erzeuge();
-    zusammenAblegen(async () => [{ name: r.name, text: r.text, typ: 'application/json' },
-                                 ...await comSkripte()])
-      .then((e) => app.meldeImBalken(e.abgebrochen
+  /*
+   * ERST DER ORDNER, DANN DIE DATEI (2. Oktober). Das Modell zu erzeugen
+   * dauert am grossen Joch eine Sekunde und mehr; der Ordnerdialog gehört
+   * gleich an den Klick. Erzeugt wird erst, wenn der Ordner gewählt ist.
+   */
+  let r = null;
+  zusammenAblegen(async () => {
+    r = erzeuge();
+    return [{ name: r.name, text: r.text, typ: 'application/json' }, ...await comSkripte()];
+  })
+    .then((e) => app.meldeImBalken(e.laeuft
+      ? `${was}: der Ordnerdialog ist schon offen.`
+      : e.abgebrochen
         ? `${was} abgebrochen — nichts gespeichert.`
         : e.ordner
           ? `${r.name} und ${COM_SKRIPTE.length} Skripte in «${e.ordner}» abgelegt.`
-          : `${r.name} und ${COM_SKRIPTE.length} Skripte heruntergeladen.`))
-      .catch((e) => {
-        app.meldeImBalken(`${was} nicht möglich: ${e.message}`);
-        console.error(was, e);
-      });
-    return r;
-  });
+          : `${r.name} und ${COM_SKRIPTE.length} Skripte heruntergeladen`
+            + (e.grund ? ` (Ordnerwahl ging nicht: ${e.grund})` : '') + '.'))
+    .catch((e) => {
+      app.meldeImBalken(`${was} nicht möglich: ${e.message}`);
+      console.error(was, e);
+    });
+  return null;
 }
 
 function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false,

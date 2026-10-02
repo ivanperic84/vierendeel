@@ -79,23 +79,48 @@ function herunterladen({ name, text, typ = 'application/octet-stream' }) {
  * @param {() => Promise<{name:string, text:string, typ?:string}[]>} holeDateien
  * @returns {Promise<{ordner?:string, heruntergeladen?:number, abgebrochen?:boolean}>}
  */
+/*
+ * >>> NUR EIN ORDNERDIALOG ZUR ZEIT (2. Oktober). <<<
+ * Gemeldet: «COM-Ausleitung nicht möglich: Failed to execute
+ * 'showDirectoryPicker' on 'Window': File picker already active.» - der
+ * Browser lässt keinen zweiten Wähler zu, solange einer offen ist (zweiter
+ * Klick, Enter im Dialog, ein liegengebliebener Dialog). Ein zweiter Aufruf
+ * wartet jetzt nicht, er meldet sich; und scheitert der Wähler aus einem
+ * anderen Grund als «abgebrochen», wird heruntergeladen statt abgebrochen.
+ */
+let wahlOffen = false;
+
 export async function zusammenAblegen(holeDateien) {
   if (typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function') {
-    let dir;
+    if (wahlOffen) return { laeuft: true };
+    let dir = null;
+    let grund = null;
+    wahlOffen = true;
     try {
       dir = await window.showDirectoryPicker({ id: 'axisvm-com', mode: 'readwrite' });
     } catch (e) {
       if (e?.name === 'AbortError') return { abgebrochen: true };
-      throw e;
+      grund = e?.message ?? String(e);
+    } finally {
+      wahlOffen = false;
     }
+    if (dir) {
+      const dateien = await holeDateien();
+      for (const d of dateien) {
+        const fh = await dir.getFileHandle(d.name, { create: true });
+        const w = await fh.createWritable();
+        await w.write(d.text);
+        await w.close();
+      }
+      return { ordner: dir.name };
+    }
+    // Der Wähler ging nicht - dann eben als Downloads, mit Grund.
     const dateien = await holeDateien();
     for (const d of dateien) {
-      const fh = await dir.getFileHandle(d.name, { create: true });
-      const w = await fh.createWritable();
-      await w.write(d.text);
-      await w.close();
+      herunterladen(d);
+      await new Promise((r) => setTimeout(r, 250));
     }
-    return { ordner: dir.name };
+    return { heruntergeladen: dateien.length, grund };
   }
   // Ohne Ordnerwahl: nacheinander, mit kurzer Pause - manche Browser
   // verwerfen sonst alle Downloads ausser dem ersten.

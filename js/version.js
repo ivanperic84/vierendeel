@@ -5,4 +5,4 @@
  * gebauten Stands. Die Fussleiste und der Bericht nennen sie, damit
  * sichtbar ist, welcher Stand bei wem laeuft.
  */
-export const STAND = { datum: '2026-10-02', fassung: '588e4ea0aca9' };
+export const STAND = { datum: '2026-10-02', fassung: '98a1b73154f2' };

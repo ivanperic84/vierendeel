@@ -33341,7 +33341,7 @@ titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner
        /mitSkripten\(app, name, \(\) => exportiereJson\(satz, deps, \{ \.\.\.o, nurDaten: true \}\)\)/.test(ax)
        && /nurDaten: skripte/.test(ax));
   wahr('Erst der Ordner, dann das Holen der Skripte (Benutzeraktion)',
-       /showDirectoryPicker\([^)]*\);[\s\S]{0,200}await holeDateien\(\)/.test(readFileSync(join(HIER, 'js', 'export.comskripte.js'), 'utf8')));
+       /showDirectoryPicker\([^)]*\);[\s\S]{0,700}await holeDateien\(\)/.test(readFileSync(join(HIER, 'js', 'export.comskripte.js'), 'utf8')));
   // nurDaten: Name und Text, kein Download (hier gibt es kein document).
   const AB154 = await import(J('export.axisvm.abfang.js'));
   const typ = AB154 && (await import(J('data.abfangjoche.js'))).abfangjoche?.()[0]?.typ;
@@ -35448,6 +35448,49 @@ titel('189  Teile am Masten ab der Mastachse; kein Kettenglied der Länge null')
   wahr('Ausleitung: Teile am Masten ab dem Knoten auf der Mastachse', q.includes('const xM = wurzelKn[1].x;'));
   wahr('Ausleitung: ein Glied ohne Länge wird zusammengelegt (Mast und Joch)',
        (q.match(/if \(gleicheLage\(s, knotenVon\.get\(g\.von\), p\)\)/g) ?? []).length === 2);
+}
+
+// ===========================================================================
+titel('190  COM-Skripte: ein Ordnerdialog zur Zeit, sonst herunterladen');
+/*
+ * Gemeldet 2. Oktober: «COM-Ausleitung nicht möglich: Failed to execute
+ * 'showDirectoryPicker' on 'Window': File picker already active.»
+ */
+{
+  const CS = await import(J('export.comskripte.js'));
+  const alt = { window: globalThis.window, document: globalThis.document };
+  const geladen = [];
+  globalThis.document = { createElement: () => ({ click() { geladen.push(this.download); } }) };
+  const ocu = URL.createObjectURL, oru = URL.revokeObjectURL;
+  URL.createObjectURL = () => 'blob:x'; URL.revokeObjectURL = () => {};
+  let erzeugt = 0;
+  const dateien = async () => { erzeugt += 1; return [{ name: 'a.json', text: '{}' }, { name: 'b.cmd', text: 'x' }]; };
+  // 1) Der Wähler wirft «already active»: herunterladen statt abbrechen.
+  globalThis.window = { showDirectoryPicker: async () => { throw new Error('File picker already active.'); } };
+  const r1 = await CS.zusammenAblegen(dateien);
+  wahr('Wähler schlägt fehl: die Dateien werden heruntergeladen, mit Grund',
+       r1.heruntergeladen === 2 && /already active/.test(r1.grund ?? '') && geladen.length === 2,
+       JSON.stringify(r1));
+  // 2) Zwei Aufrufe gleichzeitig: der zweite öffnet keinen zweiten Wähler.
+  let offen = 0, freigeben;
+  globalThis.window = { showDirectoryPicker: () => { offen += 1; return new Promise((res) => { freigeben = () => res({
+    name: 'ordner', getFileHandle: async () => ({ createWritable: async () => ({ write: async () => {}, close: async () => {} }) }) }); }); } };
+  const p1 = CS.zusammenAblegen(dateien);
+  const r2 = await CS.zusammenAblegen(dateien);
+  wahr('Ein zweiter Aufruf während der Wahl öffnet keinen zweiten Wähler', r2.laeuft === true && offen === 1);
+  erzeugt = 0;
+  freigeben();
+  const r3 = await p1;
+  wahr('… der erste legt im Ordner ab, und erzeugt wird erst nach der Wahl',
+       r3.ordner === 'ordner' && erzeugt === 1);
+  // 3) Abbrechen bleibt abbrechen.
+  globalThis.window = { showDirectoryPicker: async () => { const e = new Error('x'); e.name = 'AbortError'; throw e; } };
+  wahr('Abbrechen im Wähler legt nichts ab', (await CS.zusammenAblegen(dateien)).abgebrochen === true);
+  globalThis.window = alt.window; globalThis.document = alt.document;
+  URL.createObjectURL = ocu; URL.revokeObjectURL = oru;
+  const ax = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
+  wahr('Die App erzeugt das Modell erst im Rückruf nach der Ordnerwahl',
+       /zusammenAblegen\(async \(\) => \{\s*r = erzeuge\(\);/.test(ax));
 }
 
 // ===========================================================================
