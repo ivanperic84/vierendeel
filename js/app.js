@@ -60,7 +60,7 @@ import { verkleinere, bildAusEreignis, kalibriere, kalibriereFrei,
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
-         setzeGrenzen, setzeFdAutomatik, FELDER, kragarmEnde } from './ui.schema.js';
+         setzeGrenzen, setzeFdAutomatik, FELDER, kragarmEnde, mastZuKurzFuerAufhaengung } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
          MASS, FARBEN as farben } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
@@ -3353,11 +3353,22 @@ function mastZiehen(ende, { zone, d, laenge = 0 }) {
     return;
   }
   w = setzeMastAngabe(w, m.id, 'mastLaenge', lNeu);
+  // Am Tragausleger braucht die Aufhängung H + b (28. September) - kürzer
+  // wird beim Ziehen nicht gesetzt (2. Oktober).
+  const minTa = mastZuKurzFuerAufhaengung(rechensatz(w));
+  if (minTa > 0) {
+    meldeImBalken(`${name}: ${lNeu.toFixed(2)} m wäre zu kurz für die Aufhängung - `
+      + `mindestens ${minTa.toFixed(2)} m. Nichts geändert.`, { dauer: 6000 });
+    return;
+  }
   werte = rechensatz(w);
   neuRechnen();
   const v = (z) => `${z >= 0 ? '+' : '−'}${Math.abs(z).toFixed(2)}`;
   const was = zone === 'fuss' ? `Fuss ${v(fussAlt)} → ${v(fussNeu)} m, ` : '';
-  meldeImBalken(`${name}: ${was}Länge ${lAlt.toFixed(2)} → ${lNeu.toFixed(2)} m, Joch bleibt`
+  // Was stehen bleibt, nennt die Meldung nur, wo es eines gibt (2. Oktober).
+  const art = tragwerksart(t).key;
+  const bleibt = art === 'einzelmast' ? '' : art === 'tragausleger' ? ', Ausleger bleibt' : ', Joch bleibt';
+  meldeImBalken(`${name}: ${was}Länge ${lAlt.toFixed(2)} → ${lNeu.toFixed(2)} m${bleibt}`
     + ' · Strg+Z nimmt es zurück', { dauer: 5000 });
 }
 

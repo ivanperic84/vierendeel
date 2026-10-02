@@ -238,6 +238,7 @@ export function auslegerSzene(satz, opt = {}) {
   const mastBezug = {};
   const md = opt.mast;
   let fussUnten = null;
+  let mastGriff = null;
   if (md?.profil && md.hoehe > 0) {
     let mp = null;
     try { mp = getMastprofil(md.profil); } catch { mp = null; }
@@ -266,6 +267,14 @@ export function auslegerSzene(satz, opt = {}) {
       fussUnten = mk.fussUnten;
       mastBezug.A = { x: 0, zF: -md.hoehe, zAn: 0, zAchse: 0, zKopf,
                       laenge: md.hoehe + zKopf };
+      /*
+       * >>> DER MAST LÄSST SICH ZIEHEN (2. Oktober). <<< Gemeldet: «beim
+       * einzelmast und beim tragauslegermasten lassen sich die höhen nicht
+       * per drag and drop anpassen» - hier fehlten die Griffe ganz. Wie am
+       * Einzelmasten Kopf und Lage (`einzel`), kein Fuss.
+       */
+      mastGriff = { A: { x: 0, zF: -md.hoehe, zKopf, einzel: true,
+                         halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 } };
       const lang = md.hoehe + zKopf;
       bauteiltitel.push({ p: [0, 0, zKopf + 0.55],
         text: `${md.name ? `${md.name} · ` : ''}${mp.name} · ${lang.toFixed(2)} m`,
@@ -319,6 +328,7 @@ export function auslegerSzene(satz, opt = {}) {
     stationen: [],
     L: t.L, art: 'tragausleger', seite: sp < 0 ? 'links' : 'rechts',
     xNachweis: null,
+    mastZiehen: mastGriff,
     bezug: { joch: null, masten: mastBezug },
   };
 }

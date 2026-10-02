@@ -1875,7 +1875,9 @@ export function erzeugeSzene(m, erg) {
     mastZiehen: Object.fromEntries(Object.entries(mastGeo)
       .filter(([, g2]) => g2.koerper)
       .map(([k2, g2]) => [k2, { x: g2.x, zF: g2.zF, zKopf: g2.zKopf,
-                                einzel: Boolean(m.qsErsatz) }])),
+                                einzel: Boolean(m.qsErsatz),
+                                // Für den Griff über verdeckenden Teilen.
+                                halb: Math.max(g2.halbX ?? 0.12, g2.halbY ?? 0.12) }])),
     /*
      * DIE MASSE, AN DENEN SICH DIE ZEICHNUNG EINMESSEN LAESST - so, wie sie
      * HIER gezeichnet sind (bild.zeichnung.js, BEZUEGE). Rechnete das
@@ -2809,6 +2811,11 @@ export class Modellansicht {
   _ziehZiel(e) {
     if (this.beiStelle || this.beiZeichnungsklick || this.zeichnungSchieben) return null;
     const [px, py] = this._geraetePunkt(e);
+    // Kopf und Fuss des Masten gehen vor (2. Oktober, `_mastEndeUnter`).
+    if (this.opt.beiMastZiehen) {
+      const me = this._mastEndeUnter(e);
+      if (me) return this._mastZiel(me.ende, me.g, me.zone, me.rand);
+    }
     if (this.opt.beiPunktZiehen) {
       const fang = 8 * this._s;
       const pt = (this._punktTreffer ?? [])
@@ -2840,15 +2847,66 @@ export class Modellansicht {
         const rand = Math.min(Math.max(0.15 * L, 0.4), 1.0);
         const zone = !g.einzel && w.z - g.zF < rand ? 'fuss'
           : g.zKopf - w.z < rand ? 'kopf' : 'lage';
-        return { art: 'mast', schluessel: `m|${ende}|${zone}`,
-                 cursor: zone === 'lage' ? 'ew-resize' : 'ns-resize',
-                 mast: { g, zone, rand },
-                 text: zone === 'fuss' ? 'Fuss ziehen · Länge ändern, Joch bleibt'
-                   : zone === 'kopf' ? 'Kopf ziehen · Länge ändern, Joch bleibt'
-                     : 'Mast schieben · Lage x' };
+        return this._mastZiel(ende, g, zone, rand);
       }
     }
     return null;
+  }
+
+  /** Das Ziel «Mast» für Zeigerform und Hinweis. */
+  _mastZiel(ende, g, zone, rand) {
+    return { art: 'mast', schluessel: `m|${ende}|${zone}`,
+             cursor: zone === 'lage' ? 'ew-resize' : 'ns-resize',
+             mast: { g, zone, rand },
+             text: zone === 'fuss' ? 'Fuss ziehen · Länge ändern, Joch bleibt'
+               : zone === 'kopf' ? (g.einzel ? 'Kopf ziehen · Länge ändern'
+                                             : 'Kopf ziehen · Länge ändern, Joch bleibt')
+                 : 'Mast schieben · Lage x' };
+  }
+
+  /**
+   * >>> KOPF ODER FUSS EINES MASTEN UNTER DEM ZEIGER (2. Oktober). <<<
+   *
+   * Gemeldet: «beim einzelmast und beim tragauslegermasten lassen sich die
+   * höhen nicht per drag and drop anpassen.» Am Einzelmasten sitzen ab Werk
+   * Traverse und Rückleiter im obersten Meter - ihr Fangrand (6 px) und ihre
+   * Flächen lagen über der Kopfzone, und das Anbauteil ging beim Drücken
+   * vor. Kopf und Fuss werden deshalb nach der Lage erkannt, nicht nach der
+   * getroffenen Fläche: liegt der Zeiger innerhalb der Mastbreite auf dem
+   * obersten bzw. untersten Stück der Achse, ist der Mast gemeint. Auf den
+   * Armen der Teile greift man weiter das Teil; der Schaft bleibt bei der
+   * Fläche (sonst nähme ein Druck auf das Joch am Mast den Masten).
+   */
+  _mastEndeUnter(e) {
+    const gs = this.szene?.mastZiehen;
+    if (!gs) return null;
+    const [px, py] = this._geraetePunkt(e);
+    const proj = this._projektor();
+    let best = null;
+    Object.entries(gs).forEach(([ende, g]) => {
+      const L = g.zKopf - g.zF;
+      if (!(L > 0)) return;
+      const rand = Math.min(Math.max(0.15 * L, 0.4), 1.0);
+      const zonen = [['kopf', g.zKopf - rand, g.zKopf]];
+      if (!g.einzel) zonen.push(['fuss', g.zF, g.zF + rand]);
+      zonen.forEach(([zone, z0, z1]) => {
+        const a = proj([g.x, 0, z0]), b = proj([g.x, 0, z1]);
+        if (!a || !b) return;
+        // Halbe Mastbreite im Bild, aus beiden Richtungen quer zur Achse.
+        const zm = (z0 + z1) / 2, m0 = proj([g.x, 0, zm]);
+        const hw = m0 ? Math.max(...[[1, 0], [0, 1]].map(([u, v]) => {
+          const q = proj([g.x + u * (g.halb ?? 0.12), v * (g.halb ?? 0.12), zm]);
+          return q ? Math.hypot(q[0] - m0[0], q[1] - m0[1]) : 0;
+        })) : 0;
+        const fang = Math.max(hw, 5 * this._s);
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const l2 = dx * dx + dy * dy;
+        const t = l2 > 0 ? Math.min(1, Math.max(0, ((px - a[0]) * dx + (py - a[1]) * dy) / l2)) : 0;
+        const d = Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+        if (d <= fang && (!best || d < best.d)) best = { ende, g, zone, rand, d };
+      });
+    });
+    return best;
   }
 
   /** Die Anzeige über einer ziehbaren Stelle (2. Oktober). */
@@ -3047,6 +3105,18 @@ export class Modellansicht {
          * (1. Oktober). <<< Er geht vor dem Bauteil: wer den Kreis trifft,
          * meint den Punkt, nicht die ganze Baugruppe.
          */
+        // Kopf und Fuss eines Masten gehen vor Punkt und Anbauteil (2. Oktober,
+        // `_mastEndeUnter`) - sonst verdeckte die Traverse am Kopf den Griff.
+        if (griff.art === 'drehen' && e.button === 0 && this.opt.beiMastZiehen
+            && !this.beiStelle && !this.beiZeichnungsklick) {
+          const me = this._mastEndeUnter(e);
+          const [px, py] = this._geraetePunkt(e);
+          const w0 = me ? this.weltTreffer(px, py) : null;
+          if (me && w0) {
+            griff = { art: 'mast', bewegt: false, start: [e.clientX, e.clientY],
+                      ende: me.ende, zone: me.zone, g: me.g, w0 };
+          }
+        }
         if (griff.art === 'drehen' && e.button === 0 && this.opt.beiPunktZiehen
             && !this.beiStelle && !this.beiZeichnungsklick) {
           const [px, py] = this._geraetePunkt(e);

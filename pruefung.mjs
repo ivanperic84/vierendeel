@@ -35786,6 +35786,47 @@ titel('195  Endfeld am Stoss in der Reihe: Spalt 10 cm, je Joch halb');
 }
 
 // ===========================================================================
+titel('196  Mastkopf ziehen am Einzelmasten und am Tragausleger');
+/*
+ * Gemeldet 2. Oktober: «beim einzelmast und beim tragauslegermasten lassen
+ * sich die höhen nicht per drag and drop anpassen.» Befund im Browser: am
+ * Einzelmasten lagen Traverse und Rückleiter (Vorgabe L − 0.5 / L − 2.0)
+ * über der Kopfzone, das Anbauteil ging vor (Zeiger «grab»); dem
+ * Tragausleger fehlten die Griffe ganz. Danach im Browser: Einzelmast
+ * 8.50 → 10.60 m, MT1 14.00 → 16.20 m, 16.20 → 10.80 abgewiesen
+ * («mindestens 13.85 m»), Lage 60.00 → 53.40 m.
+ */
+{
+  const RT196 = await import(J('render.tragausleger.js'));
+  const R196 = await import(J('render.3d.js'));
+  const N196 = await import(J('core.nachbarn.js'));
+  const C196 = await import(J('core.constants.js'));
+  const basis = { ...standardwerte(), tragwerksart: 'tragausleger', L: 13, xLage: 0,
+                  mastVorhanden: true, twId: 'MT1' };
+  const mast = { profil: 'HEB 240', hoehe: 7.5, ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' };
+  const ta = RT196.auslegerSzene(N196.rechensatzMitNachbarn(basis), { mast });
+  const gA = ta.mastZiehen?.A;
+  wahr('Tragausleger: der Mast hat einen Griff (Kopf und Lage, kein Fuss)',
+       Boolean(gA) && gA.einzel === true && gA.zF === -7.5 && gA.zKopf > 0 && gA.halb > 0.1,
+       JSON.stringify(gA));
+  let w = typUebernehmen(standardwerte(), T.getTragjoch('J90'));
+  w = C196.tragwerkHinzu(w, 'einzelmast', { xLage: 40 });
+  w = C196.tauscheAktives(w, C196.tragwerkeVon(w).find((t) => C196.tragwerksart(t).key === 'einzelmast').id);
+  const s = N196.rechensatzMitNachbarn(w);
+  const em = R196.erzeugeSzene(berechne(s, ...N196.kernArgumente(s)).modell, null);
+  wahr('Einzelmast: Griff mit Halbbreite für die Erkennung über den Teilen',
+       em.mastZiehen?.A?.einzel === true && em.mastZiehen.A.halb > 0.1);
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const druck = r3.indexOf('const me = this._mastEndeUnter(e);');
+  const punkt = r3.indexOf('this.opt.beiPunktZiehen\n') >= 0 ? r3.indexOf('this.opt.beiPunktZiehen\n')
+    : r3.indexOf('this.opt.beiPunktZiehen\r\n');
+  wahr('Beim Drücken gehen Kopf und Fuss vor Punkt und Anbauteil', druck > 0 && punkt > druck);
+  wahr('… ebenso unter dem Zeiger', /_ziehZiel\(e\) \{[\s\S]{0,400}_mastEndeUnter\(e\)/.test(r3));
+  wahr('Kürzer als H + b wird am Ausleger nicht gesetzt',
+       APP_QUELLE().includes('const minTa = mastZuKurzFuerAufhaengung(rechensatz(w));'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
