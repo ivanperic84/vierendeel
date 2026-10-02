@@ -259,7 +259,7 @@ titel('2  Endeinspannung – Drehwinkelverfahren gegen geschlossene Lösung');
   const e = rechne(w);
   const p = e.modell.federn.mast;
   pruef('Kragmastwert c = E·I/H', p.cKragarm,
-        (E_STAHL * (11260 * 1e-8)) / 8, 1e-9, 'kNm/rad');
+        (E_STAHL * (11259 * 1e-8)) / 8, 1e-9, 'kNm/rad');   // Querschnittswerte aus dem Normumriss (2. Okt.): I_y HEB 240 vorher 11260
   pruef('Vertikallast rechnet unverschieblich', p.cPhi,
         MAST_UNVERSCHIEBLICH * p.cKragarm, 1e-9, 'kNm/rad');
   const q = rechne({ ...w, mastSteg: 'quer' });
@@ -3921,9 +3921,10 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
   pruef('hälftig: beide 0.5', gl.OG, 0.5, 1e-12);
   pruef('Steifigkeitsanteile ergänzen sich zu eins', st.OG + st.UG, 1, 1e-12);
   wahr('Der steifere Gurt bekommt mehr', st.OG > st.UG);
-  // I = i_y^2 * A: L100x10 -> 3.04^2*19.2 = 177.4 cm4, L80x8 -> 2.42^2*12.3 = 72.0
-  pruef('Anteil Obergurt nach I', st.OG, (3.04 ** 2 * 19.2)
-        / (3.04 ** 2 * 19.2 + 2.42 ** 2 * 12.3), 1e-9);
+  // I = i_y^2 * A: L100x10 -> 3.04^2*19.15 = 177.0 cm4, L80x8 -> 2.43^2*12.27 = 72.5
+  // (Querschnittswerte aus dem Normumriss (2. Okt.): vorher A 19.2, i 2.42, A 12.3)
+  pruef('Anteil Obergurt nach I', st.OG, (3.04 ** 2 * 19.15)
+        / (3.04 ** 2 * 19.15 + 2.43 ** 2 * 12.27), 1e-9);
   wahr('einhüllend nimmt je Gurt den ungünstigeren Anteil',
        hu.OG === st.OG && hu.UG === 0.5);
   // GEMESSEN: gedämpfte Steifigkeitsaufteilung, an PyNite kalibriert.
@@ -8059,7 +8060,7 @@ titel('34b Die Auflagerbedingung je Gurtebene');
          bild(undefined).every((z) => /gelenkig/.test(z)), bild(undefined)[0]);
     wahr('Starre Gurte zeigen die Mastfeder',
          bild({ OG: { x: 'Rigid' }, UG: { x: 'Rigid' } })
-           .every((z) => /c_φ 13512/.test(z)),
+           .every((z) => /c_φ 13511/.test(z)),   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 13512
          bild({ OG: { x: 'Rigid' }, UG: { x: 'Rigid' } })[0]);
     wahr('Gurtfedern kommen als Zahl an',
          bild({ OG: { x: 20000 }, UG: { x: 20000 } })
@@ -8941,7 +8942,8 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
       if (feldBei(mid) > 27.60) lo = mid; else hi = mid;
     }
     const cEff = Math.sqrt(lo * hi);
-    pruef('Gemessene 27.60 kNm bedeuten 3.98 mal E*I/H', cEff / EIH, 3.98, 2e-3, '-');
+    // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 3.98 - I des Masten 11260 -> 11259, die Messung 27.60 bleibt.
+    pruef('Gemessene 27.60 kNm bedeuten 3.99 mal E*I/H', cEff / EIH, 3.989, 2e-3, '-');
     wahr('Also der Lehrbuchwert des unverschieblichen Rahmens',
          Math.abs(cEff / EIH - 4.00) < 0.03, (cEff / EIH).toFixed(3));
   }
@@ -17255,7 +17257,7 @@ const CH9x = await import(J('core.checks.js'));
           k.NEd / k.NKRd
           + (k.omega * k.vy) * (k.MyEd / k.MDRd)
           + (k.omega * k.vz) * (k.MzEd / k.MzRd), 1e-12, '–');
-    pruef('Die Ausnutzung des Beispiels', k.eta, 0.16722, 1e-4, '–');
+    pruef('Die Ausnutzung des Beispiels', k.eta, 0.16725, 1e-4, '–');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 0.16722
     wahr('Der Nachweis IST Gleichung (50)', k.eta === k.eta50);
     /*
      * DER KIPPWIDERSTAND IST DER BIEGEWIDERSTAND - Weisung vom
@@ -32160,7 +32162,7 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   const z = (name) => n.liste.find((x) => x.name === name);
   wahr('>>> Mit dem Stabwerk ist der Phantom-Mast weg <<<', !z('Mast B'),
        n.liste.map((x) => x.name).join(', '));
-  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.9255, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.209
+  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.9231, 1e-3, '');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 1.9255 (UPE 140 W_y 85.6 -> 85.64); Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.209
   pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
   pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
   pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.5520, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.1069
@@ -32905,7 +32907,7 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.2254, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.1723; Wind auf den Ausleger (30. Sept.): vorher 1.0285
   pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.3013, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 0.2880; Wind auf den Ausleger (30. Sept.): vorher 0.2078
   const zweiO = lauf(w(1, false)), einsO = lauf(w(0, false));
-  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.9255, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.2083
+  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.9231, 1e-3, '');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 1.9255; Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.2083
   pruef('>>> … zwei Seile <<<', blech(zweiO), 0.7143, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 0.6849; Wind auf den Ausleger (30. Sept.): vorher 0.3156
   pruef('Mast (mit Längsanker) praktisch unverändert', zwei.h.bauteile['mast:M1'].eta,
         eins.h.bauteile['mast:M1'].eta, 2e-3, '');
@@ -34848,7 +34850,7 @@ titel('183  Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und
     pruef('Blech: τ = 1.5·V / A', d.tau, 1.5 * d.V / d.A / 1000, 1e-9, 'N/mm²');
     pruef('Blech: η = √(σ² + 3τ²) / f_yd (σ_v mit τ, Rückfrage 1. Oktober)', bl.eta,
           Math.sqrt(sigNorm ** 2 + 3 * d.tau ** 2) / fyd, 1e-12, '');
-    pruef('J90/20 m: Blech mit Schub (vorher 0.3634 ohne τ)', bl.eta, 0.3715, 2e-4, '');
+    pruef('J90/20 m: Blech mit Schub (vorher 0.3634 ohne τ)', bl.eta, 0.3712, 2e-4, '');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 0.3715
   }
   {
     const d = ma.detail;
@@ -35046,8 +35048,8 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
 
   // (d) Die Tabelle des Blattes: die Werte ungerundet, wie hinterlegt.
   const html = PB.profilBlattHtml({ art: 'winkel', p: wink, name: wink.name, rolle: 'Obergurt' });
-  wahr('Blatt L 90x90x9: z_s und y_s mit dem Tabellenwert (2.54 cm), W_y 17.96',
-       html.includes('<td class="num">2.54</td>') && html.includes('<td class="num">17.96</td>'));
+  wahr('Blatt L 90x90x9: z_s und y_s mit dem Tabellenwert (2.54 cm), W_y 17.93',
+       html.includes('<td class="num">2.54</td>') && html.includes('<td class="num">17.93</td>'));
   wahr('Blatt L 90x90x9: I_y als abgeleitet gekennzeichnet (i_y² · A)',
        html.includes('pb-abgeleitet') && html.includes((wink.iy ** 2 * wink.A).toFixed(2)));
   const hU = PB.profilBlattHtml({ art: 'walz', p: upe, name: upe.name });

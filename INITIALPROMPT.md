@@ -18,8 +18,9 @@ Stand: **2. Oktober 2026**; Prüfstand 6126 Kontrollen grün,
 - **2. Oktober, Profile nach Norm:** Ausrundungen in `data/normen.json`
   (Winkel r1/r2 EN 10056-1, HEB/HEM r, UPE-Radien auf 12/13/15 mm
   berichtigt), UNP mit 8 % Flanschneigung; `vergleich_profile.mjs` rechnet
-  jede Tabellenzeile aus ihrem Umriss nach. L 45x45x5 berichtigt (lag
-  unsicher); L 200x200x20, L 120x120x12, L 120x80x12 bleiben auf Weisung.
+  jede Tabellenzeile aus ihrem Umriss nach. Danach auf Weisung ALLE
+  Querschnittswerte aus dem Normumriss (I_t bleibt); J130/30 m Blech
+  0.5470 → 0.5579 wegen L 120x80x12.
 - **Bericht und Excel auf dem Stabwerksweg**, je ein Bericht auch für
   Abfangjoch und Tragausleger (`export.stabbericht.js`): ganzes Blatt,
   je Bauteil der massgebende Stab mit eingesetzter Formel und die zehn
