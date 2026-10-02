@@ -35091,6 +35091,44 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
   const ohne = U184.profilUebersicht({ ...erg, mast: null }, w);
   wahr('Ohne Mastnachweis: Klasse unter reiner Biegung, angeschrieben', ohne.includes('reine Biegung, N = 0'));
 
+  /*
+   * (e2) «warum fehlen hier gewisse kennwerte und wo sind die falchbleche zum
+   * anklicken?» (2. Oktober). Die Winkel zeigen I und I_t so, wie gerechnet
+   * wird (kursiv), die Bindebleche stehen je Abmessung als anklickbare Zeile.
+   */
+  {
+    const W184 = await import(J('core.winkel.js'));
+    const pOG = erg.modell.profOG;
+    const Iy = pOG.iy ** 2 * pOG.A;
+    wahr('Tafel: I_y des Winkels = i² · A, kursiv (abgeleitet)',
+         tafel.includes(`<i>${Iy.toFixed(2)}</i>`), Iy.toFixed(2));
+    pruef('I_t des Winkels: (a_H + a_V) · t³ / 3', W184.winkelIt(pOG),
+          ((pOG.aH + pOG.aV) * pOG.t ** 3) / 3 / 1e4, 1e-12, 'cm⁴');
+    wahr('Tafel: I_t des Winkels steht da (kursiv)',
+         tafel.includes(`<i>${W184.winkelIt(pOG).toFixed(2)}</i>`));
+    const AX184 = await import(J('export.axisvm.js'));
+    const dat = AX184.stabmodell(erg.modell);
+    const qOG = dat.querschnitte instanceof Map ? dat.querschnitte.get('GURT_OG')
+      : (dat.querschnitte ?? []).find((q) => q.name === 'GURT_OG');
+    pruef('Das Stabwerk rechnet mit derselben I_t (winkelIt)', qOG?.It, W184.winkelIt(pOG) / 1e8, 1e-15, 'm⁴');
+    const eintraege = [...tafel.matchAll(/data-profil="(\d+)"/g)].map((m) => U184.profilEintrag(+m[1]));
+    const bl = eintraege.filter((e) => e?.art === 'blech');
+    wahr('Tafel: Bindebleche je Abmessung, anklickbar (J90/20 m: FL 100×10, FL 80×10)',
+         bl.length >= 1 && bl.every((e) => /^FL \d+×\d+$/.test(e.name))
+         && new Set(bl.map((e) => e.name)).size === bl.length, bl.map((e) => e.name).join(', '));
+    const k = PB.blechWerte(100, 10);
+    pruef('Blech 100×10: A = b · t', k.A, 10, 1e-12, 'cm²');
+    pruef('Blech 100×10: I_y = t · b³ / 12', k.Iy, 83.3333333, 1e-6, 'cm⁴');
+    pruef('Blech 100×10: I_t = b t³/3 (1 − 0.63 t/b)', k.It, (100 * 1000 / 3) * (1 - 0.063) / 1e4, 1e-12, 'cm⁴');
+    const gB = PB.profilGeometrie('blech', { b: 100, t: 10 });
+    const qB = PB.querschnittAusUmriss(gB);
+    pruef('Blech: der gezeichnete Umriss gibt dieselbe Fläche', qB.A, k.A, 1e-9, 'cm²');
+    pruef('Blech: … und dasselbe I in der Ebene', qB.Iz, k.Iy, 1e-6, 'cm⁴');
+    const hB = PB.profilBlattHtml({ art: 'blech', p: { name: 'FL 100×10', b: 100, t: 10, l: 280 }, name: 'FL 100×10' });
+    wahr('Profilblatt Blech: Schnitt mit b und t, Kennwerte als gerechnet',
+         /b = 100/.test(hB) && /t = 10/.test(hB) && hB.includes('gerechnet: Querschnittsfläche b · t'));
+  }
+
   // (f) Die Verdrahtung.
   const ao = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
   wahr('Klick auf eine Profilzeile öffnet das Profilblatt',

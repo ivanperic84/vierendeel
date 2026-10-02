@@ -61,7 +61,7 @@ import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { abfangBau } from './export.axisvm.abfang.js';
 import { tragauslegerBau } from './export.axisvm.tragausleger.js';
 import { getTragausleger, tragauslegerSpreizung } from './data.abfangjoche.js';
-import { winkelwerteFuer } from './core.winkel.js';
+import { winkelwerteFuer, winkelIt } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 
 /** Wählbare Knotenmodelle. */
@@ -605,7 +605,7 @@ function gurtQuerschnitt(p, gurt) {
      */
     Iyz: winkelwerteFuer(p).Iyz / 1e12,             // mm4 -> m4
     // St-Venant des offenen Winkels: I_t = Σ b·t³/3
-    It: ((p.aH + p.aV) * p.t ** 3) / 3 / 1e12,
+    It: winkelIt(p) / 1e8,                         // cm4 -> m4, siehe core.winkel.js
   };
 }
 

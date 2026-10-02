@@ -13,7 +13,7 @@ import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon } from './core.stabn
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
-         ABFANG_VERLAEUFE } from './core.abfangjoch.js';
+         ABFANG_VERLAEUFE, abfangBlechstationen } from './core.abfangjoch.js';
 import { auflagerDiagrammHtml, verdrahteAuflagerLinks }
   from './ui.auflagerlinks.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
@@ -29,7 +29,7 @@ import { mastLaengeVorgabe, mastImModell, einzelmastLaenge,
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerAufhaengung, tragauslegerSpreizung,
-         tragauslegerTypen } from './data.abfangjoche.js';
+         tragauslegerTypen, abfangBindeblech } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
@@ -55,6 +55,8 @@ import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.j
 // die Stahlguete stehen in ihren eigenen Datenmodulen.
 import { ankerQuerschnitt } from './data.anker.js';
 import { mastKlasse } from './core.mast.js';
+import { winkelIt } from './core.winkel.js';
+import { blechWerte } from './ui.profilblatt.js';
 
 /*
  * DAS GERECHNETE MODELL, für die Lage eines Anbauteils.
@@ -7511,8 +7513,23 @@ export function profilUebersicht(erg, werte) {
     zeilen.push({ s, rolle, name: p.name, anzahl: opt.anzahl ?? 1,
                   A: p.A, Iy: p.Iy ?? p.I, Iz: p.Iz, Wy: p.Wy ?? p.W,
                   Wz: p.Wz, It: p.It, G: p.G, quelle: opt.quelle ?? '',
-                  art: opt.art ?? null, roh: opt.roh ?? p });
+                  art: opt.art ?? null, roh: opt.roh ?? p,
+                  abg: new Set(opt.abgeleitet ?? []), ...(opt.werte ?? {}) });
   };
+  /*
+   * >>> WAS DIE TABELLE NICHT FUEHRT, STEHT SO DA, WIE GERECHNET WIRD. <<<
+   *
+   * Frage des Auftraggebers (2. Oktober, mit Bild der Tafel): «warum fehlen
+   * hier gewisse kennwerte und wo sind die falchbleche zum anklicken?»
+   *
+   * Die Winkeltabelle führt i, nicht I, und kein I_t - die Tafel zeigte nur
+   * Hinterlegtes und setzte Striche. Kern und Stabwerk rechnen aber mit
+   * I = i² · A (`winkelwerte`) und I_t = (a_H + a_V) · t³ / 3 (`winkelIt`).
+   * Genau diese Zahlen stehen jetzt da, KURSIV und im Titel benannt: eine
+   * abgeleitete Zahl darf nicht aussehen wie eine hinterlegte.
+   */
+  const winkelWerte = (p) => ({
+    Iy: p.iy ** 2 * p.A, Iz: (p.iz ?? p.iy) ** 2 * p.A, It: winkelIt(p) });
 
   // Der Tragausleger mit seinen UPE, nicht den Winkeln des Ersatzjochs.
   const taP = erg.ausleger?.profil ? (() => {
@@ -7525,9 +7542,37 @@ export function profilUebersicht(erg, werte) {
     zu('Gurt', taP, { anzahl: 2, quelle: 'Tragausleger, zwei UPE nebeneinander',
                       art: 'walz' });
   } else if (m.profOG) {
-    zu('Obergurt', m.profOG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel', art: 'winkel' });
-    zu('Untergurt', m.profUG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel', art: 'winkel' });
+    const wo = { anzahl: 2, quelle: 'Tragjoch, zwei Winkel', art: 'winkel',
+                 abgeleitet: ['Iy', 'Iz', 'It'] };
+    zu('Obergurt', m.profOG, { ...wo, werte: winkelWerte(m.profOG) });
+    zu('Untergurt', m.profUG, { ...wo, werte: winkelWerte(m.profUG) });
   }
+  /*
+   * >>> DIE BINDEBLECHE (2. Oktober, «wo sind die falchbleche»). <<<
+   *
+   * Sie standen nur in der Stückliste. Jede Abmessung einmal, mit Rolle und
+   * Stückzahl; Kennwerte aus b × t gerechnet (das Blech IST ein Rechteck),
+   * I_y in der Blechebene (stark), I_z quer dazu (schwach), I_t mit der
+   * Randkorrektur 1 − 0.63 t/b. Alle kursiv: gerechnet, nicht hinterlegt.
+   */
+  // Die Quersteifen des Abfangjochs (ab A240): Walzprofile an Blechstationen.
+  if (ab?.typ) {
+    let st = null;
+    try { st = abfangBlechstationen(ab.typ, Number(werte?.L)); } catch { st = null; }
+    const n = new Map();
+    (st?.arten ?? []).filter((a) => a.profil).forEach((a) => n.set(a.profil, (n.get(a.profil) ?? 0) + 1));
+    n.forEach((anzahl, name) => {
+      let p = null;
+      try { p = getGurtprofil(name); } catch { p = null; }
+      if (p) zu('Quersteife', p, { anzahl, art: 'walz', quelle: `Abfangjoch ${ab.typ}, Quersteifen` });
+    });
+  }
+  blechZeilen(erg, werte).forEach(({ rolle, b, t, l, n }) => {
+    zu(rolle, { name: `FL ${b}×${t}` }, {
+      anzahl: n, art: 'blech', quelle: 'aus b × t gerechnet',
+      abgeleitet: ['A', 'Iy', 'Iz', 'Wy', 'It'], werte: blechWerte(b, t),
+      roh: { name: `FL ${b}×${t}`, b, t, l } });
+  });
   ['A', 'B'].forEach((ende) => {
     // Am Tragausleger gibt es nur Ende A - B war das Phantomauflager.
     if (ende === 'B' && taP) return;
@@ -7573,18 +7618,75 @@ export function profilUebersicht(erg, werte) {
           title="${esc(r.quelle)}${r.art ? ' – anklicken: Kenndaten und Schnitt' : ''}">
           <td>${esc(r.rolle)}</td><td>${r.art ? `<u>${esc(r.name)}</u>` : esc(r.name)}</td>
           <td class="num">${r.anzahl}</td>
-          <td class="num">${z(r.A)}</td><td class="num">${z(r.Iy)}</td>
-          <td class="num">${z(r.Iz)}</td><td class="num">${z(r.Wy)}</td>
-          <td class="num">${z(r.It)}</td>
+          ${['A', 'Iy', 'Iz', 'Wy', 'It'].map((k) => (r.abg.has(k)
+            ? `<td class="num" title="abgeleitet: ${k === 'It' && r.art === 'winkel'
+              ? '(a_H + a_V) · t³ / 3, wie im Stabwerk' : r.art === 'blech'
+              ? 'aus b × t gerechnet' : 'i² · A, wie im Rechenkern'}"><i>${z(r[k])}</i></td>`
+            : `<td class="num">${z(r[k])}</td>`)).join('')}
         </tr>`).join('')}</tbody>
     </table></div>
     <p class="hinweis" style="margin:3px 0 0">Werte je EINZELPROFIL, «n» sagt,
-      wie viele davon das Bauteil trägt. Ein Strich heisst: nicht erfasst —
-      beim Anker etwa I_z, das mit der Spreizung über die Länge wächst.
+      wie viele davon das Bauteil trägt (beim Blech die Stückzahl). <i>Kursiv</i>:
+      nicht hinterlegt, sondern so gerechnet, wie Kern und Stabwerk es tun
+      (Winkel I = i² · A, I_t dünnwandig; Bleche aus b × t). Ein Strich heisst:
+      nicht erfasst — beim Anker etwa I_z, das mit der Spreizung über die
+      Länge wächst.
       ${st ? `Stahl ${esc(st.name)}, f_y ${f0(st.fy)} N/mm².` : ''}
       Ein Klick auf ein Profil zeigt seine hinterlegten Kenndaten und den
       Schnitt.</p>
     ${mastProfilHtml(erg, masten, st)}`;
+}
+
+/**
+ * Die Bindebleche des Tragwerks, je Abmessung und Rolle einmal [mm].
+ * Tragjoch: aus den Stationen des Modells (wie die Stückliste); Abfangjoch
+ * und Tragausleger: aus ihrem Sortiment.
+ */
+function blechZeilen(erg, werte) {
+  const aus = new Map();
+  // Je ABMESSUNG eine Zeile: die Rollen sammeln sich, die Stückzahl summiert.
+  const zu = (rolle, b, t, l, n) => {
+    if (!(b > 0 && t > 0)) return;
+    const k = `${b}|${t}`;
+    const da = aus.get(k);
+    if (da) {
+      if (!da.rollen.includes(rolle)) da.rollen.push(rolle);
+      da.n += n;
+      return;
+    }
+    aus.set(k, { rollen: [rolle], b, t, l: l ?? null, n });
+  };
+  const liste = () => [...aus.values()].map((x) => ({ ...x, rolle: x.rollen.join(' · ') }));
+  const ab = erg?.abfang ?? null;
+  if (ab?.typ) {
+    /*
+     * Die STATIONEN sagen, was wo sitzt (`abfangBlechstationen`): Regelblech,
+     * Endblech links/rechts oder Quersteife. Je Station eines oben und eines
+     * unten - daher mal Zahl der Ebenen. Die Quersteifen sind Walzprofile und
+     * stehen in der Tafel als eigene Zeile (`abfangQuersteifen`).
+     */
+    let bb = null, st = null;
+    try { bb = abfangBindeblech(ab.typ); } catch { bb = null; }
+    try { st = abfangBlechstationen(ab.typ, Number(werte?.L)); } catch { st = null; }
+    const ebenen = bb?.ebenen ?? 2;
+    const rolle = { regel: 'Bindeblech', endeL: 'Endblech links', endeR: 'Endblech rechts' };
+    (st?.arten ?? []).forEach((a) => {
+      const m2 = a.art === 'regel' ? bb?.regel : a.masse;
+      if (rolle[a.art] && m2) zu(rolle[a.art], m2.b, m2.t, m2.l, ebenen);
+    });
+    return liste();
+  }
+  if (erg?.ausleger) {
+    let ta = null;
+    try { ta = getTragausleger(Number(werte?.L)); } catch { ta = null; }
+    if (ta?.blech) zu('Bindeblech', ta.blech.b, ta.blech.t, ta.blech.l, ta.bleche ?? 0);
+    return liste();
+  }
+  (erg?.modell?.stationsListe ?? []).forEach((s) => {
+    if (s.vertikal) zu('Bindeblech stehend', s.vertikal.breite, s.vertikal.dicke, s.vertikal.laenge, 2);
+    if (s.horizontal) zu('Bindeblech liegend', s.horizontal.breite, s.horizontal.dicke, s.horizontal.laenge, 2);
+  });
+  return liste();
 }
 
 /** Die Eintraege der zuletzt gezeichneten Profiltafel, fuer den Klick. */

@@ -88,6 +88,12 @@ const FELDER = {
     ['iz', 'i_z', 'cm', 'Trägheitsradius, schwache Achse'],
     ['It', 'I_t', 'cm⁴', 'Torsionsträgheitsmoment'],
   ],
+  // Das Flachblech führt nur seine Masse - alle Kennwerte sind gerechnet.
+  blech: [
+    ['b', 'b', 'mm', 'Breite'],
+    ['t', 't', 'mm', 'Dicke'],
+    ['l', 'l', 'mm', 'Länge zwischen den Gurten (Stückliste)'],
+  ],
   anker: [
     ['h', 'h', 'mm', 'Höhe des Einzelprofils'],
     ['b', 'b', 'mm', 'Breite des Einzelprofils'],
@@ -152,11 +158,34 @@ const roh = (v) => (Number.isFinite(v) ? String(v) : '–');
  */
 export const UNP_NEIGUNG = 0.08;
 
+/**
+ * KENNWERTE EINES FLACHBLECHS b × t [mm], in cm-Einheiten wie die Tabellen.
+ * I_y in der Blechebene (stark), I_z quer dazu, I_t mit der Randkorrektur
+ * 1 − 0.63 t/b (Rechteck, b ≫ t). Eine Stelle für Profiltafel und Blatt.
+ */
+export function blechWerte(b, t) {
+  return {
+    A: (b * t) / 100,
+    Iy: (t * b ** 3) / 12 / 1e4,
+    Iz: (b * t ** 3) / 12 / 1e4,
+    Wy: (t * b ** 2) / 6 / 1e3,
+    Wz: (b * t ** 2) / 6 / 1e3,
+    It: ((b * t ** 3) / 3) * (1 - (0.63 * t) / b) / 1e4,
+  };
+}
+
 export function profilGeometrie(art, p) {
   if (!p) return null;
   const ok = (...v) => v.every((x) => Number.isFinite(x) && x > 0);
   const rad = (v, f = 1) => (Number.isFinite(v) && v > 0 ? v * f : 0);
   let g;
+  if (art === 'blech') {
+    if (!ok(p.b, p.t)) return null;
+    // Schnitt quer zur Blechlänge: Breite b waagrecht, Dicke t lotrecht.
+    g = { form: 'R', b: p.b, h: p.t, t: p.t, r: 0, ys: 0, zs: 0 };
+    g.ecken = ecken(g);
+    return g;
+  }
   if (art === 'winkel') {
     if (!ok(p.aH, p.aV, p.t)) return null;
     g = { form: 'L', aH: p.aH, aV: p.aV, t: p.t, r1: rad(p.r1), r2: rad(p.r2),
@@ -190,6 +219,10 @@ export function profilGeometrie(art, p) {
  * U: Stegrücken oben, I: Flansch oben links).
  */
 function ecken(g) {
+  if (g.form === 'R') {
+    const bb = g.b / 2, o = g.h / 2;
+    return [[-bb, o, 0], [bb, o, 0], [bb, -o, 0], [-bb, -o, 0]];
+  }
   if (g.form === 'L') {
     return [[0, 0, 0], [0, g.aV, 0], [g.t, g.aV, g.r2], [g.t, g.t, g.r1],
             [g.aH, g.t, g.r2], [g.aH, 0, 0]];
@@ -311,6 +344,7 @@ function umriss(g, P) {
 function ausdehnung(g) {
   if (g.form === 'L') return { y0: 0, y1: g.aH, z0: 0, z1: g.aV };
   if (g.form === 'U') return { y0: 0, y1: g.b, z0: -g.h / 2, z1: g.h / 2 };
+  // R wie I: Mitte im Nullpunkt.
   return { y0: -g.b / 2, y1: g.b / 2, z0: -g.h / 2, z1: g.h / 2 };
 }
 
@@ -388,7 +422,10 @@ export function profilSchnittSvg(g, name = '') {
                text(b, wert, dxPx < 0 ? 'end' : 'start', dyPx < 0 ? -2 : 10));
   };
 
-  if (g.form === 'L') {
+  if (g.form === 'R') {
+    massH(e.y0, e.y1, e.z0, 22, `b = ${mm(g.b)}`);
+    massV(e.z0, e.z1, e.y0, -26, `t = ${mm(g.h)}`);
+  } else if (g.form === 'L') {
     massH(0, g.aH, 0, 22, `a_H = ${mm(g.aH)}`);
     massV(0, g.aV, 0, -26, `a_V = ${mm(g.aV)}`);
     dicke(g.aH * 0.75, g.t / 2, 26, -22, `t = ${mm(g.t)}`);
@@ -450,6 +487,7 @@ export function profilSchnittSvg(g, name = '') {
     } else {
       sText = 'Schwerpunkt S in der Mitte (doppelt symmetrisch).';
     }
+    if (g.form === 'R') sText += ' Schnitt quer zur Blechlänge.';
   } else {
     sText = 'Lage des Schwerpunkts nicht hinterlegt.';
   }
@@ -475,6 +513,19 @@ function zeilen(art, p) {
    * damit man es abgleichen kann, steht es hier - aus i² · A gerechnet und
    * als solches angeschrieben, nicht als hinterlegter Wert.
    */
+  if (art === 'blech' && Number.isFinite(p?.b) && Number.isFinite(p?.t)) {
+    const k = blechWerte(p.b, p.t);
+    for (const [key, sym, einheit, text] of [
+      ['A', 'A', 'cm²', 'Querschnittsfläche b · t'],
+      ['Iy', 'I_y', 'cm⁴', 'in der Blechebene, t · b³ / 12'],
+      ['Iz', 'I_z', 'cm⁴', 'quer zur Ebene, b · t³ / 12'],
+      ['Wy', 'W_y', 'cm³', 't · b² / 6'],
+      ['Wz', 'W_z', 'cm³', 'b · t² / 6'],
+      ['It', 'I_t', 'cm⁴', 'b · t³ / 3 · (1 − 0.63 t/b)']]) {
+      z.push({ sym, einheit, abgeleitet: true, text: `gerechnet: ${text}`,
+               wert: k[key].toFixed(2) });
+    }
+  }
   if (art === 'winkel' && Number.isFinite(p?.A)) {
     for (const [i, sym] of [['iy', 'I_y'], ['iz', 'I_z'], ['imin', 'I_v']]) {
       if (Number.isFinite(p[i])) {
@@ -483,6 +534,13 @@ function zeilen(art, p) {
                  wert: (p[i] ** 2 * p.A).toFixed(2) });
       }
     }
+    // I_t, wie das Stabwerk ihn rechnet (core.winkel.js, winkelIt).
+    if (Number.isFinite(p.t)) {
+      const aH = p.aH ?? p.a, aV = p.aV ?? p.a;
+      z.push({ sym: 'I_t', einheit: 'cm⁴', abgeleitet: true,
+               text: 'abgeleitet: (a_H + a_V) · t³ / 3, dünnwandig, wie im Stabwerk',
+               wert: (((aH + aV) * p.t ** 3) / 3 / 1e4).toFixed(2) });
+    }
   }
   return z;
 }
@@ -490,7 +548,7 @@ function zeilen(art, p) {
 /** Was unter der Zeichnung zur Ausführung gesagt werden muss. */
 function vermerke(art, g) {
   const v = [];
-  if (g && !g.r && g.form !== 'L') {
+  if (g && !g.r && g.form !== 'L' && g.form !== 'R') {
     v.push('Kein Ausrundungsradius hinterlegt — die Ecken zwischen Steg und Flansch sind scharf gezeichnet.');
   }
   if (g?.form === 'L' && !(g.r1 > 0)) {
@@ -536,9 +594,11 @@ export function profilBlattHtml(e) {
               <td>${esc(r.einheit)}</td><td>${esc(r.text)}</td></tr>`).join('')}
           </tbody></table></div>
         <p class="notiz" style="margin:4px 0 0">${esc(e.rolle ?? '')}${
-          e.quelle ? ` · ${esc(e.quelle)}` : ''}. Die Werte stehen, wie sie in
-          der Datenbasis hinterlegt sind (ungerundet, in der Einheit ihrer
-          Tabelle) — zum Abgleich mit der Profiltabelle der Literatur.</p>
+          e.quelle ? ` · ${esc(e.quelle)}` : ''}. ${e.art === 'blech'
+          ? 'Hinterlegt sind nur die Masse; die Kennwerte (kursiv) sind aus b × t gerechnet.'
+          : `Die Werte stehen, wie sie in der Datenbasis hinterlegt sind
+          (ungerundet, in der Einheit ihrer Tabelle) — zum Abgleich mit der
+          Profiltabelle der Literatur. Kursiv: abgeleitet, wie gerechnet wird.`}</p>
         ${e.p.hinweis ? `<p class="hinweis" style="margin:3px 0 0">${esc(e.p.hinweis)}</p>` : ''}
       </div>
     </div>`;

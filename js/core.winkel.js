@@ -65,6 +65,21 @@ import { U } from './core.constants.js';
  */
 const SPEICHER = new WeakMap();
 
+/**
+ * TORSIONSTRAEGHEIT DES WINKELS [cm⁴] - dünnwandig, (a_H + a_V) · t³ / 3.
+ *
+ * Die Winkeltabelle führt kein I_t. Das Stabwerk rechnet seit je mit dieser
+ * Formel (bis zum 2. Oktober inline in export.axisvm.js); die Profiltafel
+ * zeigt seither dieselbe Zahl (Frage des Auftraggebers: «warum fehlen hier
+ * gewisse kennwerte»). Eine Stelle für beide - sonst zeigte die Tafel eine
+ * andere Zahl als die, mit der gerechnet wird. Ohne Ausrundung und ohne
+ * Wulst: etwas kleiner als der Tabellenwert der Literatur.
+ */
+export function winkelIt(p) {
+  const aH = p.aH ?? p.a, aV = p.aV ?? p.a;
+  return ((aH + aV) * p.t ** 3) / 3 / 1e4;
+}
+
 export function winkelwerteFuer(p) {
   if (!SPEICHER.has(p)) SPEICHER.set(p, winkelwerte(p));
   return SPEICHER.get(p);
