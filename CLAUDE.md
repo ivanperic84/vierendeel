@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Anbauteil-Katalog bereinigt (3. Oktober) | Mit Bild der Kacheln, im Wortlaut: «Hängestütze mit Fahrdrahtabzug nicht Fahrleitung - Jochaufsatz einfach genügt, ohne Zusatzleiter, da dies immer der Fall ist. Jochaufsatz doppelt mein dass es zwei traversen mit ZL hat in der höhe verteilt. - den Jochaufsatz alt kann man auch gleich versehen wie den Jochaufsatz einfach. - Anstatt Leiter Kettenwerk N-FL bzw. R-FL - die leitertraverse kommt meist nur an vertikale bauteile / tragwerke zu liegen. - lampe led mit rohr ist an rohr auf dem masten befestigt, also ein vertikale ausrichtung. - unter übrige kann man ein freies bauteil aufführen - was noch fehlt sind die trafos dies sind an den masten befestigt. man kann hier einen 50 kVA Typ aufführen - die lampe LED kann man wegnehmen, diese ist meist gar nicht relevant.» Auf Rückfrage: **Fahrdraht ohne Gewicht** (`hs-fahrdraht` trägt `drahtwerk-n-fl-cu-107`, `wirktG: false`, wie «Fahrdrahtabzug am Mast»; G 1.500 → 0.500 kN); **doppelt «1 wobei man hier die masse aus den beispielen … herausnehmen kann»** - Kursaufgaben S. 2: H 630, unten Traverse 2.50 m (357 über Joch-OK → z 3.68) mit zwei Bündeln 2× Cu 95 bei ±1.20, oben 1.12 m (503 → z 5.14) mit 1× Cu 95, Leiter 0.77 m unter der Traverse (wie Beispiel 1); **alt «1 wobei man hier eine recherche machen kann …»** - A-15.2 S. 3, Typ 1/362: 3.62 m, Traverse 0.87 m am Kopf, Bündel 2× Cu 95 bei x 0.80; **Lampen «1 lampen sind meist an rohren auf masten oder an jochen»** - beide LED-Vorlagen weg, «Lampe mit Rohr am Mast» und neu «… am Joch», Rohr lotrecht (z 0.5, Lampe z 1.0). Trafo 50 kVA unter «Am Masten», die Vorlage 100 kVA weg (Baustein bleibt), Leiter-Traverse nur am Masten, «Freies Bauteil» als Kachel unter «Übrige». Skizze: ein Stiel beim doppelten (Regel «zwei Stiele» weg), Leiter unter einer Traverse an ihr, Rohr auf der Achse senkrecht, freies Bauteil als Kasten. Sicherung `data/sicherung/anbauteile_vor_vorlagen_bereinigt_2026-10-03.json`, Datenpaket neu. **Der Prüfstand führt die bisherigen `hs-fahrdraht`, LED-Lampen und Trafo 100 als Prüfvorlagen weiter** (`PRUEFVORLAGEN` in pruefung.mjs) - seine Messwerte stehen darauf; der Katalog wird in Abschnitt 202 geprüft. Das Startdokument trägt keine Anbauteile (Zahlen unverändert). ⚠ siehe *Offene Punkte* (Seil gedrückt, Lastgenerator, Höhen des einfachen Aufsatzes) |
 | 3D-Plot: Mast in Abschnitten, Verformung mit dem Joch (3. Oktober) | Frage mit zwei Bildern: «ist es möglich den masten in mehrere teile zu plotten, anstatt nur in der massgebenden farbe über die ganze länge. das joch auch bei der verformung mitnehmen.» (1) Im Stabwerksweg trug jede Mastfläche den Wert ihres ganzen Stabes - der unterste reicht vom Fuss bis unter den Anschluss. Jetzt das Grösste des 0.5-m-Verlaufs (`verlaufWerte`, render.stabwerk.js) in der Höhe der Fläche, Ränder linear eingeschaltet; T bleibt der Stabwert, σ aus N anteilig. Gemessen J90/20 m, HEB 240: Mast M1 20 verschiedene η statt eines je Stab, grösstes 0.7862 = Nachweis, am Fuss 0.786 gegen 0.382 in halber Höhe. (2) **Ändert den Entscheid vom 24. September** («das Joch bleibt grau»): im Stabwerksweg trägt jede Fläche - Gurte, Bleche, Mastabschnitte - `w` aus den Knotenwegen des Stabwerks (`wegImStab`, Betrag in mm), im Fall der verformten Figur δ (`wegeFall` in app.js: gewählter Fall, bei «umhüllend» der massgebende der Gebrauchstauglichkeit), auch bei einem Einzellastfall. Gemessen: grösstes w im Bild 124.69 mm = grösster Weg der Figur 124.89 mm, Mastfuss 0.00 mm. Im Browser: σ_v am Masten von Rot am Fuss nach Blau, w mit rotem Joch (bis 106.8 mm, HEB 260), Legende «Aus dem Stabwerk: Betrag des Wegs an Joch und Masten …». Prüfstand 199 |
 | Anbauteile schneller finden: was gebaut wird (3. Oktober) | Rückfrage mit vier Hilfen und der Bauteilkarte. Gewählt: **«Suchfeld + Filter»** (über den Vorlagen, sofort gefiltert, Vorlagen und Lasttabelle zusammen, nach Tragwerksart), **«Symbolkacheln»** (Strichskizze je Vorlage, Name einzeilig, ohne Farbpunkt und Legende) und in der Karte **«Bausteinwahl mit Suche»** (Auswahlfenster mit Suchfeld und Gruppen statt der Liste mit 27 Einträgen, nach Ort vorgefiltert, Erklärsätze eingeklappt). Zur Auswahl im 3D an der Stelle im Wortlaut: «die auswahl nur verwenden wenn bauteil setzen aktiv ist, sonst könnte es zu klicky werden, da wir schon ein kontextmenue haben im üblichen 3d. da kann man dann auch zuletzt verwendet aufführen.» - also nur im Modus «Bauteil setzen», dort mit «zuletzt verwendet»; das gewöhnliche Kontextmenü bleibt |
 | Mastkopf ziehen am Einzelmasten und am Tragausleger (2. Oktober) | Gemeldet: «beim einzelmast und beim tragauslegermasten lassen sich die höhen nicht per drag and drop anpassen.» Befund im Browser: am Einzelmasten liegen ab Werk Traverse (L − 0.5) und Rückleiter (L − 2.0) über der Kopfzone - ihr Fangrand und ihre Flächen gingen beim Drücken vor (Zeiger «grab»); dem Tragausleger fehlten die Griffe ganz (`render.tragausleger.js` baute keine). Jetzt erkennt `_mastEndeUnter` (render.3d.js) Kopf und Fuss nach der Lage auf der Mastachse innerhalb der Mastbreite, VOR Angriffspunkt und Anbauteil (Zeiger und Drücken); der Schaft bleibt bei der getroffenen Fläche. Der Ausleger bekommt Kopf und Lage wie der Einzelmast; kürzer als H + b wird nicht gesetzt (Meldung «mindestens … m»). Die Meldung sagt «Joch bleibt» nur am Joch, am Ausleger «Ausleger bleibt». Im Browser: Einzelmast 8.50 → 10.60 m; MT1 14.00 → 16.20 m, → 10.80 abgewiesen («mindestens 13.85 m»), Lage 60.00 → 53.40 m; Jochmast M1 8.50 → 9.60 m. Prüfstand 196 |
@@ -327,12 +328,16 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6286 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6300 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **3. Okt., Anbauteil-Katalog bereinigt** (Prüfstand 202, siehe
+  *Entschieden*). Im Browser die Skizzen aller 20 Vorlagen angesehen
+  (Probeseite, gelöscht). Der Durchgang meldet seither einen Befund
+  (siehe *Offene Punkte*) - deshalb nicht gepusht.
 - **3. Okt., Tragausleger am Jochmasten: ein Mast** (Prüfstand 201).
   Gemeldet: «wenn ich einen tragausleger an einen jochmasten setze, habe
   ich zwei masten übereinander anstatt das sich der vorhandene verlängert
@@ -2301,6 +2306,19 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Tragausleger kurz mit Fahrdrahtabzug: ein Seil gedrückt** (3. Okt.,
+  `durchlauf.mjs` meldet es). L 6 m, Hängestütze mit Fahrdrahtabzug bei
+  L − 0.65: `AUFHAENGUNG_N` −0.24 kN unter «Ständig + Wind −y»; mit der
+  früheren Vorlage (Kettenwerk mit Gewicht) und mit `hs-nur` kein Druck.
+  Linear gerechnet; das Seil hinge real durch. Wie damit umgehen (Hinweis,
+  Durchgang auf Kettenwerk, nichtlinear), ist zu entscheiden.
+- ⚠ **Lastgenerator setzt je Gleis `hs-fahrdraht`** (Vorgabe in
+  ui.schema.js) - seit dem 3. Oktober nur noch den Fahrdrahtabzug ohne
+  Kettenwerk. Ob er zusätzlich «Kettenwerk N-FL» setzen soll, ist zu
+  entscheiden (Achtung: Fahrdraht nicht doppelt umlenken).
+- ⚠ **Jochaufsatz einfach: Höhen der Vorlage** (Traverse z 2.00, Aufsatz
+  z 1.00) weichen von Beispiel 1 ab (h 4.60 m, Traverse 3.82 m über der
+  OG-Achse); doppelt und alt stehen jetzt nach den Plänen. Angleichen?
 - ~~**Endfeld am Stoss in der Reihe**~~ - gebaut am 2. Oktober (siehe
   *Entschieden*). Offen dabei: der Mast im Kern steht am Gurtende (5 cm
   neben der Achse, im Blattmodell und 3D auf ihr); der Kragarm-Schieber
@@ -2634,7 +2652,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6286 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6300 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

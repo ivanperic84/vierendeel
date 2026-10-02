@@ -60,27 +60,47 @@ export function vorlageSymbol(v) {
     const x = Number(m.x) || 0, z = Number(m.z) || 0;
     const art = artVon(m);
     if (art === 'traeger') {
-      const zEnde = 2 * z;
-      // Der doppelte Jochaufsatz steht auf zwei Stielen.
-      if (/doppelt/.test(String(m.bauteil))) {
-        striche.push([anX - 0.3, anZ, anX - 0.3, zEnde], [anX + 0.3, anZ, anX + 0.3, zEnde]);
-      } else {
-        striche.push([anX, anZ, anX, zEnde]);
-      }
+      /*
+       * Ein Stiel. «doppelt» heisst zwei Traversen übereinander, nicht zwei
+       * Stiele (Auftraggeber, 3. Oktober: «Jochaufsatz doppelt mein dass es
+       * zwei traversen mit ZL hat in der höhe verteilt») - die Traversen
+       * kommen aus den Daten. Reicht eine Traverse höher als 2·z, wächst
+       * der Stiel bis dorthin.
+       */
+      const zEnde = Math.max(2 * z, ...module.filter((q) => artVon(q) === 'traverse')
+        .map((q) => Number(q.z) || 0));
+      striche.push([anX, anZ, anX, zEnde]);
       anZ = zEnde;
     } else if (art === 'traverse') {
       const L = Number(m.laenge) > 0 ? Number(m.laenge) : 1;
       striche.push([x - L / 2, z, x + L / 2, z]);
-      if (Math.abs(z - anZ) > 1e-6) striche.push([anX, anZ, anX, z]);
+      if (z > anZ + 1e-6) striche.push([anX, anZ, anX, z]);
       traversen.push({ x, z, L });
+    } else if (art === 'arm' && x === 0 && z > 0) {
+      // Ein Rohr auf der Achse steht senkrecht (die Lampe auf dem Rohr,
+      // 3. Oktober: «an rohr auf dem masten befestigt, also ein vertikale
+      // ausrichtung»); z ist seine Mitte.
+      striche.push([anX, anZ, anX, 2 * z]);
+      anZ = 2 * z;
     } else if (art === 'arm') {
       if (Math.abs(z - anZ) > 1e-6) striche.push([anX, anZ, anX, z]);
       striche.push([anX, z, 2 * x || anX + 1, z]);
     } else if (art === 'leiter') {
       // Sitzt der Leiter mittig auf einer Traverse, hängt er an ihren Enden.
       const t = traversen.find((q) => Math.abs(q.z - z) < 1e-6 && Math.abs(q.x - x) < 1e-6);
+      // Hängt er UNTER einer Traverse (Isolator), zeigt ihn die Skizze an ihr.
+      // Die nächste darüber; reicht sie nicht bis x (einseitige Traverse,
+      // in den Daten mittig geführt), wird sie bis dorthin verlängert.
+      const ueber = traversen.filter((q) => q.z > z + 1e-6).sort((p, q) => p.z - q.z)[0];
+      if (ueber && Math.abs(x - ueber.x) > ueber.L / 2) {
+        striche.push([ueber.x + Math.sign(x - ueber.x) * ueber.L / 2, ueber.z, x, ueber.z]);
+      }
       if (t) {
         kreise.push([t.x - t.L / 2, z, false], [t.x + t.L / 2, z, false]);
+      } else if (ueber) {
+        // Im Kästchen an der Traverse, nicht darunter - die Isolatoren
+        // liessen die Kreise der zwei Ebenen ineinanderlaufen.
+        kreise.push([x, ueber.z, false]);
       } else {
         if (x === 0 && Math.abs(z - anZ) > 1e-6) striche.push([anX, anZ, anX, z]);
         kreise.push([x, z, false]);
@@ -93,6 +113,12 @@ export function vorlageSymbol(v) {
       kaesten.push([x, z]);
     }
   });
+  // Das freie Bauteil trägt keine Bausteine - ein Kasten an einem Stiel
+  // (3. Oktober, «unter übrige kann man ein freies bauteil aufführen»).
+  if (!module.length) {
+    striche.push([0, 0, 0, -0.5]);
+    kaesten.push([0, -0.8]);
+  }
   // Bezug: das Joch (zwei Gurte) bzw. der Mast als Senkrechte.
   const xs = [0, ...striche.flatMap((s) => [s[0], s[2]]), ...kreise.map((k) => k[0]),
               ...kaesten.map((k) => k[0])];

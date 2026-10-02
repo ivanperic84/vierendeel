@@ -86,7 +86,48 @@ const standardwerte = (...a) => {
 };
 const { verortung, verortungKurz } = await import(J('core.constants.js'));
 const A = await import(J('data.anbauteile.js'));
-A.setzeAnbauteilDB(JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8')));
+/*
+ * >>> DIE PRUEFVORLAGEN BLEIBEN, WIE SIE GEMESSEN WURDEN (3. Oktober). <<<
+ *
+ * Der Katalog wurde bereinigt (Weisung 3. Oktober: «Hängestütze mit
+ * Fahrdrahtabzug nicht Fahrleitung», «die lampe LED kann man wegnehmen»,
+ * Trafo nur 50 kVA). Hunderte Kontrollen hier nehmen `hs-fahrdraht` als DIE
+ * Fahrleitung am Joch - Kettenwerk N-FL mit Gewicht an der Hängestütze -,
+ * und ihre Messwerte (Mast 0.7862 …) stehen auf genau dieser Last. Der
+ * Prüfstand prüft die Rechnung, nicht den Katalog: er führt die vier
+ * Vorlagen deshalb in ihrer bisherigen Form weiter. Was der Katalog jetzt
+ * sagt, prüft Abschnitt 202 an der Datei selbst.
+ */
+const PRUEFVORLAGEN = {
+  'hs-fahrdraht': [{ id: 'hs-fahrdraht', name: 'Hängestütze mit Fahrleitung', farbe: 'haengend',
+    beschreibung: 'Hängestütze unter dem Joch, Fahrleitung direkt daran abgezogen.', raster: 0.4,
+    befestigung: 'durchgehend', gruppe: 'haengestuetze', rang: 2, ort: 'joch' },
+  [{ bauteil: 'anbauteil-haengestuetze-od-haengerohr', z: -1.35 },
+   { bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107', z: -2.7, umlenkung: true }]],
+  'lampe-led': [{ id: 'lampe-led', name: 'Lampe LED', farbe: 'direkt',
+    beschreibung: 'Beleuchtung mit Befestigung, unter dem Joch.', raster: 0.4,
+    befestigung: 'unten', gruppe: 'uebrige', rang: 2, ort: 'joch' },
+  [{ bauteil: 'anbauteil-lampe-led-befestigung', z: -0.6 }]],
+  'mast-lampe-led-rohr': [{ id: 'mast-lampe-led-rohr', name: 'Lampe LED mit Rohr', farbe: 'seitlich',
+    beschreibung: 'Lampe LED am Rohr, waagrecht am Masten.', raster: 0,
+    befestigung: 'unten', gruppe: 'uebrige', rang: 2, ort: 'mast' },
+  [{ bauteil: 'anbauteil-lampenrohr', z: 0, x: 0.5 }, { bauteil: 'anbauteil-lampe-led', z: 0, x: 1 }]],
+  'mast-trafo-100': [{ id: 'mast-trafo-100', name: 'Trafo 100 kVA am Mast', farbe: 'seitlich',
+    beschreibung: 'Trafo 100 kVA inklusive Konsole am Masten.', raster: 0,
+    befestigung: 'unten', gruppe: 'uebrige', rang: 3, ort: 'mast' },
+  [{ bauteil: 'diverses-trafo-100-kva', z: 0, x: 0.5 }]],
+};
+const ANBAU_KATALOG = JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8'));
+const mitPruefvorlagen = (d) => {
+  const t = structuredClone(d);
+  Object.entries(PRUEFVORLAGEN).forEach(([id, [v, mods]]) => {
+    t.tabellen.vorlagen = t.tabellen.vorlagen.filter((x) => x.id !== id).concat([v]);
+    t.tabellen.module = t.tabellen.module.filter((x) => x.id !== id).concat(
+      mods.map((m, k) => ({ id, nr: k + 1, anzahl: 1, laenge: null, y: 0, ...m })));
+  });
+  return t;
+};
+A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
 const FL = await import(J('data.fl.js'));
 FL.setzeFlDB(JSON.parse(readFileSync(join(HIER, 'data', 'fl_bauteile.json'), 'utf8')));
 const AJ = await import(J('data.abfangjoche.js'));
@@ -26371,10 +26412,14 @@ titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
   const mastIds = alle.filter((v) => ort(v.id) === 'mast').map((v) => v.id);
   if (mastIds.length) {
     // Mit den Betreiberdaten: die fuenf angewiesenen Vorlagen am Masten.
+    // Seit dem 3. Oktober (Katalog bereinigt): die Leiter-Traverse nur am
+    // Masten («kommt meist nur an vertikale bauteile / tragwerke zu liegen»),
+    // der Trafo 50 kVA am Masten, die LED-Lampe am Rohr ist weg (bis dahin
+    // hier mit 'mast-lampe-led-rohr' und Traverse «beide» geprüft).
     wahr('Am Masten stehen die angewiesenen Vorlagen',
-         ['mast-nt-ausleger', 'mast-rohrausleger', 'mast-fd-abzug', 'mast-lampe-led-rohr',
-          'mast-lampe-alt-rohr'].every((id) => mastIds.includes(id))
-         && ['leiter-traverse', 'leiter-rl'].every((id) => ort(id) === 'beide'),
+         ['mast-nt-ausleger', 'mast-rohrausleger', 'mast-fd-abzug', 'mast-lampe-alt-rohr',
+          'mast-trafo-50', 'leiter-traverse'].every((id) => mastIds.includes(id))
+         && ort('leiter-rl') === 'beide',
          mastIds.join(', '));
     const app100 = { werte: {}, letzte: null };
     const amMast = SZ100.vorlagenFuer(app100, 'mastA').map((e) => e.v.id);
@@ -26389,7 +26434,7 @@ titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
        && q100.includes('ist eine Vorlage fürs Joch, und dieses Tragwerk hat keines.'));
   const ui100 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Kachelliste zeigt am Einzelmast nur, was an den Masten passt',
-       ui100.includes("&& (!ohneJoch || vorlagePasstAn(v, 'mast')));")
+       ui100.includes("vorlagen().filter((v) => !ohneJoch || vorlagePasstAn(v, 'mast'));")
        && ui100.includes("['mast', 'Am Masten', 'grpUebrige'],"));
 }
 
@@ -35858,7 +35903,12 @@ titel('197  Anbauteile finden: Symbolkacheln, Suche, Filter');
        findet('hangestutze nt') === 'hs-nt-ausleger', findet('hangestutze nt'));
   wahr('«95» findet die Vorlagen mit Cu 95 über ihre Bausteine',
        findet('95').split(',').includes('ja-einfach') && findet('95').split(',').includes('leiter-rl'));
-  wahr('«lampe» findet die drei Lampen', findet('lampe').split(',').length === 3, findet('lampe'));
+  // Gezählt am Katalog (die Prüfvorlagen führen die alten LED-Lampen
+  // weiter); seit dem 3. Oktober zwei Lampen mit Rohr (bis dahin drei).
+  const imKatalog197 = new Set(ANBAU_KATALOG.tabellen.vorlagen.map((v) => v.id));
+  wahr('«lampe» findet die beiden Lampen des Katalogs',
+       findet('lampe').split(',').filter((id) => imKatalog197.has(id)).join() === 'joch-lampe-rohr,mast-lampe-alt-rohr',
+       findet('lampe'));
   wahr('Leere Suche lässt alles stehen', findet('').split(',').length === alle.length);
   const ui197 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Gefiltert wird ohne Neuaufbau (nur hidden), Enter setzt den ersten Treffer',
@@ -36025,6 +36075,96 @@ titel('201  Tragausleger am Jochmasten: ein Mast, der Ausleger hängt daran');
   const q201 = APP_QUELLE();
   wahr('Die App reicht den Plan an beide Wege (gewählt und nebenan)',
        q201.includes('mastZeichnen: plan[aktivId] });') && q201.includes('mastZeichnen: zeichnen });'));
+}
+
+// ===========================================================================
+titel('202  Anbauteile: Katalog bereinigt (Namen, Aufsätze, Lampen, Trafo, frei)');
+/*
+ * Weisung 3. Oktober (mit Bild der Kacheln): «Hängestütze mit
+ * Fahrdrahtabzug nicht Fahrleitung - Jochaufsatz einfach genügt, ohne
+ * Zusatzleiter, da dies immer der Fall ist. Jochaufsatz doppelt mein dass es
+ * zwei traversen mit ZL hat in der höhe verteilt. - den Jochaufsatz alt kann
+ * man auch gleich versehen wie den Jochaufsatz einfach. - Anstatt Leiter
+ * Kettenwerk N-FL bzw. R-FL - die leitertraverse kommt meist nur an
+ * vertikale bauteile / tragwerke zu liegen. - lampe led mit rohr ist an rohr
+ * auf dem masten befestigt, also ein vertikale ausrichtung. - unter übrige
+ * kann man ein freies bauteil aufführen - was noch fehlt sind die trafos dies
+ * sind an den masten befestigt. man kann hier einen 50 kVA Typ aufführen -
+ * die lampe LED kann man wegnehmen, diese ist meist gar nicht relevant.»
+ * Auf Rückfrage: Fahrdraht ohne Gewicht; doppelt mit zwei Traversen nach den
+ * Massen der Beispiele (Kursaufgaben S. 2); alt mit Traverse und Bündel
+ * (A-15.2 S. 3, Typ 1/362); Lampen mit Rohr lotrecht, am Masten und am Joch.
+ *
+ * Geprüft wird hier der KATALOG (die Datei), nicht die Prüfvorlagen.
+ */
+{
+  const S202 = await import(J('ui.anbausymbol.js'));
+  A.setzeAnbauteilDB(ANBAU_KATALOG);
+  try {
+    const v = (id) => A.vorlagen().find((x) => x.id === id);
+    const ids = new Set(A.vorlagen().map((x) => x.id));
+    const name = (id) => v(id)?.name;
+    wahr('Namen: Fahrdrahtabzug, Jochaufsatz einfach, Kettenwerk N-FL / R-FL, Freies Bauteil',
+         name('hs-fahrdraht') === 'Hängestütze mit Fahrdrahtabzug'
+         && name('ja-einfach') === 'Jochaufsatz einfach'
+         && name('leiter-nfl') === 'Kettenwerk N-FL' && name('leiter-rfl') === 'Kettenwerk R-FL'
+         && name('frei') === 'Freies Bauteil');
+    // Fahrdrahtabzug: nur der Fahrdraht, ohne Gewicht.
+    const fd = v('hs-fahrdraht').module;
+    wahr('Hängestütze mit Fahrdrahtabzug: Fahrdraht Cu 107 ohne Gewicht, kein Tragseil',
+         fd.length === 2 && fd[1].bauteil === 'drahtwerk-n-fl-cu-107' && fd[1].wirktG === false,
+         fd.map((m) => m.bauteil).join(', '));
+    const gz = (a) => A.baugruppeSumme(a, { ek: 1, R: 600, spannweite: 50 }).Gz;
+    const gNeu = gz(A.neuesAnbauteil('hs-fahrdraht', 10));
+    const gAlt = (() => {
+      A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+      try { return gz(A.neuesAnbauteil('hs-fahrdraht', 10)); }
+      finally { A.setzeAnbauteilDB(ANBAU_KATALOG); }
+    })();
+    wahr('… das Gewicht ist nur noch das der Stütze (vorher mit Kettenwerk)',
+         gNeu < gAlt && gNeu > 0, `G ${gAlt.toFixed(3)} → ${gNeu.toFixed(3)} kN`);
+    // Doppelt: zwei Traversen übereinander, unten zwei Bündel, oben ein Leiter.
+    const dp = v('ja-doppelt').module;
+    const trav = dp.filter((m) => m.bauteil === 'anbauteil-leiter-traverse');
+    wahr('Jochaufsatz doppelt: zwei Traversen übereinander (2.50 m unten, 1.12 m oben)',
+         trav.length === 2 && trav[0].laenge === 2.5 && trav[1].laenge === 1.12 && trav[1].z > trav[0].z,
+         trav.map((t) => `${t.laenge} m bei z ${t.z}`).join(' / '));
+    wahr('… unten zwei Bündel 2× Cu 95 beidseits, oben ein Cu 95',
+         dp.filter((m) => m.bauteil === 'drahtwerk-cu-95-x2').map((m) => m.x).sort().join() === '-1.2,1.2'
+         && dp.filter((m) => m.bauteil === 'drahtwerk-cu-95').length === 1);
+    const al = v('ja-alt').module;
+    wahr('Jochaufsatz alt: 3.62 m, Traverse 0.87 m am Kopf, Bündel 2× Cu 95',
+         al[0].laenge === 3.62 && al[1].bauteil === 'anbauteil-leiter-traverse' && al[1].z === 3.62
+         && al[2].bauteil === 'drahtwerk-cu-95-x2');
+    wahr('Leiter-Traverse nur am Masten; Rückleiter an beiden',
+         A.vorlageOrt(v('leiter-traverse')) === 'mast' && A.vorlageOrt(v('leiter-rl')) === 'beide');
+    // Lampen.
+    wahr('LED-Lampen und Trafo 100 kVA sind aus dem Katalog',
+         !ids.has('lampe-led') && !ids.has('mast-lampe-led-rohr') && !ids.has('mast-trafo-100'));
+    const lotrecht = (id) => v(id).module.every((m) => (m.x ?? 0) === 0)
+      && v(id).module.map((m) => m.z).join() === '0.5,1';
+    wahr('Lampe mit Rohr am Mast und am Joch: Rohr lotrecht, Lampe am Rohrkopf',
+         lotrecht('mast-lampe-alt-rohr') && lotrecht('joch-lampe-rohr')
+         && A.vorlageOrt(v('joch-lampe-rohr')) === 'joch');
+    wahr('Trafo 50 kVA unter «Am Masten», das freie Bauteil unter «Übrige»',
+         v('mast-trafo-50').gruppe === 'mast' && v('frei').gruppe === 'uebrige');
+    // Skizzen.
+    const sym = (id) => S202.vorlageSymbol(v(id));
+    const pfade = (svg) => (svg.match(/M[\d.]+ [\d.]+L[\d.]+ [\d.]+/g) ?? []);
+    const senk = (svg) => pfade(svg).filter((p) => { const [a, b, c, d] = p.match(/[\d.]+/g).map(Number); return a === c && b !== d; });
+    wahr('Skizze doppelt: ein Stiel (nicht zwei), zwei Traversen',
+         senk(sym('ja-doppelt')).length >= 1
+         && new Set(senk(sym('ja-doppelt')).map((p) => p.match(/[\d.]+/)[0])).size === 1,
+         senk(sym('ja-doppelt')).join(' '));
+    wahr('Skizze der Lampe am Joch: senkrecht, Lampe als Punkt oben',
+         senk(sym('joch-lampe-rohr')).length === 1 && /fill="currentColor"/.test(sym('joch-lampe-rohr')));
+    wahr('Skizze des freien Bauteils: ein Kasten', /<rect /.test(sym('frei')));
+  } finally {
+    A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+  }
+  const ui202 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Kachelliste nimmt das freie Bauteil auf (nicht mehr ausgefiltert)',
+       !ui202.includes("vorlagen().filter((v) => v.id !== 'frei'"));
 }
 
 // ===========================================================================

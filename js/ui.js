@@ -2668,8 +2668,9 @@ function anbauteileHtml(g, werte) {
    * und bekommt beides; die Mast-Vorlagen stehen dort unter «Am Masten».
    */
   const ohneJoch = tragwerksart(werte).traeger !== true;
-  const alleV = vorlagen().filter((v) => v.id !== 'frei'
-    && (!ohneJoch || vorlagePasstAn(v, 'mast')));
+  // Das freie Bauteil steht seit dem 3. Oktober als Kachel unter «Übrige»
+  // («unter übrige kann man ein freies bauteil aufführen»).
+  const alleV = vorlagen().filter((v) => !ohneJoch || vorlagePasstAn(v, 'mast'));
   /*
    * WAS KEINE GRUPPE TRAEGT, VERSCHWINDET NICHT.
    *
