@@ -126,7 +126,7 @@ import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer } from './core.stabnachweis.js';
 import { reaktionenGewaehlt } from './core.reaktionen.js';
-import { verformteFigur } from './core.stabverformung.js';
+import { verformteFigur, wegImStab } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
@@ -1936,14 +1936,23 @@ function szeneVonNebenan(t, zeichnen) {
 function jochSzeneMitStabwerk(erg, zeichnen) {
   // Nur die HÜLLE kommt aus dem Stabwerk; ein gewählter Einzellastfall
   // zeigt weiter den Kern (das Stabwerk führt je Stab nur die Hülle).
-  const g = tragwerksart(werte).key === 'joch' && anzeigeKombi === 'umhuellend'
-    ? stabwerkGilt() : null;
+  /*
+   * Die Hülle nur bei «umhüllend»; die Verformung aus dem Stabwerk in
+   * jedem Fall, sobald es gilt (3. Oktober, «das joch auch bei der
+   * verformung mitnehmen»), im Fall der verformten Figur (`wegeFall`).
+   */
+  const umh = anzeigeKombi === 'umhuellend';
+  const g = tragwerksart(werte).key === 'joch' ? stabwerkGilt() : null;
   const js = g ? jochStaebe(g.h.jeStab, g.jochKey) : null;
   const sz = erzeugeSzene({ ...erg.modell, mastZeichnen: zeichnen,
-                            ...(js ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
+                            ...(js && umh ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
   if (js && sz) {
-    stabwerkFaerben(sz, g.h.jeStab, { jochKey: g.jochKey,
-                                     mastNamen: erg.modell?.federn?.namen ?? {} });
+    const roh = g.h.roh;
+    const lf = roh ? wegeFall(g) : null;
+    const an = lf ? anteileFuer(lf, roh.dat) : null;
+    stabwerkFaerben(sz, g.h.jeStab, {
+      jochKey: g.jochKey, mastNamen: erg.modell?.federn?.namen ?? {}, nurWege: !umh,
+      weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
   }
   return sz;
 }
@@ -2092,16 +2101,29 @@ let verformtMerk = null;
 function ohneBalken() {
   return verfahrenVon(werte) === 'stabwerk' && stabwerkStand(app) !== 'ohneModell';
 }
+/**
+ * Der Fall, dessen Wege gezeigt werden - verformte Figur und Plot «w»
+ * (3. Oktober): der gewählte, bei «umhüllend» der massgebende der
+ * Gebrauchstauglichkeit.
+ */
+function wegeFall(g) {
+  const roh = g?.h?.roh;
+  if (!roh) return null;
+  const umh = anzeigeKombi === 'umhuellend';
+  const mg = ['A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
+    .sort((a, b) => b.eta - a.eta)[0];
+  const key = umh ? (mg?.lastfall ?? 'wyk') : anzeigeKombi;
+  return roh.faelle.find((l) => l.key === key) ?? null;
+}
+
 function verformtSetzen() {
   if (!ansicht) return;
   const g = verformtAn ? stabwerkGilt() : null;
   const roh = g?.h?.roh;
   if (!roh) { ansicht.verformt = null; verformtMerk = null; return; }
   const umh = anzeigeKombi === 'umhuellend';
-  const mg = ['A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
-    .sort((a, b) => b.eta - a.eta)[0];
-  const key = umh ? (mg?.lastfall ?? 'wyk') : anzeigeKombi;
-  const lf = roh.faelle.find((l) => l.key === key);
+  const lf = wegeFall(g);
+  const key = lf?.key;
   if (!lf) { ansicht.verformt = null; return; }
   const merk = `${g.h.kennung}|${key}|${werte.twId}`;
   if (verformtMerk?.merk === merk) { ansicht.verformt = verformtMerk.wert; return; }

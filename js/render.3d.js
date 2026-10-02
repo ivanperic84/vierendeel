@@ -4743,7 +4743,7 @@ export class Modellansicht {
     if (!p) return null;
     const max = p.fest ?? this._bereichSichtbar(p.feld);
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
-    const sw = (this.szene?.flaechen ?? []).some((f) => f.stabwerk);
+    const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));
     return { ...p, max, ...(sw && STABWERK_FUSSNOTE[p.key]
       ? { fussnote: STABWERK_FUSSNOTE[p.key] } : {}) };
   }

@@ -43,6 +43,8 @@ export const STABWERK_FUSSNOTE = {
   V: 'Aus dem Stabwerk: das grössere |V_y|, |V_z|, Hülle je Stab — Gurte und Bleche.',
   N: 'Aus dem Stabwerk: |N| an den Stabenden, Hülle je Stab — Gurte und Bleche.',
   T: 'Aus dem Stabwerk: |T| je Stab, Hülle — die Torsion des einzelnen Stabes, nicht die des Querschnitts.',
+  // 3. Oktober: mit dem Joch, aus den Knotenwegen des Stabwerks.
+  w: 'Aus dem Stabwerk: Betrag des Wegs an Joch und Masten, im Fall der verformten Figur (umhüllend: massgebend Gebrauchstauglichkeit).',
 };
 
 /** Die Werte eines Stabes für den Plot - dieselben Felder wie im Kern. */
@@ -52,6 +54,49 @@ export function plotWerte(z) {
   return {
     eta: z.eta, sig_v: z.sig, sig: h.sigN ?? null,
     N: h.N ?? null, V: h.V ?? null, M: h.M ?? null, T: h.T ?? null,
+  };
+}
+
+/**
+ * >>> DER MAST IN ABSCHNITTEN (3. Oktober). <<<
+ *
+ * Frage mit Bild: «ist es möglich den masten in mehrere teile zu plotten,
+ * anstatt nur in der massgebenden farbe über die ganze länge.» Der unterste
+ * Maststab reicht vom Fuss bis unter den Anschluss (rund 7 m) und trug als
+ * EIN Stab eine Farbe. Seit dem 2. Oktober rechnet das Stabwerk am Masten
+ * alle 0.5 m (`schnittImStab`, `verlauf` je Stab); jede Mastfläche der
+ * Szene nimmt jetzt das Grösste dieses Verlaufs in IHRER Höhe - an den
+ * Rändern linear eingeschaltet. T kennt der Verlauf nicht, es bleibt der
+ * Wert des Stabes; σ aus N folgt dem Anteil von N.
+ *
+ * @param {object} s       Stab aus jeStab (mit `verlauf` und `huelle`)
+ * @param {number} za, zb  Höhenbereich der Fläche, in den z des Stabwerks
+ */
+export function verlaufWerte(s, za, zb) {
+  const v = s?.verlauf;
+  if (!v?.length) return null;
+  const lo = Math.min(za, zb), hi = Math.max(za, zb);
+  const pkt = [...v].sort((p, q) => p.z - q.z);
+  const bei = (z) => {
+    if (z <= pkt[0].z) return pkt[0];
+    if (z >= pkt[pkt.length - 1].z) return pkt[pkt.length - 1];
+    const k = pkt.findIndex((p) => p.z >= z);
+    const a = pkt[k - 1], b = pkt[k];
+    const t = (z - a.z) / ((b.z - a.z) || 1);
+    const o = { z };
+    ['sig', 'eta', 'N', 'V', 'M'].forEach((f) => {
+      o[f] = Number.isFinite(a[f]) && Number.isFinite(b[f]) ? a[f] + t * (b[f] - a[f]) : null;
+    });
+    return o;
+  };
+  const im = [bei(lo), ...pkt.filter((p) => p.z > lo && p.z < hi), bei(hi)];
+  const max = (f) => Math.max(...im.map((p) => p[f]).filter(Number.isFinite));
+  const h = s.huelle ?? {};
+  const N = max('N');
+  return {
+    eta: max('eta'), sig_v: max('sig'), N, V: max('V'), M: max('M'),
+    T: h.T ?? null,
+    sig: Number.isFinite(h.sigN) && h.N > 0 ? h.sigN * N / h.N : (h.sigN ?? null),
   };
 }
 
@@ -113,6 +158,9 @@ export function gurtTeilung(js) {
 export function stabwerkFaerben(sz, jeStab, o = {}) {
   const js = jochStaebe(jeStab, o.jochKey ?? 'tragwerk');
   if (!sz || !js) return 0;
+  // `nurWege`: nur die Verformung setzen (Einzellastfall - die Hülle gilt
+  // dann nicht, die Wege des gezeigten Falls schon).
+  const mitHuelle = o.nurWege !== true;
   const mastNamen = o.mastNamen ?? {};
   // Die Masten: je Name ihre Stäbe, die Höhe ab dem tiefsten Punkt.
   const masten = {};
@@ -168,32 +216,70 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
       const h = (Math.min(...zs) + Math.max(...zs)) / 2 - szFuss[m[1]];
       const s = l.find((z) => h >= z.z0 - mastFuss[id] - 1e-6 && h <= z.z1 - mastFuss[id] + 1e-6);
       if (s) f._mastStab = s.name;
-      return s ? plotWerte(s) : null;
+      if (!s) return null;
+      // Die Fläche über ihre Höhe (3. Oktober): der Verlauf darin, sonst der Stab.
+      const za = Math.min(...zs) - szFuss[m[1]] + mastFuss[id];
+      const zb = Math.max(...zs) - szFuss[m[1]] + mastFuss[id];
+      f._mastBereich = { s, za, zb };
+      return verlaufWerte(s, za, zb) ?? plotWerte(s);
     }
     return null;
+  };
+
+  /*
+   * >>> DIE VERFORMUNG AUS DEM STABWERK, MIT DEM JOCH (3. Oktober). <<<
+   * «das joch auch bei der verformung mitnehmen.» Bis hierher trugen nur
+   * die Masten `w` (Ersatzbalken, Entscheid 24. September «das Joch bleibt
+   * grau»). Mit `o.weg` (Weg eines Stabes an der Stelle ξ, in m) bekommt
+   * jede Fläche den grössten Weg ihrer Stäbe - Gurte und Bleche an Anfang,
+   * Mitte und Ende, die Mastfläche an ihren beiden Rändern. Aufgetragen ist
+   * der Betrag des Verschiebungsvektors in mm; der Fall ist der der
+   * verformten Figur (app.js, `wegeFall`).
+   */
+  const wegMm = (name, xi) => {
+    const u = o.weg?.(name, xi);
+    return u ? Math.hypot(u[0], u[1], u[2]) * 1000 : null;
+  };
+  const wFuer = (f, staebe) => {
+    if (!o.weg) return null;
+    if (f._mastBereich) {
+      const { s, za, zb } = f._mastBereich;
+      const xi = (z) => Math.min(1, Math.max(0, (z - s.z0) / ((s.z1 - s.z0) || 1)));
+      const w = [wegMm(s.name, xi(za)), wegMm(s.name, xi(zb))].filter(Number.isFinite);
+      return w.length ? Math.max(...w) : null;
+    }
+    const w = (staebe ?? []).flatMap((z) => [0, 0.5, 1].map((xi) => wegMm(z.name, xi)))
+      .filter(Number.isFinite);
+    return w.length ? Math.max(...w) : null;
   };
 
   let n = 0;
   (sz.flaechen ?? []).forEach((f) => {
     const w = werteFuer(f.teil, f);
     if (!w) return;
-    f.werte = { ...(f.werte ?? {}), ...w };
-    f.stabwerk = true;           // für die Legende (Fussnote)
-    f.staebe = (staebeFuer(f.teil, f) ?? []).map((z) => z.name);
+    const staebe = staebeFuer(f.teil, f);
+    const ww = wFuer(f, staebe ?? (f._mastStab ? [{ name: f._mastStab }] : []));
+    f.werte = { ...(f.werte ?? {}), ...(mitHuelle ? w : {}),
+                ...(Number.isFinite(ww) ? { w: ww } : {}) };
+    if (mitHuelle) f.stabwerk = true;           // für die Legende (Fussnote)
+    if (Number.isFinite(ww)) f.wegeStabwerk = true;
+    f.staebe = (staebe ?? []).map((z) => z.name);
     if (f._mastStab) { f.staebe = [f._mastStab]; delete f._mastStab; }
+    delete f._mastBereich;
     n += 1;
   });
   // Die Schwerachsen tragen dieselben Werte wie ihr Körper.
   (sz.linien ?? []).forEach((l) => {
     const teil = /^Schwerachse (\w+)$/.exec(l.label ?? '')?.[1]
       ?? /^Blechachse (\w+)$/.exec(l.label ?? '')?.[1];
-    if (!teil || !l.werte) return;
+    if (!teil || !l.werte || !mitHuelle) return;
     const w = werteFuer(teil, l);
     if (!w) return;
     l.werte = { ...l.werte, ...w };
     n += 1;
   });
-  sz.quelleWerte = 'stabwerk';
+  if (mitHuelle) sz.quelleWerte = 'stabwerk';
+  if (o.weg) sz.wegeAusStabwerk = true;
   return n;
 }
 

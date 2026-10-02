@@ -33101,7 +33101,8 @@ titel('150  3D-Resultatplot aus dem Stabwerk: Hülle je Stab');
        sz.flaechen.some((f) => f.teil === 'OG_L' && f.stabwerk && f.werte.V > 0));
   wahr('Die Legende nennt die Quelle (Fussnote «aus dem Stabwerk»)',
        /aus dem Stabwerk/i.test(RS150.STABWERK_FUSSNOTE.eta)
-       && Object.keys(RS150.STABWERK_FUSSNOTE).length === 7);
+       // seit dem 3. Oktober acht: dazu w (Verformung mit dem Joch, Abschnitt 199)
+       && Object.keys(RS150.STABWERK_FUSSNOTE).length === 8);
   const q = APP_QUELLE();
   wahr('Nur die Hülle kommt aus dem Stabwerk, ein Einzellastfall zeigt den Kern',
        /anzeigeKombi === 'umhuellend'\s*\n?\s*\? stabwerkGilt\(\) : null/.test(q));
@@ -35905,6 +35906,56 @@ titel('198  Bauteil setzen: Auswahl an der Stelle, zuletzt verwendet');
   wahr('Der Balken zeigt beim Setzen das Fenster an der Stelle, nicht mehr die Spalten',
        q198.includes('setzWahlZeigen(app, st, wo, {'));
   wahr('Gemerkt wird beim Setzen einer Vorlage', /export function setzeVorlageAnStelle\(app, vorlageId\) \{\s*zuletztMerken\(vorlageId\);/.test(q198));
+}
+
+// ===========================================================================
+titel('199  3D-Plot: Mast in Abschnitten, Verformung mit dem Joch');
+/*
+ * Frage 3. Oktober mit zwei Bildern: «ist es möglich den masten in mehrere
+ * teile zu plotten, anstatt nur in der massgebenden farbe über die ganze
+ * länge. das joch auch bei der verformung mitnehmen.»
+ */
+{
+  const AS199 = await import(J('app.stabwerk.js'));
+  const N199 = await import(J('core.nachbarn.js'));
+  const R199 = await import(J('render.3d.js'));
+  const RS199 = await import(J('render.stabwerk.js'));
+  const SN199 = await import(J('core.stabnachweis.js'));
+  const SV199 = await import(J('core.stabverformung.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const s = N199.rechensatzMitNachbarn(w);
+  const erg = berechne(s, ...N199.kernArgumente(s));
+  const h = AS199.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const js = RS199.jochStaebe(h.jeStab, 'tragwerk');
+  const sz = R199.erzeugeSzene({ ...erg.modell, gurtTeilung: RS199.gurtTeilung(js) }, erg);
+  const roh = h.roh;
+  const lf = roh.faelle.find((l) => l.key === (h.verformung?.A?.massgebend?.lastfall ?? 'wyk'))
+    ?? roh.faelle.find((l) => l.key === 'wyk') ?? roh.faelle[0];
+  const an = SN199.anteileFuer(lf, roh.dat);
+  RS199.stabwerkFaerben(sz, h.jeStab, { mastNamen: erg.modell.federn?.namen ?? {},
+    weg: (name, xi) => SV199.wegImStab(roh.dat, roh.lsg, an, name, xi) });
+  const mastA = sz.flaechen.filter((f) => f.teil === 'MAST_A' && f.werte?.stabwerk !== false && f.stabwerk);
+  const etas = [...new Set(mastA.map((f) => f.werte.eta?.toFixed(3)))];
+  wahr('Mast M1: die Abschnitte tragen verschiedene η (nicht mehr eine Farbe je Stab)',
+       etas.length >= 5, `${etas.length} Werte`);
+  const sMax = Math.max(...Object.values(h.jeStab).filter((z) => /MAST_M1_S/.test(z.name)).map((z) => z.eta));
+  pruef('… das grösste ist das des Nachweises (nichts geht verloren)',
+        Math.max(...mastA.map((f) => f.werte.eta)), sMax, 1e-6, '');
+  const unten = mastA.filter((f) => Math.min(...f.punkte.map((p) => p[2])) < -6.5);
+  const mitte = mastA.filter((f) => { const z = Math.min(...f.punkte.map((p) => p[2])); return z > -4.5 && z < -3; });
+  wahr('… am Fuss grösser als in halber Höhe (Kragmast unter Wind)',
+       Math.max(...unten.map((f) => f.werte.eta)) > Math.max(...mitte.map((f) => f.werte.eta)) * 1.2,
+       `${Math.max(...unten.map((f) => f.werte.eta)).toFixed(3)} / ${Math.max(...mitte.map((f) => f.werte.eta)).toFixed(3)}`);
+  const gurte = sz.flaechen.filter((f) => /^(OG|UG)_(L|R)$/.test(f.teil ?? ''));
+  wahr('Verformung: die Gurte tragen w aus dem Stabwerk',
+       gurte.length > 0 && gurte.every((f) => Number.isFinite(f.werte?.w)) && gurte.some((f) => f.wegeStabwerk));
+  const wJoch = Math.max(...gurte.map((f) => f.werte.w));
+  const fig = SV199.verformteFigur(roh.dat, roh.lsg, an);
+  pruef('… das grösste w im Bild = grösster Weg der verformten Figur', Math.max(wJoch,
+        ...mastA.map((f) => f.werte.w ?? 0)), fig.max * 1000, 0.5, 'mm');
+  wahr('… am Fuss ist der Mast fast in Ruhe', Math.min(...unten.map((f) => f.werte.w)) < 5,
+       `${Math.min(...unten.map((f) => f.werte.w)).toFixed(2)} mm`);
 }
 
 // ===========================================================================

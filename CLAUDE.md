@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| 3D-Plot: Mast in Abschnitten, Verformung mit dem Joch (3. Oktober) | Frage mit zwei Bildern: «ist es möglich den masten in mehrere teile zu plotten, anstatt nur in der massgebenden farbe über die ganze länge. das joch auch bei der verformung mitnehmen.» (1) Im Stabwerksweg trug jede Mastfläche den Wert ihres ganzen Stabes - der unterste reicht vom Fuss bis unter den Anschluss. Jetzt das Grösste des 0.5-m-Verlaufs (`verlaufWerte`, render.stabwerk.js) in der Höhe der Fläche, Ränder linear eingeschaltet; T bleibt der Stabwert, σ aus N anteilig. Gemessen J90/20 m, HEB 240: Mast M1 20 verschiedene η statt eines je Stab, grösstes 0.7862 = Nachweis, am Fuss 0.786 gegen 0.382 in halber Höhe. (2) **Ändert den Entscheid vom 24. September** («das Joch bleibt grau»): im Stabwerksweg trägt jede Fläche - Gurte, Bleche, Mastabschnitte - `w` aus den Knotenwegen des Stabwerks (`wegImStab`, Betrag in mm), im Fall der verformten Figur δ (`wegeFall` in app.js: gewählter Fall, bei «umhüllend» der massgebende der Gebrauchstauglichkeit), auch bei einem Einzellastfall. Gemessen: grösstes w im Bild 124.69 mm = grösster Weg der Figur 124.89 mm, Mastfuss 0.00 mm. Im Browser: σ_v am Masten von Rot am Fuss nach Blau, w mit rotem Joch (bis 106.8 mm, HEB 260), Legende «Aus dem Stabwerk: Betrag des Wegs an Joch und Masten …». Prüfstand 199 |
 | Anbauteile schneller finden: was gebaut wird (3. Oktober) | Rückfrage mit vier Hilfen und der Bauteilkarte. Gewählt: **«Suchfeld + Filter»** (über den Vorlagen, sofort gefiltert, Vorlagen und Lasttabelle zusammen, nach Tragwerksart), **«Symbolkacheln»** (Strichskizze je Vorlage, Name einzeilig, ohne Farbpunkt und Legende) und in der Karte **«Bausteinwahl mit Suche»** (Auswahlfenster mit Suchfeld und Gruppen statt der Liste mit 27 Einträgen, nach Ort vorgefiltert, Erklärsätze eingeklappt). Zur Auswahl im 3D an der Stelle im Wortlaut: «die auswahl nur verwenden wenn bauteil setzen aktiv ist, sonst könnte es zu klicky werden, da wir schon ein kontextmenue haben im üblichen 3d. da kann man dann auch zuletzt verwendet aufführen.» - also nur im Modus «Bauteil setzen», dort mit «zuletzt verwendet»; das gewöhnliche Kontextmenü bleibt |
 | Mastkopf ziehen am Einzelmasten und am Tragausleger (2. Oktober) | Gemeldet: «beim einzelmast und beim tragauslegermasten lassen sich die höhen nicht per drag and drop anpassen.» Befund im Browser: am Einzelmasten liegen ab Werk Traverse (L − 0.5) und Rückleiter (L − 2.0) über der Kopfzone - ihr Fangrand und ihre Flächen gingen beim Drücken vor (Zeiger «grab»); dem Tragausleger fehlten die Griffe ganz (`render.tragausleger.js` baute keine). Jetzt erkennt `_mastEndeUnter` (render.3d.js) Kopf und Fuss nach der Lage auf der Mastachse innerhalb der Mastbreite, VOR Angriffspunkt und Anbauteil (Zeiger und Drücken); der Schaft bleibt bei der getroffenen Fläche. Der Ausleger bekommt Kopf und Lage wie der Einzelmast; kürzer als H + b wird nicht gesetzt (Meldung «mindestens … m»). Die Meldung sagt «Joch bleibt» nur am Joch, am Ausleger «Ausleger bleibt». Im Browser: Einzelmast 8.50 → 10.60 m; MT1 14.00 → 16.20 m, → 10.80 abgewiesen («mindestens 13.85 m»), Lage 60.00 → 53.40 m; Jochmast M1 8.50 → 9.60 m. Prüfstand 196 |
 | QP-Einlesen ruht; Anbauteile schneller finden (2. Oktober) | Im Wortlaut: «diese entwicklung auf stnd by, ich denke der gewinn für diese app ist klein, man sollte mehr in einen intuitiven workflow investieren, der aufbau eines tragwerks gemäss querprofil ist schon gut. was man optimieren könnte ist eine einfacher umgang mit den anbauteilen, wo man schneller die teile ausfindig machen kann um diese dann zu verbauen. es ist zur zeit sehr viel text den man lesen muss um das richtige bauteil zu finden.» - QP-Einlesen (eigener PDF-Leser, Erkennung) **auf Standby**, die Befunde der Sonde stehen in der Zeile darunter. Nächste Arbeit: Anbauteile finden und setzen mit weniger Text |
@@ -326,7 +327,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6270 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6276 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2614,7 +2615,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6270 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6276 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
