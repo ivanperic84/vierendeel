@@ -1834,7 +1834,20 @@ function KonturQuerschnitt($modell, [string]$name, $par, $kontur, [double]$versa
         }
         if ($liste.Add($poly) -le 0) { throw 'Polygon nicht angenommen' }
     }
-    return $modell.CrossSections.AddCustom($name, $liste, 0)
+    $neu = $modell.CrossSections.AddCustom($name, $liste, 0)
+    if ($neu -le 0) { throw "AddCustom meldet $neu" }
+    <#  DIE LAGE WIRD GEPRUEFT, NICHT ANGENOMMEN. Die Flaechenprobe vergleicht
+        die groessere mit der groesseren Zahl und saehe ein um 90 Grad
+        gedrehtes Profil nicht. Hier muss die STARKE Achse in derselben
+        Komponente liegen wie beim Hilfs-U - sonst gilt der alte Weg, und der
+        Bericht sagt es.                                                    #>
+    $hq = $modell.CrossSections.Item($hilf); $nq = $modell.CrossSections.Item($neu)
+    if (($hq.Iy -gt $hq.Iz) -ne ($nq.Iy -gt $nq.Iz)) {
+        throw ("Kontur liegt gedreht (Hilfs-U Iy/Iz {0:E3}/{1:E3}, Kontur {2:E3}/{3:E3})" -f $hq.Iy, $hq.Iz, $nq.Iy, $nq.Iz)
+    }
+    Schreib ("    {0,-16} Lage wie AddU: Iy {1:N1} / Iz {2:N1} cm4 (Hilfs-U {3:N1} / {4:N1})" -f
+             $name, ($nq.Iy * 1e8), ($nq.Iz * 1e8), ($hq.Iy * 1e8), ($hq.Iz * 1e8))
+    return $neu
 }
 
 $qs = @{}
