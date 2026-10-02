@@ -1278,6 +1278,40 @@ const LAENGS_FREI = { ...VOLL, x: 'Free' };
 const OG_TRAGJOCH = { ...VOLL, z: 'Free', xx: 'Rigid' };
 const UG_TRAGJOCH = { ...VOLL, x: 'Free', xx: 'Rigid' };
 
+/*
+ * >>> DIE LAGERUNG DES JOCHS OHNE MASTEN (2. Oktober). <<<
+ *
+ * Frage: «wie kann man die auflagerbedingungen anpassen beim modell ohne
+ * masten im stabwerkmodell?» - gar nicht, sie war fest eingebaut. Auf
+ * Rückfrage «Dieselbe Skizze, je Gurt x/y/z» und «Ja, eine Stelle»: je
+ * Gurtebene x, y, z starr oder frei, an beiden Enden gleich, für Stabwerk,
+ * AxisVM, SAF und PyNite. x heisst dabei: dieser Gurt hält in der Jochachse
+ * - an EINEM Knoten (der linke) und nur am gewählten Ende; mehr wäre ein
+ * Zwang (Entscheid vom 27. August, «nur ein Knoten hält in Jochachse»).
+ * Vorgabe = die bisherige Lagerung: Untergurte y z, Obergurte y, x am
+ * Untergurt links bei Ende A. Ohne Halt in x, y oder z wäre das Joch
+ * verschieblich; dann hält der Untergurt (mit Hinweis).
+ */
+export const OHNE_MAST_VORGABE = {
+  OG: { x: 'Free', y: 'Rigid', z: 'Free' },
+  UG: { x: 'Rigid', y: 'Rigid', z: 'Rigid' },
+  xEnde: 'A',
+};
+
+export function ohneMastLagerung(inp) {
+  const e = inp?.auflagerOhneMast ?? {};
+  const og = { ...OHNE_MAST_VORGABE.OG, ...(e.OG ?? {}) };
+  const ug = { ...OHNE_MAST_VORGABE.UG, ...(e.UG ?? {}) };
+  const hinweise = [];
+  ['x', 'y', 'z'].forEach((g) => {
+    if (og[g] !== 'Rigid' && ug[g] !== 'Rigid') {
+      ug[g] = 'Rigid';
+      hinweise.push(`Kein Gurt hielt in ${g} - das Joch wäre verschieblich; der Untergurt hält.`);
+    }
+  });
+  return { OG: og, UG: ug, xEnde: e.xEnde === 'B' ? 'B' : 'A', hinweise };
+}
+
 export const LINK_VORGABEN = {
   joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },
   /*

@@ -52,7 +52,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
-import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge } from './core.auflager.js';
+import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
 import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBindebleche, ankerBlechSatz,
@@ -3427,10 +3427,19 @@ export function stabmodell(m, opt = {}) {
      * ersetzt, entsteht dort von selbst, und die Steifigkeit stammt aus dem
      * Mast statt aus einer Zahl. Bis dahin bleibt es bei den Punktlagern.
      */
-    if (ende === 'A') laengsAnker = gurtKnoten('UG', 'L', x);
+    /*
+     * >>> AUS DER EINSTELLUNG (2. Oktober, `ohneMastLagerung`). <<<
+     * Vorgabe wie bisher: UG y z, OG y, x am Untergurt links bei Ende A.
+     */
+    const lag = ohneMastLagerung(satzOpt ?? m);
     ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
-      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'Free',
-           'Free', null);
+      const b = lag[gurt];
+      const knoten = gurtKnoten(gurt, seite, x);
+      auflager.push({
+        ende, x, h: r6(h), modell: am, knoten,
+        ux: ende === lag.xEnde && seite === 'L' && b.x === 'Rigid' ? 'Rigid' : 'Free',
+        uy: b.y, uz: b.z, fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null,
+      });
     }));
   });
 

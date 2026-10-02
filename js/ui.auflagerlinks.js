@@ -24,7 +24,7 @@
 
 import { LINK_GRADE, linkEbenen, linkBedingung, linkVorgabe, linkGelenk,
          linkEinspannung, linkAbweichend, linkLabilitaet,
-         mastImModell } from './core.auflager.js';
+         mastImModell, ohneMastLagerung, OHNE_MAST_VORGABE } from './core.auflager.js';
 import { skizze, achsenkreuz, pf, mass, knoten, winkel, txt,
          feder } from './doku.skizze.js';
 import { klapp, esc } from './design.js';
@@ -37,7 +37,54 @@ import { klapp, esc } from './design.js';
  * `[data-feld]` - Eingabefelder mit Wert. Ein angeklickter Pfeil ist keines,
  * und ohne diese Funktion waere das Bild dort ein Bild ohne Wirkung.
  */
+/**
+ * >>> JOCH OHNE MASTEN: DIE LAGERUNG DER GURTE (2. Oktober). <<<
+ * Dieselbe Matrix wie am Masten (Obergurte / Untergurte × X Y Z), Regel in
+ * `ohneMastLagerung` (core.auflager.js). Gilt für Stabwerk und Ausleitung.
+ */
+export function ohneMastHtml(werte) {
+  const lag = ohneMastLagerung(werte);
+  const zeile = (gurt, label) => `<span class="al-mzeile">${label}</span>${['x', 'y', 'z'].map((g) => {
+    const v = lag[gurt][g];
+    const titel = g === 'x'
+      ? `${label} · X in der Jochachse - hält an einem Knoten (links) am Ende ${lag.xEnde}`
+      : `${label} · ${g.toUpperCase()} - an beiden Enden, beide Seiten`;
+    return `<button type="button" class="al-chip oh-grad al-${v === 'Rigid' ? 'starr' : 'frei'}"
+        data-gurt="${gurt}" data-grad="${g}" aria-pressed="${v === 'Rigid'}" title="${esc(titel)}"
+      >${v === 'Rigid' ? 'starr' : 'frei'}</button>`;
+  }).join('')}`;
+  const vorgabe = JSON.stringify({ OG: lag.OG, UG: lag.UG, xEnde: lag.xEnde })
+    === JSON.stringify({ OG: OHNE_MAST_VORGABE.OG, UG: OHNE_MAST_VORGABE.UG, xEnde: 'A' });
+  return `<div class="auflager-ohne-mast">
+    <p class="notiz" style="margin:0 0 4px">Ohne Masten liegt das Joch an beiden Enden auf
+      seinen Gurten. X hält an einem Knoten am gewählten Ende - mehr wäre ein Zwang.</p>
+    <div class="al-matrix">
+      <span></span><span class="al-mkopf">X</span><span class="al-mkopf">Y</span><span class="al-mkopf">Z</span>
+      ${zeile('OG', 'Obergurte')}${zeile('UG', 'Untergurte')}
+    </div>
+    <div class="rk-gurtwahl" role="radiogroup" aria-label="x-Halt am Ende">
+      ${['A', 'B'].map((e) => `<label class="at-knopf${lag.xEnde === e ? ' an' : ''}"><input type="radio"
+        name="oh-xende" value="${e}"${lag.xEnde === e ? ' checked' : ''}>x-Halt Ende ${e}</label>`).join('')}
+    </div>
+    ${lag.hinweise.map((h) => `<p class="notiz warn">${esc(h)}</p>`).join('')}
+    ${vorgabe ? '' : '<button type="button" class="btn btn-mini" data-oh-vorgabe>Vorgabe (UG y z, OG y, x Ende A)</button>'}
+  </div>`;
+}
+
 export function verdrahteAuflagerLinks(container, werte, onChange) {
+  // Joch ohne Masten (2. Oktober): Matrix und x-Halt.
+  const ohSetzen = (neu) => onChange('auflagerOhneMast', neu);
+  container.querySelectorAll('.oh-grad').forEach((b) => b.addEventListener('click', () => {
+    const lag = ohneMastLagerung(werte);
+    const alt = werte.auflagerOhneMast ?? {};
+    const gurt = b.dataset.gurt, g = b.dataset.grad;
+    const v = lag[gurt][g] === 'Rigid' ? 'Free' : 'Rigid';
+    ohSetzen({ ...alt, [gurt]: { ...lag[gurt], ...(alt[gurt] ?? {}), [g]: v } });
+  }));
+  container.querySelectorAll('input[name="oh-xende"]').forEach((r) => r.addEventListener('change', () => {
+    ohSetzen({ ...(werte.auflagerOhneMast ?? {}), xEnde: r.value });
+  }));
+  container.querySelector('[data-oh-vorgabe]')?.addEventListener('click', () => ohSetzen(null));
   /*
    * DIE RAHMENDATEN SAGEN, WOHIN GESCHRIEBEN WIRD. In der Maske steht die
    * Bedingung dieses Tragwerks (`auflagerLinks`), unter Optionen die

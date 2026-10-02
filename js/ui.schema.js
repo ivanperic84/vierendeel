@@ -1506,6 +1506,17 @@ export const FELDER = [
    * AxisVM-Ausleitung; der Ersatzbalken des Rechenkerns kennt sie nicht, er
    * traegt seine Drehfeder.
    */
+  /*
+   * >>> OHNE MASTEN: DIE LAGERUNG DER GURTE (2. Oktober). <<< «wie kann man
+   * die auflagerbedingungen anpassen beim modell ohne masten im
+   * stabwerkmodell?» - Regel in `ohneMastLagerung` (core.auflager.js).
+   */
+  { key: 'auflagerOhneMast', gruppe: 'aufl', typ: 'auflagerlinks',
+    label: 'Auflagerbedingung ohne Masten', standard: null,
+    sichtbar: (w) => !mastDa(w) && tragwerksart(w).key === 'joch',
+    hinweis: 'Je Gurtebene X, Y, Z starr oder frei, an beiden Enden gleich. Gilt im '
+      + 'Stabwerk und in der AxisVM-Ausleitung; der Ersatzbalken rechnet weiter mit '
+      + 'seinem Endauflager.' },
   { key: 'auflagerLinks', gruppe: 'aufl', typ: 'auflagerlinks',
     label: 'Auflagerbedingung am Masten', standard: null,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,

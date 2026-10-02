@@ -14,7 +14,7 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
          ABFANG_VERLAEUFE, abfangBlechstationen } from './core.abfangjoch.js';
-import { auflagerDiagrammHtml, verdrahteAuflagerLinks }
+import { auflagerDiagrammHtml, verdrahteAuflagerLinks, ohneMastHtml }
   from './ui.auflagerlinks.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
@@ -369,9 +369,12 @@ export function maskenSignatur(werte, tab) {
        * liesse es stehen. Ohne diese Zeile schaltete der Klick den Wert um,
        * und der Pfeil blieb, wie er war: die Zahl richtig, das Bild falsch.
        */
-      : (gid === 'aufl' && werte.auflagerLinks
+      // Ebenso die Lagerung ohne Masten (2. Oktober) - im Browser gesehen:
+      // der Wert kam an, die Matrix blieb stehen.
+      : (gid === 'aufl' && (werte.auflagerLinks || werte.auflagerOhneMast)
           ? [...sichtbareFelder(gid, werte).map(feldSignatur(werte)),
-             JSON.stringify(werte.auflagerLinks)]
+             JSON.stringify(werte.auflagerLinks ?? null),
+             JSON.stringify(werte.auflagerOhneMast ?? null)]
           : sichtbareFelder(gid, werte).map(feldSignatur(werte))))),
   ]);
 }
@@ -2280,8 +2283,11 @@ export function feldHtml(f, wert, werte) {
   let inp;
 
   if (f.typ === 'auflagerlinks') {
-    inp = auflagerDiagrammHtml(werte, tragwerksart(werte).key,
-                               f.vorgabefeld ? 'auflagerVorgabe' : 'auflagerLinks');
+    // Joch ohne Masten (2. Oktober): die Lagerung der Gurte selbst.
+    inp = f.key === 'auflagerOhneMast'
+      ? ohneMastHtml(werte)
+      : auflagerDiagrammHtml(werte, tragwerksart(werte).key,
+                             f.vorgabefeld ? 'auflagerVorgabe' : 'auflagerLinks');
   } else if (f.typ === 'tragwerke') {
     inp = tragwerkfeldHtml(werte);
   } else if (f.typ === 'bauform') {

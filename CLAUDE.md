@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Lagerung des Jochs ohne Masten einstellbar (2. Oktober) | Frage «wie kann man die auflagerbedingungen anpassen beim modell ohne masten im stabwerkmodell?» - war fest eingebaut (UG y z, OG y, x am UG links bei Ende A). Auf Rückfrage **«Dieselbe Skizze, je Gurt x/y/z»** und **«Ja, eine Stelle»**: Feld «Auflagerbedingung ohne Masten» (Gruppe Auflager, nur Joch ohne Masten) mit der Matrix Obergurte/Untergurte × X Y Z starr/frei, an beiden Enden gleich, dazu x-Halt Ende A/B; X hält an EINEM Knoten (links) des Gurts am gewählten Ende (Entscheid 27. Aug.). Ohne Halt in x, y oder z hält der Untergurt (Hinweis). Regel `ohneMastLagerung` (core.auflager.js), gelesen von `stabmodell` - Stabwerk, AxisVM, SAF, PyNite. Vorgabe = bisherige Lagerung (Abschnitte 191/193 unverändert). Im Browser: OG z starr und x-Halt Ende B kommen an, die Matrix folgt (Maskensignatur ergänzt). Gemessen J90/20 m: OG z gehalten trägt der Obergurt 6.92 kN lotrecht (vorher 0). Prüfstand 194 |
 | Anbauteile alle aus / alle ein (2. Oktober) | «Knopf «alle aus / alle ein» einbauen für die anbauteile»: Knopf in der Anbauteilliste neben «Alle entfernen»; schaltet `aktiv` aller Teile des Tragwerks (aus = nicht gerechnet, nicht gezeichnet, Eingaben bleiben), Strg+Z zurück. Im Browser am Standardjoch hin und zurück |
 | Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sichtbar (2. Oktober) | «hier ein umschalten von resultierende oder einzelgurte. startwert auf resultierende stellen.» - Joch ohne Masten: Umschalter über der Reaktionstabelle, Vorgabe «Resultierende je Jochende», «Einzelgurte» zeigt OG/UG links/rechts je Ende (Ansicht im Browser gemerkt, `tragjoch-reaktionen-gurte`; Blatt, Bericht, Excel folgen). «mach die angaben zur befestigung einfache auswählbar. momentan ist es etwas verstreut und klicky.» - Befestigung als drei Knöpfe Untergurt / Obergurt / beide, das Raster daneben (stand zugeklappt), Gleiszuordnung bleibt zugeklappt (`atBefestigung`). «ein visuelles feedback geben wenn man die richrige stelle hat um per drag and drop die änderung vorzunehmen im 3d.» - über Angriffspunkt, Anbauteil und Masten Zeigerform (grab, ↔ Mast schieben, ↕ Fuss/Kopf), die Mastzone in der Akzentfarbe und ein Satz am Zeiger (`_ziehZiel`, `_hoverMalen`). Im Browser: Mastkopf «Kopf ziehen · Länge ändern, Joch bleibt», Befestigung «Untergurt» kommt im Stand an. Excel-Datei geprüft (XML, Stile, Zeilen-/Zellfolge, Textlängen): kein Befund - beim Auftraggeber nachgefragt, was beim Öffnen geschieht. Prüfstand 193 |
 | Reaktionen und Lastfallwahl; Zeichnung federt zurück (2. Oktober) | Frage «wie soll die logik sein in bezug auf die auswahl zum lastfall?», auf Rückfrage **«Hülle bleibt, dazu der gewählte Fall»**: die Reaktionstabelle zeigt weiter die charakteristische Hülle; ist oben ein Lastfall gewählt, kommt je Auflager «gew. Fall» mit Vorzeichen dazu (Reiter, Blatt, Excel; `reaktionenGewaehlt`, core.reaktionen.js). Mit gültigem Stabwerk fallen die Tabellen des Ersatzbalkens «je Gruppe» im Reiter Auflager weg. Im Browser: LF7 Ständig + Wind +y, M1 M_x 45.79 = Hülle, M_y −0.73. Frage «wie könnte man am intuitivsten die funktion gestalten wenn man bauteile zuordnet und die hintergrundzeichnung eigeblendet hat um beim naviegieren aus der längsansicht zu fallen und neu die eben ausrichten muss um sie wieder zu sehen.», auf Rückfrage **«Federnd zurück»**: von der Längsansicht aus gedreht gleitet die Ansicht nach dem Loslassen in die Längsansicht zurück (Ziel, Verschiebung, Abstand bleiben), nur mit eingemessener, eingeblendeter Zeichnung (`_federtZurZeichnung`, render.3d.js). ⚠ Im Browser noch nicht gesehen (das Laden eines Stands mit Zeichnung gelang in der Prüfseite nicht). Prüfstand 192 |
@@ -320,7 +321,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6218 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6225 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2596,7 +2597,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6218 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6225 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

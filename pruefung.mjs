@@ -35620,6 +35620,58 @@ titel('193  Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sich
 }
 
 // ===========================================================================
+titel('194  Joch ohne Masten: Lagerung der Gurte einstellbar');
+/*
+ * Frage 2. Oktober «wie kann man die auflagerbedingungen anpassen beim
+ * modell ohne masten im stabwerkmodell?», Rückfragen «Dieselbe Skizze, je
+ * Gurt x/y/z» und «Ja, eine Stelle».
+ */
+{
+  const C194 = await import(J('core.auflager.js'));
+  const N194 = await import(J('core.nachbarn.js'));
+  const S194 = await import(J('app.stabwerk.js'));
+  const AB194 = await import(J('data.anbauteile.js'));
+  const v = C194.ohneMastLagerung({});
+  wahr('Vorgabe wie bisher: UG x y z, OG nur y, x am Ende A',
+       v.UG.x === 'Rigid' && v.UG.y === 'Rigid' && v.UG.z === 'Rigid'
+       && v.OG.x === 'Free' && v.OG.y === 'Rigid' && v.OG.z === 'Free' && v.xEnde === 'A');
+  const leer = C194.ohneMastLagerung({ auflagerOhneMast: { UG: { x: 'Free' } } });
+  wahr('Ohne x-Halt hält der Untergurt, mit Hinweis', leer.UG.x === 'Rigid' && leer.hinweise.length === 1);
+  const lauf = (auflagerOhneMast) => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w = AB194.standAnheben({ ...w, L: 20, xLage: 0, mastVorhanden: false, twId: 'T1', pos: 0,
+                             ...(auflagerOhneMast ? { auflagerOhneMast } : {}) });
+    const satz = N194.rechensatzMitNachbarn(w);
+    const r = S194.rechneStabwerk({ werte: w, letzte: { erg: berechne(satz, ...N194.kernArgumente(satz)) } });
+    const e = (k) => r.reaktionen.find((z) => z.art === 'jochende' && z.ende === k);
+    return { r, A: e('A'), B: e('B') };
+  };
+  // Welche Knoten im Modell was halten (Stabwerk und Ausleitung bauen gleich).
+  const halt = (auflagerOhneMast) => {
+    const r = lauf(auflagerOhneMast);
+    return { r, lager: r.r.roh.dat.auflager };
+  };
+  const h0 = halt(null);
+  const xHalter = (l) => l.filter((a) => a.ux === 'Rigid').map((a) => a.knoten);
+  wahr('Vorgabe: genau ein x-Halt, Untergurt links bei Ende A',
+       xHalter(h0.lager).length === 1 && /UGL_/.test(xHalter(h0.lager)[0])
+       && h0.lager.find((a) => a.knoten === xHalter(h0.lager)[0]).ende === 'A', xHalter(h0.lager).join(' '));
+  const hB = halt({ xEnde: 'B' });
+  wahr('x-Halt Ende B: genau ein x-Halt, jetzt am Ende B',
+       xHalter(hB.lager).length === 1 && hB.lager.find((a) => a.ux === 'Rigid').ende === 'B');
+  const hZ = halt({ OG: { z: 'Rigid' } });
+  wahr('Obergurt in z gehalten: alle vier Obergurtknoten halten z',
+       hZ.lager.filter((a) => /OG[LR]_/.test(a.knoten) && a.uz === 'Rigid').length === 4);
+  const ogZ = (x) => (x.r.r.reaktionenEinzeln ?? []).filter((z) => /OG[LR]_/.test(z.knoten))
+    .reduce((s0, z) => s0 + Math.abs(z.haupt?.Vmax?.wert ?? 0), 0);
+  wahr('… und trägt dann lotrecht mit (vorher null)', ogZ(h0) < 1e-6 && ogZ(hZ) > 0.1,
+       `${ogZ(h0).toFixed(3)} → ${ogZ(hZ).toFixed(3)} kN`);
+  const ax = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('Eine Stelle für Stabwerk und Ausleitung (stabmodell liest ohneMastLagerung)',
+       ax.includes('const lag = ohneMastLagerung(satzOpt ?? m);'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
