@@ -2789,9 +2789,16 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
              * darunter. Zwei Felder fuer dieselbe Frage waeren eines zu
              * viel - und das falsche stand oben.
              */''}
+          ${/*
+             * >>> BEFESTIGUNG ALS KNOPFREIHE, RASTER DANEBEN (2. Oktober). <<<
+             * «mach die angaben zur befestigung einfache auswählbar.
+             * momentan ist es etwas verstreut und klicky.» Statt Aufklapp-
+             * liste drei Knöpfe (Untergurt / Obergurt / beide) und das
+             * Raster gleich daneben - es stand zugeklappt unter «Raster und
+             * Gleiszuordnung». Die Gleiszuordnung bleibt zugeklappt.
+             */''}
           ${ortVon(a) === 'joch' && tragwerksart(werte).key !== 'abfangjoch'
-            ? atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
-                     BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])
+            ? atBefestigung(i, a)
             : ''}
 
           ${/*
@@ -2883,9 +2890,10 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
            * Sie sind nicht GESPERRT, sie sind ZUGEKLAPPT: was gilt, ist
            * erreichbar (Weisung vom 15. September zu den Attrappen).
            */''}
-        ${klapp(`at-fein-${i}`, 'Raster und Gleiszuordnung',
+        ${klapp(`at-fein-${i}`, ortVon(a) === 'joch' && tragwerksart(werte).key === 'abfangjoch'
+            ? 'Raster und Gleiszuordnung' : 'Gleiszuordnung',
           `<div class="at-gitter">
-            ${ortVon(a) === 'joch'
+            ${ortVon(a) === 'joch' && tragwerksart(werte).key === 'abfangjoch'
               ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05) : ''}
             ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
                      'Nach welchem Gleis die Baugruppe gruppiert wird. '
@@ -4424,6 +4432,29 @@ function atFeld(i, k, label, wert, einheit, schritt, titel = '') {
 }
 
 /** Auswahlliste in der Anbauteil-Karte. */
+/** Kurze Namen der Befestigungsarten für die Knopfreihe (2. Oktober). */
+const BEFESTIGUNG_KURZ = { unten: 'Untergurt', oben: 'Obergurt', durchgehend: 'beide' };
+
+/**
+ * Befestigung als drei Knöpfe, das Raster daneben (2. Oktober). Die Knöpfe
+ * sind Radiofelder der Klasse `at` - derselbe Weg wie jedes Feld der Karte.
+ */
+function atBefestigung(i, a) {
+  const wert = befestigungsArt(a);
+  return `<div class="at-befestigung breit2" data-feldname="befestigung">
+    <span class="at-bef-titel">Befestigung</span>
+    <div class="at-bef-reihe">
+      <div class="at-knopfreihe" role="radiogroup" aria-label="Befestigung">
+        ${BEFESTIGUNGEN.map((o) => `<label class="at-knopf${o.key === wert ? ' an' : ''}" title="${esc(o.label)}">
+          <input type="radio" class="at" name="at-bef-${i}" data-k="befestigung" data-idx="${i}"
+            value="${esc(o.key)}"${o.key === wert ? ' checked' : ''}>${esc(BEFESTIGUNG_KURZ[o.key] ?? o.label)}</label>`).join('')}
+      </div>
+      ${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}
+    </div>
+    ${hinweisHtml(`at-${i}-befestigung`, BEFESTIGUNG_WIRKUNG[wert])}
+  </div>`;
+}
+
 function atWahl(i, k, label, wert, optionen, hinweis = '') {
   return `<label class="at-feld breit2" data-feldname="${k}">
     <span>${esc(label)}</span>

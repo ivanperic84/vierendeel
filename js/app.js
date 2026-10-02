@@ -646,6 +646,22 @@ function stabwerkGilt() {
  * weiss: der angezeigte Name (Mastnummer), das Fundament je Mast, der Anker.
  * Ohne gültiges Stabwerk keine Tabelle - der Grund kommt mit.
  */
+/*
+ * >>> RESULTIERENDE ODER EINZELGURTE (2. Oktober). <<<
+ * «hier ein umschalten von resultierende oder einzelgurte. startwert auf
+ * resultierende stellen.» Gilt nur für Jochenden ohne Masten; eine Ansicht,
+ * im Browser gemerkt. Blatt, Bericht und Excel folgen derselben Wahl.
+ */
+const RK_GURTE = 'tragjoch-reaktionen-gurte';
+const rkEinzeln = () => { try { return localStorage.getItem(RK_GURTE) === 'einzeln'; } catch { return false; } };
+
+/** Ein Gurtauflager beim Namen: «OG links · Ende A» statt OGL_0.200. */
+function gurtlagerName(knoten) {
+  const m = /^(?:(.+)_)?(OG|UG)(L|R)_([-\d.]+)$/.exec(String(knoten));
+  if (!m) return String(knoten);
+  return `${m[1] ? `${m[1]} · ` : ''}${m[2]} ${m[3] === 'L' ? 'links' : 'rechts'}`;
+}
+
 function reaktionsDaten() {
   const g = stabwerkGilt();
   if (!g?.h?.reaktionen?.length) {
@@ -659,8 +675,10 @@ function reaktionsDaten() {
   const roh = g.h.roh;
   const lfGew = anzeigeKombi !== 'umhuellend'
     ? (roh?.faelle ?? []).find((l) => l.key === anzeigeKombi) : null;
-  const gewaehlt = lfGew && roh ? reaktionenGewaehlt(roh.dat, roh.lsg, lfGew, anteileFuer) : null;
-  const zeilen = g.h.reaktionen.map((z) => {
+  const einzeln = rkEinzeln() && g.h.reaktionenEinzeln?.length;
+  const gewaehlt = lfGew && roh ? reaktionenGewaehlt(roh.dat, roh.lsg, lfGew, anteileFuer,
+                                                     { zusammenfassen: !einzeln }) : null;
+  const zeilen = (einzeln ? g.h.reaktionenEinzeln : g.h.reaktionen).map((z) => {
     const m = masten.find((mm) => mastName(werte, mm) === z.id) ?? null;
     const fund = z.art === 'mast'
       ? fundamentVon({ profil: m?.profil ?? werte.mastProfil,
@@ -678,6 +696,7 @@ function reaktionsDaten() {
                : z.art === 'laengsanker' ? 'Längsanker'
                // Joch ohne Masten (2. Oktober): je Jochende eine Zeile.
                : z.art === 'jochende' ? `${z.tw ? `${z.tw} · ` : ''}Jochende ${z.ende}`
+               : z.art === 'lager' ? gurtlagerName(z.id)
                : mastAnzeigeText(z.id, anzeigeKarte),
              fundament: z.art === 'jochende' ? 'Jochauflager' : fund,
              gewaehlt: gewaehlt?.get(z.knoten) ?? null,
@@ -714,6 +733,8 @@ function reaktionsDaten() {
     .map((b) => ({ text: ohneKennung(String(b.text)),
                    x: b.p[0] + dx, z: b.p[2] + dz, mast: Boolean(b.mastEnde) }));
   return { zeilen, titel, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
+           // Ob es die Wahl Resultierende / Einzelgurte gibt, und welche gilt.
+           gurtWahl: g.h.reaktionenEinzeln?.length ? (einzeln ? 'einzeln' : 'resultierende') : null,
            linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
            datum: new Date().toLocaleDateString('de-CH'), fassung: `${APP_NAME} ${VERSION}` };
 }
@@ -1595,9 +1616,15 @@ function setzeNachweisart(art) {
  */
 function reaktionsBlockEinfuegen(node) {
   const rd = reaktionsDaten();
+  const umschalter = rd.gurtWahl ? `<div class="rk-gurtwahl" role="radiogroup" aria-label="Jochauflager">
+      ${[['resultierende', 'Resultierende je Jochende'], ['einzeln', 'Einzelgurte']].map(([k, t]) =>
+        `<label class="at-knopf${rd.gurtWahl === k ? ' an' : ''}"><input type="radio" name="rk-gurte"
+          value="${k}"${rd.gurtWahl === k ? ' checked' : ''}>${t}</label>`).join('')}
+    </div>` : '';
   node.insertAdjacentHTML('afterbegin', `<div class="rk-block">
     ${abschnitt('Reaktionskräfte, charakteristisch',
       'alle Auflager · Druck positiv · Wind ohne 0.7')}
+    ${umschalter}
     ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
       : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
          <button class="btn btn-mini btn-acc" type="button" data-reaktionen-blatt
@@ -1605,6 +1632,10 @@ function reaktionsBlockEinfuegen(node) {
            und Hinweisen …</button>`}
   </div>`);
   node.querySelector('[data-reaktionen-blatt]')?.addEventListener('click', reaktionsBlatt);
+  node.querySelectorAll('input[name="rk-gurte"]').forEach((r) => r.addEventListener('change', () => {
+    try { localStorage.setItem(RK_GURTE, r.value); } catch { /* nur Ansicht */ }
+    zeichneAuswertung();
+  }));
 }
 
 function zeichneAuswertung() {

@@ -99,7 +99,8 @@ export function auflagerArt(knoten) {
  * @param {Function} anteile  `anteileFuer` aus core.stabnachweis.js
  * @returns {{auflager: Array, faelle: Array}}
  */
-export function reaktionenAusStabwerk(dat, lsg, faelle, anteile, { alle = false } = {}) {
+export function reaktionenAusStabwerk(dat, lsg, faelle, anteile,
+                                      { alle = false, zusammenfassen = true } = {}) {
   const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
   const je = new Map();                         // knoten -> Map(fall -> r)
   const lfListe = (faelle ?? []).filter((l) => alle || l.art === 'charakteristisch'
@@ -124,7 +125,8 @@ export function reaktionenAusStabwerk(dat, lsg, faelle, anteile, { alle = false 
     return { knoten, ...auflagerArt(knoten), x: Number(k.x) || 0, y: Number(k.y) || 0,
              z: Number(k.z) || 0, proFall };
   });
-  const auflager = jochendenZusammenfassen(einzeln)
+  // «Resultierende» (Vorgabe) oder «Einzelgurte» (2. Oktober).
+  const auflager = (zusammenfassen ? jochendenZusammenfassen(einzeln) : einzeln)
     .sort((a, b) => (a.x - b.x) || (a.art === 'mast' ? -1 : 1));
   return { auflager, faelle: lfListe };
 }
@@ -140,10 +142,10 @@ export function reaktionenAusStabwerk(dat, lsg, faelle, anteile, { alle = false 
  *
  * @returns {Map<string, object>}  je Auflager-Kennung (knoten) die Zeile
  */
-export function reaktionenGewaehlt(dat, lsg, lf, anteile) {
+export function reaktionenGewaehlt(dat, lsg, lf, anteile, { zusammenfassen = true } = {}) {
   const out = new Map();
   if (!lf) return out;
-  const roh = reaktionenAusStabwerk(dat, lsg, [lf], anteile, { alle: true });
+  const roh = reaktionenAusStabwerk(dat, lsg, [lf], anteile, { alle: true, zusammenfassen });
   roh.auflager.forEach((a) => {
     const r = a.proFall.get(lf.key);
     if (!r) return;

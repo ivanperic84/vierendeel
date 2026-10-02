@@ -574,6 +574,21 @@ input[type=range].rng {
 .at-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 11.5px; }
 .at-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+/* Reaktionen: Resultierende oder Einzelgurte (2. Oktober). */
+.rk-gurtwahl { display: flex; border: 1px solid var(--ol); border-radius: 6px; overflow: hidden; margin: 4px 0 8px; }
+.rk-gurtwahl .at-knopf { padding: 4px 6px; }
+/* Befestigung als Knopfreihe, Raster daneben (2. Oktober). */
+.at-befestigung { display: grid; gap: 3px; grid-column: 1 / -1; }
+.at-bef-titel { font-size: 10px; color: var(--dim); }
+.at-bef-reihe { display: grid; grid-template-columns: 1fr 80px; gap: 6px; align-items: end; }
+.at-knopfreihe { display: flex; border: 1px solid var(--ol); border-radius: 6px; overflow: hidden; }
+.at-knopf { flex: 1; text-align: center; padding: 5px 4px; font-size: 11px; cursor: pointer;
+  color: var(--on2); border-right: 1px solid var(--ol); user-select: none; }
+.at-knopf:last-child { border-right: 0; }
+.at-knopf:hover { background: var(--acc-s); }
+.at-knopf.an { background: var(--acc-s); color: var(--acc); font-weight: 600; }
+.at-knopf input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.at-knopf:focus-within { outline: 1px solid var(--acc); outline-offset: -1px; }
 /* Oben ausgerichtet (17. September): ein Nachbar mit zweizeiligem Hinweis
    streckte sonst die Zeilen, und die Eingabe stand hoeher als das Feld
    daneben («die beiden felder auf gleicher höhe anordnen»). */

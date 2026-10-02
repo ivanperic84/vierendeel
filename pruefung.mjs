@@ -35577,6 +35577,46 @@ titel('192  Reaktionen: Hülle bleibt, dazu der gewählte Lastfall');
 }
 
 // ===========================================================================
+titel('193  Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sichtbar');
+/*
+ * Weisungen 2. Oktober: «hier ein umschalten von resultierende oder
+ * einzelgurte. startwert auf resultierende stellen.» - «mach die angaben zur
+ * befestigung einfache auswählbar. momentan ist es etwas verstreut und
+ * klicky.» - «ein visuelles feedback geben wenn man die richrige stelle hat
+ * um per drag and drop die änderung vorzunehmen im 3d.»
+ */
+{
+  const N193 = await import(J('core.nachbarn.js'));
+  const S193 = await import(J('app.stabwerk.js'));
+  const AB193 = await import(J('data.anbauteile.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = AB193.standAnheben({ ...w, L: 20, xLage: 0, mastVorhanden: false, twId: 'T1', pos: 0 });
+  const satz = N193.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N193.kernArgumente(satz));
+  const r = S193.rechneStabwerk({ werte: w, letzte: { erg } });
+  wahr('Ohne Masten: Resultierende (2 Jochenden) und Einzelgurte (8 Knoten)',
+       r.reaktionen.filter((z) => z.art === 'jochende').length === 2
+       && (r.reaktionenEinzeln ?? []).filter((z) => z.art === 'lager').length === 8);
+  const sumHl = (l) => l.reduce((s0, z) => s0 + (z.haupt?.Hl?.wert ?? 0), 0);
+  wahr('… die Einzelgurte tragen zusammen mindestens die Resultierende in y',
+       sumHl(r.reaktionenEinzeln) >= sumHl(r.reaktionen.filter((z) => z.art === 'jochende')) - 1e-6);
+  const mitM = AB193.standAnheben({ ...w, mastVorhanden: true });
+  const s2 = N193.rechensatzMitNachbarn(mitM);
+  const r2 = S193.rechneStabwerk({ werte: mitM, letzte: { erg: berechne(s2, ...N193.kernArgumente(s2)) } });
+  wahr('Mit Masten gibt es keine Wahl (keine Einzelgurte)', r2.reaktionenEinzeln === null);
+  const q = APP_QUELLE();
+  wahr('Vorgabe Resultierende, die Wahl ist eine gemerkte Ansicht',
+       q.includes("localStorage.getItem(RK_GURTE) === 'einzeln'") && q.includes("gurtWahl: g.h.reaktionenEinzeln?.length"));
+  const ui193 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Befestigung als Knopfreihe mit Raster daneben (Radiofelder der Klasse at)',
+       ui193.includes('function atBefestigung(i, a)') && /type="radio" class="at" name="at-bef-\$\{i\}" data-k="befestigung"/.test(ui193)
+       && ui193.includes("${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}"));
+  const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('3D: über ziehbaren Stellen Zeigerform und Hinweis', r3d.includes('_ziehZiel(e) {')
+       && r3d.includes("cursor: zone === 'lage' ? 'ew-resize' : 'ns-resize'") && r3d.includes('this._hoverMalen(c, proj, t)'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

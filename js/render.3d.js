@@ -2796,6 +2796,88 @@ export class Modellansicht {
    * einmal nachher rechnet, bekommt entweder einen Sprung am Anfang oder
    * einen am Ende.
    */
+  /**
+   * Was ein Druck an dieser Stelle greifen würde (2. Oktober) - dieselbe
+   * Reihenfolge wie beim Drücken: Angriffspunkt, Anbauteil, Mast.
+   * @returns {{art, schluessel, cursor, text, mast?}|null}
+   */
+  _ziehZiel(e) {
+    if (this.beiStelle || this.beiZeichnungsklick || this.zeichnungSchieben) return null;
+    const [px, py] = this._geraetePunkt(e);
+    if (this.opt.beiPunktZiehen) {
+      const fang = 8 * this._s;
+      const pt = (this._punktTreffer ?? [])
+        .map((q) => ({ q, d: Math.hypot(q.x - px, q.y - py) }))
+        .filter((q) => q.d <= fang).sort((a, b) => a.d - b.d)[0]?.q;
+      if (pt) {
+        return { art: 'punkt', schluessel: `p|${pt.teil}|${pt.achse}|${pt.x}|${pt.y}`,
+                 cursor: 'grab', px: pt.x, py: pt.y,
+                 text: `Angriffspunkt ziehen (${pt.achse ?? 'Achse'})` };
+      }
+    }
+    if (this.opt.beiAnbauteilZiehen) {
+      const u = this._anbauteilUnter(e);
+      if (u) {
+        const amMast = u.a?.ort === 'mastA' || u.a?.ort === 'mastB';
+        return { art: 'anbau', schluessel: `a|${u.b.teil}`, cursor: 'grab',
+                 text: `${u.a?.name ?? 'Anbauteil'} ziehen · ${amMast ? 'Höhe' : 'Lage x'} · Strg = Kopie` };
+      }
+    }
+    if (this.opt.beiMastZiehen) {
+      const tr = this._treffer(e);
+      const teil = tr?.flaeche.teil;
+      const ende = typeof teil === 'string' && teil.startsWith('MAST_') && !tr.flaeche.passiv
+        ? teil.slice(5) : null;
+      const g = ende ? this.szene?.mastZiehen?.[ende] : null;
+      const w = g ? this.weltTreffer(px, py) : null;
+      if (g && w) {
+        const L = g.zKopf - g.zF;
+        const rand = Math.min(Math.max(0.15 * L, 0.4), 1.0);
+        const zone = !g.einzel && w.z - g.zF < rand ? 'fuss'
+          : g.zKopf - w.z < rand ? 'kopf' : 'lage';
+        return { art: 'mast', schluessel: `m|${ende}|${zone}`,
+                 cursor: zone === 'lage' ? 'ew-resize' : 'ns-resize',
+                 mast: { g, zone, rand },
+                 text: zone === 'fuss' ? 'Fuss ziehen · Länge ändern, Joch bleibt'
+                   : zone === 'kopf' ? 'Kopf ziehen · Länge ändern, Joch bleibt'
+                     : 'Mast schieben · Lage x' };
+      }
+    }
+    return null;
+  }
+
+  /** Die Anzeige über einer ziehbaren Stelle (2. Oktober). */
+  _hoverMalen(c, proj, t) {
+    const z = this._hoverZiel;
+    const s = this._s;
+    const farbe = t.acc ?? '#7c8de0';
+    c.save();
+    c.strokeStyle = farbe;
+    c.lineWidth = 3 * s;
+    c.lineCap = 'round';
+    let anker = null;
+    if (z.art === 'mast') {
+      const { g, zone, rand } = z.mast;
+      const [z0, z1] = zone === 'fuss' ? [g.zF, g.zF + rand]
+        : zone === 'kopf' ? [g.zKopf - rand, g.zKopf] : [g.zF + rand, g.zKopf - rand];
+      const a = proj([g.x, 0, z0]), b = proj([g.x, 0, z1]);
+      if (a && b) {
+        c.globalAlpha = 0.85;
+        c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+        anker = zone === 'fuss' ? a : b;
+      }
+    } else if (z.art === 'punkt') {
+      c.beginPath(); c.arc(z.px, z.py, 9 * s, 0, 2 * Math.PI); c.stroke();
+      anker = [z.px, z.py];
+    }
+    c.restore();
+    const p = anker ?? this._hoverZeiger;
+    if (p) {
+      c.font = this._wertFont();
+      this._beschriftung(c, t, z.text, p[0] + 12 * s, p[1] - 10 * s, farbe);
+    }
+  }
+
   /** Federt die Ansicht nach dem Drehen zur Zeichnung zurück? (2. Oktober) */
   _federtZurZeichnung(vonAnsicht) {
     const z = this.zeichnung;
@@ -2943,6 +3025,7 @@ export class Modellansicht {
          * gedrehtes Modell sieht aus wie ein verschobenes Bild.
          */
         const bild = this.zeichnungSchieben && this.zeichnung?.kalibrierung;
+        this._hoverZiel = null;
         griff = { art: bild ? 'bild' : schiebemodus(e) ? 'schieben' : 'drehen',
                   bewegt: false, start: [e.clientX, e.clientY],
                   // Für das Zurückfedern zur Zeichnung (2. Oktober).
@@ -3057,6 +3140,28 @@ export class Modellansicht {
           this._titelUnterZeiger = jetzt;
           this.cv.style.cursor = jetzt ? 'pointer' : '';
           this.zeichne();
+        }
+        /*
+         * >>> WAS SICH HIER ZIEHEN LIESSE (2. Oktober). <<<
+         * «ein visuelles feedback geben wenn man die richrige stelle hat um
+         * per drag and drop die änderung vorzunehmen im 3d.» Über einem
+         * Angriffspunkt, einem Anbauteil oder einem Masten zeigt der Zeiger,
+         * was ein Druck greifen würde - Zeigerform, die Zone am Masten in der
+         * Akzentfarbe und ein kurzer Satz am Zeiger. Nur mit der Maus und
+         * ohne gedrückte Taste; einmal je Bild, nicht je Ereignis.
+         */
+        if (!treffer && !zeiger.size && e.pointerType === 'mouse' && !this._hoverPlan) {
+          this._hoverPlan = true;
+          const ev = e;
+          requestAnimationFrame(() => {
+            this._hoverPlan = false;
+            const z = this._ziehZiel(ev);
+            const alt = this._hoverZiel;
+            const gleich = (alt?.schluessel ?? null) === (z?.schluessel ?? null);
+            this._hoverZiel = z;
+            this.cv.style.cursor = z?.cursor ?? '';
+            if (!gleich || z) this.zeichne();
+          });
         }
       }
       if (!zeiger.has(e.pointerId) || !griff) return;
@@ -3240,6 +3345,8 @@ export class Modellansicht {
     // bliebe es an der letzten Stelle stehen und zeigte auf nichts.
     c.addEventListener('pointerleave', () => {
       if (this._fadenkreuz) { this._fadenkreuz = null; this.zeichne(); }
+      // Die Anzeige «hier lässt sich ziehen» geht mit dem Zeiger (2. Oktober).
+      if (this._hoverZiel) { this._hoverZiel = null; this.cv.style.cursor = ''; this.zeichne(); }
     });
 
     /*
@@ -4209,6 +4316,7 @@ export class Modellansicht {
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
+    else if (this._hoverZiel) this._hoverMalen(c, proj, t);
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.

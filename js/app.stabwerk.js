@@ -462,11 +462,21 @@ export function rechneStabwerk(app) {
    */
   const reaktionen = reaktionsZeilen(
     reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer));
+  /*
+   * Und dieselben Auflager je Gurt (2. Oktober, «hier ein umschalten von
+   * resultierende oder einzelgurte. startwert auf resultierende stellen»):
+   * nur, wo es Jochenden ohne Masten gibt.
+   */
+  const reaktionenEinzeln = reaktionen.some((z) => z.art === 'jochende')
+    ? reaktionsZeilen(reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer,
+                                            { zusammenfassen: false }))
+    : null;
 
   const ergebnis = {
     ...huelle,
     verformung,
     reaktionen,
+    reaktionenEinzeln,
     // Die Übersichtsskizze des Blattes der Reaktionskräfte (x–z).
     skizze: skizzeAusModell(dat),
     ausleger,
