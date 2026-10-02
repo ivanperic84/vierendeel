@@ -19,7 +19,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,25 +40,14 @@ for (const p of NO.winkelprofile()) {
 for (const p of NO.walzprofile()) {
   faelle.push({ art: 'walz', p, felder: [
     ['A', 'A'], ['Iy', 'Iy'], ['Wy', 'Wy'], ['iy', 'iy'], ['Iz', 'Iz'], ['Wz', 'Wz'], ['iz', 'iz'],
-    ...(p.reihe === 'UPE' ? [['ey', 'ys', 0.1]] : [])] });
+    ...(p.reihe !== 'IPE' ? [['ey', 'ys', 0.1]] : [])] });
 }
 for (const p of NO.mastprofileNorm()) {
   faelle.push({ art: 'mast', p, felder: [
     ['A', 'A'], ['Iy', 'Iy'], ['Wy', 'Wy'], ['iy', 'iy'], ['Iz', 'Iz'], ['Wz', 'Wz'], ['iz', 'iz']] });
 }
-// Der UNP der Anker - aus der Betreiberdatei, falls sie daneben liegt.
-const ankerDatei = join(HIER, 'data', 'anker.json');
-if (existsSync(ankerDatei)) {
-  const AN = await import(J('data.anker.js'));
-  AN.setzeAnkerDB(JSON.parse(readFileSync(ankerDatei, 'utf8')));
-  for (const id of ['U12', 'U14']) {
-    const q = AN.ankerQuerschnitt(id);
-    if (q?.h) {
-      faelle.push({ art: 'anker', p: { ...q, name: q.profil }, felder: [
-        ['AEinzel', 'A'], ['IyEinzel', 'Iy'], ['IzEinzel', 'Iz'], ['ey', 'ys', 0.1]] });
-    }
-  }
-}
+// Die UNP der Anker stehen seit dem 2. Oktober in der Profiltabelle (Reihe
+// UNP) und laufen oben bei den Walzprofilen mit.
 
 const pct = (ist, soll) => (100 * (ist - soll)) / soll;
 let n = 0, ueber = 0;

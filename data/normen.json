@@ -36,7 +36,9 @@
    {"name":"IPE 270","reihe":"IPE","h":27,"b":13.5,"tw":0.66,"tf":1.02,"r":1.5,"A":45.95,"G":36.1,"Iy":5789.9,"Wy":428.88,"iy":11.23,"Iz":419.87,"Wz":62.2,"iz":3.02,"It":15.9,"ey":0},
    {"name":"IPE 300","reihe":"IPE","h":30,"b":15,"tw":0.71,"tf":1.07,"r":1.5,"A":53.81,"G":42.2,"Iy":8356.2,"Wy":557.08,"iy":12.46,"Iz":603.78,"Wz":80.5,"iz":3.35,"It":20.1,"ey":0},
    {"name":"IPE 330","reihe":"IPE","h":33,"b":16,"tw":0.75,"tf":1.15,"r":1.8,"A":62.61,"G":49.1,"Iy":11767.1,"Wy":713.16,"iy":13.71,"Iz":788.14,"Wz":98.52,"iz":3.55,"It":28.2,"ey":0},
-   {"name":"IPE 360","reihe":"IPE","h":36,"b":17,"tw":0.8,"tf":1.27,"r":1.8,"A":72.73,"G":57.1,"Iy":16265.9,"Wy":903.66,"iy":14.95,"Iz":1043.45,"Wz":122.76,"iz":3.79,"It":37.3,"ey":0}
+   {"name":"IPE 360","reihe":"IPE","h":36,"b":17,"tw":0.8,"tf":1.27,"r":1.8,"A":72.73,"G":57.1,"Iy":16265.9,"Wy":903.66,"iy":14.95,"Iz":1043.45,"Wz":122.76,"iz":3.79,"It":37.3,"ey":0},
+   {"name":"UNP 120","reihe":"UNP","h":12,"b":5.5,"tw":0.7,"tf":0.9,"r":0.9,"A":16.99,"G":13.3,"Iy":364.3,"Wy":60.72,"iy":4.63,"Iz":43.06,"Wz":11.06,"iz":1.59,"It":4.15,"ey":1.61},
+   {"name":"UNP 140","reihe":"UNP","h":14,"b":6,"tw":0.7,"tf":1,"r":1,"A":20.37,"G":16,"Iy":604.8,"Wy":86.4,"iy":5.45,"Iz":62.48,"Wz":14.72,"iz":1.75,"It":5.68,"ey":1.76}
   ],
   "mastprofile": [
    {"name":"HEB 200","h":200,"b":200,"tw":9,"tf":15,"r":18,"g":61.3,"A":78.1,"Iy":5696,"Wy":569.6,"iy":8.54,"Iz":2003,"Wz":200.3,"iz":5.07,"It":59.3},
@@ -51,11 +53,12 @@
   {"pfad":"version","wert":1},
   {"pfad":"_beschreibung","wert":"Querschnittswerte und Stahlguetenormwerte. KEINE Betreiberdaten - die Zahlen stammen aus den Profilnormen (EN 10365, DIN 1026-2) und aus SIA 263. Diese Datei darf in einer oeffentlichen Ablage stehen."},
   {"pfad":"_einheiten/winkelprofile","wert":"Schenkel aH/aV, Dicke t und Ausrundungen r1 (Kehle), r2 (Schenkelspitze) in mm; g in kg/m; A in cm2; iy/iz/imin/zs in cm; W in cm3."},
-  {"pfad":"_einheiten/walzprofile","wert":"h, b, tw, tf, r, ey in cm; A in cm2; G in kg/m; I in cm4; W in cm3; i in cm."},
+  {"pfad":"_einheiten/walzprofile","wert":"h, b, tw, tf, r, ey in cm; A in cm2; G in kg/m; I in cm4; W in cm3; i in cm. UNP mit 8 % Flanschneigung (DIN 1026-1), tf bei b/2 vom Stegruecken, r = r1 (Kehle), r2 = r1/2."},
   {"pfad":"_einheiten/mastprofile","wert":"h, b, tw, tf und Ausrundung r in mm; g in kg/m; A in cm2; I in cm4; W in cm3; i in cm."},
   {"pfad":"_einheiten/stahlgueten","wert":"fy und fu in N/mm2."},
   {"pfad":"_achtung_einheiten","wert":"Walzprofile fuehren h und b in CENTIMETERN, Mastprofile in MILLIMETERN. Das ist der Stand des Rechenkerns und bewusst NICHT vereinheitlicht worden - eine Umstellung wuerde jeden Nachweis beruehren. Der Feldkatalog (js/data.katalog.js) fuehrt die Einheit je Feld mit."},
   {"pfad":"_radien","wert":"Ausrundungen nach Profilnorm: Winkel EN 10056-1 (r1 Kehle, r2 Schenkelspitze), UPE/IPE/HEB/HEM EN 10365. Am 2.10.2026 gegen die Querschnittswerte dieser Datei nachgerechnet (vergleich_profile.mjs). L 130x80x12 ohne Radien: seine Werte sind aus der Sollgeometrie ohne Ausrundung gerechnet."},
-  {"pfad":"_querschnittswerte","wert":"Am 2.10.2026 auf Weisung alle A, I, W, i, Schwerpunkt und Gewicht je Meter aus dem Normumriss gerechnet (Masse und Ausrundungen dieser Datei, js/ui.profilblatt.js querschnittAusUmriss), auf die Stellen der jeweiligen Spalte gerundet; Gewicht = A x 0.785 kg/m je cm2. I_t ist kein Umrisswert und bleibt der Tabellenwert. Vorher: data/sicherung/normen_vor_umriss_2026-10-02.json."}
+  {"pfad":"_querschnittswerte","wert":"Am 2.10.2026 auf Weisung alle A, I, W, i, Schwerpunkt und Gewicht je Meter aus dem Normumriss gerechnet (Masse und Ausrundungen dieser Datei, js/ui.profilblatt.js querschnittAusUmriss), auf die Stellen der jeweiligen Spalte gerundet; Gewicht = A x 0.785 kg/m je cm2. I_t ist kein Umrisswert und bleibt der Tabellenwert. Vorher: data/sicherung/normen_vor_umriss_2026-10-02.json."},
+  {"pfad":"_unp","wert":"UNP 120/140 (Zug-/Druckstuetzen der Anker) seit dem 2.10.2026 hier statt im Ankerkatalog; der Anker fuehrt nur noch Profil und Anzahl, die Verbundwerte rechnet js/data.anker.js ankerQuerschnitt daraus."}
  ]
 }

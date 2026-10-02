@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| UNP der Anker in die Profiltabelle (2. Oktober) | Weisung «ja anker auch auf die norm bringen, warum stehen diese nicht in der datenbank?» - Antwort: sie kamen am 11. Sept. in den Ankerkatalog, weil die Profiltabelle damals nur Winkel und UPE/IPE führte. Auf Rückfrage **«In normen.json verschieben»**: UNP 120/140 als Zeilen der Profiltabelle (Reihe `UNP`, cm), Werte aus dem Umriss mit 8 % Flanschneigung (UNP 120: A 16.99, I_y 364.3, I_z 43.06, e_y 1.61; UNP 140: 20.37 / 604.8 / 62.48 / 1.76), I_t nach Norm 4.15 / 5.68. Der Anker führt in `data/anker.json` nur noch `profil` und `anzahl` (Zahlen entfernt; Sicherung `data/sicherung/anker_vor_unp_normen_2026-10-02.json`); `ankerQuerschnitt` setzt Einzel- und Verbundwerte zusammen (Verbund = Anzahl · Einzelwert, I_z null), `ankerKnicken` liest über dieselbe Funktion. Ein älteres Paket ohne UNP-Zeile rechnet mit den Katalogzahlen weiter. Gemessen: Knickwiderstand U12/7 m 213.964 → 214.080 kN, U14/12 m 135.475 → 135.413 kN; Achsabstand U12 am Fundament / Masten 136 / 257 → 136.2 / 257.2 mm. Prüfstand 6130 |
 | Alle Querschnittswerte aus dem Normumriss (2. Oktober) | Weisung «allle querprofile auf die der norm bringen». Auf Rückfrage **«Alle Querschnittswerte aller Profile»** und **«Aus dem Umriss, Tabellenrundung»**: in `data/normen.json` jede Zeile der Winkel, UPE/IPE und HEB/HEM - A, I, W, i, i_v, Schwerpunkt, Gewicht (A · 0.785) - aus `querschnittAusUmriss` (Normmasse und -radien der Datei), gerundet auf die Stellen der jeweiligen Spalte; **I_t bleibt** der Tabellenwert (kein Umrisswert). 96 Werte geändert, meist in der dritten Stelle; die grössten: L 200x200x20 Schwerpunkt 5.52 → 5.68 cm, W 196.82 → 199.11; L 120x80x12 z_s/y_s 2.05/4.05 → 2.03/4.00, i_v 1.73 → 1.71, W_y 18.9 → 19.14; L 120x120x12 W 42.21 → 42.73. Damit hebt die Weisung «die anderen lassen» vom selben Tag auf. Sicherung `data/sicherung/normen_vor_umriss_2026-10-02.json`. **Gemessen** (Stabwerk, Standardbelegung): J90/20 m Blech 0.3691 → 0.3688, Gurt 0.3264 → 0.3263, Mast 0.6705 unverändert; J120/25 m Blech 0.4572 → 0.4568; **J130/30 m Blech 0.5470 → 0.5579 (+2.0 %), Obergurt 0.4167 → 0.4236, Mast 0.9093 → 0.9179** - Ursache der Untergurt L 120x80x12 (Schwerpunkt und i_v, aus denen das Deviationsmoment folgt; mit seiner alten Zeile 0.5461 / 0.9084), die alte Zeile lag also leicht auf der unsicheren Seite. Kern (Ersatzbalken) in der vierten Stelle. `vergleich_profile.mjs`: 0 von 246 Werten über 1 %. Neun Prüfstand-Kontrollen tragen den neuen Messwert, der alte steht im Kommentar |
 | Winkeltabelle: nur L 45x45x5 berichtigt (2. Oktober) | Weisung «L 45x45x5 berichtigen, die anderen lassen». i_y = i_z 1.38 → 1.35, i_v 0.88 → 0.87, W_y = W_z 2.53 → 2.43 (aus dem Umriss mit r1 7 / r2 3.5: 1.350 / 0.871 / 2.434; vorher W 3.8 % auf der unsicheren Seite), Vermerk im Feld `hinweis`; Sicherung `data/sicherung/normen_vor_L45_2026-10-02.json`. **L 200x200x20, L 120x120x12, L 120x80x12 bleiben wie tabelliert** (ihre Abweichungen liegen auf der sicheren Seite). `vergleich_profile.mjs`: 9 von 246 Werten über 1 %, alle an diesen drei. Kein Tragjoch des Sortiments führt den L 45x45x5 |
 | Profile nach Norm gezeichnet, gegen die Datenbasis nachgerechnet (2. Oktober) | Weisung: «die profile sind gemäss szs c5 oder eurocode zu zeichnen, es fehlen ei vielen querschnitten die ausrundungen. prüfe die angaben mit der berechnungsdatenbank ab». Auf Rückfrage **«Normwerte, gegen normen.json»** und **«Nur melden»** (keine Querschnittswerte ändern). Radien in `data/normen.json` (Sicherung `data/sicherung/normen_vor_radien_2026-10-02.json`): Winkel `r1`/`r2` nach EN 10056-1 (ausser L 130x80x12, Sollgeometrie), Masten `r` nach EN 10365 (HEB 200/220/240/260, HEM 240: 18/18/21/24/21 mm), **UPE 160/200/240 berichtigt 10/11/12 → 12/13/15 mm** (gemessen: erst die EN-Radien treffen A, I, W, e_y der Tabelle auf 0.02 %, mit den alten lag A 0.7–0.9 % darunter). Das Profilblatt zeichnet den gerundeten Umriss (`umrissPunkte`): Winkel r1 Kehle und r2 an beiden Schenkelspitzen, I/UPE r in den Kehlen, UNP nach DIN 1026-1 mit 8 % Flanschneigung, t_f **bei b/2 vom Stegrücken** (gemessen: in der Mitte des freien Flanschteils lag A +1.51 %, bei b/2 −0.07 %), r2 = r1/2. `querschnittAusUmriss` rechnet aus demselben Umriss A, I, W, i, i_v und den Schwerpunkt; neues Werkzeug `vergleich_profile.mjs`: 246 Werte, 14 über 1 % (siehe *Offene Punkte*). Die feste Radientabelle der Abfangjoch-Ausleitung ist weg (liest `r` der Tabelle); die Gurtwinkel gehen mit den Normradien statt der aus der Fläche zurückgerechneten nach AxisVM (L 90x90x9 10.12/5.06 → 11/5.5 mm). Rechenkern und Löser lesen A, I, W weiter aus der Tabelle - keine Nachweiszahl ändert sich. Prüfstand 50, 184 |
@@ -298,7 +299,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6126 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6130 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -309,8 +310,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   *Entschieden*). Normradien in `data/normen.json`, UPE-Radien
   berichtigt, Datenpaket neu in `Versand/`. Im Browser über eine
   Prüfseite (gelöscht). Danach L 45x45x5 berichtigt, dann auf Weisung
-  alle Querschnittswerte aus dem Normumriss (J130/30 m Blech +2.0 %).
-  Nicht gepusht.
+  alle Querschnittswerte aus dem Normumriss (J130/30 m Blech +2.0 %),
+  zuletzt die UNP der Anker in die Profiltabelle. Nicht gepusht.
 - **2. Okt., Profile: Querschnittsklasse und Fussnaht am Masten,
   Profilblatt mit Kenndaten und Schnitt** (Prüfstand 184, siehe
   *Entschieden*). Im Browser über eine Prüfseite mit abgeschaltetem
@@ -2540,7 +2541,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6126 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6130 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

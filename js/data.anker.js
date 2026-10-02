@@ -48,6 +48,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
+import { walzprofile } from './data.normen.js';
 
 let DB = null;
 
@@ -347,12 +348,40 @@ export function ankerStabkraft(H, geo) {
  * beschreibt das Seil im Stabmodell genauer als eine geschätzte Drahtfläche:
  * gemessen ist die Dehnung, nicht der metallische Querschnitt.
  *
+ * >>> SEIT DEM 2. OKTOBER STEHEN DIE ZAHLEN IN DER PROFILTABELLE. <<<
+ *
+ * Frage des Auftraggebers: «warum stehen diese nicht in der datenbank?» -
+ * auf Rückfrage «In normen.json verschieben». Die UNP standen bis dahin als
+ * Zahlen im Ankerkatalog, weil die Profiltabelle am 11. September nur
+ * Winkel und UPE/IPE führte; das waren zwei Quellen für Normwerte. Jetzt
+ * führt der Anker nur `profil` und `anzahl`, und diese Funktion setzt
+ * Einzel- und Verbundwerte aus der Zeile der Profiltabelle zusammen
+ * (`A`, `I_y`, `I_t` des Verbunds = Anzahl · Einzelwert; `I_z` bleibt null,
+ * siehe oben). Die Masse gehen in MILLIMETERN hinaus, wie die Ausleitung
+ * und das Bild sie seit dem 11. September lesen; e_y in cm.
+ *
+ * Steht das Profil NICHT in der Profiltabelle (Seilanker, ein älteres
+ * Datenpaket ohne UNP-Zeilen), gilt weiter, was der Katalog führt.
+ *
  * @returns {object|null} {profil, anzahl, quelle, A, Iy, Iz, It, …} in
  *          cm, cm², cm⁴ — oder null, wenn der Typ keine führt
  */
 export function ankerQuerschnitt(id) {
   const a = typeof id === 'string' ? getAnkerTyp(id) : id;
-  return a?.querschnitt ?? null;
+  const q = a?.querschnitt ?? null;
+  if (!q?.profil) return q;
+  const p = walzprofile().find((x) => x.name === q.profil);
+  if (!p) return q;
+  const n = Number(q.anzahl) > 0 ? Number(q.anzahl) : 2;
+  return {
+    ...q,
+    quelle: 'DIN 1026-1 / EN 10365, Profiltabelle (data/normen.json), aus dem Normumriss',
+    ausProfiltabelle: true,
+    h: p.h * 10, b: p.b * 10, tw: p.tw * 10, tf: p.tf * 10, r: (p.r ?? 0) * 10,
+    ey: p.ey,
+    AEinzel: p.A, IyEinzel: p.Iy, IzEinzel: p.Iz,
+    A: n * p.A, Iy: n * p.Iy, It: n * p.It, Iz: null, G: n * p.G,
+  };
 }
 
 /* ===========================================================================
@@ -664,7 +693,9 @@ const E_ANKER = 21000;
 export function ankerKnicken(id, L, opt = {}) {
   const a = typeof id === 'string' ? getAnkerTyp(id) : id;
   if (!a || a.art !== 'stuetze') return null;
-  const qs = a.querschnitt;
+  // Über dieselbe Funktion wie alle übrigen Leser - die Zahlen stehen seit
+  // dem 2. Oktober in der Profiltabelle, nicht mehr im Katalog.
+  const qs = ankerQuerschnitt(a);
   if (!qs || !(qs.A > 0) || !(qs.Iy > 0) || !(L > 0)) return null;
   const fy = Number(opt.fy) > 0 ? Number(opt.fy) : 23.5;      // kN/cm2
   /*

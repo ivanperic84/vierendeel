@@ -177,7 +177,8 @@ export const ABSCHNITTE = [
          + 'ZENTIMETERN — anders als bei den Mastprofilen.',
     felder: [
       text('name', 'Bezeichnung', { pflicht: true }),
-      f('reihe', 'Reihe', 'wahl', { wahl: ['UPE', 'IPE'], pflicht: true }),
+      f('reihe', 'Reihe', 'wahl', { wahl: ['UPE', 'IPE', 'UNP'], pflicht: true,
+        notiz: 'UNP: geneigte Flansche (8 %), t_f bei b/2 vom Stegrücken - die Profile der Zug-/Druckstützen.' }),
       zahl('h', 'Höhe h', 'cm', { pflicht: true, von: 5, bis: 60 }),
       zahl('b', 'Breite b', 'cm', { pflicht: true, von: 3, bis: 40 }),
       zahl('tw', 'Stegdicke t_w', 'cm', { pflicht: true, von: 0.2, bis: 3 }),
@@ -600,7 +601,8 @@ export const ABSCHNITTE = [
       zahl('masseFest', 'Festmasse', 'kg', { von: 0, bis: 200 }),
       zahl('masseProM', 'Masse je Meter', 'kg/m', { von: 0, bis: 20 }),
       satz('querschnitt', 'Querschnitt', [
-        text('profil', 'Profil'), zahl('anzahl', 'Anzahl Profile', null),
+        text('profil', 'Profil', { notiz: 'Steht das Profil in der Profiltabelle (normen.json, z. B. UNP 120), gelten deren Werte; die Zahlen hier sind dann leer und nur der Rückfall für ältere Pakete.' }),
+        zahl('anzahl', 'Anzahl Profile', null),
         text('quelle', 'Quelle'),
         mm('h', 'Höhe h'), mm('b', 'Breite b'), mm('tw', 'Stegdicke t_w'),
         mm('tf', 'Flanschdicke t_f'), mm('r', 'Ausrundung r'),

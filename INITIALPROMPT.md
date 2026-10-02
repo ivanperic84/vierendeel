@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **2. Oktober 2026**; Prüfstand 6126 Kontrollen grün,
+Stand: **2. Oktober 2026**; Prüfstand 6130 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
 2. Oktober (Profile) ist committet, **nicht gepusht** - pushen nur auf Weisung.
 
@@ -20,7 +20,8 @@ Stand: **2. Oktober 2026**; Prüfstand 6126 Kontrollen grün,
   berichtigt), UNP mit 8 % Flanschneigung; `vergleich_profile.mjs` rechnet
   jede Tabellenzeile aus ihrem Umriss nach. Danach auf Weisung ALLE
   Querschnittswerte aus dem Normumriss (I_t bleibt); J130/30 m Blech
-  0.5470 → 0.5579 wegen L 120x80x12.
+  0.5470 → 0.5579 wegen L 120x80x12. Die UNP der Anker stehen jetzt in
+  der Profiltabelle; der Ankerkatalog führt nur Profil und Anzahl.
 - **Bericht und Excel auf dem Stabwerksweg**, je ein Bericht auch für
   Abfangjoch und Tragausleger (`export.stabbericht.js`): ganzes Blatt,
   je Bauteil der massgebende Stab mit eingesetzter Formel und die zehn
@@ -112,7 +113,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6126 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6130 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

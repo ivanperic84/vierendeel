@@ -11223,9 +11223,10 @@ titel('42  Der lange Mast mit Zusatzleitern');
      */
     const letzteA = AN.ankerBindebleche('U12', 5).length + 3;
     const kLn = kn(`ANK_A_L${letzteA}`), kRn = kn(`ANK_A_R${letzteA}`);
-    pruef('Am Masten stehen die Profile 257 mm auseinander',
-          kR0.y - kL0.y, 0.257, 1e-9, 'm');
-    pruef('Am Fundament 136 mm', kRn.y - kLn.y, 0.136, 1e-9, 'm');
+    // UNP aus der Profiltabelle (2. Okt.): e_y 16.0 -> 16.1 mm, also 225 + 2*16.1 = 257.2 und 104 + 2*16.1 = 136.2
+    pruef('Am Masten stehen die Profile 257.2 mm auseinander',
+          kR0.y - kL0.y, 0.2572, 1e-9, 'm');
+    pruef('Am Fundament 136.2 mm', kRn.y - kLn.y, 0.1362, 1e-9, 'm');
     wahr('Sie liegen symmetrisch zur Ankerebene',
          Math.abs(kL0.y + kR0.y) < 1e-9 && Math.abs(kLn.y + kRn.y) < 1e-9);
     pruef('Die lichte Weite ist h - 2t des Blechs',
@@ -11263,7 +11264,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
          && Math.abs(lg3(kn(`ANK_A_L${letzteA - 2}`),
                          kn(`ANK_A_L${letzteA - 1}`)) + 2 * 0.05 - 0.990) < 1e-4);
     pruef('Im parallelen Stueck aendert sich nichts',
-          kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.257, 1e-9, 'm');
+          kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.2572, 1e-9, 'm');   // UNP aus der Profiltabelle (2. Okt.): vorher 0.257
 
     /* =====================================================================
      * >>> DIE EINTEILUNG IST DIE DER ZEICHNUNG - ALLE VIER TABELLEN. <<<
@@ -11490,9 +11491,10 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * Schwerachsabstaende. Beim UNP 120 ey = 16 mm, also 104 + 32 = 136 mm
      * am engen Ende - nicht 159, wie die verworfene Lesart gab.
      */
+    // UNP aus der Profiltabelle (2. Okt.): e_y 16.1 mm (vorher 16.0) -> 136.2 / 257.2 mm
     pruef('Der Achsabstand am engen Ende',
-          AN.ankerAchsabstandAn('U12', 5, 0), 136, 1e-9, 'mm');
-    pruef('… und am weiten', AN.ankerAchsabstandAn('U12', 5, 5), 257,
+          AN.ankerAchsabstandAn('U12', 5, 0), 136.2, 1e-9, 'mm');
+    pruef('… und am weiten', AN.ankerAchsabstandAn('U12', 5, 5), 257.2,
           1e-9, 'mm');
     wahr('Das Seil hat kein Spreizmass', AN.ankerSpreizung('SA20') === null);
 
@@ -11611,10 +11613,11 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * =================================================================== */
     {
       const k8 = AN.ankerKnicken('U12', 8);
-      // Euler von Hand: N_cr = pi^2 * E * I / L^2, I = 728 cm4, L = 800 cm.
+      // Euler von Hand: N_cr = pi^2 * E * I / L^2, I = 2 * 364.3 cm4, L = 800 cm.
+      // (UNP aus der Profiltabelle (2. Okt.): vorher I 728, A 34.0)
       pruef('U12 ueber 8 m: N_cr', k8.Ncr,
-            (Math.PI ** 2 * 21000 * 728) / (800 * 800), 1e-9, 'kN');
-      pruef('… N_pl = A · f_y', k8.Npl, 34.0 * 23.5, 1e-9, 'kN');
+            (Math.PI ** 2 * 21000 * 728.6) / (800 * 800), 1e-9, 'kN');
+      pruef('… N_pl = A · f_y', k8.Npl, 2 * 16.99 * 23.5, 1e-9, 'kN');
       pruef('… bezogene Schlankheit', k8.lambda,
             Math.sqrt(k8.Npl / k8.Ncr), 1e-12, '-');
       wahr('… Knicklinie c', k8.knicklinie === 'c');
@@ -11703,8 +11706,8 @@ titel('42  Der lange Mast mit Zusatzleitern');
       {
         const k6 = AN.ankerKnicken('U12', 6, { fy: 23.5, gammaM1: 1.05 });
         pruef('U12 ueber 6 m: N_cr', k6.Ncr, 419.129, 0.001, 'kN');
-        pruef('… lambda', k6.lambda, 1.38069, 1e-4, '-');
-        pruef('… chi (Linie c)', k6.chi, 0.35646, 1e-4, '-');
+        pruef('… lambda', k6.lambda, 1.37973, 1e-4, '-');   // UNP aus der Profiltabelle (2. Okt.): vorher 1.38069
+        pruef('… chi (Linie c)', k6.chi, 0.35683, 1e-4, '-');   // UNP aus der Profiltabelle (2. Okt.): vorher 0.35646
         pruef('… N_b,Rd', k6.NbRd, 271.28, 1e-3, 'kN');
       }
       /*
@@ -21023,7 +21026,10 @@ const CH9x = await import(J('core.checks.js'));
      */
     // NEUN seit dem 26. September: UPE 140 fuer den Tragausleger, aus den
     // Normmassen gerechnet und am UPE 160/200/240 der Tabelle nachgeprueft.
-    wahr('Neun Walzprofile', PR.GURTPROFILE().length === 9);
+    // ELF seit dem 2. Oktober: UNP 120 und 140 der Zug-/Druckstuetzen (UNP aus der Profiltabelle (2. Okt.)).
+    wahr('Elf Walzprofile', PR.GURTPROFILE().length === 11);
+    wahr('UNP 120 und 140 stehen in der Profiltabelle',
+         ['UNP 120', 'UNP 140'].every((n) => PR.GURTPROFILE().some((p) => p.name === n && p.reihe === 'UNP')));
     wahr('UPE 140 ist dabei - das Gurtprofil des Tragauslegers',
          PR.GURTPROFILE().some((p) => p.name === 'UPE 140'));
     wahr('IPE 240 ist dabei - die Quersteife von A240',
@@ -34981,7 +34987,16 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
   wahr('HEB 260: Mastprofil in mm, I-Form, r = 24 aus der Tabelle (EN 10365)',
        gH.form === 'I' && gH.h === 260 && gH.r === 24, String(gH.r));
   const gA = PB.profilGeometrie('anker', unp);
-  wahr('UNP 120 des Ankers: U-Form, mm, e_y = 16', gA.form === 'U' && gA.h === 120 && Math.abs(gA.ys - 16) < 1e-9);
+  wahr('UNP 120 des Ankers: U-Form, mm, e_y = 16.1 (aus der Profiltabelle)',
+       gA.form === 'U' && gA.h === 120 && Math.abs(gA.ys - 16.1) < 1e-9);
+  // Der Anker fuehrt seit dem 2. Oktober nur Profil und Anzahl; die Werte
+  // kommen aus der Profiltabelle, der Verbund ist Anzahl mal Einzelwert.
+  {
+    const u = NO.walzprofile().find((p) => p.name === 'UNP 120');
+    wahr('Anker U12: Werte aus der Profiltabelle, Verbund = 2 x Einzelprofil',
+         unp.ausProfiltabelle === true && unp.AEinzel === u.A && unp.A === 2 * u.A
+         && unp.Iy === 2 * u.Iy && unp.It === 2 * u.It && unp.Iz === null && unp.h === 120);
+  }
   wahr('Ohne Masse keine Geometrie (Seilanker)', PB.profilGeometrie('anker', { A: 1 }) === null);
 
   // (b) S im Bild: Abstand des Kreises zur Bezugskante = Tabellenwert · Massstab.
