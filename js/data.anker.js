@@ -366,11 +366,36 @@ export function ankerStabkraft(H, geo) {
  * @returns {object|null} {profil, anzahl, quelle, A, Iy, Iz, It, …} in
  *          cm, cm², cm⁴ — oder null, wenn der Typ keine führt
  */
+/*
+ * >>> ERSATZ FÜR EINE PROFILTABELLE OHNE UNP (2. Oktober). <<<
+ *
+ * Gemeldet vom Arbeitsrechner: «bei einem jochtragwerk wird nicht mehr
+ * gerechnet. Die msten sind grau und die bleche auch. die nachweise stehen
+ * auf 0.0000 … wenn ich ein ganz neues joch erzeuge wird gerechnet.» Seit
+ * dem 2. Oktober führt der Anker im Datenpaket nur noch Profil und Anzahl;
+ * die Werte stehen in der Profiltabelle (data/normen.json), die mit dem CODE
+ * kommt. Ein neues Datenpaket mit einem älteren Code (zwischengespeicherte
+ * PWA, ältere Einzeldatei) fand die Zeile nicht - dem Anker fehlten A und I,
+ * und die ganze Rechnung lief auf NaN. Ein neues Joch hat keinen Anker und
+ * rechnete deshalb. Die beiden Zeilen stehen hier als Normwerte (DIN 1026-1,
+ * dieselben Zahlen wie in normen.json; Prüfstand 188 hält beide gleich).
+ */
+export const UNP_ERSATZ = {
+  'UNP 120': { name: 'UNP 120', reihe: 'UNP', h: 12, b: 5.5, tw: 0.7, tf: 0.9, r: 0.9,
+               A: 16.99, G: 13.3, Iy: 364.3, Wy: 60.72, iy: 4.63, Iz: 43.06, Wz: 11.06,
+               iz: 1.59, It: 4.15, ey: 1.61 },
+  'UNP 140': { name: 'UNP 140', reihe: 'UNP', h: 14, b: 6, tw: 0.7, tf: 1, r: 1,
+               A: 20.37, G: 16, Iy: 604.8, Wy: 86.4, iy: 5.45, Iz: 62.48, Wz: 14.72,
+               iz: 1.75, It: 5.68, ey: 1.76 },
+};
+
 export function ankerQuerschnitt(id) {
   const a = typeof id === 'string' ? getAnkerTyp(id) : id;
   const q = a?.querschnitt ?? null;
   if (!q?.profil) return q;
-  const p = walzprofile().find((x) => x.name === q.profil);
+  let p = null;
+  try { p = walzprofile().find((x) => x.name === q.profil) ?? null; } catch { p = null; }
+  p = p ?? UNP_ERSATZ[q.profil] ?? null;
   if (!p) return q;
   const n = Number(q.anzahl) > 0 ? Number(q.anzahl) : 2;
   return {

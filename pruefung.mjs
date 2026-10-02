@@ -35386,6 +35386,28 @@ titel('187  Jochlänge auf die Standardlänge, Rest als Kragarm');
 }
 
 // ===========================================================================
+titel('188  Anker ohne UNP-Zeile in der Profiltabelle');
+/*
+ * Gemeldet 2. Oktober vom Arbeitsrechner: Joch rechnet nicht (0.0000), ein
+ * neues schon. Neues Datenpaket (Anker nur Profil/Anzahl) mit älterem Code
+ * ohne UNP-Zeile gab NaN. Der Ersatz im Code muss der Tabelle gleichen.
+ */
+{
+  const AK188 = await import(J('data.anker.js'));
+  const NO188 = await import(J('data.normen.js'));
+  const zeilen = NO188.walzprofile().filter((x) => x.reihe === 'UNP');
+  wahr('Profiltabelle führt UNP 120 und UNP 140', zeilen.length === 2);
+  zeilen.forEach((z) => {
+    const e = AK188.UNP_ERSATZ[z.name];
+    const ab = Object.keys(z).filter((k) => z[k] !== e?.[k]);
+    wahr(`Ersatz ${z.name} gleicht der Tabelle Feld für Feld`, e && ab.length === 0, ab.join(', '));
+  });
+  const q = readFileSync(join(HIER, 'js', 'data.anker.js'), 'utf8');
+  wahr('ankerQuerschnitt fällt ohne Tabellenzeile auf den Ersatz zurück',
+       q.includes('p = p ?? UNP_ERSATZ[q.profil] ?? null;'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
