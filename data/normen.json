@@ -9,7 +9,7 @@
    {"name":"S355","fy":355,"fu":490}
   ],
   "winkelprofile": [
-   {"name":"L 45x45x5","form":"gleichschenklig","aH":45,"aV":45,"t":5,"r1":7,"r2":3.5,"g":3.38,"A":4.3,"iy":1.38,"iz":1.38,"imin":0.88,"zsH":1.28,"zsV":1.28,"Wy":2.53,"Wz":2.53},
+   {"name":"L 45x45x5","form":"gleichschenklig","aH":45,"aV":45,"t":5,"r1":7,"r2":3.5,"g":3.38,"A":4.3,"iy":1.35,"iz":1.35,"imin":0.87,"zsH":1.28,"zsV":1.28,"Wy":2.43,"Wz":2.43,"hinweis":"i_y, i_z, i_v, W_y, W_z am 2.10.2026 berichtigt (vorher i 1.38, i_v 0.88, W 2.53 - W lag 3.8 % auf der unsicheren Seite). Nachgerechnet aus dem Umriss mit r1 7 / r2 3.5 nach EN 10056-1: i 1.350, i_v 0.871, W 2.434."},
    {"name":"L 50x50x5","form":"gleichschenklig","aH":50,"aV":50,"t":5,"r1":7,"r2":3.5,"g":3.77,"A":4.8,"iy":1.51,"iz":1.51,"imin":0.97,"zsH":1.4,"zsV":1.4,"Wy":3.05,"Wz":3.05},
    {"name":"L 60x60x6","form":"gleichschenklig","aH":60,"aV":60,"t":6,"r1":8,"r2":4,"g":5.42,"A":6.91,"iy":1.82,"iz":1.82,"imin":1.17,"zsH":1.69,"zsV":1.69,"Wy":5.29,"Wz":5.29},
    {"name":"L 60x60x8","form":"gleichschenklig","aH":60,"aV":60,"t":8,"r1":8,"r2":4,"g":7.09,"A":9.03,"iy":1.8,"iz":1.8,"imin":1.16,"zsH":1.77,"zsV":1.77,"Wy":6.88,"Wz":6.88},
