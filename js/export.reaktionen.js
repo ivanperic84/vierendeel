@@ -468,8 +468,7 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
     <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
       <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
     <figure>${achsSvg()}
-      <figcaption>Achssystem der Tabelle, rechtshändig. X wie im 3D; das 3D zählt z nach
-        oben und y vom Betrachter weg.</figcaption></figure>
+      <figcaption>Achssystem der Tabelle</figcaption></figure>
   </div>
   ${reaktionenTabelleHtml(daten, { havarie, standard })}
   ${hinweise ? `<div id="rk-hinweise" contenteditable="true" spellcheck="false"

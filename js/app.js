@@ -682,15 +682,24 @@ function reaktionsDaten() {
   const bezug = zeilen.find((z) => z.art === 'mast');
   const dx = bezug ? bezug.xModell - bezug.x : 0;
   const dz = bezug ? bezug.z : 0;
+  const kennungen = new Set([
+    ...sichtbareTragwerke(werte).map((t) => tragwerkPos(werte, t)),
+    ...mastenVon(werte).map((m) => mastName(werte, m))]);
+  const ohneKennung = (t) => {
+    const [kopf, ...rest] = t.split(' · ');
+    return rest.length && kennungen.has(kopf) ? rest.join(' · ') : t;
+  };
   const titel = (ansicht?.szene?.bauteiltitel ?? [])
     .filter((b) => !b.warnung && Array.isArray(b.p) && b.text)
     /*
      * OHNE KENNUNG (2. Oktober, «kann man bei den Bauteil Texten jeweils die
      * M1 und T1 herausnehmen. die Masten sind hier relevant und werden schon
      * am Fuss beschriftet»): die führende Kennung mit Nummer fällt weg (M1,
-     * MT1, T1, A1); «TA ·» ist die Bauart und bleibt.
+     * MT1, T1, A1); «TA ·» ist die Bauart und bleibt. Nur was wirklich eine
+     * Kennung dieses Blattes ist - ein Muster «A + Ziffern» schnitt auch den
+     * Typ «A160» ab (im Browser gesehen: «12.50 m» statt «A160 · 12.50 m»).
      */
-    .map((b) => ({ text: String(b.text).replace(/^(?:MT|M|T|A)\d+ · /, ''),
+    .map((b) => ({ text: ohneKennung(String(b.text)),
                    x: b.p[0] + dx, z: b.p[2] + dz, mast: Boolean(b.mastEnde) }));
   return { zeilen, titel, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
            linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
