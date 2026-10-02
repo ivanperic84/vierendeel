@@ -99,10 +99,10 @@ export function auflagerArt(knoten) {
  * @param {Function} anteile  `anteileFuer` aus core.stabnachweis.js
  * @returns {{auflager: Array, faelle: Array}}
  */
-export function reaktionenAusStabwerk(dat, lsg, faelle, anteile) {
+export function reaktionenAusStabwerk(dat, lsg, faelle, anteile, { alle = false } = {}) {
   const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
   const je = new Map();                         // knoten -> Map(fall -> r)
-  const lfListe = (faelle ?? []).filter((l) => l.art === 'charakteristisch'
+  const lfListe = (faelle ?? []).filter((l) => alle || l.art === 'charakteristisch'
     || l.art === 'aussergewoehnlich');
   lfListe.forEach((l) => {
     const summe = new Map();
@@ -127,6 +127,33 @@ export function reaktionenAusStabwerk(dat, lsg, faelle, anteile) {
   const auflager = jochendenZusammenfassen(einzeln)
     .sort((a, b) => (a.x - b.x) || (a.art === 'mast' ? -1 : 1));
   return { auflager, faelle: lfListe };
+}
+
+/**
+ * >>> DER GEWÄHLTE LASTFALL JE AUFLAGER (2. Oktober). <<<
+ *
+ * Frage «wie soll die logik sein in bezug auf die auswahl zum lastfall?»,
+ * auf Rückfrage «Hülle bleibt, dazu der gewählte Fall»: die Tabelle zeigt
+ * weiter die charakteristische Hülle; ist oben ein Lastfall gewählt, kommt je
+ * Auflager seine Zeile dazu - mit Vorzeichen (Druck positiv wie V), in den
+ * Werten des Falls (charakteristisch oder Bemessung, wie er definiert ist).
+ *
+ * @returns {Map<string, object>}  je Auflager-Kennung (knoten) die Zeile
+ */
+export function reaktionenGewaehlt(dat, lsg, lf, anteile) {
+  const out = new Map();
+  if (!lf) return out;
+  const roh = reaktionenAusStabwerk(dat, lsg, [lf], anteile, { alle: true });
+  roh.auflager.forEach((a) => {
+    const r = a.proFall.get(lf.key);
+    if (!r) return;
+    const w = (v) => ({ wert: v, bez: lf.bez });
+    out.set(a.knoten, {
+      bez: lf.bez, Vmin: w(r.uz), Vmax: w(r.uz),
+      ...Object.fromEntries(REAKTION_SPALTEN.map((s) => [s.key, w(r[s.feld])])),
+    });
+  });
+  return out;
 }
 
 /*

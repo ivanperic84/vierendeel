@@ -466,7 +466,9 @@ function blattReaktionen(d) {
   ];
   const w = (b, k) => (b?.[k] ? N2(b[k].wert) : T('–'));
   (d.reaktionen ?? d.sw.reaktionen ?? []).forEach((z) => {
-    [['Einwirkung', z.haupt], ['Havarie', z.havarie]].forEach(([was, b]) => {
+    // Der gewählte Lastfall (2. Oktober) mit Vorzeichen, V einmal.
+    [['Einwirkung', z.haupt], ['Havarie', z.havarie],
+     [z.gewaehlt ? `gewählter Fall: ${z.gewaehlt.bez}` : '', z.gewaehlt]].forEach(([was, b]) => {
       if (!b) return;
       rows.push([T(z.name ?? z.id ?? ''), T(z.fundament?.typ ?? z.fundament ?? ''), T(was),
         w(b, 'Vmin'), w(b, 'Vmax'), w(b, 'Mq'), w(b, 'Hq'), w(b, 'Ml'), w(b, 'Hl'), w(b, 'T')]);

@@ -8175,7 +8175,7 @@ function mastListe(erg) {
   }).filter(Boolean);
 }
 
-export function zeichneAuflager(node, blatt, erg) {
+export function zeichneAuflager(node, blatt, erg, { stabwerk = false } = {}) {
   const m = erg.modell;
   const masten = mastListe(erg);
 
@@ -8237,6 +8237,18 @@ export function zeichneAuflager(node, blatt, erg) {
   /* =====================================================================
    * >>> OHNE MAST RUECKT DAS JOCHAUFLAGER NACH OBEN. <<<
    * ===================================================================== */
+  /*
+   * >>> MIT GÜLTIGEM STABWERK OHNE DIE TABELLEN DES ERSATZBALKENS
+   * (2. Oktober). <<< Auf Rückfrage «Hülle bleibt, dazu der gewählte Fall»:
+   * die Reaktionen stehen dann in der Tabelle aus dem Stabwerk darüber
+   * (alle Auflager, Hülle und gewählter Fall); die Gruppen des Ersatzbalkens
+   * wären eine zweite Zahl für dieselbe Kraft.
+   */
+  if (!masten.length && stabwerk) {
+    node.innerHTML = hinweise;
+    verdrahteKlapp(node);
+    return;
+  }
   if (!masten.length) {
     node.innerHTML = `
       ${abschnitt('Reaktionskräfte am Jochauflager',
@@ -8324,7 +8336,7 @@ export function zeichneAuflager(node, blatt, erg) {
       Querschnitt und Stabilität. Die Kraft steht hier am <b>Fuss</b> — den
       Verlauf über die Höhe zeigt die Klappe des Masten.</p>
     ${masten.map((mm) => mastKlappe(mm)).join('')}
-    ${klapp('auflager-joch', 'Jochauflager, charakteristisch je Gruppe',
+    ${stabwerk ? '' : klapp('auflager-joch', 'Jochauflager, charakteristisch je Gruppe',
             jochTabellen,
             `F_z ${f2(fzAuf(blatt.total.A.Fz))} / ${f2(fzAuf(blatt.total.B.Fz))} kN`)}
     ${hinweise}`;

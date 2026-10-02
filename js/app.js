@@ -125,6 +125,7 @@ import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer } from './core.stabnachweis.js';
+import { reaktionenGewaehlt } from './core.reaktionen.js';
 import { verformteFigur } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
@@ -653,6 +654,12 @@ function reaktionsDaten() {
       : 'Das Stabwerk ist noch nicht gerechnet - es läuft von selbst kurz nach der Eingabe.' };
   }
   const masten = mastenVon(werte);
+  // Der gewählte Lastfall je Auflager (2. Oktober, «Hülle bleibt, dazu der
+  // gewählte Fall») - nur, wenn oben nicht «umhüllend» steht.
+  const roh = g.h.roh;
+  const lfGew = anzeigeKombi !== 'umhuellend'
+    ? (roh?.faelle ?? []).find((l) => l.key === anzeigeKombi) : null;
+  const gewaehlt = lfGew && roh ? reaktionenGewaehlt(roh.dat, roh.lsg, lfGew, anteileFuer) : null;
   const zeilen = g.h.reaktionen.map((z) => {
     const m = masten.find((mm) => mastName(werte, mm) === z.id) ?? null;
     const fund = z.art === 'mast'
@@ -673,6 +680,7 @@ function reaktionsDaten() {
                : z.art === 'jochende' ? `${z.tw ? `${z.tw} · ` : ''}Jochende ${z.ende}`
                : mastAnzeigeText(z.id, anzeigeKarte),
              fundament: z.art === 'jochende' ? 'Jochauflager' : fund,
+             gewaehlt: gewaehlt?.get(z.knoten) ?? null,
              anker: z.art === 'anker' ? (m?.anker ?? null) : null };
   });
   /*
@@ -1785,7 +1793,9 @@ function zeichneAuswertung() {
      * Faellen.
      */
     if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
-    else ui.zeichneAuflager(node, letzte.auflager, erg);
+    // Gilt das Stabwerk, fallen die Tabellen des Ersatzbalkens je Gruppe
+    // weg (2. Oktober, «Hülle bleibt, dazu der gewählte Fall»).
+    else ui.zeichneAuflager(node, letzte.auflager, erg, { stabwerk: Boolean(stabwerkGilt()) });
     reaktionsBlockEinfuegen(node);
   } else {
     /*

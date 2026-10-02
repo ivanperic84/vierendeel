@@ -94,7 +94,8 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   // mit plotten will»).
   const zul = standard && mast && z.fundament ? z.fundament : null;
   const hav = havarie ? z.havarie : null;
-  const n = 1 + (hav ? 1 : 0) + (zul ? 1 : 0);
+  const gew = z.gewaehlt ?? null;
+  const n = 1 + (hav ? 1 : 0) + (gew ? 1 : 0) + (zul ? 1 : 0);
   // Der Typ steht auch, wenn die Zeile der Standardlasten aus ist.
   const fund = mast ? esc(z.fundament?.typ ?? '–')
     : z.art === 'jochende' ? 'Jochauflager'
@@ -115,6 +116,13 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
     zeilen.push(`<tr class="rk-havarie"><td class="rk-art">Havarie</td>
       <td class="num"${vTitel(hav)}>${vText(hav)}</td>${werte(hav)}
       <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(massgebend(hav))}</td>`}</tr>`);
+  }
+  if (gew) {
+    // Der oben gewählte Lastfall (2. Oktober), mit Vorzeichen.
+    zeilen.push(`<tr class="rk-gewaehlt"><td class="rk-art">gewählter Fall</td>
+      <td class="num">${f2(gew.Vmin.wert)}</td>${REAKTION_SPALTEN.map((s) => (hat.has(s.key)
+        ? `<td class="num">${f2(gew[s.key]?.wert)}</td>` : '<td class="num rk-leer">–</td>')).join('')}
+      <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(gew.bez)}</td>`}</tr>`);
   }
   if (zul) {
     zeilen.push(`<tr class="rk-zul"><td class="rk-art">Standardlast</td>
@@ -176,7 +184,9 @@ export function reaktionenKurzHtml(daten) {
   return zeilen.map((z) => {
     const hat = spaltenVon(z);
     const zul = z.art === 'mast' ? z.fundament : null;
-    const spalten = [['Einwirkung', z.haupt], ...(z.havarie ? [['Havarie', z.havarie]] : [])];
+    const spalten = [['Einwirkung', z.haupt], ...(z.havarie ? [['Havarie', z.havarie]] : []),
+      // Der oben gewählte Lastfall (2. Oktober), mit Vorzeichen.
+      ...(z.gewaehlt ? [['gew. Fall', z.gewaehlt]] : [])];
     const n = spalten.length + (zul ? 1 : 0);
     const breite = Math.floor(62 / n);
     const fund = z.art === 'mast' ? (zul?.typ ?? '')
@@ -186,7 +196,8 @@ export function reaktionenKurzHtml(daten) {
     const zeile = (label, einheit, werte, zulWert) => `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>${
       werte.join('')}${zul ? `<td class="num rk-zulw">${zulWert}</td>` : ''}</tr>`;
     const v = zeile('F_z (V) min/max', 'kN',
-      spalten.map(([, b]) => `<td class="num">${b ? `${f2(b.Vmin.wert)} / ${f2(b.Vmax.wert)}` : '–'}</td>`),
+      spalten.map(([, b]) => `<td class="num"${b === z.gewaehlt && b ? ` title="${esc(b.bez)}"` : ''}>${
+        !b ? '–' : b === z.gewaehlt ? f2(b.Vmin.wert) : `${f2(b.Vmin.wert)} / ${f2(b.Vmax.wert)}`}</td>`),
       zul ? `0 / ${f1(zul.Vmax)}` : '');
     const rest = REAKTION_SPALTEN.filter((s) => hat.has(s.key)).map((s) => zeile(kopfText[s.key], s.einheit,
       spalten.map(([, b]) => `<td class="num"${b?.[s.key]?.bez ? ` title="${esc(b[s.key].bez)}"` : ''}>${

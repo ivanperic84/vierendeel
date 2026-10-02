@@ -35537,6 +35537,46 @@ titel('191  Joch ohne Masten: Reaktionen je Jochende, global');
 }
 
 // ===========================================================================
+titel('192  Reaktionen: Hülle bleibt, dazu der gewählte Lastfall');
+/*
+ * Frage 2. Oktober «wie soll die logik sein in bezug auf die auswahl zum
+ * lastfall?», auf Rückfrage «Hülle bleibt, dazu der gewählte Fall».
+ */
+{
+  const N192 = await import(J('core.nachbarn.js'));
+  const S192 = await import(J('app.stabwerk.js'));
+  const R192 = await import(J('core.reaktionen.js'));
+  const SN192 = await import(J('core.stabnachweis.js'));
+  const AB192 = await import(J('data.anbauteile.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = AB192.standAnheben({ ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 });
+  const satz = N192.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N192.kernArgumente(satz));
+  const r = S192.rechneStabwerk({ werte: w, letzte: { erg } });
+  const m1 = r.reaktionen.find((z) => z.art === 'mast');
+  const lf = r.roh.faelle.find((l) => l.bez === m1.haupt.Ml.bez);
+  const gew = R192.reaktionenGewaehlt(r.roh.dat, r.roh.lsg, lf, SN192.anteileFuer).get(m1.knoten);
+  pruef(`Mast M1, gewählter Fall «${lf?.bez}»: |M_l| = Wert der Hülle`, Math.abs(gew?.Ml?.wert ?? NaN),
+        m1.haupt.Ml.wert, 1e-9, 'kNm');
+  wahr('… V steht mit Vorzeichen, einmal (min = max)', gew.Vmin.wert === gew.Vmax.wert);
+  const uls = r.roh.faelle.find((l) => l.art !== 'charakteristisch' && l.art !== 'aussergewoehnlich');
+  const gU = R192.reaktionenGewaehlt(r.roh.dat, r.roh.lsg, uls, SN192.anteileFuer).get(m1.knoten);
+  wahr(`Auch ein Bemessungsfall gibt seine Zeile («${uls?.bez}»)`, Number.isFinite(gU?.Mq?.wert));
+  const q = APP_QUELLE();
+  wahr('App: nur bei gewähltem Fall, sonst nicht', q.includes("anzeigeKombi !== 'umhuellend'")
+       && q.includes('gewaehlt: gewaehlt?.get(z.knoten) ?? null'));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  // «Federnd zurück» (2. Oktober): nach dem Drehen von der Längsansicht aus
+  // gleitet die Ansicht in die Zeichnungsebene zurück, wenn die Zeichnung
+  // eingemessen und eingeblendet ist.
+  wahr('3D: Drehen merkt sich die Ansicht und federt zur Zeichnung zurück',
+       r3.includes('vonAnsicht: this.ansichtKey') && r3.includes('this._federtZurZeichnung(griff.vonAnsicht)')
+       && /_federtZurZeichnung\(vonAnsicht\) \{[\s\S]{0,200}vonAnsicht === 'laengs'[\s\S]{0,120}kalibrierung/.test(r3));
+  wahr('Reiter: im Stabwerk ohne die Tabellen je Gruppe des Ersatzbalkens',
+       q.includes('ui.zeichneAuflager(node, letzte.auflager, erg, { stabwerk: Boolean(stabwerkGilt()) })'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -2796,6 +2796,13 @@ export class Modellansicht {
    * einmal nachher rechnet, bekommt entweder einen Sprung am Anfang oder
    * einen am Ende.
    */
+  /** Federt die Ansicht nach dem Drehen zur Zeichnung zurück? (2. Oktober) */
+  _federtZurZeichnung(vonAnsicht) {
+    const z = this.zeichnung;
+    return vonAnsicht === 'laengs' && Boolean(z?.bild && z?.kalibrierung)
+      && this._ebeneAn('zeichnung');
+  }
+
   _animiereWinkel(az, el, ms = 340, beiJedemBild = null) {
     const k = this.kamera;
     // kürzesten Weg über den Kreis nehmen
@@ -2937,7 +2944,9 @@ export class Modellansicht {
          */
         const bild = this.zeichnungSchieben && this.zeichnung?.kalibrierung;
         griff = { art: bild ? 'bild' : schiebemodus(e) ? 'schieben' : 'drehen',
-                  bewegt: false, start: [e.clientX, e.clientY] };
+                  bewegt: false, start: [e.clientX, e.clientY],
+                  // Für das Zurückfedern zur Zeichnung (2. Oktober).
+                  vonAnsicht: this.ansichtKey };
         /*
          * >>> EIN ABGESETZTES ANBAUTEIL LÄSST SICH ZIEHEN (30. September). <<<
          * Weisung: «Abgesetzte Anbauteile per drag and drop verschieben
@@ -3200,6 +3209,24 @@ export class Modellansicht {
         }
       }
 
+      /*
+       * >>> FEDERND ZURÜCK ZUR ZEICHNUNG (2. Oktober). <<<
+       * Frage: «wie könnte man am intuitivsten die funktion gestalten wenn
+       * man bauteile zuordnet und die hintergrundzeichnung eigeblendet hat um
+       * beim naviegieren aus der längsansicht zu fallen und neu die eben
+       * ausrichten muss um sie wieder zu sehen.» Auf Rückfrage «Federnd
+       * zurück»: drehen darf man, aber nach dem Loslassen gleitet die Ansicht
+       * wieder in die Längsansicht - Ziel, Verschiebung und Abstand bleiben,
+       * nur die Winkel kehren zurück. Gilt nur, wenn die Zeichnung
+       * eingemessen und eingeblendet ist und von der Längsansicht aus gedreht
+       * wurde.
+       */
+      if (zeiger.size === 0 && griff?.art === 'drehen' && griff.bewegt
+          && this._federtZurZeichnung(griff.vonAnsicht)) {
+        const a = ANSICHTEN.find((x) => x.key === 'laengs');
+        this.ansichtKey = 'laengs';
+        this._animiereWinkel(a.az, a.el, 300);
+      }
       if (zeiger.size === 1 && griff?.art === 'kneifen') {
         griff = { art: 'drehen', bewegt: true, start: [e.clientX, e.clientY] };
       } else if (zeiger.size === 0) {
