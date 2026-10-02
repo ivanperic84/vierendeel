@@ -1916,7 +1916,8 @@ function szeneVonNebenan(t, zeichnen) {
     }
     // Der Tragausleger zeichnet sich aus seinem Stabmodell (28. September).
     if (tragwerksart(satz).key === 'tragausleger') {
-      return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A });
+      return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
+                                   mastZeichnen: zeichnen });
     }
     const j = getTragjoch(satz.typ);
     return erzeugeSzene(mit(modell(satz, getProfil(satz.profOG),
@@ -1984,7 +1985,8 @@ function blattSzene(erg) {
       return auslegerSzene(satz, {
         mast: abfangMastenAngabe(satz, erg.modell.federn?.namen)?.A,
         ergMast: erg.mast ?? null, ergVerf: erg.verformung ?? null,
-        jeStab: g?.h?.jeStab ?? null, praefix: `${werte.twId ?? ''}_` });
+        jeStab: g?.h?.jeStab ?? null, praefix: `${werte.twId ?? ''}_`,
+        mastZeichnen: plan[aktivId] });
     } catch { return null; }
   };
   const ta = tragwerksart(werte).key === 'tragausleger' ? taSzene() : null;

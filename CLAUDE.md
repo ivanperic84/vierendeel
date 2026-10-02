@@ -327,12 +327,26 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6280 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6286 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **3. Okt., Tragausleger am Jochmasten: ein Mast** (Prüfstand 201).
+  Gemeldet: «wenn ich einen tragausleger an einen jochmasten setze, habe
+  ich zwei masten übereinander anstatt das sich der vorhandene verlängert
+  und der ausleger dann direkt dran hängt.» Verlängert wurde er schon
+  (`auslegerMastAnbau`, eine Länge je Mast), aber `auslegerSzene` las den
+  Zeichenplan (`mastZeichenplan`) nicht und baute den Masten immer selbst -
+  zwei Körper, zwei Titel. Jetzt reicht app.js den Plan an beide Wege
+  (gewählt, nebenan); sagt er nein, hängt der Ausleger nur an der Achse
+  (Bezug bleibt, Warnung «Mast zu kurz» bleibt). Im Browser (Prüfseite,
+  J90/20 m, Ausleger 13 m an M2 → 14.00 m): Ausleger gewählt ein Mast M2
+  gefärbt, Joch grau daneben; Joch gewählt ein Mast M2 bis 14.00 m, Ausleger
+  grau daran. Dazu gemeldet, die Mastabschnitte im 3D seien nicht zu sehen:
+  der Browser lief noch auf der Fassung vom 2. Oktober (vor dem Laden);
+  nach dem Neuladen in Ordnung («in der app funktioniert es»).
 - **3. Okt., Anbauteile: Symbolkacheln, Suche, Filter** (Prüfstand 197):
   Skizze je Vorlage aus ihren Bausteinen (`ui.anbausymbol.js`), Suchfeld
   (Wortanfänge, ohne Umlaute, auch Bausteinnamen; Enter setzt den ersten
@@ -2620,7 +2634,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6280 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6286 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

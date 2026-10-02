@@ -35988,6 +35988,46 @@ titel('200  Bauteilkarte: Bausteinwahl mit Suche, Hinweise eingeklappt');
 }
 
 // ===========================================================================
+titel('201  Tragausleger am Jochmasten: ein Mast, der Ausleger hängt daran');
+/*
+ * Gemeldet 3. Oktober: «wenn ich einen tragausleger an einen jochmasten
+ * setze, habe ich zwei masten übereinander anstatt das sich der vorhandene
+ * verlängert und der ausleger dann direkt dran hängt.» Verlängert war der
+ * Mast schon (eine Länge je Mast); der Zeichenplan (`mastZeichenplan`, ein
+ * Mast, ein Körper) erreichte aber das Auslegerbild nicht.
+ */
+{
+  const C201 = await import(J('core.constants.js'));
+  const RT201 = await import(J('render.tragausleger.js'));
+  const w0 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  const joch = { ...w0, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const blatt = C201.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 13 });
+  const ta = C201.tragwerkeVon(blatt).find((t) => C201.tragwerksart(t).key === 'tragausleger');
+  const planJ = C201.mastZeichenplan(blatt, 'T1');
+  const planT = C201.mastZeichenplan(blatt, ta.id);
+  wahr('Joch gewählt: das Joch zeichnet den geteilten Masten, der Ausleger nicht',
+       planJ.T1.B === true && planJ[ta.id].A === false, JSON.stringify(planJ));
+  wahr('Ausleger gewählt: umgekehrt', planT[ta.id].A === true && planT.T1.B === false,
+       JSON.stringify(planT));
+  const satz = C201.tragwerkSatz(blatt, ta.id);
+  const mast = { profil: 'HEB 260', hoehe: 7.5, name: 'M2', stegrichtung: 'jochachse' };
+  const mit = RT201.auslegerSzene(satz, { mast });
+  const ohne = RT201.auslegerSzene(satz, { mast, mastZeichnen: { A: false } });
+  const mastFl = (sz) => sz.flaechen.filter((f) => /MAST/.test(f.teil ?? '')).length;
+  wahr('Ohne Zeichenplan baut der Ausleger seinen Masten (allein stehend wie bisher)',
+       mastFl(mit) > 0 && Boolean(mit.mastZiehen), `${mastFl(mit)} Flächen`);
+  wahr('Mit «nein» kein Mastkörper, kein Titel, kein Griff - nur der Ausleger',
+       mastFl(ohne) === 0 && !ohne.mastZiehen
+       && !ohne.bauteiltitel.some((b) => /HEB 260/.test(b.text)), `${mastFl(ohne)} Flächen`);
+  wahr('… die Mastachse bleibt als Bezug (Masse, Seil am Masten)',
+       ohne.bezug?.masten?.A?.zKopf === mit.bezug?.masten?.A?.zKopf
+       && ohne.bezug.masten.A.zKopf > 0, `${ohne.bezug?.masten?.A?.zKopf}`);
+  const q201 = APP_QUELLE();
+  wahr('Die App reicht den Plan an beide Wege (gewählt und nebenan)',
+       q201.includes('mastZeichnen: plan[aktivId] });') && q201.includes('mastZeichnen: zeichnen });'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

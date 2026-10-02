@@ -53,7 +53,7 @@ const LASTART = { G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee
  * @param {object} satz  Rechensatz des Auslegers
  * @param {object} opt   { mast (Angabe wie beim Abfangjoch: profil, hoehe,
  *                       ueberstand, stegrichtung, name, anker), ergMast,
- *                       ergVerf, jeStab, praefix }
+ *                       ergVerf, jeStab, praefix, mastZeichnen }
  */
 export function auslegerSzene(satz, opt = {}) {
   // `bild`: ein zu kurzer Mast bricht das Bild nicht ab (30. September) -
@@ -254,33 +254,50 @@ export function auslegerSzene(satz, opt = {}) {
       // dann sichtbar über seinem Kopf an.
       const zuKurz = d.tragausleger.mastKopf !== undefined;
       const zKopf = zuKurz ? d.tragausleger.mastKopf : zKopfModell;
-      const mk = mastKoerper({
-        profil: mp, achse, x: 0, zFuss: -md.hoehe, zAnschluss: 0, zKopf,
-        name: 'A', grund: `Mast ${md.name ?? 'A'} · ${mp.name}`,
-        nachweis: opt.ergMast?.A ?? null, etaGzg: opt.ergVerf?.A?.eta ?? null,
-        farbeBauteil: fb, anker: md.anker ?? null,
-      });
-      flaechen.push(...mk.flaechen);
-      linien.push(...mk.linien);
-      bauteiltitel.push(...(mk.bauteiltitel ?? []));
-      masse.push(...(mk.masse ?? []));
-      fussUnten = mk.fussUnten;
       mastBezug.A = { x: 0, zF: -md.hoehe, zAn: 0, zAchse: 0, zKopf,
                       laenge: md.hoehe + zKopf };
       /*
-       * >>> DER MAST LÄSST SICH ZIEHEN (2. Oktober). <<< Gemeldet: «beim
-       * einzelmast und beim tragauslegermasten lassen sich die höhen nicht
-       * per drag and drop anpassen» - hier fehlten die Griffe ganz. Wie am
-       * Einzelmasten Kopf und Lage (`einzel`), kein Fuss.
+       * >>> AM MASTEN EINES JOCHS ZEICHNET DAS JOCH DEN MASTEN (3. Oktober). <<<
+       * Gemeldet: «wenn ich einen tragausleger an einen jochmasten setze,
+       * habe ich zwei masten übereinander anstatt das sich der vorhandene
+       * verlängert und der ausleger dann direkt dran hängt.» Verlängert war
+       * er schon (`auslegerMastAnbau`, eine Länge je Mast) - aber der
+       * Zeichenplan (`mastZeichenplan`, ein Mast, ein Körper) erreichte das
+       * Auslegerbild nicht, es baute seinen Masten immer selbst. Sagt der
+       * Plan nein, hängt der Ausleger nur an der Mastachse; Körper, Titel
+       * und Griffe kommen vom Tragwerk, das ihn zeichnet.
        */
-      mastGriff = { A: { x: 0, zF: -md.hoehe, zKopf, einzel: true,
-                         halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 } };
-      const lang = md.hoehe + zKopf;
-      bauteiltitel.push({ p: [0, 0, zKopf + 0.55],
-        text: `${md.name ? `${md.name} · ` : ''}${mp.name} · ${lang.toFixed(2)} m`,
-        mastEnde: 'A', feld: 'mastProfil', tab: 'system', gruppe: 'mast' });
-      marken.push({ gruppe: 'auflager', art: 'auflager', p: [0, 0, fussUnten ?? -md.hoehe],
-                    text: 'A', ohneSymbol: true });
+      if (opt.mastZeichnen?.A === false) {
+        fussUnten = -md.hoehe;
+      } else {
+        const mk = mastKoerper({
+          profil: mp, achse, x: 0, zFuss: -md.hoehe, zAnschluss: 0, zKopf,
+          name: 'A', grund: `Mast ${md.name ?? 'A'} · ${mp.name}`,
+          nachweis: opt.ergMast?.A ?? null, etaGzg: opt.ergVerf?.A?.eta ?? null,
+          farbeBauteil: fb, anker: md.anker ?? null,
+        });
+        flaechen.push(...mk.flaechen);
+        linien.push(...mk.linien);
+        bauteiltitel.push(...(mk.bauteiltitel ?? []));
+        masse.push(...(mk.masse ?? []));
+        fussUnten = mk.fussUnten;
+        /*
+         * >>> DER MAST LÄSST SICH ZIEHEN (2. Oktober). <<< Gemeldet: «beim
+         * einzelmast und beim tragauslegermasten lassen sich die höhen nicht
+         * per drag and drop anpassen» - hier fehlten die Griffe ganz. Wie am
+         * Einzelmasten Kopf und Lage (`einzel`), kein Fuss.
+         */
+        mastGriff = { A: { x: 0, zF: -md.hoehe, zKopf, einzel: true,
+                           halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 } };
+        const lang = md.hoehe + zKopf;
+        bauteiltitel.push({ p: [0, 0, zKopf + 0.55],
+          text: `${md.name ? `${md.name} · ` : ''}${mp.name} · ${lang.toFixed(2)} m`,
+          mastEnde: 'A', feld: 'mastProfil', tab: 'system', gruppe: 'mast' });
+        marken.push({ gruppe: 'auflager', art: 'auflager', p: [0, 0, fussUnten ?? -md.hoehe],
+                      text: 'A', ohneSymbol: true });
+      }
+      // Die Warnung gilt dem Seil - sie steht auch, wenn ein Joch den
+      // Masten zeichnet.
       if (zuKurz) {
         bauteiltitel.push({ p: [0, 0, bS + 0.45],
           text: `MAST ZU KURZ FÜR DIE AUFHÄNGUNG · mindestens `
