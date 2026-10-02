@@ -5,19 +5,28 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **2. Oktober 2026**; Prüfstand 6147 Kontrollen grün,
+Stand: **2. Oktober 2026**; Prüfstand 6165 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
-2. Oktober (Profile) ist committet, **nicht gepusht** - pushen nur auf Weisung.
+2. Oktober (Profile, Reaktionsblatt, Mast ziehen) ist committet, **nicht gepusht** -
+pushen nur auf Weisung.
 
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
 (`Tragwerk: …`, `Bauteil: …`, `? …`); `python3 qp_markierungen.py` liest sie
 nach `Versand/qp_markierungen/`. Legende und Beispiel 1 (nachgebaut, als
-Ablage-Paket mit eingemessenem Plan) in `Versand/qp_beispiele/`; Rückfragen
-dazu offen. Danach Abgleichtabelle und gemeinsame Durchsicht (CLAUDE.md,
+Ablage-Paket mit eingemessenem Plan, Bündel an der Doppelklemme, `E`
+ignoriert) in `Versand/qp_beispiele/`. Regel: was nicht zuzuordnen ist,
+fragt nach (manuell oder Vorschlag). Vorschlag für das QP-Einlesen mit
+Zeichnung und Bauteile setzen vorgelegt, Entscheid offen. Danach Abgleichtabelle und gemeinsame Durchsicht (CLAUDE.md,
 *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **2. Oktober, Mast im 3D ziehen:** Schaft schiebt, Fuss und Kopf ändern
+  die Länge, das Joch bleibt in der Höhe (⚠ offen: Ende B ohne eigene
+  Länge folgt Ende A). Davor: Reaktionsblatt ohne Kennungen und
+  Grundlinie, Achsen «quer/längs zum Gleis», 3D-Werte leiser,
+  Lastfallnamen quer/längs zum Gleis, U-Profile in AxisVM als Polygon
+  aus dem Normumriss, Profiltafel mit Blechen (Pos) und Blattansicht.
 - **2. Oktober, unter *Profile*:** Querschnittsklasse je Mast (die des
   Mastnachweises) und Hinweis zur durchgeschweissten Fussnaht; Klick auf
   ein Profil öffnet das **Profilblatt** (`ui.profilblatt.js`): hinterlegte

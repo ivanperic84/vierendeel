@@ -137,7 +137,11 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
-| QP lesen: Regeln zu Radius, Spannweite, Leiter, Mastfuss (2. Oktober) | Antworten zu Beispiel 1, im Wortlaut: (1) «Radius in einem ersten schritt für die Zusatzleiter anwenden -> Sichere Seite, Beachte auch die richtung der kurve bei den radien» - ist die Richtung nicht ablesbar, beide rechnen, die ungünstigere gilt (Beispiel 1: r 1600 unter Gleis W, ü = 0; R −1600 m massgebend, Mast 24A 1.177 gegen 1.170). (2) «die zusatzleiter haben im normalfall die gleichen werte für die spannweite wie die fahrleitung.» (3) «zweifach Cu wird auch Bündel benannt, wir können aber die benennung mit 2x fürhren. Rückleiter hat es Cu oder auch aldrey jenachdem. Der Rückleiter haben eine E oder RL bennnung.» Im Plan: Isolator `K` = einfach 95Cu, `L` = Bündel 2× 95Cu (Kursaufgaben S. 5). (4) `E` hinter dem Jochtyp: Ausschnitt gezeigt (`Versand/qp_beispiele/E_hinter_dem_Typ.png`, auch bei IPE300 und UPE 240), Bedeutung offen. (5) «der mastfuss wird über fundamentschrauben (Bewehrungsstäbe mit gewinde am oberen ende je nach typ als M30 und M36). der übergang ist nicht vermöttelt, dieser dient dazu da, dass man den masten justieren kann.» - die 5 cm zwischen hk und Mastfuss sind der Justierspalt. Beispiel 1 neu: R −1600 m, Cu 95 einfach (⚠ widerspricht der eigenen Anmerkung S. 1 «Bündel (2x 95Cu)»), c 40 m bis zur Angabe der FL-Spannweite |
+| Mast im 3D ziehen: Lage, Fuss, Kopf (2. Oktober) | Weisung: «ist es möglich beim masten diesen per drag and drop zu schieben und den fusspunkt oder den kopfpunkt zu verlängern oder kürzen? das joch sollte dann an ort bleiben in der höhe.» Drei Griffe am Mastkörper des gerechneten Tragwerks: unteres Stück (15 % der Länge, 0.4-1.0 m) = **Fuss**, oberes = **Kopf**, Schaft = **Lage**; auf 0.10 m, gestrichelte Vorschau mit Weg und neuer Länge; ohne Bewegung bleibt es der Klick (Sprung auf die Anschlusshöhe). Fuss: Fussversatz (positiv nach oben) und Länge gegengleich, Kopf: Länge - die Anschlusshöhe bleibt, das Joch steht still. Lage über `mastStelle` (dieselbe Regel wie die Marke im Lageband). Nie kürzer als `mastLaengeMindestens`, sonst Meldung und nichts geändert. Am Einzelmasten nur Kopf und Lage (Δz_F ausgeblendet, Entscheid 30. Sept.). `mastZiehen` (app.js), `mastZiehen` der Szene (render.3d.js, mit `szeneVerschieben`/`szenenVereinen` mitgeführt - beim ersten Browserlauf fehlte das, der Fuss griff 7.50 m daneben die Lage). Im Browser (Prüfseite, Standarddokument J90/20 m): Kopf M1 8.50 → 10.50 m; Fuss +0.00 → −0.50 m, Länge 8.50 → 9.00 m, H 7.50 bleibt; Lage x 0 → 1.00 (das Joch rückt mit, L 20 bleibt), Strg+Z zurück; Klick ohne Bewegung springt aufs Feld. **Beobachtet:** M2 ohne eigene Länge folgt M1 (bestehende Kopplung «Ende B folgt Ende A») - siehe *Offene Punkte*. Prüfstand 185 |
+| Reaktionsblatt und 3D-Werte schlichter (2. Oktober) | Weisungen: «kann man bei den Bauteil Texten jeweils die M1 und T1 herausnehmen. die Masten sind hier relevant und werden schon am Buss beschriftet. nimm noch die strichlierte linie raus. nimm noch das zum Betrachtet weg und beschrifte die achsen klarer ohne die Lastbeispiele und nimm noch die rechte hand hinweis weg.» und «resultatwerte etwas weniger prägnant anschreiben im 3d.» Bauteiltitel der Skizze ohne die Kennung (nur echte Kennungen aus `tragwerkPos`/`mastName` - ein Muster `A\d+` nahm dem Typ «A160» den Namen), keine Grundlinie, Achssystem «X quer zum Gleis», «Y längs zum Gleis», «Z nach unten», Momentzeilen bleiben, ohne Mastachse, «zum Betrachter» und rechte Hand; Bildunterschrift «Achssystem der Tabelle». 3D-Werte: Schrift wie die Lastanschrift, normal statt fett, Kästchen ohne Rahmen (Deckkraft 0.72), Ziffer in `--on2` - ändert die Weisung vom 29. Sept. («sichtbarer») zurück ins Leise |
+| Lastfallnamen quer/längs zum Gleis; Hinweistext (2. Oktober) | «für den hinweis nicht jochachse verwenden, sondern jeweils quer und längs zum Gleis» - Lastfälle und Wahlliste «Wind +x (quer zum Gleis)», «Wind +y (längs zum Gleis)» statt Jochachse/Gleisrichtung. «kannst du den vorlagetext so anpassen» (mit Bild der gekürzten Hinweise) - der erzeugte Hinweistext des Reaktionsblatts ist jetzt der gekürzte Text des Auftraggebers |
+| QP lesen: Bündel an der Doppelklemme, «E» ignorieren, Typen-Abfrage (2. Oktober) | Mit Bild eines Ausschnitts: das **Bündel 2× 95Cu erkennt man an der Doppelklemme** - Beispiel 1 wieder mit Bündel (`cu-95-x2`; meine Lesart «K = einfach» war falsch). «Ich kann nicht genau sagen was das e zu bedeuten hat, das kann man ignorieren.» - das `E` hinter dem Jochtyp wird nicht gelesen. Stehende Regel für das Einlesen: «wenn das system gewisse typen nicht automatisch zuordnen kann sollte eine abfrage erfolgen für die manuelle zuweisung oder übernahe eines vorschlags» |
+| QP lesen: Regeln zu Radius, Spannweite, Leiter, Mastfuss (2. Oktober) | Antworten zu Beispiel 1, im Wortlaut: (1) «Radius in einem ersten schritt für die Zusatzleiter anwenden -> Sichere Seite, Beachte auch die richtung der kurve bei den radien» - ist die Richtung nicht ablesbar, beide rechnen, die ungünstigere gilt (Beispiel 1: r 1600 unter Gleis W, ü = 0; R −1600 m massgebend, Mast 24A 1.177 gegen 1.170). (2) «die zusatzleiter haben im normalfall die gleichen werte für die spannweite wie die fahrleitung.» (3) «zweifach Cu wird auch Bündel benannt, wir können aber die benennung mit 2x fürhren. Rückleiter hat es Cu oder auch aldrey jenachdem. Der Rückleiter haben eine E oder RL bennnung.» Im Plan: Isolator `K` = einfach 95Cu, `L` = Bündel 2× 95Cu (Kursaufgaben S. 5) - **nachgetragen:** das Bündel erkennt man an der Doppelklemme (siehe Zeile darüber). (4) `E` hinter dem Jochtyp: Ausschnitt gezeigt (`Versand/qp_beispiele/E_hinter_dem_Typ.png`, auch bei IPE300 und UPE 240), Bedeutung offen - seither: «das kann man ignorieren». (5) «der mastfuss wird über fundamentschrauben (Bewehrungsstäbe mit gewinde am oberen ende je nach typ als M30 und M36). der übergang ist nicht vermöttelt, dieser dient dazu da, dass man den masten justieren kann.» - die 5 cm zwischen hk und Mastfuss sind der Justierspalt. Beispiel 1 neu: R −1600 m, ~~Cu 95 einfach~~ seit der Doppelklemme wieder Bündel 2× 95Cu, c 40 m bis zur Angabe der FL-Spannweite |
 | U-Profile in AxisVM aus dem Normumriss (2. Oktober) | Frage «werden die aktualisiereten Querprofile korrekt in Axis aufgebaut?» Befund aus den Aufbauberichten: `AddL` und `AddI` treffen die Tabelle, **`AddU` baut das U scharfkantig** (Radius verworfen: UPE 140 −3.4 %, UPE 240 und Gabel −2.5 % Fläche - 1780 bzw. 3755 mm² sind genau die Flächen ohne Ausrundung), das UNP mit parallelen Flanschen. Auf Rückfrage **«Ja, als Polygon»**: die Ausleitung schickt je U-Profil die `kontur` des Normumrisses (`core.profilgeometrie.js`, `uKontur`; UNP mit 8 % Neigung), die Brücke baut sie mit `KonturQuerschnitt` (Hilfs-U nur für Lage und Umlaufsinn, dann `AddCustom`) und **prüft die Lage** (starke Achse in derselben Komponente wie das Hilfs-U, sonst alter Weg mit Meldung); die Flächenprobe liest jetzt auch I. **In AxisVM gebaut (nicht gerechnet), auf Freigabe:** A240 Gurt/Gabel A +0.0 %, I +0.1/+0.0 %; Tragausleger UPE 140 A +0.1 %; UNP 120/140 A +0.0 %, I +0.0/−0.1 %; Winkel mit Normradien und HEB/IPE +0.0-0.1 %. Modelle `com/AxisVM_Kontur_*.json` (gitignoriert) |
 | Profiltafel: dieses Tragwerk / ganzes Blatt, Bleche mit Position (2. Oktober) | Frage mit Bild: «das j90 joch besteht aus unterschiedlichen flachblechen, wo sind diese aufgeführt?» - die Tafel zeigte nur das AKTIVE Tragwerk (dort der Tragausleger). Auf Rückfrage **«Beides umschaltbar»**: Schalter im Kopf der Tafel, Vorgabe «dieses Tragwerk» (Ansichtssache, localStorage `tragjoch-profilumfang`); «ganzes Blatt» rechnet je Tragwerk über `rechneTragwerk` (derselbe Weg wie der Bericht über das Blatt, einmal je Eingabestand), Spalte Tragwerk, geteilter Mast einmal. Blechzeilen nennen die Position wie Legende und Werkstattzeichnung («Vertikalblech Pos 3 · Horizontalblech Pos 5, 6»). Zeilenaufbau herausgelöst (`profilZeilen`). Im Browser: T1 J90 FL 100×10 (Pos 3/5/6, 40 Stk) und FL 80×10 (Pos 4/7, 72), A1 UPE 160 mit drei Blechen, MT1 UPE 140 / FL 100×10. Prüfstand 6147 |
 | Profiltafel: abgeleitete Kennwerte, Bindebleche anklickbar (2. Oktober) | Frage mit Bild der Tafel: «warum fehlen hier gewisse kennwerte und wo sind die falchbleche zum anklicken?» Ursache: die Winkeltabelle führt i, nicht I, und kein I_t; die Tafel zeigte nur Hinterlegtes. Jetzt stehen die Werte da, mit denen gerechnet wird, **kursiv** und im Titel benannt: I = i² · A (wie `winkelwerte`), I_t = (a_H + a_V) · t³ / 3 (neu `winkelIt` in core.winkel.js, dieselbe Funktion nutzt jetzt export.axisvm.js - gemessen 4.374e-8 m⁴ am L 90x90x9, unverändert). **Bindebleche** je Abmessung eine Zeile mit Rollen und Stückzahl (Tragjoch aus den Stationen, Abfangjoch aus `abfangBlechstationen` mit Regel-/Endblechen, Tragausleger aus dem Sortiment), Kennwerte aus b × t (`blechWerte`, kursiv), anklickbar: Profilblatt mit Rechteckschnitt. Am Abfangjoch dazu die Quersteifen (Walzprofil) als eigene Zeile. Im Browser: J90/20 m FL 100×10 (40) und FL 80×10 (72); A160 FL 100×8 (38), Endbleche 120×15 / 100×12; Tragausleger FL 100×10 (24). Prüfstand 6141 |
@@ -305,12 +309,17 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6147 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6165 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **2. Okt., Mast im 3D ziehen** (Lage, Fuss, Kopf; Prüfstand 185);
+  davor Reaktionsblatt und 3D-Werte schlichter, Lastfallnamen quer/längs
+  zum Gleis, Hinweistext nach Vorlage, U-Profile in AxisVM aus dem
+  Normumriss, Profiltafel mit Blechen und Pos (siehe *Entschieden*). Im
+  Browser über eine Prüfseite (gelöscht). Nicht gepusht.
 - **2. Okt., Profile nach Norm gezeichnet und gegen die Datenbasis
   nachgerechnet** (Prüfstand 50, 184; `vergleich_profile.mjs`, siehe
   *Entschieden*). Normradien in `data/normen.json`, UPE-Radien
@@ -1914,9 +1923,12 @@ dann je Markierung Planbezeichnung ↔ Vorlage der Anwendung ↔ Befund (passt /
 fehlt / doppelt / anders benannt) als Tabelle nach `Versand/`, gemeinsam
 durchgehen, Änderungen an `data/*.json` nur mit Freigabe und Sicherung.
 Stand: Legende und Beispiel 1 (Kursaufgaben S. 1) in `Versand/qp_beispiele/`;
-Rückfragen zu Beispiel 1 beantwortet (siehe *Entschieden*); offen noch die
-FL-Spannweite (Plan nennt keine), `E` hinter dem Jochtyp, K-Isolatoren gegen
-die Anmerkung «Bündel» auf S. 1.
+Rückfragen zu Beispiel 1 beantwortet (siehe *Entschieden*; Bündel an der
+Doppelklemme, `E` ignorieren); offen noch die FL-Spannweite (Plan nennt
+keine). Regel fürs Einlesen: was nicht zuzuordnen ist, fragt nach
+(manuell zuweisen oder Vorschlag übernehmen). Der Vorschlag, wie das
+QP-Einlesen an «Zeichnung hinterlegen» und «Bauteile setzen» anschliesst,
+ist dem Auftraggeber am 2. Oktober vorgelegt - Entscheid offen.
 
 **Laufende Arbeit (28. Sept.): Tragausleger — Etappe 2 erledigt.**
 Das Stabmodell (`export.axisvm.tragausleger.js`) hängt im Stabwerk und ist
@@ -2230,6 +2242,7 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Mast ziehen: Ende B ohne eigene Länge folgt Ende A** (2. Okt.). Gezogen am Kopf von M1 wurde M2 mitverlängert (bestehende Kopplung, gilt auch fürs Feld). Ob der Zug den Partner festhalten soll (seine heutige Länge eintragen), ist zu entscheiden.
 - ~~**Profiltabelle gegen ihre Geometrie**~~ - erledigt am 2. Oktober:
   alle Querschnittswerte aus dem Normumriss (siehe *Entschieden*), 0 von
   246 Werten über 1 %. Der Befund davor, zur Nachverfolgung: **L 200x200x20**
@@ -2558,7 +2571,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6147 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6165 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

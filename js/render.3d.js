@@ -258,6 +258,15 @@ export function szeneVerschieben(sz, dx, zusatz = {}, dz = 0) {
     })),
     stationen: (sz.stationen ?? []).map((x) => x + dx),
     /*
+     * >>> UND DIE MASTEN ZUM ZIEHEN (2. Oktober). <<<
+     * Dieselbe Falle ein viertes Mal, beim ersten Browserlauf gefunden: der
+     * Griff verglich den Zeiger (Blattkoordinaten) mit Fuss und Kopf des
+     * einzelnen Tragwerks - 7.50 m daneben, und der Fuss griff die Lage.
+     */
+    mastZiehen: sz.mastZiehen ? Object.fromEntries(Object.entries(sz.mastZiehen)
+      .map(([k, g]) => [k, { ...g, x: g.x + dx, zF: g.zF + dz, zKopf: g.zKopf + dz }]))
+      : sz.mastZiehen,
+    /*
      * >>> UND DIE BEZUGSPUNKTE DER ZEICHNUNG. <<<
      *
      * Dieselbe Falle ein drittes Mal: das Blatt hebt jede Szene um die
@@ -322,6 +331,8 @@ export function szenenVereinen(teile) {
      * Tragwerks, also gehoeren seine Bereiche hierher.
      */
     anbauteile: (da.find((s) => s.aktiv) ?? da[0]).anbauteile ?? [],
+    // Gezogen wird nur am gerechneten Tragwerk - wie bei den Anbauteilen.
+    mastZiehen: (da.find((s) => s.aktiv) ?? da[0]).mastZiehen ?? null,
     // Eingemessen wird am gerechneten Tragwerk - dessen Masse stehen im Kopf.
     bezug: (da.find((s) => s.aktiv) ?? da[0]).bezug ?? null,
     legende: [...legende.values()], bereiche,
@@ -1852,6 +1863,15 @@ export function erzeugeSzene(m, erg) {
     xNachweis: xN, schnittAktiv,
     anbauteile: detailBereiche,
     /*
+     * DIE MASTEN ZUM ZIEHEN (2. Oktober): Fuss, Kopf und Lage je Ende, wie
+     * sie gezeichnet sind. Der Einzelmast hat keinen Fussversatz (Entscheid
+     * 30. September, «Ausblenden») - an ihm gibt es nur Kopf und Lage.
+     */
+    mastZiehen: Object.fromEntries(Object.entries(mastGeo)
+      .filter(([, g2]) => g2.koerper)
+      .map(([k2, g2]) => [k2, { x: g2.x, zF: g2.zF, zKopf: g2.zKopf,
+                                einzel: Boolean(m.qsErsatz) }])),
+    /*
      * DIE MASSE, AN DENEN SICH DIE ZEICHNUNG EINMESSEN LAESST - so, wie sie
      * HIER gezeichnet sind (bild.zeichnung.js, BEZUEGE). Rechnete das
      * Einmessen sie selbst nach, laege die Zeichnung um jeden Unterschied
@@ -2475,6 +2495,39 @@ export class Modellansicht {
     }
   }
 
+  /**
+   * Vorschau beim Ziehen eines Masten (2. Oktober): die neue Mastachse
+   * gestrichelt, dazu der Weg und - an Fuss und Kopf - die neue Länge.
+   */
+  _mastZiehMalen(c, proj, t) {
+    const z = this._ziehMast;
+    const s = this._s;
+    const { g, d } = z;
+    const x = g.x + (z.zone === 'lage' ? d : 0);
+    const zF = g.zF + (z.zone === 'fuss' ? d : 0);
+    const zK = g.zKopf + (z.zone === 'kopf' ? d : 0);
+    const a = proj([x, 0, zF]), b = proj([x, 0, zK]);
+    if (!a || !b) return;
+    c.save();
+    c.strokeStyle = t.acc ?? '#7c8de0';
+    c.lineWidth = 1.6 * s;
+    c.setLineDash([5 * s, 3 * s]);
+    c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+    c.setLineDash([]);
+    const marke = z.zone === 'fuss' ? a : z.zone === 'kopf' ? b : null;
+    if (marke) {
+      c.beginPath(); c.moveTo(marke[0] - 7 * s, marke[1]); c.lineTo(marke[0] + 7 * s, marke[1]); c.stroke();
+    }
+    c.restore();
+    c.font = this._wertFont();
+    const zeichen = d >= 0 ? '+' : '−';
+    const text = z.zone === 'lage'
+      ? `Mast Δx ${zeichen}${Math.abs(d).toFixed(2)} m`
+      : `${z.zone === 'fuss' ? 'Fuss' : 'Kopf'} ${zeichen}${Math.abs(d).toFixed(2)} m · L ${(zK - zF).toFixed(2)} m`;
+    const p = marke ?? b;
+    this._beschriftung(c, t, text, p[0] + 8 * s, p[1] - 8 * s, t.acc ?? '#7c8de0');
+  }
+
   /** Vorschau beim Ziehen eines Angriffspunkts: Weg auf der Stabachse. */
   _punktZiehMalen(c, proj, t) {
     const z = this._ziehPunkt;
@@ -2899,6 +2952,35 @@ export class Modellansicht {
                       kopie: e.ctrlKey || e.metaKey };
           }
         }
+        /*
+         * >>> EIN MAST LÄSST SICH ZIEHEN (2. Oktober). <<<
+         * «ist es möglich beim masten diesen per drag and drop zu schieben
+         * und den fusspunkt oder den kopfpunkt zu verlängern oder kürzen? das
+         * joch sollte dann an ort bleiben in der höhe.»
+         * Drei Griffe am selben Körper: das untere Stück greift den Fuss,
+         * das obere den Kopf (je 15 % der Länge, 0.4 bis 1.0 m), der Schaft
+         * dazwischen die Lage. Fuss und Kopf ändern die Länge, die
+         * Anschlusshöhe des Jochs bleibt. Ohne Bewegung bleibt es der Klick
+         * auf den Masten (Sprung auf seine Eingabe).
+         */
+        if (griff.art === 'drehen' && e.button === 0 && this.opt.beiMastZiehen
+            && !this.beiStelle && !this.beiZeichnungsklick) {
+          const tr = this._treffer(e);
+          const teil = tr?.flaeche.teil;
+          const ende = typeof teil === 'string' && teil.startsWith('MAST_') && !tr.flaeche.passiv
+            ? teil.slice(5) : null;
+          const g = ende ? this.szene?.mastZiehen?.[ende] : null;
+          const [px, py] = this._geraetePunkt(e);
+          const w0 = g ? this.weltTreffer(px, py) : null;
+          if (g && w0) {
+            const L = g.zKopf - g.zF;
+            const rand = Math.min(Math.max(0.15 * L, 0.4), 1.0);
+            const zone = !g.einzel && w0.z - g.zF < rand ? 'fuss'
+              : g.zKopf - w0.z < rand ? 'kopf' : 'lage';
+            griff = { art: 'mast', bewegt: false, start: [e.clientX, e.clientY],
+                      ende, zone, g, w0 };
+          }
+        }
         c.style.cursor = griff.art === 'drehen' ? 'move' : 'grabbing';
       } else if (zeiger.size === 2) {
         // Der zweite Finger beendet das Drehen; was bis hierher gedreht
@@ -2978,6 +3060,18 @@ export class Modellansicht {
         }
         return;
       }
+      if (griff.art === 'mast') {
+        const w = this.weltTreffer(jetzt[0], jetzt[1]);
+        if (w && griff.bewegt) {
+          // Auf 0.10 m wie das Absetzen der Bauteile (1. Oktober).
+          const roh = griff.zone === 'lage' ? w.x - griff.w0.x : w.z - griff.w0.z;
+          this._ziehMast = { ende: griff.ende, zone: griff.zone, g: griff.g,
+                             d: Math.round(roh * 10) / 10 };
+          c.style.cursor = griff.zone === 'lage' ? 'ew-resize' : 'ns-resize';
+          this.zeichne();
+        }
+        return;
+      }
       if (griff.art === 'anbau') {
         const w = this.weltTreffer(jetzt[0], jetzt[1]);
         if (w && griff.bewegt) {
@@ -2999,6 +3093,24 @@ export class Modellansicht {
     });
 
     const beiHoch = (e) => {
+      if (griff?.art === 'mast') {
+        const z = this._ziehMast;
+        this._ziehMast = null;
+        if (griff.bewegt) {
+          if (z && z.d) {
+            this.opt.beiMastZiehen(griff.ende, { zone: z.zone, d: z.d,
+                                                 laenge: griff.g.zKopf - griff.g.zF });
+            this.zeichne();
+          } else this.zeichne();
+          zeiger.delete(e.pointerId);
+          try { c.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
+          c.style.cursor = '';
+          griff = null;
+          return;
+        }
+        // Ohne Bewegung: der gewohnte Klick auf den Masten.
+        griff = { ...griff, art: 'drehen' };
+      }
       if (griff?.art === 'punkt') {
         const z = this._ziehPunkt;
         this._ziehPunkt = null;
@@ -4042,6 +4154,7 @@ export class Modellansicht {
     if (this.gruppen.resultate && this.verformt) this._verformtMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
+    if (this._ziehMast) this._mastZiehMalen(c, proj, t);
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.

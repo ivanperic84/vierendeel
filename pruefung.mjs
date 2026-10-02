@@ -35222,6 +35222,40 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
 }
 
 // ===========================================================================
+titel('185  Mast im 3D ziehen: Lage, Fuss, Kopf');
+
+/*
+ * Weisung 2. Oktober: «ist es möglich beim masten diesen per drag and drop
+ * zu schieben und den fusspunkt oder den kopfpunkt zu verlängern oder
+ * kürzen? das joch sollte dann an ort bleiben in der höhe.»
+ * Der Griff vergleicht den Zeiger mit Fuss und Kopf aus der Szene - die
+ * müssen mit ihr verschoben werden (Blatt hebt um die Anschlusshöhe an;
+ * beim ersten Browserlauf griff der Fuss deshalb die Lage).
+ */
+{
+  const R = await import(J('render.3d.js'));
+  const e = rechne(basis({ mastLaenge: 8.5 }));
+  const sz = R.erzeugeSzene(e.modell, e);
+  const g = sz.mastZiehen?.A;
+  wahr('Szene führt Fuss und Kopf je Mast', g && Number.isFinite(g.zF) && g.zKopf > g.zF,
+       JSON.stringify(g));
+  pruef('Mast A: Kopf − Fuss = Mastlänge', g.zKopf - g.zF, 8.5, 1e-9, 'm');
+  const v = R.szeneVerschieben(sz, 20, {}, 7.5);
+  pruef('verschoben: x mit', v.mastZiehen.A.x, g.x + 20, 1e-12, 'm');
+  pruef('verschoben: Fuss mit', v.mastZiehen.A.zF, g.zF + 7.5, 1e-12, 'm');
+  pruef('verschoben: Kopf mit', v.mastZiehen.A.zKopf, g.zKopf + 7.5, 1e-12, 'm');
+  const ver = R.szenenVereinen([{ ...v, aktiv: true }, { ...sz, mastZiehen: { A: { x: -99 } } }]);
+  pruef('vereint: die Masten des aktiven Tragwerks', ver.mastZiehen.A.x, g.x + 20, 1e-12, 'm');
+  const q = APP_QUELLE();
+  wahr('App: Fuss ändert Fussversatz und Länge, das Joch bleibt (mastH unberührt)',
+       q.includes('function mastZiehen(') && q.includes("setzeMastAngabe(werte, m.id, 'mastFuss', fussNeu)")
+       && q.includes('lAlt - d') && !/function mastZiehen[\s\S]{0,2500}'mastH'/.test(q));
+  wahr('App: nie kürzer als die Joche brauchen', /function mastZiehen[\s\S]{0,2500}mastLaengeMindestens/.test(q));
+  wahr('App: Lage über mastStelle (dieselbe Regel wie das Lageband)',
+       /function mastZiehen[\s\S]{0,1200}aendern\('mastStelle'/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -3253,6 +3253,59 @@ const nurMastteile = (liste) => (liste ?? []).filter((a) => a?.ort === 'mastA' |
  * dem Bild; geschrieben wird über `setzeAnbauteile` - derselbe Weg wie jede
  * Eingabe, samt Fundamentkote und Rückgängig.
  */
+/**
+ * >>> EIN MAST IM 3D GEZOGEN (2. Oktober). <<<
+ *
+ * Weisung: «ist es möglich beim masten diesen per drag and drop zu schieben
+ * und den fusspunkt oder den kopfpunkt zu verlängern oder kürzen? das joch
+ * sollte dann an ort bleiben in der höhe.»
+ *
+ * Drei Griffe, jeder auf einem Weg, den es schon gibt:
+ *  - LAGE über `mastStelle` - dieselbe Regel wie die Marke im Lageband und
+ *    das Feld x (Partner am geteilten Masten, Nachbarn als Grenze);
+ *  - KOPF ändert die Länge; die Anschlusshöhe bleibt, das Joch also auch;
+ *  - FUSS ändert den Fussversatz (positiv nach oben) und die Länge um
+ *    dasselbe in Gegenrichtung - der Kopf bleibt stehen, das Joch auch.
+ * Beides gehört dem Masten (Mastliste), ein geteilter Mast ändert sich für
+ * beide Joche. Kürzer, als die Joche an ihm brauchen
+ * (`mastLaengeMindestens`), wird er nicht - die Meldung sagt es.
+ */
+function mastZiehen(ende, { zone, d, laenge = 0 }) {
+  const t = tragwerkeVon(werte)[0];
+  const [mA, mB] = mastenFuer(werte, t);
+  const m = ende === 'B' ? (mB ?? mA) : mA;
+  if (!m || !d) return;
+  const r = (v) => Math.round(v * 100) / 100;
+  const name = mastAnzeigeText(mastName(werte, m), anzeigeKarte);
+  if (zone === 'lage') {
+    const xAlt = Number(m.x) || 0;
+    aendern('mastStelle', { mastId: m.id, x: r(xAlt + d) });
+    const xNeu = Number(mastenVon(werte).find((q) => q.id === m.id)?.x);
+    meldeImBalken(`${name} verschoben: x ${xAlt.toFixed(2)} → ${(Number.isFinite(xNeu) ? xNeu : r(xAlt + d)).toFixed(2)} m`
+      + ' · Strg+Z nimmt es zurück', { dauer: 5000 });
+    return;
+  }
+  const lAlt = Number(m.laenge) > 0 ? Number(m.laenge) : r(laenge);
+  const fussAlt = Number(m.fuss) || 0;
+  const fussNeu = zone === 'fuss' ? r(fussAlt + d) : fussAlt;
+  const lNeu = r(zone === 'fuss' ? lAlt - d : lAlt + d);
+  let w = zone === 'fuss' ? setzeMastAngabe(werte, m.id, 'mastFuss', fussNeu) : werte;
+  const min = mastLaengeMindestens(w, m.id);
+  if (!(lNeu > 0) || lNeu < min - 1e-9) {
+    meldeImBalken(`${name}: ${lNeu.toFixed(2)} m wäre zu kurz - das Joch braucht `
+      + `mindestens ${min.toFixed(2)} m. Nichts geändert.`, { dauer: 6000 });
+    // Das Bild zeichnet die Vorschau selbst weg.
+    return;
+  }
+  w = setzeMastAngabe(w, m.id, 'mastLaenge', lNeu);
+  werte = rechensatz(w);
+  neuRechnen();
+  const v = (z) => `${z >= 0 ? '+' : '−'}${Math.abs(z).toFixed(2)}`;
+  const was = zone === 'fuss' ? `Fuss ${v(fussAlt)} → ${v(fussNeu)} m, ` : '';
+  meldeImBalken(`${name}: ${was}Länge ${lAlt.toFixed(2)} → ${lNeu.toFixed(2)} m, Joch bleibt`
+    + ' · Strg+Z nimmt es zurück', { dauer: 5000 });
+}
+
 function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
@@ -5818,6 +5871,7 @@ export async function start() {
     beiAnbauteil: (i) => zeigeAnbauteil(i),
     beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg),
     beiPunktZiehen: (i, weg) => punktZiehen(i, weg),
+    beiMastZiehen: (ende, weg) => mastZiehen(ende, weg),
     /*
      * DIE ZAHL IM BALKEN LAEUFT MIT DEM ZUG MIT.
      *
