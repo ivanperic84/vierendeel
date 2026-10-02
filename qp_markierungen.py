@@ -106,8 +106,13 @@ def lies(pdf, alle=False, ab='2026-10-01'):
             clip = fitz.Rect(r.x0 - RAND_PT, r.y0 - RAND_PT, r.x1 + RAND_PT, r.y1 + RAND_PT) & seite.rect
             bild = f's{nr_seite}_m{i}.png'
             # Ohne die Kommentare gerendert: der Ausschnitt zeigt den Plan.
-            seite.get_pixmap(matrix=fitz.Matrix(ZOOM_AUSSCHNITT, ZOOM_AUSSCHNITT),
-                             clip=clip, annots=False).save(os.path.join(ziel, bild))
+            # Ein Linien- oder Textkommentar ohne Fläche gibt einen leeren
+            # Ausschnitt, an dem PyMuPDF abbricht - dann eben kein Bild.
+            if clip.is_empty or clip.width < 2 or clip.height < 2:
+                bild = ''
+            else:
+                seite.get_pixmap(matrix=fitz.Matrix(ZOOM_AUSSCHNITT, ZOOM_AUSSCHNITT),
+                                 clip=clip, annots=False).save(os.path.join(ziel, bild))
             marken.append({
                 'plan': os.path.basename(pdf), 'seite': nr_seite, 'nr': i,
                 'art': art, 'angabe': rest, 'kommentar': text,
