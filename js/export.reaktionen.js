@@ -233,7 +233,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   const r1 = (v) => v.toFixed(1);
   const linien = skizze.linien.map((l) =>
     `<line${l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"' : ''} x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('');
-  const boden = `<line class="sk-boden" x1="${rand / 2}" y1="${r1(Z(g.z0))}" x2="${breite - rand / 2}" y2="${r1(Z(g.z0))}"/>`;
+  // Die gestrichelte Grundlinie ist weg (2. Oktober, «nimm noch die strichlierte linie raus»).
   // Die Einspannung: ein Strich, darunter Schraffur.
   const einspannung = (x, y) => {
     let p = `<line class="sk-lager" x1="${r1(x - 9)}" y1="${r1(y)}" x2="${r1(x + 9)}" y2="${r1(y)}"/>`;
@@ -294,7 +294,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}</style>
-    ${boden}${linien}${marken}${titel}</svg>`;
+    ${linien}${marken}${titel}</svg>`;
 }
 
 /**
@@ -310,6 +310,13 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
  * entgegengesetzt (dort vom Betrachter weg, Längsansicht von −y); X ist
  * dasselbe. In der Tabelle ändert das keine Zahl - Horizontalkräfte und
  * Momente stehen als ±Betrag, V zählt nach unten.
+ *
+ * >>> SCHLICHTER (2. Oktober). <<<
+ * «nimm noch das zum Betrachtet weg und beschrifte die achsen klarer ohne
+ * die Lastbeispiele und nimm noch die rechte hand hinweis weg» - dazu fällt
+ * die gestrichelte Mastachse weg («nimm noch die strichlierte linie raus»,
+ * ebenso die Grundlinie der Skizze). Die Momentzeilen erklären die
+ * Spaltenköpfe der Tabelle und bleiben.
  */
 export function achsSvg() {
   return `<svg class="rk-achsen" viewBox="0 0 300 170" width="300" height="170"
@@ -320,23 +327,18 @@ export function achsSvg() {
       .klein{font-size:10px;fill:#555}.mast{stroke:#aaa;stroke-width:1;stroke-dasharray:5 3}
       .fund{fill:none;stroke:#bbb;stroke-width:1}</style>
     <rect class="fund" x="128" y="58" width="44" height="34"/>
-    <line class="mast" x1="150" y1="6" x2="150" y2="58"/>
-    <text class="klein" x="156" y="14">Mastachse</text>
     <line x1="150" y1="58" x2="270" y2="58" marker-end="url(#rk-pf)"/>
-    <text x="274" y="62">X</text>
-    <text class="klein" x="182" y="52">quer · F_x (H,q)</text>
+    <text x="232" y="50">X</text>
+    <text class="klein" x="196" y="76">quer zum Gleis</text>
     <line x1="150" y1="58" x2="102" y2="100" marker-end="url(#rk-pf)"/>
     <text x="88" y="112">Y</text>
-    <text class="klein" x="10" y="128">längs · F_y (H,l),</text>
-    <text class="klein" x="10" y="140">zum Betrachter</text>
+    <text class="klein" x="20" y="128">längs zum Gleis</text>
     <line x1="150" y1="58" x2="150" y2="150" marker-end="url(#rk-pf)"/>
     <text x="156" y="160">Z</text>
-    <text class="klein" x="158" y="116">F_z (V) nach unten:</text>
-    <text class="klein" x="158" y="128">Druck positiv</text>
+    <text class="klein" x="158" y="140">nach unten</text>
     <text class="klein" x="4" y="20">M_y (M,q) um Y</text>
     <text class="klein" x="4" y="32">M_x (M,l) um X</text>
     <text class="klein" x="4" y="44">M_z (T) um Z</text>
-    <text class="klein" x="4" y="56">rechte Hand: X × Y = Z</text>
   </svg>`;
 }
 

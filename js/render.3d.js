@@ -4232,11 +4232,19 @@ export class Modellansicht {
     }
   }
 
-  /** Schriftgroesse der Werte im Plot: einen Punkt ueber der Lastschrift. */
-  _wertGroesse() { return this.schriftLast + 1; }
+  /*
+   * >>> ETWAS ZURUECKGENOMMEN (2. Oktober). <<<
+   * «resultatwerte etwas weniger prägnant anschreiben im 3d»: nach dem
+   * 29. September (fett, einen Punkt groesser, fast deckend, farbiger Rahmen)
+   * standen die Zahlen vor dem Modell. Jetzt in der Groesse der Lastschrift,
+   * normal geschnitten, das Kaestchen durchscheinender und ohne Rahmen; der
+   * Farbstreifen der Skala bleibt, damit die Zahl ihre Farbe behaelt.
+   */
+  /** Schriftgroesse der Werte im Plot: wie die Lastschrift. */
+  _wertGroesse() { return this.schriftLast; }
 
   _wertFont() {
-    return `600 ${Math.round(this._wertGroesse() * this._s)}px ${SCHRIFT_MONO()}`;
+    return `400 ${Math.round(this._wertGroesse() * this._s)}px ${SCHRIFT_MONO()}`;
   }
 
   /**
@@ -4250,17 +4258,15 @@ export class Modellansicht {
     const st = WERT_STREIFEN * s;
     const b = this._textBreite(c, text) + 7 * s + st;
     const x0 = x - 3 * s, y0 = y - hoehe + 2 * s, h = hoehe + 3 * s;
-    c.globalAlpha = 0.9;
+    c.globalAlpha = 0.72;
     c.fillStyle = t.s1;
     c.fillRect(x0, y0, b, h);
-    c.globalAlpha = 1;
+    c.globalAlpha = 0.9;
     c.fillStyle = farbe;
     c.fillRect(x0, y0, st, h);
-    c.strokeStyle = farbe;
-    c.lineWidth = 1 * s;
-    c.strokeRect(x0 + 0.5 * s, y0 + 0.5 * s, b - 1 * s, h - 1 * s);
-    c.fillStyle = t.on;
+    c.fillStyle = t.on2 ?? t.on;
     c.fillText(text, x + st, y);
+    c.globalAlpha = 1;
   }
 
   /**

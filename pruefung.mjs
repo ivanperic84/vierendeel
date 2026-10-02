@@ -28686,9 +28686,12 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     const q115 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
     // Seit dem 29. September («die werteplotts im 3d sichtbarer machen»):
     // die Ziffer in der Textfarbe, voll; die Skalenfarbe als Streifen.
-    wahr('Die Ziffer steht voll in der Textfarbe, die Skalenfarbe daneben',
+    // Seit dem 2. Oktober zurueckgenommen («etwas weniger prägnant»): die
+    // Ziffer in der zweiten Textfarbe, normal, das Kaestchen 0.72.
+    wahr('Die Ziffer steht in der Textfarbe, die Skalenfarbe daneben, nicht fett',
          /_wertMarke\(c, t, text, k\.x, k\.y, farbeVon\(k\.v\)\)/.test(q115)
-         && /c\.fillStyle = t\.on;\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
+         && /c\.fillStyle = t\.on2 \?\? t\.on;\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
+         && /`400 \$\{Math\.round\(this\._wertGroesse\(\)/.test(q115)
          && /saum \?\? deckung/.test(q115));
   }
 
@@ -34510,7 +34513,10 @@ titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Han
        leiter.map((v) => `${v?.id} ${v?.raster}`).join(', '));
   const er = readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8');
   wahr('Reaktionstabelle: Y zum Betrachter (X × Y = Z bei Z nach unten)',
-       er.includes('x1="150" y1="58" x2="102" y2="100"') && er.includes('rechte Hand: X × Y = Z'));
+       // Die Richtung bleibt (Y zum Betrachter); der Hinweis «rechte Hand» ist
+       // seit dem 2. Oktober weg («nimm noch die rechte hand hinweis weg»).
+       er.includes('x1="150" y1="58" x2="102" y2="100"') && !er.includes('rechte Hand: X × Y = Z')
+       && !er.includes('zum Betrachter</text>') && er.includes('quer zum Gleis</text>'));
 }
 
 titel('177  Rechte Hand im Kern: Torsion aus einer Last mit Versatz y');

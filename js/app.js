@@ -684,7 +684,13 @@ function reaktionsDaten() {
   const dz = bezug ? bezug.z : 0;
   const titel = (ansicht?.szene?.bauteiltitel ?? [])
     .filter((b) => !b.warnung && Array.isArray(b.p) && b.text)
-    .map((b) => ({ text: mastAnzeigeText(b.text, anzeigeKarte),
+    /*
+     * OHNE KENNUNG (2. Oktober, «kann man bei den Bauteil Texten jeweils die
+     * M1 und T1 herausnehmen. die Masten sind hier relevant und werden schon
+     * am Fuss beschriftet»): die führende Kennung mit Nummer fällt weg (M1,
+     * MT1, T1, A1); «TA ·» ist die Bauart und bleibt.
+     */
+    .map((b) => ({ text: String(b.text).replace(/^(?:MT|M|T|A)\d+ · /, ''),
                    x: b.p[0] + dx, z: b.p[2] + dz, mast: Boolean(b.mastEnde) }));
   return { zeilen, titel, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
            linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
