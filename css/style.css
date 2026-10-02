@@ -498,6 +498,26 @@ input[type=range].rng {
 .kachel-legende > span { display: inline-flex; align-items: center; gap: 5px; }
 .kachel-legende .kachel-punkt { display: inline-block; }
 .kachel-name { font-size: 11px; font-weight: 500; line-height: 1.25; }
+/* Symbolkacheln der Anbauteile (3. Oktober): Skizze oben, Name darunter,
+   höchstens zwei Zeilen; der volle Name steht im Titel. Daneben gestellt
+   wurde der Name zu schmal («Hängestütze mit…» - genau das Unterscheidende
+   fiel weg), deshalb übereinander, mit knappem Polster. */
+.kachel.at-kachel { grid-template-columns: 1fr; grid-template-rows: auto auto;
+  justify-items: center; text-align: center; gap: 1px; padding: 3px 4px 5px; }
+.at-kachel .at-symbol { width: 40px; height: 26px; color: var(--on2); }
+.at-kachel:hover .at-symbol { color: var(--acc); }
+.at-kachel .kachel-name { font-size: 10.5px; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; }
+.kachel-huelle[hidden], .kachel-gruppe[hidden] { display: none; }
+.vl-suchzeile { display: flex; gap: 6px; align-items: center; margin: 0 0 6px; }
+.vl-suche { flex: 1 1 60px; min-width: 0; padding: 5px 8px; font: inherit; font-size: 12px;
+  color: var(--on); background: var(--s1); border: 1px solid var(--ol); border-radius: var(--m-r1); }
+.vl-suche:focus { outline: none; border-color: var(--acc); }
+.vl-ortwahl { flex: 0 0 auto; display: inline-flex; border: 1px solid var(--ol); border-radius: var(--m-r1); overflow: hidden; }
+.vl-ort { padding: 4px 7px; font-size: 11px; background: transparent; color: var(--dim);
+  border: 0; cursor: pointer; }
+.at-ort + .vl-ort { border-left: 1px solid var(--ol); }
+.vl-ort.an { background: var(--acc-s); color: var(--acc); }
 .kachel-meta { font-family: var(--f-mono); font-size: 9px; color: var(--dim); }
 
 .at-karte {
@@ -565,7 +585,7 @@ input[type=range].rng {
 .at-koerper { padding: 4px 8px 0; }
 
 /* Suchfeld über der Liste */
-.at-suche { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
+.vl-suche { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
 .at-suche input { flex: 1; padding: 5px 8px; font-size: 11.5px; }
 .at-suche-zahl {
   font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;

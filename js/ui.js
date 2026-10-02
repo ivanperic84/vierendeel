@@ -58,6 +58,14 @@ import { ankerQuerschnitt } from './data.anker.js';
 import { mastKlasse } from './core.mast.js';
 import { winkelIt } from './core.winkel.js';
 import { blechWerte } from './ui.profilblatt.js';
+import { vorlageSymbol, vorlageSuchtext, suchtextPasst } from './ui.anbausymbol.js';
+
+/*
+ * Suche und Filter über den Vorlagen (3. Oktober) - Ansichtssache, sie
+ * überstehen den Neuaufbau der Maske, werden aber nicht gespeichert.
+ */
+let vorlageSuche = '';
+let vorlageOrt = 'alle';
 
 /*
  * DAS GERECHNETE MODELL, für die Lage eines Anbauteils.
@@ -2609,16 +2617,23 @@ function anbauteileHtml(g, werte) {
    * das Auge trifft, bevor es liest. Eigene Vorlagen kommen ans Ende ihrer
    * Gruppe; wer keine hat, merkt nichts davon.
    */
-  const eineKachel = (v) => `
-    <span class="kachel-huelle">
-      <button class="kachel${v.eigen ? ' eigen' : ''}" data-vorlage="${esc(v.id)}"
-              draggable="true" title="${esc(v.beschreibung)}">
-        <span class="kachel-punkt" style="background:${ANBAU_FARBE[v.farbe] ?? 'var(--dim)'}"
-              title="${esc(`Befestigung: ${ANBAU_FARBE_NAME[v.farbe] ?? 'nicht angegeben'}`)}"></span>
+  /*
+   * >>> SYMBOL STATT FARBPUNKT UND TEILEZAHL (3. Oktober). <<<
+   * «es ist zur zeit sehr viel text den man lesen muss um das richtige
+   * bauteil zu finden» - auf Rückfrage «Symbolkacheln»: die Skizze kommt aus
+   * den Bausteinen der Vorlage (`vorlageSymbol`, ui.anbausymbol.js), der
+   * Name steht darunter, Beschreibung und Befestigung im Titel. Jede
+   * Kachel trägt ihren Suchtext und wo sie passt (Joch / Mast) - gefiltert
+   * wird im Browser ohne Neuaufbau.
+   */
+  const eineKachel = (v, gruppe = '') => `
+    <span class="kachel-huelle" data-suche="${esc(vorlageSuchtext(v, gruppe))}"
+          data-joch="${vorlagePasstAn(v, 'joch') ? 1 : 0}" data-mast="${vorlagePasstAn(v, 'mast') ? 1 : 0}">
+      <button class="kachel at-kachel${v.eigen ? ' eigen' : ''}" data-vorlage="${esc(v.id)}"
+              draggable="true" title="${esc(`${v.name}${v.beschreibung ? ` - ${v.beschreibung}` : ''}${
+                ANBAU_FARBE_NAME[v.farbe] ? ` (Befestigung: ${ANBAU_FARBE_NAME[v.farbe]})` : ''}`)}">
+        ${vorlageSymbol(v)}
         <span class="kachel-name">${esc(v.name)}</span>
-        <span class="kachel-meta">${(v.module ?? []).length
-          ? `${v.module.length} Teil${v.module.length === 1 ? '' : 'e'}`
-          : 'freie Last'}</span>
       </button>
       <button class="kachel-stift" data-vorlage-bearb="${esc(v.id)}"
         title="${v.eigen ? 'Vorlage bearbeiten'
@@ -2671,7 +2686,7 @@ function anbauteileHtml(g, werte) {
     if (!drin.length) return '';
     return `<div class="kachel-gruppe">
         <span class="kachel-gruppe-kopf">${icon(sym, 13)} ${esc(titel)}</span>
-        <div class="kacheln">${drin.map(eineKachel).join('')}</div>
+        <div class="kacheln">${drin.map((v) => eineKachel(v, titel)).join('')}</div>
       </div>`;
   }).join('');
 
@@ -2997,11 +3012,18 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          title="Anbauteile über die Gleise verteilen">Lastgenerator</button>` : ''}
      </div>` +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
+      <div class="vl-suchzeile">
+        <input type="search" class="vl-suche" value="${esc(vorlageSuche)}"
+          placeholder="Suchen: NT, Lampe, 95, Trafo …" aria-label="Vorlagen durchsuchen">
+        ${tragwerksart(werte).traeger ? `<span class="vl-ortwahl" role="group" aria-label="Ort">${
+          [['alle', 'alle'], ['joch', 'Joch'], ['mast', 'Mast']].map(([k, l]) =>
+            `<button type="button" class="vl-ort${vorlageOrt === k ? ' an' : ''}" data-vl-ort="${k}"
+              aria-pressed="${vorlageOrt === k}">${l}</button>`).join('')}</span>` : ''}
+      </div>
       <p class="hinweis" style="margin:0 0 4px">Kachel anklicken oder ins
         Modell ziehen.</p>
-      <p class="kachel-legende">${Object.entries(ANBAU_FARBE_NAME).map(([k, n]) =>
-        `<span><span class="kachel-punkt" style="background:${ANBAU_FARBE[k]}"></span>${
-          esc(n.split(' (')[0])}</span>`).join('')}</p>
+      <p class="notiz vl-keine" hidden>Keine Vorlage passt - Suche ändern, oder
+        «Bauteil zuweisen» für ein freies Teil.</p>
       ${kacheln}
       ${klapp('anbau-achsen', 'Befestigung und Achsen', `
         <p class="hinweis" style="margin:0">
@@ -3030,7 +3052,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       `${alleV.length + 1} Vorlagen`) +
     // Das Suchfeld filtert im Browser, ohne die Maske neu zu bauen - sonst
     // verlöre das Feld bei jedem Tastendruck den Fokus.
-    (liste.length > 3 ? `<div class="at-suche">
+    (liste.length > 3 ? `<div class="vl-suche">
       <input type="search" id="at-suche" placeholder="filtern nach Name, Vorlage, Lage …"
              autocomplete="off">
       <span class="at-suche-zahl"></span></div>` : '') +
@@ -4578,6 +4600,47 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   // beim ersten Anfassen umgeschrieben und nicht halb weitergeschleppt.
   const liste = () =>
     ((aktuelleWerte ?? werte).anbauteile ?? []).map(normalisiereAnbauteil);
+
+  /*
+   * SUCHE UND FILTER (3. Oktober) - nur Sichtbarkeit, kein Neuaufbau: so
+   * bleibt der Fokus im Suchfeld, und der Stand der Maske ändert sich nicht.
+   */
+  const vlFiltern = () => {
+    let sichtbar = 0;
+    container.querySelectorAll('.kachel-gruppe').forEach((gr) => {
+      let n = 0;
+      gr.querySelectorAll('.kachel-huelle[data-suche]').forEach((k) => {
+        const ort = vorlageOrt === 'alle' || k.dataset[vorlageOrt] === '1';
+        const an = ort && suchtextPasst(k.dataset.suche, vorlageSuche);
+        k.hidden = !an;
+        if (an) n += 1;
+      });
+      gr.hidden = n === 0;
+      sichtbar += n;
+    });
+    const leer = container.querySelector('.vl-keine');
+    if (leer) leer.hidden = sichtbar > 0;
+  };
+  const vlSuche = container.querySelector('.vl-suche');
+  if (vlSuche) {
+    vlSuche.addEventListener('input', () => { vorlageSuche = vlSuche.value; vlFiltern(); });
+    // Enter setzt die einzige (oder erste) passende Vorlage.
+    vlSuche.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const erste = [...container.querySelectorAll('.kachel-huelle[data-suche]')]
+        .find((k) => !k.hidden && !k.closest('.kachel-gruppe')?.hidden);
+      erste?.querySelector('.kachel')?.click();
+    });
+  }
+  container.querySelectorAll('[data-vl-ort]').forEach((b) => b.addEventListener('click', () => {
+    vorlageOrt = b.dataset.vlOrt;
+    container.querySelectorAll('[data-vl-ort]').forEach((x) => {
+      x.classList.toggle('an', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    vlFiltern();
+  }));
+  vlFiltern();
 
   container.querySelectorAll('.kachel').forEach((b) => {
     // Anklicken fragt die Lage ab, statt das Teil auf x = 0 zu setzen.

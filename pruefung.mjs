@@ -33909,8 +33909,10 @@ titel('167  Tragausleger: zu kurzer Mast im Bild; Grenzwerte GZG in den Optionen
        /\.qp-kachel \{[^}]*background: transparent/.test(css)
        && /\.qp-kachel:hover[^{]*\{ background: var\(--acc-s\); \}/.test(css));
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
-  wahr('Die Farbpunkte der Vorlagen sind erklärt (Titel und Legende)',
-       uq.includes('class="kachel-legende"') && uq.includes('Befestigung: ${ANBAU_FARBE_NAME'));
+  // Seit dem 3. Oktober (Abschnitt 197, «Symbolkacheln») ohne Farbpunkt und
+  // Legende; die Befestigung steht im Titel der Kachel.
+  wahr('Die Befestigung der Vorlage steht im Titel der Kachel',
+       !uq.includes('class="kachel-legende"') && uq.includes('(Befestigung: ${ANBAU_FARBE_NAME[v.farbe]})'));
 }
 
 titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einzelmasten, Berichtsleiste');
@@ -35824,6 +35826,41 @@ titel('196  Mastkopf ziehen am Einzelmasten und am Tragausleger');
   wahr('… ebenso unter dem Zeiger', /_ziehZiel\(e\) \{[\s\S]{0,400}_mastEndeUnter\(e\)/.test(r3));
   wahr('Kürzer als H + b wird am Ausleger nicht gesetzt',
        APP_QUELLE().includes('const minTa = mastZuKurzFuerAufhaengung(rechensatz(w));'));
+}
+
+// ===========================================================================
+titel('197  Anbauteile finden: Symbolkacheln, Suche, Filter');
+/*
+ * Weisung 2. Oktober: «… es ist zur zeit sehr viel text den man lesen muss
+ * um das richtige bauteil zu finden.» Auf Rückfrage «Suchfeld + Filter» und
+ * «Symbolkacheln». Im Browser (Prüfseite): «lampe» → 3 Lampen, «95» → 4
+ * Vorlagen mit Cu 95, «nt» → die beiden NT-Ausleger, Filter Mast → 10,
+ * «trafo 50» + Enter startet das Setzen; Fokus bleibt im Suchfeld.
+ */
+{
+  const S197 = await import(J('ui.anbausymbol.js'));
+  const alle = A.vorlagen().filter((v) => v.id !== 'frei');
+  const sym = new Map(alle.map((v) => [v.id, S197.vorlageSymbol(v)]));
+  wahr('Jede Vorlage hat ein Symbol (SVG, ohne NaN)',
+       [...sym.values()].every((s) => s.startsWith('<svg') && !s.includes('NaN')));
+  wahr('Einfacher und doppelter Jochaufsatz unterscheiden sich',
+       sym.get('ja-einfach') !== sym.get('ja-doppelt'));
+  wahr('Hängestütze mit und ohne Fahrleitung unterscheiden sich',
+       sym.get('hs-fahrdraht') !== sym.get('hs-nur'));
+  wahr('Am Masten steht der Mast senkrecht im Bild (nicht das Joch)',
+       /<path d="M(\S+) [\d.]+L\1 /.test(sym.get('mast-trafo-50')));
+  const findet = (q) => alle.filter((v) => S197.suchtextPasst(S197.vorlageSuchtext(v), q))
+    .map((v) => v.id).sort().join(',');
+  wahr('«hangestutze nt» findet nur die Hängestütze mit NT-Ausleger (Wortanfang, ohne Umlaut)',
+       findet('hangestutze nt') === 'hs-nt-ausleger', findet('hangestutze nt'));
+  wahr('«95» findet die Vorlagen mit Cu 95 über ihre Bausteine',
+       findet('95').split(',').includes('ja-einfach') && findet('95').split(',').includes('leiter-rl'));
+  wahr('«lampe» findet die drei Lampen', findet('lampe').split(',').length === 3, findet('lampe'));
+  wahr('Leere Suche lässt alles stehen', findet('').split(',').length === alle.length);
+  const ui197 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Gefiltert wird ohne Neuaufbau (nur hidden), Enter setzt den ersten Treffer',
+       ui197.includes('const vlFiltern = () => {') && ui197.includes("vlSuche.addEventListener('keydown'"));
+  wahr('Kein Farbpunkt und keine Legende mehr an den Vorlagen', !ui197.includes('class="kachel-legende"'));
 }
 
 // ===========================================================================
