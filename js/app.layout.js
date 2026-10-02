@@ -86,8 +86,8 @@ const WZ_LASTEN = (app) => [
   { key: 'last', icon: 'lastpfeil', text: 'Lasten überhaupt zeigen', haupt: true },
   { key: 'staendig', icon: 'gewicht', text: 'Ständige Lasten' },
   { key: 'leiterzug', icon: 'leiterzug', text: 'Leiterzugkräfte (Umlenkung)' },
-  { key: 'windX', icon: 'wind', text: 'Wind in x (Jochachse)' },
-  { key: 'windY', icon: 'wind', text: 'Wind in y (Gleisrichtung)' },
+  { key: 'windX', icon: 'wind', text: 'Wind in x (quer zum Gleis)' },
+  { key: 'windY', icon: 'wind', text: 'Wind in y (längs zum Gleis)' },
   { key: 'schnee', icon: 'schnee', text: 'Schnee und veränderlich vertikal' },
 ];
 

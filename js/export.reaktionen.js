@@ -366,6 +366,13 @@ function havarieLeiter(daten) {
  * öffentlich); wer sie will, schreibt sie auf dem Blatt dazu und speichert
  * den Text als Vorlage - sie bleibt dann in seinem Browser.
  */
+/*
+ * >>> GEKUERZT AUF DIE FASSUNG DES AUFTRAGGEBERS (2. Oktober). <<<
+ * «kannst du den vorlagetext so anpassen» - mit dem Bild seines Blattes:
+ * ohne den Satz zum Wind ohne Abminderung, ohne «nicht überlagert / je
+ * Spalte der massgebende Fall», ohne den Nachsatz zur Standardlastzeile,
+ * Standardlasten ohne Geländeneigung, ohne den Satz zum Stabwerk.
+ */
 export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
   const g = daten?.grenzen;
   const gzg = g ? [
@@ -376,12 +383,10 @@ export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
   return `<h2 class="rk-hinweise-titel">Hinweise</h2>
   <ul class="rk-hinweise">
     <li>Die Werte setzen sich aus den veränderlichen und den ständigen Lasten
-      zusammen - charakteristisch, alle Teilsicherheitsbeiwerte 1, Wind
-      <b>ohne Abminderung</b> (nicht der Betriebswind ψ 0.70).</li>
+      zusammen - charakteristisch, alle Teilsicherheitsbeiwerte 1.</li>
     <li>Die Einwirkungen aus den veränderlichen Lasten können bei den
       jeweiligen Gefährdungsbildern längs und quer zum Gleis separat
-      betrachtet werden; sie sind nicht überlagert. Je Spalte steht der
-      massgebende Fall.</li>
+      betrachtet werden.</li>
     <li>Die negativen Werte bei den Vertikallasten sind als <b>abhebend</b>
       anzusetzen (Druck positiv). Momente, Horizontalkräfte und Torsion stehen
       als Betrag (±) - ihre Richtung wechselt mit dem Wind.</li>
@@ -394,13 +399,8 @@ export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
     <li>«ständig / veränderl.»: Anteil am Moment quer zum Gleis M_y (M,q) -
       ständig ist der Betrag unter dem ganzen Eigengewicht G, veränderlich
       der grösste aus Wind oder Schnee allein; gezeigt ständig / (ständig +
-      veränderlich).${standard ? ` In der Zeile der Standardlasten der Anteil,
-      den das Fundament für den veränderlichen Teil zulässt.` : ''}</li>
-    ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps für Gelände bis 14°
-      Neigung; bei steilerem Gelände gelten kleinere Werte.</li>` : ''}
-    <li>Gerechnet im Stabwerk der Anwendung: alle Tragwerke des Querprofils in
-      einem Modell, jeder Mast mit den Kräften aller anschliessenden
-      Tragwerke.</li>
+      veränderlich).</li>
+    ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps.</li>` : ''}
   </ul>`;
 }
 

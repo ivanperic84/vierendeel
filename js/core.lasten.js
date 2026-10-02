@@ -455,13 +455,13 @@ export function standardLastfaelle(inp) {
    * +-Richtung.
    */
   lf.push(
-    { key: 'wyk', bez: 'Wind +y (Gleisrichtung)', art: 'charakteristisch',
+    { key: 'wyk', bez: 'Wind +y (längs zum Gleis)', art: 'charakteristisch',
       nachweis: false, leit: 'WindY', vorzeichen: +1, beiwerte: bw({ WindY: 1 }) },
-    { key: 'wykm', bez: 'Wind −y (Gleisrichtung)', art: 'charakteristisch',
+    { key: 'wykm', bez: 'Wind −y (längs zum Gleis)', art: 'charakteristisch',
       nachweis: false, leit: 'WindY', vorzeichen: -1, beiwerte: bw({ WindY: -1 }) },
-    { key: 'wxk', bez: 'Wind +x (Jochachse)', art: 'charakteristisch',
+    { key: 'wxk', bez: 'Wind +x (quer zum Gleis)', art: 'charakteristisch',
       nachweis: false, leit: 'WindX', vorzeichen: +1, beiwerte: bw({ WindX: 1 }) },
-    { key: 'wxkm', bez: 'Wind −x (Jochachse)', art: 'charakteristisch',
+    { key: 'wxkm', bez: 'Wind −x (quer zum Gleis)', art: 'charakteristisch',
       nachweis: false, leit: 'WindX', vorzeichen: -1, beiwerte: bw({ WindX: -1 }) },
     /*
      * >>> STAENDIG + WIND JE RICHTUNG, NICHT DIAGONAL (18. September). <<<
@@ -473,8 +473,8 @@ export function standardLastfaelle(inp) {
      * Wind nie mehr zusammen gesehen. Entscheid vom selben Tag: je eine
      * Richtung, vier Faelle. `gwk` bleibt der Schluessel fuer +y.
      */
-    ...[['WindY', +1, 'gwk', '+y (Gleisrichtung)'], ['WindY', -1, 'gwkm', '−y (Gleisrichtung)'],
-        ['WindX', +1, 'gwkx', '+x (Jochachse)'], ['WindX', -1, 'gwkxm', '−x (Jochachse)']]
+    ...[['WindY', +1, 'gwk', '+y (längs zum Gleis)'], ['WindY', -1, 'gwkm', '−y (längs zum Gleis)'],
+        ['WindX', +1, 'gwkx', '+x (quer zum Gleis)'], ['WindX', -1, 'gwkxm', '−x (quer zum Gleis)']]
       .map(([gruppe, vz, key, text]) => ({
         key, bez: `Ständig + Wind ${text}`,
         art: 'charakteristisch', nachweis: false, leit: gruppe, vorzeichen: vz,
@@ -482,7 +482,7 @@ export function standardLastfaelle(inp) {
   );
 
   // Wind leitend, je Richtung mit beiden Vorzeichen
-  [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
+  [['Y', 'WindY', 'y (längs zum Gleis)'], ['X', 'WindX', 'x (quer zum Gleis)']]
     .forEach(([tag, gruppe, text]) => {
       [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
         lf.push({
@@ -589,7 +589,7 @@ export function standardLastfaelle(inp) {
    * anders aus. Bei «ständig + Wind» ist das nicht so: G + 0.7·W ist ein
    * anderer Zustand als G + 1.0·W, und der Anker kann darin anders stehen.
    * ======================================================================= */
-  [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
+  [['Y', 'WindY', 'y (längs zum Gleis)'], ['X', 'WindX', 'x (quer zum Gleis)']]
     .forEach(([tag, gruppe, richtung]) => {
       [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
         lf.push({

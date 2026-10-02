@@ -30888,11 +30888,11 @@ titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel'
    * «leitend» - beides sagt etwas ueber die Schreibweise, nicht ueber
    * das Lastbild.
    */
-  [['Wind +y (Gleisrichtung) leitend', 'Wind +y'],
-   ['Ständig + Wind +x (Jochachse)', 'Ständig + Wind +x'],
-   ['Betriebswind (ψ 0.70): ständig + Wind +y (Gleisrichtung)',
+  [['Wind +y (längs zum Gleis) leitend', 'Wind +y'],
+   ['Ständig + Wind +x (quer zum Gleis)', 'Ständig + Wind +x'],
+   ['Betriebswind (ψ 0.70): ständig + Wind +y (längs zum Gleis)',
     'Betriebswind: ständig + Wind +y'],
-   ['Gebrauchstauglichkeit selten: Wind −y (Gleisrichtung)', 'selten: Wind −y'],
+   ['Gebrauchstauglichkeit selten: Wind −y (längs zum Gleis)', 'selten: Wind −y'],
    ['Havarie L1 +y', 'Havarie L1 +y'],
    [null, ''], ['', '']].forEach(([lang, kurz]) =>
     wahr(`fallKurz: ${JSON.stringify(lang)}`, UI128.fallKurz(lang) === kurz,
@@ -30906,15 +30906,15 @@ titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel'
       mast: { A: { eta: 0.62, etaMitStabilitaet: 0.78,
                    profil: { name: 'HEB 240' }, stabil: { eta: 0.78 },
                    fall: 'windYp' } },
-      anker: { A: { lastfall: 'gwk', bez: 'Ständig + Wind +y (Gleisrichtung)',
+      anker: { A: { lastfall: 'gwk', bez: 'Ständig + Wind +y (längs zum Gleis)',
                     nachweis: { typ: 'Zuganker', N: 24.3, eta: 0.44,
                                 lieferbar: true } } },
       fundament: { A: { eta: 0.31, typ: { typ: 'HP1a/2.4' },
-        massgebend: { kurz: 'M quer', key: 'Mq', bez: 'Wind +x (Jochachse)' },
+        massgebend: { kurz: 'M quer', key: 'Mq', bez: 'Wind +x (quer zum Gleis)' },
         nachweise: [{ was: 'M quer', wert: 71.2, zul: 230, einheit: 'kNm',
                       eta: 0.31, bez: 'Wind +x' }] } },
     };
-    const bez128 = (k) => ({ windYp: 'Wind +y (Gleisrichtung) leitend' }[k] ?? null);
+    const bez128 = (k) => ({ windYp: 'Wind +y (längs zum Gleis) leitend' }[k] ?? null);
     const je = UI128.bauteilKachelnJe(erg128, { nachweise: {} }, ampel128,
                                       { fallBez: bez128 });
     const alle = [...je.mast, ...je.anker, ...je.fundament];
@@ -30923,7 +30923,7 @@ titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel'
          alle.map((h) => /class="kz-f">([^<]*)/.exec(h)?.[1]).join(' | '));
     wahr('… und zwar kurz', /class="kz-f">Wind \+y</.test(je.mast[0]));
     wahr('… den vollen Namen im Titel',
-         /Massgebende Kombination: Wind \+y \(Gleisrichtung\) leitend/.test(je.mast[0]));
+         /Massgebende Kombination: Wind \+y \(längs zum Gleis\) leitend/.test(je.mast[0]));
     /*
      * >>> BEIM EINZELLASTFALL NICHT. <<<
      * Dort gilt sie allen Kacheln gemeinsam und steht schon in der Leiste
@@ -34059,7 +34059,10 @@ titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt
        blatt.includes('rk-tabelle') && blatt.includes('rk-skizze') && blatt.includes('rk-achsen')
        // Seit dem 1. Oktober nach dem Hinweisblock der Einwirkungs-Mappe.
        && blatt.includes('als <b>abhebend</b>') && blatt.includes('Druck positiv')
-       && blatt.includes('<b>ohne Abminderung</b>'));
+       // Seit dem 2. Oktober in der gekürzten Fassung des Auftraggebers: ohne
+       // den Satz zum Wind ohne Abminderung und ohne den Satz zum Stabwerk.
+       && blatt.includes('alle Teilsicherheitsbeiwerte 1.</li>')
+       && !blatt.includes('ohne Abminderung') && !blatt.includes('Gerechnet im Stabwerk'));
   wahr('Kein «−0.00» in der Tabelle', !ER.reaktionenTabelleHtml(daten).includes('−0.00'));
   const app = APP_QUELLE();
   wahr('Export-Menü und Reiter Auflager führen sie',
