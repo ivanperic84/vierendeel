@@ -1599,6 +1599,32 @@ export function hinweise(m) {
       + 'GEOMETRISCHE Feder; der Gurtanschluss ist dort separat nachzuweisen '
       + '(Prüfung A1).');
   }
+  /*
+   * STOSS IN DER REIHE (2. Oktober, `stossAnwenden` in core.vierendeel.js):
+   * das Endfeld am Stoss ist gekürzt - das soll man lesen können, denn es
+   * ist eine Abweichung von der Werkstattzeichnung der Standardlänge.
+   */
+  if (m.stoss) {
+    const s = m.stoss;
+    const enden = ['A', 'B'].filter((e) => s[e]);
+    const ef = (e) => (m.a1 - (e === 'A' ? s.kuerzA : s.kuerzB)).toFixed(3);
+    h.push(`Stoss in der Reihe am Ende ${enden.join(' und ')}: das Joch endet dort `
+      + `${(s.luft * 100).toFixed(0)} cm vor der Mastachse (Spalt ${(2 * s.luft * 100).toFixed(0)} cm `
+      + `zum Nachbarjoch). Gurtlänge ${m.L.toFixed(3)} m, Stationen nach der `
+      + `${s.tabelle ? 'Standardlänge' : 'Länge'} ${s.Lnenn.toFixed(2)} m, Endfeld `
+      + enden.map((e) => `${e} ${ef(e)} m`).join(', ')
+      + ` statt ${m.a1.toFixed(3)} m.`
+      + (s.tabelle ? '' : ' Keine Standardlänge im Sortiment - Stationen gleichmässig geteilt.'));
+    enden.filter((e) => (s.kragWeg?.[e] ?? 0) > 1e-6).forEach((e) => {
+      h.push(`Kragarm am Ende ${e} (${s.kragWeg[e].toFixed(2)} m) gilt am Stoss nicht - `
+        + 'dort ist kein Platz; das Joch endet 5 cm vor der Mastachse.');
+    });
+    enden.forEach((e) => {
+      if (Number(ef(e)) < 0.3) {
+        h.push(`Endfeld am Ende ${e} nur ${ef(e)} m - die Kürzung ist gross; Länge oder Masten prüfen.`);
+      }
+    });
+  }
   if (m.kragA > 0 || m.kragB > 0) {
     h.push(`Auflager innerhalb der Gurtenden: Stützweite `
       + `${m.stuetzweite.toFixed(3)} m gegen ${m.L.toFixed(3)} m Gurtlänge, `

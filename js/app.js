@@ -41,7 +41,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
          mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
-         tragwerkeVon, mastenFuer, lageOrtsnull, anschlusshoehe, sichtbareTragwerke,
+         tragwerkeVon, mastenFuer, lageOrtsnull, stossVersatz, anschlusshoehe, sichtbareTragwerke,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
          jochZuEinzelmasten, kragarme, einzelmastenAufgehen,
@@ -2024,8 +2024,9 @@ function blattSzene(erg) {
    * das soll er.
    */
   const teile = alle.map((t) => {
-    // Das Abfangjoch beginnt um seinen Ueberstand vor dem ersten Masten.
-    const dx = lageOrtsnull(t);
+    // Das Abfangjoch beginnt um seinen Ueberstand vor dem ersten Masten;
+    // ein Tragjoch am Stoss um die Luft danach (2. Oktober).
+    const dx = lageOrtsnull(t) + stossVersatz(werte, t);
     const dz = hebungVon(t);
     if (t.id === aktivId) {
       return szeneVerschieben({ ...eigen, aktiv: true }, dx,
@@ -2277,7 +2278,7 @@ function aktualisiereFuss(erg, urteil, joch) {
       + (bl ? ` · ${bl} Bleche` : '');
     return;
   }
-  const s = spannweiteImSortiment(joch, erg.modell.L);
+  const s = spannweiteImSortiment(joch, erg.modell.Lnenn ?? erg.modell.L);
   ui.el('st-modell').textContent =
     `${erg.modell.jd}${erg.modell.verlauf?.aktiv
         ? `→${erg.modell.verlauf.voute.endJd}` : ''} × ${erg.modell.jbbOG} mm · Feldweite ` +

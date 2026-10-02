@@ -5,10 +5,10 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **2. Oktober 2026**; Prüfstand 6225 Kontrollen grün,
-`durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
-2. Oktober (Profile, Reaktionsblatt, Mast ziehen) ist committet, **nicht gepusht** -
-pushen nur auf Weisung.
+Stand: **2. Oktober 2026**; Prüfstand 6248 Kontrollen grün,
+`durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
+funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
+Durchgang) wird gepusht.
 
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
@@ -16,11 +16,19 @@ Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
 nach `Versand/qp_markierungen/`. Legende und Beispiel 1 (nachgebaut, als
 Ablage-Paket mit eingemessenem Plan, Bündel an der Doppelklemme, `E`
 ignoriert) in `Versand/qp_beispiele/`. Regel: was nicht zuzuordnen ist,
-fragt nach (manuell oder Vorschlag). Vorschlag für das QP-Einlesen mit
-Zeichnung und Bauteile setzen vorgelegt, Entscheid offen. Danach Abgleichtabelle und gemeinsame Durchsicht (CLAUDE.md,
-*Laufende Arbeit*).
+fragt nach (manuell oder Vorschlag). QP-Einlesen entschieden: Python-
+Werkzeug neben der App, Ergebnis als Ablage-Paket, «Schritten 1–3 für
+Masten und Joch anfangen und die Anbauteile danach dazunehmen» - noch
+nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
+(CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **2. Oktober, Endfeld am Stoss:** in der Jochreihe endet jedes Joch
+  5 cm vor der Mastachse, Stationen nach der Standardlänge, das Endfeld
+  am Stoss gekürzt (je halb, wenn beide Enden stossen); die Ausleitung
+  schiebt nichts mehr. Davor: Lagerung ohne Masten einstellbar,
+  Anbauteile alle aus/ein, Resultierende/Einzelgurte, Jochlänge auf die
+  Standardlänge, Datenpaket in IndexedDB, Mast im Stabwerk alle 0.5 m.
 - **2. Oktober, Mast im 3D ziehen:** Schaft schiebt, Fuss und Kopf ändern
   die Länge, das Joch bleibt in der Höhe (⚠ offen: Ende B ohne eigene
   Länge folgt Ende A). Davor: Reaktionsblatt ohne Kennungen und

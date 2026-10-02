@@ -12,7 +12,8 @@
  * ---------------------------------------------------------------------------
  */
 
-import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
+import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden,
+         stossMasse, STOSS_LUFT }
   from './core.constants.js';
 import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
@@ -28,7 +29,7 @@ import { schnittAuswertung, eigenanteil,
          ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
-         abstaendeFuer } from './data.tragjoche.js';
+         abstaendeFuer, moeglicheLaengen } from './data.tragjoche.js';
 
 export const MASSVARIANTEN = [
   {
@@ -115,13 +116,15 @@ export function hebelarme(phys, pOG, pUG, ausr = null) {
  * eingespannten Ende nicht zu einer sinnlosen Spannungsspitze führt. Die
  * Begrenzung wird im Ergebnis ausgewiesen.
  */
-function hebelarmVerlauf(joch, L, hFeld, jdFeld) {
+function hebelarmVerlauf(joch, L, hFeld, jdFeld, dx = 0) {
   const v = voute(joch);
   if (!v || !(jdFeld > 0)) {
     return { aktiv: false, hAn: () => hFeld, jdAn: () => jdFeld, hMin: hFeld, voute: null };
   }
   const hMin = Math.max(0.02, hFeld - (jdFeld - v.endJd) / 1000);
-  const jdAn = (x) => bauhoeheAn(joch, L, x);
+  // dx: um wieviel das Endfeld am Ende A gekürzt ist (Stoss, 2. Oktober) -
+  // die Verjüngung gehört zur Standardlänge, der Gurt beginnt um dx später.
+  const jdAn = (x) => bauhoeheAn(joch, L, x + dx);
   const hAn = (x) => Math.max(hMin, hFeld - (jdFeld - jdAn(x)) / 1000);
   return { aktiv: true, hAn, jdAn, hMin, voute: v };
 }
@@ -137,11 +140,11 @@ function hebelarmVerlauf(joch, L, hFeld, jdFeld) {
  * b(x) geht in den Torsionsschubfluss q = T/(2·b·h), in die Windbiegung
  * N = M_z/b und in den Hebelarm der Horizontalbleche ein.
  */
-function breitenVerlauf(joch, L, bFeld, jbbOG, jbbUG) {
+function breitenVerlauf(joch, L, bFeld, jbbOG, jbbUG, dx = 0) {
   if (!hatGrundrissknick(joch)) {
     return { aktiv: false, bAn: () => bFeld, jbbAn: () => ({ og: jbbOG, ug: jbbUG }) };
   }
-  const jbbAn = (x) => ({ og: breiteAn(joch, 'og', L, x), ug: breiteAn(joch, 'ug', L, x) });
+  const jbbAn = (x) => ({ og: breiteAn(joch, 'og', L, x + dx), ug: breiteAn(joch, 'ug', L, x + dx) });
   const bAn = (x) => {
     const w = jbbAn(x);
     return Math.max(0.02, bFeld + ((w.og - jbbOG) + (w.ug - jbbUG)) / 2 / 1000);
@@ -474,6 +477,73 @@ export function berechneEinzelmast(inp, stahl) {
   };
 }
 
+/**
+ * >>> DAS JOCH AM STOSS DER REIHE (2. Oktober). <<<
+ *
+ * Weisung «… dann muss das endfeld gekürzt werden jeweils, damit es passt
+ * und es einen abstand von min 5 cm bis 10 cm von joch zu joch (stehendes
+ * endblech) hat», Rückfrage «Beide Joche je halb, Spalt 10 cm». Wo das
+ * Joch an ein anderes stösst (`stossEnden`, vom Satzbauer gesetzt), endet
+ * der Gurt 5 cm vor der Mastachse (`stossMasse`, core.constants.js). Die
+ * Stationen bleiben die der nächsten Standardlänge L_nenn (Mass-Tabelle);
+ * was der Gurt kürzer ist, fehlt dem Endfeld am Stoss - stossen beide
+ * Enden, je zur Hälfte. Die Teile auf dem Joch und die Nachweisstelle
+ * rücken mit, damit sie auf dem Blatt bleiben, wo sie stehen.
+ *
+ * Der Mast steht im Modell weiter am Gurtende (Kragarm dort 0); das
+ * Blattmodell setzt den geteilten Masten mittig zwischen die beiden
+ * Endbleche - 5 cm von jedem (export.axisvm.js, `mastSoll`).
+ *
+ * Einmal je Satz: `berechne` und `modell` rufen es beide, die Marke
+ * verhindert die zweite Kürzung.
+ */
+export function stossAnwenden(inp, joch) {
+  if (!inp || inp.stossAngewandt || tragwerksart(inp).key !== 'joch') return inp;
+  const enden = inp.stossEnden;
+  if (!enden?.A && !enden?.B) return inp;
+  const s = stossMasse(inp, enden);
+  if (!(s.L > 0)) return inp;
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  let std = [];
+  try { std = joch ? moeglicheLaengen(joch).map((e) => e.wert) : []; } catch { std = []; }
+  const Lnenn = std.find((v) => v >= s.L - 1e-6) ?? s.L;
+  const kuerz = r6(Lnenn - s.L);
+  const kuerzA = s.A ? (s.B ? r6(kuerz / 2) : kuerz) : 0;
+  const kuerzB = r6(kuerz - kuerzA);
+  const d = s.versatzA;
+  return {
+    ...inp,
+    stossAngewandt: true,
+    L: s.L, Lnenn,
+    kragA: s.kragA, kragB: s.kragB,
+    xLage: r6((Number(inp.xLage) || 0) + d),
+    anbauteile: d ? (inp.anbauteile ?? []).map((a) => (a && !amMast(a)
+      && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) - d) } : a))
+      : inp.anbauteile,
+    ...(d && Number.isFinite(Number(inp.xNachweis))
+      ? { xNachweis: r6(Number(inp.xNachweis) - d) } : {}),
+    stoss: { A: s.A, B: s.B, versatzA: d, L0: Number(inp.L) || 0, Lnenn,
+             kuerzA, kuerzB, luft: STOSS_LUFT,
+             // Ein eingetragener Kragarm am Stossende, der dort nicht gilt.
+             kragWeg: { A: s.A ? Math.max(0, Number(inp.kragA) || 0) : 0,
+                        B: s.B ? Math.max(0, Number(inp.kragB) || 0) : 0 },
+             tabelle: std.some((v) => Math.abs(v - Lnenn) < 1e-6) },
+  };
+}
+
+/**
+ * Die Stationen eines Jochs [m] - aus der Mass-Tabelle der Länge L_nenn,
+ * am Stoss mit gekürztem Endfeld (`stossAnwenden`). Ohne Stoss genau
+ * `knotenraster(L, a1, abstaende)`.
+ */
+export function stationenX(m) {
+  const Ln = m.Lnenn ?? m.L;
+  const xs = knotenraster(Ln, m.a1, m.abstaende);
+  const kA = m.stoss?.kuerzA ?? 0;
+  if (Math.abs(Ln - m.L) < 1e-9 && !kA) return xs;
+  return xs.map((x, i) => (i === 0 ? 0 : i === xs.length - 1 ? m.L : x - kA));
+}
+
 export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   /*
    * >>> DIESELBE WEICHE WIE IN `berechne` (20. September). <<<
@@ -490,6 +560,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   if (tragwerksart(inp).key === 'einzelmast') {
     return modellEinzelmast(inp, stahl);
   }
+  inp = stossAnwenden(inp, joch);
+  const Lnenn = inp.Lnenn ?? inp.L;
+  const kuerzA = inp.stoss?.kuerzA ?? 0;
   const variante = massVariante ?? inp.massVariante;
 
   const phys = { jd: inp.jd, jbbOG: inp.jbbOG, jbbUG: inp.jbbUG };
@@ -500,8 +573,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   if (!v) throw new Error(`Unbekannte Massvariante: ${variante}`);
 
   // Verjüngte Enden und Grundrissknick: Hebelarme hängen von x ab
-  const verlauf = hebelarmVerlauf(joch, inp.L, v.hT, phys.jd);
-  const breite = breitenVerlauf(joch, inp.L, v.bT, phys.jbbOG, phys.jbbUG);
+  const verlauf = hebelarmVerlauf(joch, Lnenn, v.hT, phys.jd, kuerzA);
+  const breite = breitenVerlauf(joch, Lnenn, v.bT, phys.jbbOG, phys.jbbUG, kuerzA);
 
   // HEBELARM DES EINSEITIGEN KRÄFTEPAARS, je Gurt.
   // Ein nur an EINEM Gurt befestigtes Anbauteil leitet sein Torsionsmoment als
@@ -734,7 +807,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
 
   // Blecheinteilung: die Mass-Tabelle der Zeichnung hat Vorrang. Sie ist die
   // Geometrie des Bauteils und wird nicht angepasst.
-  const abst = abstaendeFuer(joch, inp.L);
+  // Am Stoss die Zeile der Standardlänge (2. Oktober, `stossAnwenden`).
+  const abst = abstaendeFuer(joch, Lnenn);
 
   const basis = {
     /*
@@ -769,8 +843,10 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     engeJochenden: engeJochenden(inp),
     L: inp.L, h: v.hT, b: v.bT, a1: inp.a1,
     abstaende: abst,
+    // Am Stoss (2. Oktober): Standardlänge der Stationen und die Kürzung.
+    Lnenn, stoss: inp.stoss ?? null,
     teilungQuelle: abst ? 'masstabelle' : 'gleichmaessig',
-    a1eff: feldweite(inp.L, inp.a1, abst), massVariante: variante,
+    a1eff: feldweite(Lnenn, inp.a1, abst), massVariante: variante,
     jd: phys.jd, jbbOG: phys.jbbOG, jbbUG: phys.jbbUG,
     lichtOG: ha.lichtOG, lichtUG: ha.lichtUG, hebelarme: ha,
     h1: inp.h1, t1: inp.t1, h2: inp.h2, t2: inp.t2,
@@ -916,7 +992,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
 
   // Stationsliste mit den tatsächlichen Blechen - die Zeichenmodule lesen sie,
   // ohne den Rechenkern kennen zu müssen.
-  const xs = knotenraster(basis.L, basis.a1, abst);
+  const xs = stationenX(basis);
   basis.stationsListe = xs.map((x, i) => ({
     x, i, jd: verlauf.jdAn(x), h: verlauf.hAn(x),
     b: breite.bAn(x), jbb: breite.jbbAn(x),
@@ -932,8 +1008,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
 export function blecheAnStation(m, i, n) {
   if (m.dbBleche) {
     return {
-      vertikal: blechAnStation(m.joch, 'vertikal', i, n, m.L),
-      horizontal: blechAnStation(m.joch, 'horizontal', i, n, m.L),
+      vertikal: blechAnStation(m.joch, 'vertikal', i, n, m.Lnenn ?? m.L),
+      horizontal: blechAnStation(m.joch, 'horizontal', i, n, m.Lnenn ?? m.L),
     };
   }
   const amEnde = i === 0 || i === n - 1;
@@ -1001,7 +1077,7 @@ export function knoten(x, m, i, n) {
  * durch ein Blech wäre mehrdeutig - dort springt das lokale Gurtmoment.
  */
 export function schnittstellen(m) {
-  const xs = knotenraster(m.L, m.a1, m.abstaende);
+  const xs = stationenX(m);
   const mitten = [];
   for (let i = 0; i < xs.length - 1; i++) {
     mitten.push({ x: (xs[i] + xs[i + 1]) / 2, feld: i, von: xs[i], bis: xs[i + 1] });
@@ -1022,7 +1098,7 @@ export function schnittBei(m, x) {
  * Bleche, ausgewiesen wird das ungünstigere.
  */
 export function auswertungAn(x, m) {
-  const xs = knotenraster(m.L, m.a1, m.abstaende);
+  const xs = stationenX(m);
   const n = xs.length;
   const s = schnittBei(m, x);
   // An den Schnitt grenzen ZWEI Bleche. Beide werden ausgewiesen, damit sie
@@ -1053,10 +1129,13 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
   if (tragwerksart(inp).key === 'einzelmast') {
     return berechneEinzelmast(inp, stahl);
   }
+  // Am Stoss gekürzt (2. Oktober) - auch für die Anbauteile, die unten
+  // noch einmal aus `inp` gelesen werden.
+  inp = stossAnwenden(inp, joch);
   const m = modell(inp, profOG, profUG, stahl, joch, massVariante);
   // Eigenanteil der Gurte am globalen Moment - fuer Hinweise und Bericht.
   m.eigenanteil = eigenanteil(m);
-  const xs = knotenraster(m.L, m.a1, m.abstaende);
+  const xs = stationenX(m);
   const n = xs.length;
   const rows = xs.map((x, i) => knoten(x, m, i, n));
   const argMax = (fn) => rows.reduce((b, r) => (fn(r) > fn(b) ? r : b), rows[0]);

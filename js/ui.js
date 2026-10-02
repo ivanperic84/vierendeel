@@ -48,7 +48,7 @@ import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGeset
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
          abfangart } from './core.lasten.js';
-import { massketteLesen, fangeAufMasskette, rechensatz, kragarme } from './core.constants.js';
+import { massketteLesen, fangeAufMasskette, rechensatz, kragarme, stossEnden } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -1454,17 +1454,9 @@ export function jochAufStandardlaenge(werte, id) {
  * für einen Kragarm.
  */
 export function jochStoss(werte, t, ende) {
-  const [mA, mB] = mastenFuer(werte, t);
-  const m = ende === 'A' ? mA : mB;
-  if (!m) return false;
-  const h = anschlusshoehe(t, ende);
-  const gegen = ende === 'A' ? 'B' : 'A';
-  return tragwerkeVon(werte).some((o) => {
-    if (o.id === t.id || tragwerksart(o).key !== 'joch' || versteckt(o)) return false;
-    const [oA, oB] = mastenFuer(werte, o);
-    const om = gegen === 'A' ? oA : oB;
-    return om?.id === m.id && Math.abs(anschlusshoehe(o, gegen) - h) < 0.005;
-  });
+  // Eine Stelle für die Regel: `stossEnden` (core.constants.js), die auch
+  // der Kern zum Kürzen des Endfelds liest.
+  return stossEnden(werte, t)[ende] === true;
 }
 
 export function mastGrenzen(rollen, x) {

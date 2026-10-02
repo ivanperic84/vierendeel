@@ -16934,12 +16934,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     pruef('Das Stabmodell beginnt beim ersten Masten', Math.min(...xs), 0, 1e-6, 'm');
     /*
-     * 35.10, NICHT 35.00 - das Entflechten rueckt das zweite Joch um zehn
-     * Zentimeter. Die Endbleche zweier Joche duerfen einander nicht
-     * beruehren (Weisung), und die Jochlaenge steht fest; also wandert die
-     * Lage. Genau das ist die gemeldete Modellunschaerfe.
+     * 35.00 - seit dem 2. Oktober wieder genau die Eingabe. Bis dahin 35.10:
+     * das Entflechten rueckte das zweite Joch um zehn Zentimeter, weil die
+     * Endbleche einander nicht beruehren duerfen. Jetzt liegt der Spalt im
+     * Joch selbst - jedes endet am Stoss 5 cm vor der Mastachse, das
+     * Endfeld dort ist gekuerzt (Weisung «Beide Joche je halb, Spalt 10 cm»).
      */
-    pruef('… und endet beim letzten', Math.max(...xs), 35.1, 1e-6, 'm');
+    pruef('… und endet beim letzten', Math.max(...xs), 35.0, 1e-6, 'm');
 
     /*
      * >>> DER GETEILTE MAST IST EINER. <<<
@@ -17065,30 +17066,31 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
                            T.getTragjoch('J90'));
     w.L = 20; w.xLage = 0; w.mastVorhanden = true;
     w = C73.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20 });
+    /*
+     * >>> SEIT DEM 2. OKTOBER LIEGT DER SPALT IM JOCH (Abschnitt 195). <<<
+     * Bis dahin: Luecke 0, die Ausleitung rueckte T2 um 10 cm, der Mast
+     * stand bei 20.05. Jetzt endet jedes Joch am Stoss 5 cm vor der
+     * Mastachse - es ist nichts mehr eng, nichts zu entflechten, der Mast
+     * steht, wo er eingegeben ist.
+     */
     const eng = C73.engeJochenden(w);
-    wahr('Zwei Joche Stoss an Stoss werden erkannt', eng.length === 1);
-    pruef('… und die Luecke ist null', eng[0].luecke, 0, 1e-9, 'm');
+    wahr('Zwei Joche Stoss an Stoss: der Spalt ist da, nichts eng', eng.length === 0);
 
     const deps = { modellVon: (satz) => V73.modell(satz,
       getProfil(satz.profOG), getProfil(satz.profUG),
       getStahl(satz.stahl), T.getTragjoch(satz.typ)) };
     const bau = AX73.stabmodellBlatt(w, deps, { knotenmodell: 'anschnitt' });
+    wahr('Die Ausleitung muss nicht mehr entflechten', (bau.blatt.entflochten?.length ?? 0) === 0);
 
-    // DIE AUSLEITUNG RUECKT NACH - und sagt es.
-    wahr('Die Ausleitung entflicht', bau.blatt.entflochten.length === 1);
-    pruef('… um die fehlenden 10 cm', bau.blatt.entflochten[0].dx, 0.10, 1e-9, 'm');
-    wahr('… und nennt den Grund', /Endbleche/.test(bau.blatt.entflochten[0].wegen));
-
-    /*
-     * DER GETEILTE MAST STEHT MITTIG. Fuenf Zentimeter von jedem Blech -
-     * er kann nicht an beiden Enden zugleich sein.
-     */
     const fuss = [...bau.knoten.entries()]
       .filter(([n]) => /^MAST_.*_F$/.test(n)).map(([, k]) => k.x).sort((a, b) => a - b);
     wahr('Drei Masten', fuss.length === 3);
-    pruef('Der Zwischenmast steht mittig', fuss[1], 20.05, 1e-6, 'm');
-    pruef('… fuenf Zentimeter vom linken Blech', fuss[1] - 20, 0.05, 1e-6, 'm');
-    pruef('… und fuenf vom rechten', 20.10 - fuss[1], 0.05, 1e-6, 'm');
+    pruef('Der Zwischenmast steht auf seiner Eingabe', fuss[1], 20.0, 1e-6, 'm');
+    const og = [...bau.knoten.entries()].filter(([n]) => /OGL/.test(n)).map(([, k]) => k.x);
+    pruef('… fuenf Zentimeter vom linken Blech',
+          fuss[1] - Math.max(...og.filter((x) => x < 20)), 0.05, 1e-6, 'm');
+    pruef('… und fuenf vom rechten',
+          Math.min(...og.filter((x) => x > 20)) - fuss[1], 0.05, 1e-6, 'm');
     wahr('Und kein Knoten steht doppelt',
          (bau.blatt.widerspruch?.length ?? 0) === 0);
   }
@@ -26227,11 +26229,13 @@ titel('98  Geteilter Mast: Jochkraefte der Nachbarn (Sofortmassnahme)');
        `${etaVon(neu1, 'B').toFixed(3)} / ${etaVon(neu2, 'A').toFixed(3)}`);
   wahr('Der Aussenmast bleibt unverändert', Math.abs(etaVon(neu1, 'A') - etaVon(alt1, 'A')) < 1e-9);
 
-  // Das gemessene Laengsmoment am Fuss: 104.4 kNm bei Wind +y.
+  // Das gemessene Laengsmoment am Fuss: 104.4 kNm bei Wind +y - seit dem
+  // 2. Oktober 104.2 kNm: am Stoss ist jedes Joch 5 cm kuerzer (19.95 m,
+  // Abschnitt 195), es faengt entsprechend weniger Wind.
   const s1 = satz(t1, true);
   const e = V98.berechne({ ...s1, lastfall: 'windYp' }, ...N98.kernArgumente(s1));
   const fuss = M98.mastSchnitt(e.modell, 'B').stationen.find((st) => Math.abs(st.z) < 1e-9);
-  wahr('Längsmoment am Fuss wie gemessen (104.4 kNm)', Math.abs(Math.abs(fuss.Mxx) - 104.4) < 0.1,
+  wahr('Längsmoment am Fuss wie gemessen (104.2 kNm, vor dem Stoss 104.4)', Math.abs(Math.abs(fuss.Mxx) - 104.2) < 0.1,
        `${fuss.Mxx.toFixed(1)} kNm`);
   const lasten = M98.mastLasten(e.modell, 'B').lasten;
   wahr('Die Nachbarkraft steht mit Namen in der Lastliste',
@@ -31775,8 +31779,10 @@ titel('134  Der Schnitt im Stabwerksweg: Station und Stabliste');
     const key2 = `tragwerk:${w2.twId}`;
     const g2 = Object.values(h2.jeStab).filter((z) => z.rolle === 'gurt' && z.bauteil === key2);
     const anfang = Math.min(...g2.map((z) => z.x0));
-    wahr('Reihe: T2 beginnt im Stabwerk 0.1 m hinter seiner Lage (entflochten)',
-         Math.abs(anfang - 20.1) < 1e-9, anfang.toFixed(3));
+    // Seit dem 2. Oktober 0.05 m (Spalt im Joch, Abschnitt 195), vorher
+    // 0.1 m durch das Entflechten.
+    wahr('Reihe: T2 beginnt im Stabwerk 0.05 m hinter seiner Lage (Stoss)',
+         Math.abs(anfang - 20.05) < 1e-9, anfang.toFixed(3));
     const html2 = UI134.stabwerkSchnittHtml(h2, e2.schnitt, { jochKey: key2 });
     const namen2 = [...html2.matchAll(/>(T2_(?:OG|UG)[LR]_S\d+) · /g)].map((m) => m[1]);
     const X2 = e2.schnitt.x + anfang;
@@ -33211,8 +33217,10 @@ titel('153  Alte Stände: ein Weg zum Anheben, Teile am Masten bleiben');
        && hb.masten.map((m) => m.id).join(',') === 'M1,M2,M3');
   const etaB = (ww) => { const ws = C.tauscheAktives(ww, 'T1'); const s = N153.rechensatzMitNachbarn(ws);
     return berechne(s, ...N153.kernArgumente(s)).mast.B.eta; };
-  pruef('Geteilter Mast M2 aus Sicht T1, alter Weg (Ausleger verloren)', etaB(altForm), 1.4383, 5e-4, '');
-  pruef('… angehoben (Ausleger dabei, unsicher war −3.3 %)', etaB(hb), 1.4870, 5e-4, '');
+  // Seit dem 2. Oktober mit dem Joch am Stoss (19.95 m, Abschnitt 195);
+  // vorher 1.4383 / 1.4870.
+  pruef('Geteilter Mast M2 aus Sicht T1, alter Weg (Ausleger verloren)', etaB(altForm), 1.4356, 5e-4, '');
+  pruef('… angehoben (Ausleger dabei, unsicher war −3.3 %)', etaB(hb), 1.4844, 5e-4, '');
   const neueForm = A.standAnheben(JSON.parse(JSON.stringify(blatt)));
   pruef('Heutige Form: Anheben ändert am Masten nichts', etaB(neueForm), etaB(blatt), 1e-12, '');
   const qa = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
@@ -35669,6 +35677,112 @@ titel('194  Joch ohne Masten: Lagerung der Gurte einstellbar');
   const ax = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
   wahr('Eine Stelle für Stabwerk und Ausleitung (stabmodell liest ohneMastLagerung)',
        ax.includes('const lag = ohneMastLagerung(satzOpt ?? m);'));
+}
+
+// ===========================================================================
+titel('195  Endfeld am Stoss in der Reihe: Spalt 10 cm, je Joch halb');
+/*
+ * Weisung 2. Oktober: «… die ungeraden jochlängen werden nur dann
+ * angewendet, wenn eine jochreihe vorkommt und es auf gleicher höhe mehrere
+ * joche zu liegen kommen, dann muss das endfeld gekürzt werden jeweils,
+ * damit es passt und es einen abstand von min 5 cm bis 10 cm von joch zu
+ * joch (stehendes endblech) hat.» Rückfrage «Beide Joche je halb, Spalt
+ * 10 cm».
+ *
+ * Gemessen (Stabwerk, J90/20 m, HEB 240): Reihe 2 x J90/20 m vorher /
+ * nachher M2 1.3527 / 1.3489, M1/M3 0.7952 / 0.7940, Joch T1/T2 0.4470 /
+ * 0.4460; Reihe 3 x J90/20 m M2/M3 1.3954 / 1.3906, Joch T2 (beide Enden)
+ * 0.4527 / 0.4358.
+ */
+{
+  const C195 = await import(J('core.constants.js'));
+  const V195 = await import(J('core.vierendeel.js'));
+  const N195 = await import(J('core.nachbarn.js'));
+  const AS195 = await import(J('app.stabwerk.js'));
+  const A195 = await import(J('data.anbauteile.js'));
+  const { hinweise: H195 } = await import(J('core.checks.js'));
+  const j90 = T.getTragjoch('J90');
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, j90);
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const s0 = N195.rechensatzMitNachbarn(w);
+  const einzel = berechne(s0, ...N195.kernArgumente(s0));
+  let zwei = C195.tragwerkHinzu(w, 'joch', {});
+  zwei = C195.setzeAnbauteileAn(zwei, [{ ...A195.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL T2' }]);
+  const [t1, t2] = C195.tragwerkeSortiert(zwei);
+  wahr('Der Stoss wird erkannt: T1 am Ende B, T2 am Ende A',
+       C195.stossEnden(zwei, t1).B && !C195.stossEnden(zwei, t1).A
+       && C195.stossEnden(zwei, t2).A && !C195.stossEnden(zwei, t2).B);
+  const allein = C195.stossEnden(w, C195.tragwerkeVon(w)[0]);
+  wahr('Ein Joch allein hat keinen Stoss', !allein.A && !allein.B);
+  wahr('… und rechnet wie bisher (kein Stoss im Modell)',
+       einzel.modell.stoss === null && einzel.modell.L === 20);
+
+  const satz1 = N195.rechensatzMitNachbarn(C195.tauscheAktives(zwei, t1.id));
+  const e1 = berechne(satz1, ...N195.kernArgumente(satz1));
+  pruef('T1: der Gurt endet 5 cm vor der Mastachse', e1.modell.L, 19.95, 1e-9, 'm');
+  pruef('… die Stationen nach der Standardlänge', e1.modell.Lnenn, 20, 1e-9, 'm');
+  const xs1 = e1.modell.stationsListe.map((q) => q.x);
+  const xs0 = einzel.modell.stationsListe.map((q) => q.x);
+  wahr('… gleich viele Stationen und dieselben Bleche wie das Joch 20 m', xs1.length === xs0.length
+       && e1.modell.stationsListe.every((q, i) => q.vertikal?.pos === einzel.modell.stationsListe[i].vertikal?.pos));
+  wahr('… alle Stationen an ihrer Stelle, nur das Endblech B rückt',
+       xs1.slice(0, -1).every((x, i) => Math.abs(x - xs0[i]) < 1e-9));
+  pruef('… Endfeld B gekürzt 0.75 → 0.70 m', xs1.at(-1) - xs1.at(-2), 0.70, 1e-9, 'm');
+  wahr('… der gespeicherte Stand bleibt bis zur Mastachse', t1.L === 20 && satz1.L === 20);
+
+  const satz2 = N195.rechensatzMitNachbarn(zwei);
+  const e2 = berechne(satz2, ...N195.kernArgumente(satz2));
+  const xs2 = e2.modell.stationsListe.map((q) => q.x);
+  pruef('T2: Endfeld A gekürzt auf 0.70 m', xs2[1], 0.70, 1e-9, 'm');
+  pruef('… der Gurt beginnt 5 cm hinter der Mastachse', e2.modell.stoss.versatzA, 0.05, 1e-9, 'm');
+  const fl = V195.stossAnwenden(satz2, j90).anbauteile.find((a) => a.name === 'FL T2');
+  pruef('… das Anbauteil bleibt auf dem Blatt (10.00 → örtlich 9.95)', fl.x, 9.95, 1e-9, 'm');
+  wahr('Nichts mehr eng zwischen den Jochenden', C195.engeJochenden(zwei).length === 0);
+  wahr('Der Hinweis nennt den Stoss und das Endfeld',
+       H195(e2.modell).some((t) => /Stoss in der Reihe am Ende A/.test(t) && /A 0\.700 m/.test(t)));
+
+  // Beide Enden, ungerade Länge: je halb.
+  const mitte = V195.stossAnwenden({ ...satz1, L: 17.3, kragA: 0, kragB: 0,
+                                      stossEnden: { A: true, B: true }, stossAngewandt: false }, j90);
+  pruef('Beide Enden, 17.30 m Mastabstand: Gurt 17.20 m', mitte.L, 17.2, 1e-9, 'm');
+  pruef('… Stationen nach 17.50 m', mitte.Lnenn, 17.5, 1e-9, 'm');
+  wahr('… je Endfeld 0.15 m kürzer', Math.abs(mitte.stoss.kuerzA - 0.15) < 1e-9
+       && Math.abs(mitte.stoss.kuerzB - 0.15) < 1e-9);
+  const mm = V195.modell(mitte, ...N195.kernArgumente(mitte));
+  const xm = mm.stationsListe.map((q) => q.x);
+  pruef('… erstes Feld 0.60 m', xm[1], 0.60, 1e-9, 'm');
+  pruef('… letztes Feld 0.60 m', xm.at(-1) - xm.at(-2), 0.60, 1e-9, 'm');
+  wahr('Zweimal angewandt kürzt nicht doppelt', V195.stossAnwenden(mitte, j90) === mitte);
+
+  // Ein Kragarm an der Stossseite gilt dort nicht.
+  const krag = C195.stossMasse({ tragwerksart: 'joch', L: 20.5, kragA: 0.5, kragB: 0 },
+                               { A: true, B: false });
+  wahr('Ein Kragarm am Stoss gilt dort nicht (Gurt beginnt 5 cm hinter dem Masten)',
+       Math.abs(krag.versatzA - 0.55) < 1e-9 && Math.abs(krag.L - 19.95) < 1e-9 && krag.kragA === 0);
+  const mk = V195.modell(V195.stossAnwenden({ ...satz2, L: 20.5, kragA: 0.5 }, j90), ...N195.kernArgumente(satz2));
+  wahr('… und der Hinweis sagt es', H195(mk).some((t) => /Kragarm am Ende A \(0\.50 m\) gilt am Stoss nicht/.test(t)));
+
+  // Andere Anschlusshöhe: kein Stoss.
+  const hoch = C195.tragwerkAendern(zwei, t2.id, () => ({ mastH: 6.5 }));
+  wahr('Andere Anschlusshöhe am selben Masten: kein Stoss',
+       !C195.stossEnden(hoch, C195.tragwerkeVon(hoch).find((t) => t.id === t2.id)).A);
+
+  // Das Stabwerk: Masten auf der Eingabe, 10 cm Spalt, nichts entflochten.
+  const sw = AS195.rechneStabwerk({ werte: zwei, letzte: { erg: e2 }, stabwerk: null });
+  const kn = sw.roh.dat.knoten;
+  const arr = Array.isArray(kn) ? kn : Object.entries(kn).map(([n, k]) => ({ name: n, ...k }));
+  const fuss = arr.filter((k) => /^MAST_M\d+_F$/.test(k.name)).map((k) => k.x).sort((a, b) => a - b);
+  wahr('Stabwerk: Mastfüsse bei 0 / 20 / 40', fuss.join('/') === '0/20/40', fuss.join('/'));
+  const og = arr.filter((k) => /OGL/.test(k.name)).map((k) => k.x);
+  pruef('… Spalt zwischen den Endblechen', Math.min(...og.filter((x) => x > 20))
+        - Math.max(...og.filter((x) => x < 20)), 0.10, 1e-9, 'm');
+  // Gemessen an der nackten Reihe (ohne das Anbauteil oben).
+  const nackt = C195.tragwerkHinzu(w, 'joch', {});
+  const sn = N195.rechensatzMitNachbarn(nackt);
+  const swn = AS195.rechneStabwerk({ werte: nackt, letzte: { erg: berechne(sn, ...N195.kernArgumente(sn)) },
+                                     stabwerk: null });
+  wahr('… geteilter Mast M2 wie gemessen (1.3489, vorher 1.3527)', Math.abs(swn.etaGesamt - 1.3489) < 5e-4,
+       swn.etaGesamt.toFixed(4));
 }
 
 // ===========================================================================

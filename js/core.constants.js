@@ -754,6 +754,79 @@ export function mastLagen(t) {
 
 /*
  * ===========================================================================
+ * >>> DAS ENDFELD AM STOSS IN DER REIHE (2. Oktober). <<<
+ * ===========================================================================
+ *
+ * Weisung: «die ungeraden jochlängen werden nur dann angewendet, wenn eine
+ * jochreihe vorkommt und es auf gleicher höhe mehrere joche zu liegen
+ * kommen, dann muss das endfeld gekürzt werden jeweils, damit es passt und
+ * es einen abstand von min 5 cm bis 10 cm von joch zu joch (stehendes
+ * endblech) hat.» Auf Rückfrage **«Beide Joche je halb, Spalt 10 cm»**.
+ *
+ * Also: wo zwei Tragjoche auf derselben Anschlusshöhe am selben Masten
+ * zusammenstossen, endet jedes 5 cm vor der Mastachse (STOSS_LUFT), das
+ * stehende Endblech eingeschlossen. Ein Kragarm an diesem Ende gilt dort
+ * nicht - es ist kein Platz für ihn. Die Stationen kommen aus der
+ * Mass-Tabelle der nächsten Standardlänge; was der Gurt kürzer ist als sie,
+ * fehlt dem Endfeld am Stoss (stossen beide Enden: je halb). Das rechnet
+ * der Kern (`stossAnwenden`), hier stehen nur Ort und Mass.
+ *
+ * Bis dahin rückte die Ausleitung das rechte Joch um 10 cm weiter
+ * (`lagenEntflechten`) - die Reihe wurde länger als eingegeben, und Kern
+ * und Bild sahen den Spalt nicht. Jetzt liegt er im Joch selbst.
+ *
+ * Gespeichert bleibt das Joch bis zur Mastachse (L, Lage, Kragarme wie
+ * eingegeben); so stimmen Mastliste, Lageband und Mastzuordnung weiter, und
+ * ein späterer Umbau der Reihe ändert die Kürzung von selbst.
+ */
+export const STOSS_LUFT = 0.05;
+
+/**
+ * Stösst an diesem Ende ein anderes Tragjoch auf derselben Anschlusshöhe an
+ * denselben Masten (Reihe, B an A bzw. A an B)?
+ * @returns {{A:boolean, B:boolean}}
+ */
+export function stossEnden(w, t) {
+  const aus = { A: false, B: false };
+  if (!w || !t || tragwerksart(t).key !== 'joch' || versteckt(t)) return aus;
+  const [mA, mB] = mastenFuer(w, t);
+  ['A', 'B'].forEach((ende) => {
+    const m = ende === 'A' ? mA : mB;
+    if (!m) return;
+    const h = anschlusshoehe(t, ende);
+    const gegen = ende === 'A' ? 'B' : 'A';
+    aus[ende] = tragwerkeVon(w).some((o) => {
+      if (o.id === t.id || tragwerksart(o).key !== 'joch' || versteckt(o)) return false;
+      const [oA, oB] = mastenFuer(w, o);
+      const om = gegen === 'A' ? oA : oB;
+      return om?.id === m.id && Math.abs(anschlusshoehe(o, gegen) - h) < 0.005;
+    });
+  });
+  return aus;
+}
+
+/**
+ * Der Gurt, wie er am Stoss gebaut wird [m]: Versatz des Gurtanfangs gegen
+ * die eingegebene Lage, Gurtlänge, Kragarme. Ohne Stoss unverändert.
+ */
+export function stossMasse(t, enden) {
+  const L0 = Number(t?.L) || 0;
+  const [kA, kB] = kragarme(t);
+  const A = enden?.A === true, B = enden?.B === true;
+  const versatzA = A ? kA + STOSS_LUFT : 0;
+  const endeB = B ? L0 - kB - STOSS_LUFT : L0;
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  return { versatzA: r6(versatzA), L: r6(endeB - versatzA),
+           kragA: A ? 0 : kA, kragB: B ? 0 : kB, A, B };
+}
+
+/** Um wieviel der Gurt am Stoss später beginnt als eingegeben [m]. */
+export function stossVersatz(w, t) {
+  return stossMasse(t, stossEnden(w, t)).versatzA;
+}
+
+/*
+ * ===========================================================================
  * EIN TRAGWERK GANZ AUSBLENDEN
  *
  * Weisung vom 2. September: «wie könnte man einzelne tragabschnitte
@@ -1755,8 +1828,11 @@ export function engeJochenden(w, soll = 0.10) {
     const gemeinsam = mastLagen(a).some(
       (x) => mastLagen(b).some((y) => Math.abs(x - y) <= 0.1));
     if (!gemeinsam) continue;
-    const ende = lageVon(a) + (Number(a.L) || 0);
-    const anfang = lageVon(b);
+    // Seit dem 2. Oktober endet ein Joch am Stoss 5 cm vor der Mastachse
+    // (`stossMasse`) - gemessen wird am Gurt, wie er gerechnet wird.
+    const ma = stossMasse(a, stossEnden(w, a)), mb = stossMasse(b, stossEnden(w, b));
+    const ende = lageVon(a) + ma.versatzA + ma.L;
+    const anfang = lageVon(b) + mb.versatzA;
     const luecke = anfang - ende;
     if (luecke < soll - 1e-9) {
       eng.push({ links: a.id, rechts: b.id, x: ende, luecke });
@@ -2019,6 +2095,8 @@ export function tragwerkSatz(w, id = null, opt = {}) {
    * dranhaengen. Im Nachweis dagegen gehoert sie in BEIDE Rechnungen.
    */
   satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
+  // Wo dieses Joch an ein anderes stösst (2. Oktober) - gekürzt wird im Kern.
+  satz.stossEnden = stossEnden(w, t);
   // Der Kern liest die Mastangaben flach - er bekommt sie flach.
   return mastenProjizieren(satz, w, t);
 }
@@ -2032,7 +2110,13 @@ export function tragwerkSatz(w, id = null, opt = {}) {
  */
 export function rechensatz(w) {
   const t = tragwerkeVon(w)[0];
-  const satz = { ...w, anbauteile: anbauteileFuer(w, t) };
+  /*
+   * `stossEnden` sagt nur, WO gestossen wird; gekürzt wird erst im Kern
+   * (`stossAnwenden`, core.vierendeel.js). Der Rechensatz wird an einigen
+   * Stellen als Stand zurückgeschrieben - stünde die Kürzung schon hier,
+   * würde das Joch mit jeder Eingabe um weitere 5 cm kürzer.
+   */
+  const satz = { ...w, anbauteile: anbauteileFuer(w, t), stossEnden: stossEnden(w, t) };
   return mastenProjizieren(satz, w, t);
 }
 

@@ -46,7 +46,7 @@ import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
 import { verortung, verortungKurz, tragwerksart,
          tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
-         anzahlTragwerke, anschlusshoehe, lageOrtsnull }
+         anzahlTragwerke, anschlusshoehe, lageOrtsnull, stossEnden, stossMasse }
   from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
@@ -1731,8 +1731,18 @@ export const BLECH_MASTABSTAND = 0.05;
  *
  * @returns {Map<string, {dx:number, mastDx:number, wegen:string}>}
  */
-export function lagenEntflechten(alle, mastenJe) {
+export function lagenEntflechten(alle, mastenJe, werte = null) {
   const versatz = new Map();
+  /*
+   * >>> SEIT DEM 2. OKTOBER LIEGT DER SPALT IM JOCH. <<<
+   * Am Stoss endet jedes Joch 5 cm vor der Mastachse (`stossMasse`,
+   * core.constants.js) - gemessen wird deshalb am gekürzten Gurt, und eine
+   * gewöhnliche Reihe braucht hier nichts mehr zu schieben. Was bleibt,
+   * ist der Fall ohne Blatt (`werte`) und ein Stoss, den die Regel nicht
+   * kennt (z. B. verschiedene Höhen mit gleichem Masten).
+   */
+  const gurt = (t) => (werte ? stossMasse(t, stossEnden(werte, t))
+                             : { versatzA: 0, L: Number(t.L) || 0 });
   const soll = 2 * BLECH_MASTABSTAND;
   let nach = 0;                       // was die bisherigen schon geschoben haben
   for (let i = 1; i < alle.length; i++) {
@@ -1773,9 +1783,10 @@ export function lagenEntflechten(alle, mastenJe) {
           enden: paare.map(([e1, e2]) => `${e1}/${e2}`).join(', ') } });
       continue;
     }
+    const gl = gurt(links), gr = gurt(rechts);
     const ende = lageVon(links) + (versatz.get(links.id)?.dx ?? 0)
-               + (Number(links.L) || 0);
-    const anfang = lageVon(rechts) + nach;
+               + gl.versatzA + gl.L;
+    const anfang = lageVon(rechts) + nach + gr.versatzA;
     const luecke = anfang - ende;
     if (luecke >= soll - 1e-9) continue;
     const fehlt = soll - luecke;
@@ -2008,7 +2019,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * Endbleche am selben Punkt. Sie bekommen zehn Zentimeter Luft - fuenf je
    * Seite der Mastachse -, und was dabei verschoben wurde, steht im Bericht.
    */
-  const entflochten = lagenEntflechten(alle, mastenJe);
+  const entflochten = lagenEntflechten(alle, mastenJe, werte);
 
   const gesetzt = [];
   const teile = [];
@@ -2084,7 +2095,9 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
                                // nicht aus dem Jochmodell (20. September).
                                satz: satzT, mast: mastFuerAbfang(t, satzT) });
     // Oertliche Null: beim Abfangjoch der Traegeranfang, nicht der Mast.
-    teile.push({ id: t.id, bau, m, dz, x0: lageOrtsnull(t) + ent.dx, ent });
+    // Am Stoss beginnt der Gurt um die Luft später (2. Oktober, `stossMasse`).
+    teile.push({ id: t.id, bau, m, dz,
+                 x0: lageOrtsnull(t) + ent.dx + (m?.stoss?.versatzA ?? 0), ent });
     gesetzt.push({ t, dz });
   });
 

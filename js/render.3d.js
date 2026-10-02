@@ -674,8 +674,10 @@ export function erzeugeSzene(m, erg) {
   //
   // WO ES SITZT: nicht am Gurtende, sondern an der Mastachse. Bisher stand die
   // Marke bei x = 0 und x = L - mit Kragarmen also am falschen Ort.
-  const xA = m.kragA ?? 0;
-  const xB = m.L - (m.kragB ?? 0);
+  // Am Stoss der Reihe (2. Oktober) endet der Gurt 5 cm vor der Mastachse -
+  // der Mast steht auf ihr, also um die Luft ausserhalb des Gurts.
+  const xA = m.stoss?.A ? -(m.stoss.luft ?? 0) : (m.kragA ?? 0);
+  const xB = m.stoss?.B ? m.L + (m.stoss.luft ?? 0) : m.L - (m.kragB ?? 0);
   const federn = m.federn ?? {};
   // Kurz halten: die Zeile steht im Bild, nicht in einer Tabelle. Die Einheit
   // kNm/rad ist die einzige, die hier vorkommt, und κ steht im Handbuch.
@@ -1629,7 +1631,9 @@ export function erzeugeSzene(m, erg) {
       feld: 'L', tab: 'geo', achse: 'x',
       p0: [0, 0, zUnten - massTief], p1: [m.L, 0, zUnten - massTief],
       ab: [0, 0, -1], d: 0,
-      text: `L = ${m.L.toFixed(2)} m`,
+      // Am Stoss (2. Oktober) der gebaute Gurt, mit der Standardlänge dazu.
+      text: m.stoss ? `L = ${m.L.toFixed(2)} m · Stoss, Joch ${(m.Lnenn ?? m.L).toFixed(2)} m`
+                    : `L = ${m.L.toFixed(2)} m`,
     });
   }
   if (schnittAktiv) {
@@ -1776,7 +1780,8 @@ export function erzeugeSzene(m, erg) {
       bauteiltitel.push({
         p: [m.L / 2, 0, zOK + 0.95],
         text: `${m.twPos ? `${m.twPos} · ` : ''}${m.typ ?? 'frei'}`
-            + ` · ${m.L.toFixed(2)} m`,
+            // Die Länge des Sortiments - am Stoss nicht der gekürzte Gurt.
+            + ` · ${(m.Lnenn ?? m.L).toFixed(2)} m`,
         feld: 'typ', tab: 'system',
       });
     }
