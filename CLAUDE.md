@@ -137,6 +137,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Jochlänge auf die Standardlänge; Stoss in der Reihe (2. Oktober) | Weisung: «die jochlängen auf die hinterlegten standardlängen anpassen lassen, wenn auskragung oder mastabstände angepasst werden. die ungeraden jochlängen werden nur dann angewendet, wenn eine jochreihe vorkommt und es auf gleicher höhe mehrere joche zu liegen kommen, dann muss das endfeld gekürzt werden jeweils, damit es passt und es einen abstand von min 5 cm bis 10 cm von joch zu joch (stehendes endblech) hat.» Auf Rückfrage **«Aufrunden, Rest als Kragarm»**: nach Kragarm, Stützweite und Mastlage (Ende B) springt L auf die nächste grössere Länge des Sortiments (Raster 0.5 m), die Masten bleiben, der Überschuss geht gleich verteilt in c_A/c_B (`jochAufStandardlaenge`, ui.js; Meldung im Balken). Ein Ende mit **Stoss** (anderes Tragjoch, gleiche Anschlusshöhe, selber Mast; `jochStoss`) bekommt nichts, der Rest geht ans freie Ende. Eine direkt eingetippte Jochlänge bleibt, wie sie ist. Im Browser: Kragarm A 0.30 → L 20.30 → 20.50, c_A 0.40, c_B 0.10, Masten 0 / 20. **Noch zu bauen** (Rückfrage **«Beide Joche je halb, Spalt 10 cm»**): stossen beide Enden bzw. am Stoss das gekürzte Endfeld - jedes Joch endet 5 cm vor der Mastachse, Mass-Tabelle der Standardlänge, Endfeld am Stoss gekürzt (berührt Blecheinteilung, Kern und Stabmodell; heute rückt die Ausleitung das rechte Joch um 10 cm, `lagenEntflechten`). Prüfstand 187 |
+| QP einlesen: wo das PDF gelesen wird (2. Oktober) | Rückfrage mit drei Varianten (Python-Werkzeug mit Paket für die App / pdf.js im Browser / nur Bild): **«1 wenn wir die app weiter als pwa nutzen können sonst 3»**. Das Python-Werkzeug läuft neben der App und ändert an ihr nichts; sie bleibt PWA und nimmt das Ablage-Paket auf (wie Beispiel 1). Also Variante 1 |
 | Mast im Stabwerk zwischen den Enden; Werte im 3D getönt; Knopf Reaktionsblatt (2. Oktober) | Frage zum Verlauf: «warum ist das hier abgetreppt? kann man noch beim Masten eine unterteilung vornehmen bei der auswertung?» - der unterste Maststab reicht vom Fuss bis unter den Anschluss (7.18 m) und wurde nur an den Enden ausgewertet. Jetzt am Masten alle 0.5 m aus Endkräften und Gleichlast des Stabes (`schnittImStab`, core.stabnachweis.js; exakt für Gleichlasten, Einzellasten stehen an Knoten); Verlauf η, M, V, N über die Höhe als Linie; eine Stelle im Feld über beiden Enden zählt fürs η. **Das Modell (und AxisVM) bleibt unverändert.** Gemessen J90/20 m, HEB 240 des Prüfstands: Mast M1 0.7862 vorher wie nachher (Kragarm: das Grösste am Fuss). «dieser einseitige balken im textfeld ist nicht gut … kann man den text ganz leicht in der farbe des resultats machen»: kein Streifen mehr, Ziffer 40 % zur Resultatfarbe gezogen (`wertTon`). «die anzahl plots beim masten etwas zurücknehmen»: am Masten doppelter Abstand in der Höhe (46 statt 21 px). Knopf «Blatt mit Skizze und Hinweisen …» in der Akzentfarbe («mach diesen button etwas farbig»). Berechnungstest im Browser (Prüfseite, J90/20 m, HEB 260): Kacheln OG 0.429, UG 0.443, Blech 0.484, M1 0.696, M2 0.697, Fundament 0.434, Kopf 0.743 (Verformung M2); Bericht (Stabwerk) dieselben Zahlen, GZG 0.743; AxisVM-JSON 852 Knoten / 973 Stäbe (= Stabwerk der App), 8 Lastfälle, 20 Kombinationen, Füsse eingespannt (nicht gerechnet); Reaktionsblatt M1 F_y 7.38 / 17.0 kN = Fundament 0.434. Prüfstand 186 |
 | Push und QP-Einlesen (2. Oktober) | «pushen wenn es eine funktionierenden stand erlaubt» - gepusht wird ein grüner Stand (Prüfstand und Durchgang). Zum Vorschlag QP einlesen: «Schritten 1–3 für Masten und Joch anfangen und die Anbauteile danach dazunehmen» (1 PDF hinterlegen und einmessen, 2 Kandidaten lesen, 3 Zuordnungsliste mit Abfrage; Anbauteile später) |
 | Mast im 3D ziehen: Lage, Fuss, Kopf (2. Oktober) | Weisung: «ist es möglich beim masten diesen per drag and drop zu schieben und den fusspunkt oder den kopfpunkt zu verlängern oder kürzen? das joch sollte dann an ort bleiben in der höhe.» Drei Griffe am Mastkörper des gerechneten Tragwerks: unteres Stück (15 % der Länge, 0.4-1.0 m) = **Fuss**, oberes = **Kopf**, Schaft = **Lage**; auf 0.10 m, gestrichelte Vorschau mit Weg und neuer Länge; ohne Bewegung bleibt es der Klick (Sprung auf die Anschlusshöhe). Fuss: Fussversatz (positiv nach oben) und Länge gegengleich, Kopf: Länge - die Anschlusshöhe bleibt, das Joch steht still. Lage über `mastStelle` (dieselbe Regel wie die Marke im Lageband). Nie kürzer als `mastLaengeMindestens`, sonst Meldung und nichts geändert. Am Einzelmasten nur Kopf und Lage (Δz_F ausgeblendet, Entscheid 30. Sept.). `mastZiehen` (app.js), `mastZiehen` der Szene (render.3d.js, mit `szeneVerschieben`/`szenenVereinen` mitgeführt - beim ersten Browserlauf fehlte das, der Fuss griff 7.50 m daneben die Lage). Im Browser (Prüfseite, Standarddokument J90/20 m): Kopf M1 8.50 → 10.50 m; Fuss +0.00 → −0.50 m, Länge 8.50 → 9.00 m, H 7.50 bleibt; Lage x 0 → 1.00 (das Joch rückt mit, L 20 bleibt), Strg+Z zurück; Klick ohne Bewegung springt aufs Feld. **Beobachtet:** M2 ohne eigene Länge folgt M1 (bestehende Kopplung «Ende B folgt Ende A») - siehe *Offene Punkte*. Prüfstand 185 |
@@ -311,12 +313,15 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6176 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6186 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **2. Okt., Jochlänge auf die Standardlänge, Rest als Kragarm**
+  (Prüfstand 187, siehe *Entschieden*). Offen der zweite Teil: gekürztes
+  Endfeld am Stoss in der Reihe.
 - **2. Okt., Mast im Stabwerk alle 0.5 m ausgewertet, 3D-Werte ohne
   Streifen, Berechnungstest mit Bericht/AxisVM/Reaktionen** (Prüfstand
   186, siehe *Entschieden*). Gepusht auf Weisung «pushen wenn es eine
@@ -2249,6 +2254,12 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- **Endfeld am Stoss in der Reihe** (2. Okt., entschieden «Beide Joche je
+  halb, Spalt 10 cm», noch nicht gebaut): Joch endet 5 cm vor der
+  Mastachse, Stationen aus der Mass-Tabelle der Standardlänge, das
+  Endfeld am Stoss um das Nötige gekürzt; danach `lagenEntflechten`
+  überflüssig. Berührt Kern, Blecheinteilung und Stabmodell - vorher und
+  nachher messen (Reihe 2 × J90/20 m).
 - ⚠ **Mast ziehen: Ende B ohne eigene Länge folgt Ende A** (2. Okt.). Gezogen am Kopf von M1 wurde M2 mitverlängert (bestehende Kopplung, gilt auch fürs Feld). Ob der Zug den Partner festhalten soll (seine heutige Länge eintragen), ist zu entscheiden.
 - ~~**Profiltabelle gegen ihre Geometrie**~~ - erledigt am 2. Oktober:
   alle Querschnittswerte aus dem Normumriss (siehe *Entschieden*), 0 von
@@ -2578,7 +2589,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6176 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6186 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

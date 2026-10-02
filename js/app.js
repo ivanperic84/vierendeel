@@ -2581,14 +2581,20 @@ function aendern(key, wert) {
       if (Number.isFinite(Number(w2.xNachweis))) w2.xNachweis = r6(Number(w2.xNachweis) + d);
     }
     werte = w2;
+    standardlaengeNachfuehren(werte.twId ?? 'T1');
     mastNachfuehren();
     neuRechnen();
     return;
   }
-  // Die Stützweite ist kein eigenes Feld: sie schreibt L = s + c_A + c_B.
+  // Die Stützweite ist kein eigenes Feld: sie schreibt L = s + c_A + c_B -
+  // und das Joch geht danach auf seine Standardlänge (2. Oktober).
   if (key === 'stuetzweite') {
     const [kA, kB] = kragarme(werte);
-    return aendern('L', Math.max(0, Number(wert) || 0) + kA + kB);
+    werte = { ...werte, L: Math.max(0, Number(wert) || 0) + kA + kB, kragMasten: true };
+    standardlaengeNachfuehren(werte.twId ?? 'T1');
+    mastNachfuehren();
+    neuRechnen();
+    return;
   }
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
@@ -2863,6 +2869,8 @@ function aendern(key, wert) {
     // Die Regel steht in ui.js (`mastStelleSetzen`), damit der Prüfstand sie
     // ohne Oberfläche fährt (1. Oktober).
     werte = ui.mastStelleSetzen(werte, r, wert.x);
+    // Das Joch, dessen Länge der Mast gerade verstellt hat (2. Oktober).
+    if (r.alsB) standardlaengeNachfuehren(r.alsB.t.id);
     mastNachfuehren();
     neuRechnen();
     return;
@@ -3305,6 +3313,23 @@ function mastZiehen(ende, { zone, d, laenge = 0 }) {
   const was = zone === 'fuss' ? `Fuss ${v(fussAlt)} → ${v(fussNeu)} m, ` : '';
   meldeImBalken(`${name}: ${was}Länge ${lAlt.toFixed(2)} → ${lNeu.toFixed(2)} m, Joch bleibt`
     + ' · Strg+Z nimmt es zurück', { dauer: 5000 });
+}
+
+/**
+ * Ein Joch auf seine Standardlänge bringen und es sagen (2. Oktober,
+ * Regel bei `jochAufStandardlaenge` in ui.js). Schreibt `werte`.
+ */
+function standardlaengeNachfuehren(id) {
+  const { werte: w, info } = ui.jochAufStandardlaenge(werte, id);
+  if (!info) return;
+  werte = w;
+  const t = tragwerkeVon(werte).find((x) => x.id === id);
+  const name = t ? tragwerkName(t, werte) : id;
+  const r2 = (v) => v.toFixed(2);
+  const wo = [info.dA ? `c_A +${r2(info.dA)}` : '', info.dB ? `c_B +${r2(info.dB)}` : '']
+    .filter(Boolean).join(', ');
+  meldeImBalken(`${name}: Jochlänge ${r2(info.L0)} → ${r2(info.L)} m (Standardlänge), `
+    + `Rest als Kragarm (${wo} m), die Masten bleiben · Strg+Z nimmt es zurück`, { dauer: 7000 });
 }
 
 function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {

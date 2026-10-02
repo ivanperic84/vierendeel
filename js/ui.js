@@ -20,13 +20,14 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt, anschlusshoehe,
          aufRaster, mastNameAmEnde, tragwerkPos, mastName,
-         tauscheAktives, freieLage, freieLaenge } from './core.constants.js';
+         tauscheAktives, freieLage, freieLaenge,
+         tragwerkAendern } from './core.constants.js';
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
 import { mastLaengeVorgabe, mastImModell, einzelmastLaenge,
          mastLaengeFuer } from './core.auflager.js';
-import { laengenbereich, getTragjoch } from './data.tragjoche.js';
+import { laengenbereich, getTragjoch, moeglicheLaengen } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerAufhaengung, tragauslegerSpreizung,
          tragauslegerTypen, abfangBindeblech } from './data.abfangjoche.js';
@@ -1389,6 +1390,78 @@ export function mastStelleSetzen(werte, r, xZiel) {
   }
   if (r.alsA) setzeAn(r.alsA.t.id, 'xLage', x - kA);
   return werte;
+}
+
+/**
+ * >>> DAS JOCH AUF SEINE STANDARDLÄNGE (2. Oktober). <<<
+ *
+ * Weisung: «die jochlängen auf die hinterlegten standardlängen anpassen
+ * lassen, wenn auskragung oder mastabstände angepasst werden. die ungeraden
+ * jochlängen werden nur dann angewendet, wenn eine jochreihe vorkommt und es
+ * auf gleicher höhe mehrere joche zu liegen kommen, dann muss das endfeld
+ * gekürzt werden jeweils, damit es passt und es einen abstand von min 5 cm
+ * bis 10 cm von joch zu joch (stehendes endblech) hat.»
+ * Auf Rückfrage «Aufrunden, Rest als Kragarm»: ist L keine Länge des
+ * Sortiments (Raster 0.5 m), springt sie auf die nächste grössere; die
+ * Masten bleiben, der Überschuss geht gleich verteilt in c_A und c_B. Ein
+ * Ende, an dem ein anderes Joch auf derselben Anschlusshöhe am selben
+ * Masten anschliesst (Stoss in der Reihe), bekommt nichts - dort ist kein
+ * Platz; der Überschuss geht ans freie Ende. Stossen beide Enden, bleibt L
+ * (Endfeld kürzen, Rückfrage «Beide Joche je halb, Spalt 10 cm» - eigener
+ * Schritt).
+ *
+ * @returns {{werte:object, info:object|null}}  info: {id, L0, L, dA, dB}
+ */
+export function jochAufStandardlaenge(werte, id) {
+  const ohne = { werte, info: null };
+  const t = tragwerkeVon(werte).find((x) => x.id === id);
+  if (!t || tragwerksart(t).key !== 'joch') return ohne;
+  let joch;
+  try { joch = getTragjoch(t.typ); } catch { return ohne; }
+  const std = moeglicheLaengen(joch).map((e) => e.wert);
+  const L = Number(t.L) || 0;
+  if (!std.length || std.some((v) => Math.abs(v - L) < 1e-6)) return ohne;
+  const Lstd = std.find((v) => v > L);
+  if (!(Lstd > 0)) return ohne;            // über dem Sortiment: die Meldung sagt es
+  const stossA = jochStoss(werte, t, 'A'), stossB = jochStoss(werte, t, 'B');
+  if (stossA && stossB) return ohne;
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const extra = r6(Lstd - L);
+  const dA = stossA ? 0 : stossB ? extra : r6(extra / 2);
+  const dB = r6(extra - dA);
+  const [kA, kB] = kragarme(t);
+  const neu = tragwerkAendern(werte, id, (x) => {
+    const f = { L: Lstd, kragA: r6(kA + dA), kragB: r6(kB + dB), kragMasten: true };
+    if (dA) {
+      if (Number.isFinite(Number(x.xLage))) f.xLage = r6(Number(x.xLage) - dA);
+      // Die Teile auf dem Joch stehen lokal ab dem Gurtanfang - sie rücken
+      // mit, ihre Lage auf dem Blatt bleibt (wie beim Kragarm, 30. Sept.).
+      f.anbauteile = (x.anbauteile ?? []).map((a) => (a && !amMast(a)
+        && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) + dA) } : a));
+      if (Number.isFinite(Number(x.xNachweis))) f.xNachweis = r6(Number(x.xNachweis) + dA);
+    }
+    return f;
+  });
+  return { werte: neu, info: { id, L0: L, L: Lstd, dA, dB } };
+}
+
+/**
+ * Stösst an diesem Ende ein anderes Tragjoch auf derselben Anschlusshöhe an
+ * denselben Masten (Reihe, B an A bzw. A an B)? Dann ist dort kein Platz
+ * für einen Kragarm.
+ */
+export function jochStoss(werte, t, ende) {
+  const [mA, mB] = mastenFuer(werte, t);
+  const m = ende === 'A' ? mA : mB;
+  if (!m) return false;
+  const h = anschlusshoehe(t, ende);
+  const gegen = ende === 'A' ? 'B' : 'A';
+  return tragwerkeVon(werte).some((o) => {
+    if (o.id === t.id || tragwerksart(o).key !== 'joch' || versteckt(o)) return false;
+    const [oA, oB] = mastenFuer(werte, o);
+    const om = gegen === 'A' ? oA : oB;
+    return om?.id === m.id && Math.abs(anschlusshoehe(o, gegen) - h) < 0.005;
+  });
 }
 
 export function mastGrenzen(rollen, x) {

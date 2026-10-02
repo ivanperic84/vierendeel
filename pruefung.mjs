@@ -34474,7 +34474,9 @@ titel('175  Blattmodell: Einzelmast und Kragarm-Joch am selben Masten, gemeinsam
   const app = APP_QUELLE();
   wahr('Kragarm verstellen: L wächst, der Gurt beginnt früher, die Masten bleiben; Stützweite schreibt L',
        app.includes("if ((key === 'kragA' || key === 'kragB') && tragwerksart(werte).key === 'joch')")
-       && app.includes("return aendern('L', Math.max(0, Number(wert) || 0) + kA + kB);")
+       // Seit dem 2. Oktober schreibt die Stützweite L selbst und bringt das
+       // Joch danach auf seine Standardlänge (Abschnitt 187).
+       && app.includes("werte = { ...werte, L: Math.max(0, Number(wert) || 0) + kA + kB, kragMasten: true };")
        && app.includes('const auf = einzelmastenAufgehen(werte);'));
 }
 
@@ -35333,6 +35335,54 @@ titel('186  Mast im Stabwerk zwischen den Enden; Werte im 3D ohne Streifen');
        R186.wertTon('#b8bac4', 'rgb(60,92,168)') === 'rgb(134,148,185)',
        R186.wertTon('#b8bac4', 'rgb(60,92,168)'));
   wahr('am Masten doppelter Abstand der Zahlen', /amMast \? 46 : 21/.test(q3));
+}
+
+// ===========================================================================
+titel('187  Jochlänge auf die Standardlänge, Rest als Kragarm');
+
+/*
+ * Weisung 2. Oktober: «die jochlängen auf die hinterlegten standardlängen
+ * anpassen lassen, wenn auskragung oder mastabstände angepasst werden.»
+ * Rückfrage «Aufrunden, Rest als Kragarm»: Masten bleiben, der Überschuss
+ * geht gleich verteilt in c_A/c_B; an einem Stoss in der Reihe (gleiche
+ * Höhe, selber Mast) nichts, dort geht alles ans freie Ende.
+ */
+{
+  const C187 = await import(J('core.constants.js'));
+  const U187 = await import(J('ui.js'));
+  const einzel = { typ: 'J90', L: 19.3, xLage: 0, mastProfil: 'HEB 260', mastVorhanden: true,
+                   tragwerksart: 'joch', twId: 'T1', mastH: 7.5, kragMasten: true,
+                   anbauteile: [{ id: 'X', x: 10 }] };
+  const vorM = C187.mastLagen(einzel);
+  const { werte: e1, info } = U187.jochAufStandardlaenge(einzel, 'T1');
+  pruef('J90, Mastabstand 19.30 m: L auf 19.50', e1.L, 19.5, 1e-9, 'm');
+  wahr('… c_A = c_B = 0.10 m', C187.kragarme(e1).map((v) => v.toFixed(2)).join('/') === '0.10/0.10',
+       C187.kragarme(e1).join('/'));
+  wahr('… die Masten bleiben stehen', C187.mastLagen(e1).every((x, i) => Math.abs(x - vorM[i]) < 1e-9),
+       C187.mastLagen(e1).join(' / '));
+  pruef('… das Teil auf dem Joch bleibt auf dem Blatt (lokal +0.10)', e1.anbauteile[0].x, 10.1, 1e-9, 'm');
+  wahr('… und die Rückmeldung nennt alt und neu', info && info.L0 === 19.3 && info.L === 19.5);
+  const fest = U187.jochAufStandardlaenge({ ...einzel, L: 20 }, 'T1');
+  wahr('Eine Standardlänge bleibt unberührt', fest.info === null && fest.werte.L === 20);
+
+  // Reihe auf gleicher Höhe: T2 stösst bei 20 an T1, der Rest geht an Ende B.
+  const reihe = C187.tragwerkHinzu({ ...einzel, L: 20 }, 'joch',
+    { typ: 'J90', L: 15.3, xLage: 20, mastH: 7.5, kragA: 0, kragB: 0, kragMasten: true });
+  const t2 = C187.tragwerkeVon(reihe).find((t) => t.xLage === 20);
+  wahr('Reihe: Ende A von T2 ist ein Stoss (gleiche Höhe, selber Mast)',
+       U187.jochStoss(reihe, t2, 'A') && !U187.jochStoss(reihe, t2, 'B'));
+  const r2 = U187.jochAufStandardlaenge(reihe, t2.id);
+  const t2n = C187.tragwerkeVon(r2.werte).find((t) => t.id === t2.id);
+  wahr('… T2 15.30 → 15.50, der Rest ganz an Ende B (c_A 0, c_B 0.20)',
+       t2n.L === 15.5 && C187.kragarme(t2n).map((v) => v.toFixed(2)).join('/') === '0.00/0.20'
+       && t2n.xLage === 20, `${t2n.L} · ${C187.kragarme(t2n)} · x ${t2n.xLage}`);
+  // Andere Anschlusshöhe: kein Stoss, beide Seiten.
+  const hoch = C187.tragwerkHinzu({ ...einzel, L: 20 }, 'joch',
+    { typ: 'J90', L: 15.3, xLage: 20, mastH: 6.5, kragA: 0, kragB: 0, kragMasten: true });
+  const t3 = C187.tragwerkeVon(hoch).find((t) => t.xLage === 20);
+  wahr('Andere Anschlusshöhe am selben Masten: kein Stoss', !U187.jochStoss(hoch, t3, 'A'));
+  const q = APP_QUELLE();
+  wahr('App: nach Kragarm, Stützweite und Mastlage', (q.match(/standardlaengeNachfuehren\(/g) ?? []).length >= 4);
 }
 
 // ===========================================================================
