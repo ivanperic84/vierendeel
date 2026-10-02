@@ -104,10 +104,12 @@ import { zeichneDaten, ersteAnsicht, alsTabellen, zeichneAbgleich,
          blaetter as datenBlaetter } from './ui.daten.js';
 import { arbeitsmappe, herunterladen, STIL } from './export.xlsx.js';
 import { leseDatei, abgleich, eingelesen, eingelesenSpeichern,
-         eingelesenVerwerfen, eingelesenAnwenden, alsDatei } from './data.einlesen.js';
+         eingelesenVerwerfen, eingelesenAnwenden, alsDatei,
+         EINGELESEN_SPEICHER } from './data.einlesen.js';
+import { grossspeicherLaden } from './data.ablage.js';
 import { pruefeAlle as blechregelPruefen } from './core.blechregel.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
-         speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
+         speicherLeeren, ausSpeicher, PAKET_FORMAT, PAKET_SPEICHER } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB,
          mastenDbDa } from './data.masten.js';
@@ -4852,7 +4854,7 @@ function dialogBauteildaten() {
   function verdrahte() {
     const n = d.node;
     const leeren = n.querySelector('[data-paket-leeren]');
-    if (leeren) leeren.onclick = () => { speicherLeeren(); neu(); };
+    if (leeren) leeren.onclick = async () => { await speicherLeeren(); neu(); };
     n.querySelectorAll('[data-ansicht]').forEach((b) => {
       b.onclick = () => { datenAnsicht.aktiv = b.dataset.ansicht; datenAnsicht.filter = ''; neu(); };
     });
@@ -4886,8 +4888,8 @@ function dialogBauteildaten() {
         + 'hinterlegte Datenpaket. Die Anwendung wird neu gestartet.</p>',
         `<button class="btn" data-zu>Abbrechen</button>
          <button class="btn btn-acc" data-ja>Verwerfen</button>`);
-      w.node.querySelector('[data-ja]').onclick = () => {
-        eingelesenVerwerfen();
+      w.node.querySelector('[data-ja]').onclick = async () => {
+        await eingelesenVerwerfen();
         location.reload();
       };
     };
@@ -5002,7 +5004,7 @@ function datenEinlesen(tabellen) {
       'dialog-breit');
     d.node.querySelector('[data-zurueck]').onclick = () => dialogBauteildaten();
     const ok = d.node.querySelector('[data-uebernehmen]');
-    if (ok && fehlerfrei && aenderungen) ok.onclick = () => {
+    if (ok && fehlerfrei && aenderungen) ok.onclick = async () => {
       /*
        * Ein bereits eingelesener Stand wird ergänzt, nicht ersetzt: wer erst
        * die Lasttabelle und dann die Joche einliest, behält beides.
@@ -5011,7 +5013,7 @@ function datenEinlesen(tabellen) {
       const teile = { ...vorher };
       for (const r of ergebnisse) if (r.aenderungen) teile[r.db] = r.ergebnis;
       try {
-        eingelesenSpeichern(teile, f.name);
+        await eingelesenSpeichern(teile, f.name);
       } catch (fehler) {
         dialog('Nicht übernommen', `<p>Der Browser nimmt den Stand nicht auf
           (${esc(fehler.message)}). Sichern Sie ihn stattdessen als Dateien.</p>`,
@@ -5605,8 +5607,8 @@ async function dateiAnnehmen(datei) {
       + 'Anwendung startet danach neu.</p>',
       '<button class="btn btn-acc" data-ok>Laden</button>'
       + '<button class="btn" data-zu>Abbrechen</button>');
-    d.node.querySelector('[data-ok]').onclick = () => {
-      paketAnwenden(obj);
+    d.node.querySelector('[data-ok]').onclick = async () => {
+      await paketAnwenden(obj).gespeichert;
       d.zu();
       location.reload();
     };
@@ -5677,7 +5679,7 @@ function dialogDaten() {
       const obj = JSON.parse(await datei.text());
       const p = pruefePaket(obj);
       if (!p.ok) { melde(p.fehler.join(' '), true); return; }
-      paketAnwenden(obj);
+      await paketAnwenden(obj).gespeichert;
       melde(`Geladen: ${p.teile.map((t) => `${t.anzahl} ${t.einheit}`).join(' · ')}`
             + ' — die Anwendung wird neu gestartet.');
       setTimeout(() => location.reload(), 900);
@@ -5799,6 +5801,9 @@ export async function start() {
       '<button class="btn" data-zu>Schliessen</button>');
     return;
   }
+  // Datenpaket und eingelesener Stand liegen in IndexedDB (2. Oktober) -
+  // einmal in den Arbeitsspeicher holen, alte localStorage-Einträge umziehen.
+  await grossspeicherLaden([PAKET_SPEICHER, EINGELESEN_SPEICHER]);
   const daten = await datenBereitstellen([ladeDatenbank, ladeAnbauteile, ladeFlBauteile]);
   // Getrennt und ohne Abbruch: die drei oben sind Voraussetzung, diese
   // drei sind es nicht.

@@ -2816,12 +2816,13 @@ titel('18f  Datenpaket');
   wahr('Ein einzelner Teil genügt', P.pruefePaket(nurTypen).ok);
 
   // Ablage im Browser
-  P.speichern(paket);
+  // Seit dem 2. Oktober asynchron (IndexedDB, im Node der localStorage-Ersatz).
+  await P.speichern(paket);
   const zurueck = P.ausSpeicher();
   pruef('Hinterlegt und wieder geholt: gleich viele Typen',
         zurueck.tragjoche.tabellen.typen.length,
         paket.tragjoche.tabellen.typen.length, 1e-12, 'Typen');
-  P.speicherLeeren();
+  await P.speicherLeeren();
   wahr('Nach dem Leeren ist nichts mehr hinterlegt', P.ausSpeicher() === null);
 
   wahr('Daten gelten als vorhanden, solange Typen geladen sind', P.datenVorhanden());
@@ -24103,11 +24104,11 @@ titel('65  Bauteildaten einlesen: Abgleich mit Vorschau');
 
   // --- Der hinterlegte Stand ---------------------------------------------------------
   {
-    E.eingelesenVerwerfen();
+    await E.eingelesenVerwerfen();
     wahr('Ohne Einlesen ist nichts hinterlegt', E.eingelesen() === null);
     const t2 = kopie(tab.masten);
     t2.tabellen.typen[0]['wind/quer/EK2'] = 0.99;
-    E.eingelesenSpeichern({ masten: t2 }, 'probe.xlsx');
+    await E.eingelesenSpeichern({ masten: t2 }, 'probe.xlsx');
     wahr('Der Stand ist hinterlegt, mit Quelle und Zeit',
          E.eingelesen()?.quelle === 'probe.xlsx' && Boolean(E.eingelesen()?.stand));
     const gesetzt = {};
@@ -24116,11 +24117,11 @@ titel('65  Bauteildaten einlesen: Abgleich mit Vorschau');
          && gesetzt.masten.typen[0].wind.quer.EK2 === 0.99);
     const kaputt = kopie(tab.masten);
     delete kaputt.tabellen.typen[0].profil;
-    E.eingelesenSpeichern({ masten: kaputt }, 'kaputt.xlsx');
+    await E.eingelesenSpeichern({ masten: kaputt }, 'kaputt.xlsx');
     const r2 = E.eingelesenAnwenden({ masten: () => { throw new Error('darf nicht'); } });
     wahr('Ein fehlerhafter Stand wird nicht angewendet, sondern gemeldet',
          r2.angewendet.length === 0 && r2.fehler.length === 1, r2.fehler.join(' '));
-    E.eingelesenVerwerfen();
+    await E.eingelesenVerwerfen();
     wahr('Verworfen ist er weg', E.eingelesen() === null);
     wahr('Als Datei geschrieben ist er wieder Tabellenform',
          TBF.istTabellenform(JSON.parse(E.alsDatei(t2))));

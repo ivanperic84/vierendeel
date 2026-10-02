@@ -38,6 +38,9 @@ import { SORTIMENTE, AUFBAU, zerlege, setzeZusammen, istTabellenform,
          tabellenVon, zelleEin, TABELLEN_FORMAT, TABELLEN_VERSION,
          alsDateitext } from './data.tabellen.js';
 import { tabellenKatalog, pruefeTabellen } from './data.katalog.js';
+// Seit dem 2. Oktober in IndexedDB: «… setting the value of
+// tragjoch-eingelesen-v1 exceeded the quota» (data.ablage.js).
+import { grossLesen, grossSchreiben, grossEntfernen } from './data.ablage.js';
 import { leseMappe } from './export.xlsx.js';
 
 /* ===========================================================================
@@ -321,23 +324,26 @@ function rootVon(flach, spec) {
  * Start still von den Dateien überdeckt würde, wäre ein Verlust ohne
  * Meldung.
  * ========================================================================= */
-const SPEICHER = 'tragjoch-eingelesen-v1';
+export const EINGELESEN_SPEICHER = 'tragjoch-eingelesen-v1';
+const SPEICHER = EINGELESEN_SPEICHER;
 
-export function eingelesenSpeichern(teile, quelle = '') {
+/** @returns {Promise<object>} - wirft, wenn keine Ablage den Stand nimmt */
+export async function eingelesenSpeichern(teile, quelle = '') {
   const stand = { stand: new Date().toISOString(), quelle, teile };
-  localStorage.setItem(SPEICHER, JSON.stringify(stand));
+  await grossSchreiben(SPEICHER, JSON.stringify(stand));
   return stand;
 }
 
 export function eingelesen() {
   try {
-    const roh = localStorage.getItem(SPEICHER);
+    const roh = grossLesen(SPEICHER);
     return roh ? JSON.parse(roh) : null;
   } catch { return null; }
 }
 
+/** @returns {Promise<boolean>} */
 export function eingelesenVerwerfen() {
-  try { localStorage.removeItem(SPEICHER); return true; } catch { return false; }
+  return grossEntfernen(SPEICHER).catch(() => false);
 }
 
 /**

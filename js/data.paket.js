@@ -38,6 +38,8 @@ import { setzeFlDB, flDB } from './data.fl.js';
 import { setzeAbfangDB, abfangDB } from './data.abfangjoche.js';
 import { setzeAnkerDB, ankerDB } from './data.anker.js';
 import { setzeMastenDB, mastenDB } from './data.masten.js';
+// Seit dem 2. Oktober in IndexedDB (Speicher voll am Arbeitsrechner).
+import { grossLesen, grossSchreiben, grossEntfernen } from './data.ablage.js';
 
 export const PAKET_FORMAT = 'tragjoch-daten';
 /*
@@ -46,7 +48,8 @@ export const PAKET_FORMAT = 'tragjoch-daten';
  * weiterhin gelesen; ein im Browser hinterlegtes Paket bleibt also gültig.
  */
 export const PAKET_VERSION = 2;
-const SPEICHER = 'tragjoch-daten-v1';
+export const PAKET_SPEICHER = 'tragjoch-daten-v1';
+const SPEICHER = PAKET_SPEICHER;
 
 /* ===========================================================================
  * >>> DIE TEILE DES PAKETS. <<<
@@ -135,8 +138,10 @@ export function paketAnwenden(obj, sichern = true) {
   const p = pruefePaket(obj);
   if (!p.ok) throw new Error(p.fehler.join(' '));
   p.teile.forEach((t) => t.setze(obj[t.key]));
-  if (sichern) speichern(obj);
-  return { teile: p.teile };
+  // Wer danach neu startet, wartet auf `gespeichert` (IndexedDB schreibt
+  // nicht sofort).
+  const gespeichert = sichern ? speichern(obj) : Promise.resolve(true);
+  return { teile: p.teile, gespeichert };
 }
 
 /** Baut aus den geladenen Datenbanken ein Paket zum Sichern. */
@@ -167,10 +172,13 @@ export function paketAus(bezeichnung = '') {
 
 // --- Ablage im Browser ------------------------------------------------------
 
-/** Hinterlegt das Paket lokal. Fehlschlag ist kein Grund zum Abbruch. */
-export function speichern(obj) {
+/**
+ * Hinterlegt das Paket lokal. Fehlschlag ist kein Grund zum Abbruch.
+ * @returns {Promise<boolean>}
+ */
+export async function speichern(obj) {
   try {
-    localStorage.setItem(SPEICHER, JSON.stringify(obj));
+    await grossSchreiben(SPEICHER, JSON.stringify(obj));
     return true;
   } catch {
     return false;                 // Speicher voll oder gesperrt
@@ -180,16 +188,16 @@ export function speichern(obj) {
 /** Holt das hinterlegte Paket, falls vorhanden. */
 export function ausSpeicher() {
   try {
-    const roh = localStorage.getItem(SPEICHER);
+    const roh = grossLesen(SPEICHER);
     return roh ? JSON.parse(roh) : null;
   } catch {
     return null;
   }
 }
 
-/** Entfernt das hinterlegte Paket. */
+/** Entfernt das hinterlegte Paket. @returns {Promise<boolean>} */
 export function speicherLeeren() {
-  try { localStorage.removeItem(SPEICHER); return true; } catch { return false; }
+  return grossEntfernen(SPEICHER).catch(() => false);
 }
 
 /**
