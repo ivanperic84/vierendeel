@@ -58,6 +58,7 @@
  */
 
 import { abfangWind } from './data.abfangjoche.js';
+import { mitTrasse } from './core.lasten.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
          abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
@@ -68,7 +69,7 @@ import { uKontur } from './core.profilgeometrie.js';
 import { linkBedingung, konsolLaenge } from './core.auflager.js';
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
-import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
 import { havarieKandidaten, leiterKennung } from './data.anbauteile.js';
 
 /**
@@ -1584,6 +1585,31 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     });
 
   /*
+   * >>> DER WIND AUF DIE MASTEN (3. Oktober). <<<
+   *
+   * Er fehlte im Stabmodell des Abfangjochs ganz - der Ersatzbalken setzt ihn
+   * an, Tragjoch und Tragausleger auch (Entscheid 17. September: Wind in ±x
+   * und ±y, überall, auch für Masten). Gefunden beim Nachgehen der
+   * Mastabweichung gegen AxisVM: in der Datei stand an keinem Maststab eine
+   * Last. Aus derselben Stelle wie im Kern (`mastWindBeide`),
+   * charakteristisch, je Richtung ein Lastfall. Am geteilten Masten liefern
+   * beide Tragwerke dieselbe Last; das Blatt nimmt sie einmal.
+   */
+  if (mitMast && mastQs) {
+    let srW = 'jochachse';
+    try { srW = getStegrichtung(mastD.stegrichtung ?? 'jochachse').key; } catch { /* Vorgabe */ }
+    const mw = mastWindBeide(mastProfil.name, ekAn, srW);
+    staebe.filter((st2) => st2.querschnitt === mastQs.name).forEach((st2) => {
+      [['WindX', 'X', mw.jochachse], ['WindY', 'Y', mw.gleis]].forEach(([fall, richtung, w]) => {
+        if (Number.isFinite(w) && Math.abs(w) > 0) {
+          strecke.push({ name: `Q_${fall}_${st2.name}`, stab: st2.name, richtung,
+                         wert: Math.abs(w), lastfall: fall });
+        }
+      });
+    });
+  }
+
+  /*
    * >>> NUR KNOTEN, AN DENEN ETWAS HAENGT (17. September). <<<
    *
    * Im Gabelbereich traegt die Gabel; der Gurt beginnt erst hinter ihr,
@@ -1763,6 +1789,7 @@ export const ABFANG_BLATTGRUPPE = {
  * @returns {object} dieselbe Gestalt wie `stabmodell` sie liefert
  */
 export function abfangBau(satz, opt = {}) {
+  satz = mitTrasse(satz);
   const praefix = opt.praefix ?? '';
   const mastNamen = opt.mastNamen ?? null;
   const d = abfangAxisvmModell(satz.abfangTyp, Number(satz.L), {
@@ -1817,7 +1844,27 @@ export function bausteinAusModell(d, opt = {}, gruppe = (g) => g) {
     const t = /^MAST_(A|B)(_.*)?$/.exec(String(n));
     if (!t) return null;
     const id = mastNamen?.[t[1]];
-    return id ? `MAST_${id}${t[2] ?? ''}` : String(n);
+    /*
+     * >>> KOPF UND ANSATZ TRAGEN DIE ANSCHLUSSHÖHE IM NAMEN (3. Oktober). <<<
+     *
+     * Frage des Auftraggebers zum Quervergleich mit AxisVM (Mast M_y / V_z
+     * 11-14 % daneben): «hängt das mit der einspannung von mast und joch
+     * zusammen oder weil die beiden joche eine rahmentragwerk wirken.»
+     * Befund: zwei Abfangjoche übereinander nannten Kopf und Ansatz am
+     * gemeinsamen Masten gleich (MAST_M1_K, MAST_M1_A). Beim Vereinen zählt
+     * der erste Knoten - das untere Joch hing damit nicht auf seiner Höhe am
+     * Masten, sondern über einen 1.5 m langen starren Stab am Ansatz des
+     * OBEREN. Seine Kräfte gingen 1.5 m zu hoch in den Masten, und der Mast
+     * war zwischen den Jochen nicht geteilt. Wie am Tragjoch
+     * (`anschlussNamen`): gleiche Höhe, gleicher Name; sonst getrennt, und
+     * `mastNeuAufreihen` reiht den Masten aus allen Teilpunkten auf.
+     * Der Fuss bleibt gemeinsam.
+     */
+    // Nur Knoten: der Fuss bleibt gemeinsam, und Stabnamen (MAST_A_S1 des
+    // Tragauslegers) heissen weiter nach der Stelle.
+    const hoch = t[2] && t[2] !== '_F' && !/^_S\d+$/.test(t[2])
+      ? opt.anschlussNamen?.[t[1]] : null;
+    return id ? `MAST_${hoch ?? id}${t[2] ?? ''}` : String(n);
   };
   const voll = (n) => mastUm(n)
     ?? (String(n).startsWith('MAST_') ? String(n) : praefix + String(n));
@@ -1885,7 +1932,13 @@ export function bausteinAusModell(d, opt = {}, gruppe = (g) => g) {
   const eigeneLasten = {
     punkt: (d.lasten?.punkt ?? []).map((l) => umLast(l, 'knoten')),
     moment: (d.lasten?.moment ?? []).map((l) => umLast(l, 'knoten')),
-    strecke: (d.lasten?.strecke ?? []).map((l) => umLast(l, 'stab')),
+    // Der Stab einer Streckenlast heisst, wie der Stab umbenannt wurde - ein
+    // Mastabschnitt also MAST_<Stelle>_S<n> (Mastwind, 3. Oktober).
+    strecke: (d.lasten?.strecke ?? []).map((l) => {
+      const u = umLast(l, 'stab');
+      const st = staebe.find((x) => x.roh === String(l.stab));
+      return st ? { ...u, stab: st.name } : u;
+    }),
   };
 
   return {

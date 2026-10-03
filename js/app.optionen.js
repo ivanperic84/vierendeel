@@ -12,7 +12,7 @@
 import { abfangWind } from './data.abfangjoche.js';
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { APP_NAME, tragwerkSatz, tragwerksart } from './core.constants.js';
-import { lastfaelle } from './core.lasten.js';
+import { lastfaelle, mitTrasse } from './core.lasten.js';
 import { berechne } from './core.vierendeel.js';
 import { abfangLaengenbereich, abfangjoche } from './data.abfangjoche.js';
 // Das Datenpaket wird im Fenster «Bauteildaten» geladen und gesichert
@@ -157,7 +157,7 @@ export function dialogSortiment(app) {
  * da. Sonst suchte man den naechstgroesseren und faende ihn nicht.
  */
 function dialogSortimentAbfang(app, { f0, f2, f3 }) {
-  const satz = tragwerkSatz(app.werte);
+  const satz = mitTrasse(tragwerkSatz(app.werte));
   const jt = Number(app.werte.L) || 0;
   const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satz.ek] ?? '1.1';
   const sKl = String(satz.schneeKlasse ?? '1.25');

@@ -1322,9 +1322,18 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
                         h: blSatz.laenge, b: blSatz.dicke }),
           profil: `FLA ${blSatz.laenge}/${blSatz.dicke} \u2014 Bindeblech`,
           A: (blSatz.dicke * blSatz.laenge) / 1e6,
-          // Wie `blechQs` beim Abfangjoch: I_y um die starke Achse.
-          Iy: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
-          Iz: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
+          /*
+           * >>> I_y UND I_z WAREN VERTAUSCHT (3. Oktober). <<<
+           * Derselbe Fehler wie am liegenden Blech des Abfangjochs: das
+           * Rechteck steht mit [Länge, Dicke] in lokal y / z - AxisVM baut
+           * es so, der eigene Löser las die Zahlen und stellte das Blech
+           * quer. Die Sprossen der Druckstütze waren in ihrer Ebene 300-mal
+           * zu weich; gemessen an zwei Abfangjochen mit Druckstützen:
+           * Verdrehung des Masts am Ankerpunkt 3.84 statt 2.21 mrad
+           * (AxisVM 2.21), Mast M_y 13.6 % über AxisVM, jetzt 2.9 %.
+           */
+          Iy: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
+          Iz: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
           It: (blSatz.laenge * blSatz.dicke ** 3) / 3 / 1e12,
         });
         // Die Blechstationen sind die Stabteilung ohne die beiden Enden.
@@ -2002,7 +2011,11 @@ function mastNeuAufreihen(staebe, knoten, mastZuege, gleich = new Map()) {
     const stelle = staebe.indexOf(vorlage);
     for (let i = staebe.length - 1; i >= 0; i--) if (re.test(staebe[i].name)) staebe.splice(i, 1);
     staebe.splice(Math.min(stelle, staebe.length), 0, ...neu);
-    umbau.set(id, { alt: alt.map((st) => ({ name: st.name, u: z(st.von), o: z(st.bis) })),
+    // Unten und oben nach der Lage, nicht nach der Stabrichtung: das Abfangjoch
+    // baut seinen Masten vom Kopf zum Fuss, und seine Lasten fielen hier durch
+    // (3. Oktober, Mastwind).
+    umbau.set(id, { alt: alt.map((st) => ({ name: st.name, u: Math.min(z(st.von), z(st.bis)),
+                                            o: Math.max(z(st.von), z(st.bis)) })),
                     neu: neu.map((st) => ({ name: st.name, m: (z(st.von) + z(st.bis)) / 2 })) });
   });
   if (!umbau.size) return (l) => [l];

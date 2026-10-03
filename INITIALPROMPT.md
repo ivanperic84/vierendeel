@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6519 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6527 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,13 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Abfangjoch, vier Befunde:** zwei Abfangjoche übereinander
+  hingen am selben Mastknoten; den Masten fehlte im Stabwerk der Mastwind; das
+  Abfangjoch rechnete immer mit EK2 und ohne Spannweite (`mitTrasse`); die
+  Bindebleche der Druckstütze standen im Löser quer (Mast gegen AxisVM
+  13.6 → 2.9 %). ⚠ Offen: neuer AxisVM-Lauf des geänderten Blattes (nur auf
+  Anweisung); Wind am einseitig abgefangenen Leiter über ganze oder halbe
+  Spannweite.
 - **3. Oktober, Durchsicht der Tragwerksarten:** der COM-Knopf leitet bei
   gewähltem Abfangjoch das ganze Blatt aus (`stabwerkDatei`, dieselbe Datei wie
   das Stabwerk); `durchlauf.mjs` fährt das Abfangjoch. ⚠ Offen: Entscheid, ob

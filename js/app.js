@@ -18,7 +18,7 @@ import { berechne, modell, modellEinzelmast,
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
          klassifizierung, urteilFusszeile, mitBauteilen, nachweiseAuswahl } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
-         lastfaelle, ekVonWindklasse } from './core.lasten.js';
+         lastfaelle, ekVonWindklasse, mitTrasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
@@ -2576,6 +2576,7 @@ function abfangMastenAngabe(satz, namen) {
 function abfangLastAngaben(satz) {
   // Mit Art und Richtung je Leiter (29. September) - das Bild zeigt den
   // Zug, den der Nachweis ansetzt.
+  satz = mitTrasse(satz);
   return { ek: satz?.ek, L_FL: Number(satz?.L_FL) || 0,
            R: Number(satz?.R) || 0, tempFall: satz?.tempFall,
            havarie: satz?.havarie ?? null };

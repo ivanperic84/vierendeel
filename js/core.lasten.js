@@ -75,6 +75,27 @@ export const SCHNEE_KLASSEN = [
 export const ekVonWindklasse = (key) =>
   WIND_KLASSEN.find((k) => k.key === key)?.ek ?? 'EK2';
 
+/**
+ * >>> WINDSTUFE UND TRASSE, WIE DAS ABFANGJOCH SIE LIEST (3. Oktober). <<<
+ *
+ * Kern, Bild und Ausleitung des Abfangjochs lesen `ek`, `L_FL` und `R` aus
+ * dem Satz. Die Eingabe führt diese Felder nicht - sie heissen dort
+ * `windKlasse`, `flSpannweite` und `trasseRadius`. Folge: das Abfangjoch
+ * rechnete IMMER mit EK2 und ohne Trasse (Spannweite 0, Radius 0), was auch
+ * unter *Lasten* gewählt war; der Einheitswind kam dort nie an, und ein
+ * Anbauteil am Abfangjoch trug weder Wind über die Spannweite noch eine
+ * Ablenkkraft. Gefunden beim Nachgehen der Mastabweichung gegen AxisVM
+ * (der Mastwind stand mit 0.40 statt 0.33 kN/m da).
+ * Ein ausdrücklich gesetztes Feld gilt weiter (Prüfstand, alte Aufrufer).
+ */
+export function mitTrasse(satz) {
+  if (!satz) return satz;
+  return { ...satz,
+    ek: satz.ek ?? ekVonWindklasse(satz.windKlasse),
+    L_FL: satz.L_FL ?? (Number(satz.flSpannweite) || 0),
+    R: satz.R ?? (Number(satz.trasseRadius) || 0) };
+}
+
 export const LASTHERKUNFT = [
   { key: 'tabelle', label: 'aus Sortimentstabelle der Typendatenbank' },
   { key: 'manuell', label: 'manuell eingeben' },

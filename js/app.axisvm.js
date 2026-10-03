@@ -15,6 +15,7 @@ import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { stabwerkDatei } from './app.stabwerk.js';
+import { mitTrasse } from './core.lasten.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { KNOTENMODELLE, auflagerAngebot, auflagerVorgabe, exportiereAxisvm, exportiereDxf, exportiereJson } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
@@ -278,7 +279,7 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
     const jt = Number(app.werte.L);
     // Der Satz des AKTIVEN Tragwerks - dort stehen seine Anbauteile, seine
     // Fahrleitungsspannweite und sein Radius, nicht im Blattobjekt.
-    const aktSatz = tragwerkSatz(app.werte);
+    const aktSatz = mitTrasse(tragwerkSatz(app.werte));
     // Das Knotenmodell reicht durch: es entscheidet, ob die Riegelenden
     // steif ausgebildet werden oder das Modell Achse zu Achse rechnet.
     /*

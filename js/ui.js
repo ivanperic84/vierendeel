@@ -47,7 +47,7 @@ import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
-         abfangart } from './core.lasten.js';
+         abfangart, mitTrasse } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette, rechensatz, kragarme, stossEnden } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
@@ -4324,8 +4324,9 @@ function anbauteilSkizzeAbfang(a, werte) {
   const x = a.x ?? 0, L = werte.L ?? 20;
   let lw = null;
   try {
-    lw = abfangAnbauLasten(a, { ek: werte.ek, R: werte.R,
-                                spannweite: werte.L_FL, havarie: werte.havarie });
+    const wt = mitTrasse(werte);
+    lw = abfangAnbauLasten(a, { ek: wt.ek, R: wt.R,
+                                spannweite: wt.L_FL, havarie: werte.havarie });
   } catch { lw = null; }
 
   // --- links: Blick in die Jochachse --------------------------------------

@@ -37,7 +37,7 @@ import { tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
          versteckt, tragwerkSatz, tragwerkPos } from './core.constants.js';
 import { berechne } from './core.vierendeel.js';
 import { mastLasten } from './core.mast.js';
-import { lastfaelle } from './core.lasten.js';
+import { lastfaelle, mitTrasse } from './core.lasten.js';
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { abfangVarianten, abfangModell } from './core.anker.js';
 import { getAbfangjoch, abfangDbDa } from './data.abfangjoche.js';
@@ -60,7 +60,7 @@ export function kernArgumente(s) {
  */
 export function abfangAuswertungFuer(w, stahl) {
   if (tragwerksart(w).key !== 'abfangjoch' || !abfangDbDa()) return null;
-  const satzA = tragwerkSatz(w);
+  const satzA = mitTrasse(tragwerkSatz(w));
   /*
    * >>> HAVARIE JE LEITER AUCH HIER (19. September). <<<
    *
@@ -102,7 +102,7 @@ export function abfangAuswertungFuer(w, stahl) {
 
 function abfangEinmal(w, satzA, stahl, anbauteile) {
   const a2 = getAbfangjoch(w.abfangTyp);
-  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satzA.ek] ?? '1.1';
+  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3', EK0: '1.0' }[satzA.ek] ?? '1.1';
   const sKl = String(satzA.schneeKlasse ?? '1.25');
   return abfangAuswertung({
     typ: w.abfangTyp, jt: Number(w.L),

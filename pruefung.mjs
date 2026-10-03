@@ -11085,11 +11085,14 @@ titel('42  Der lange Mast mit Zusatzleitern');
     pruef('\u2026 und Dicke',
           qsBl.parameter[1], AN.ankerBlechSatz('U12').dicke, 1e-12, 'mm');
     /*
-     * UND I_y IST DIE STARKE ACHSE - dieselbe Zuordnung wie bei `blechQs`.
-     * Ein vertauschtes Traegheitsmoment faellt in AxisVM nicht auf: die
-     * Bruecke misst die FLAECHE zurueck, und die ist bei beiden gleich.
+     * UND I_z IST DIE STARKE ACHSE (berichtigt am 3. Oktober, Abschnitt 214).
+     * Hier stand «I_y ist die starke Achse» - und hielt damit den Fehler
+     * fest: das Rechteck steht mit [Länge, Dicke] in lokal y / z, also ist
+     * es um z stark. AxisVM baut es aus den Abmessungen; der eigene Löser
+     * las die vertauschten Zahlen. Ein vertauschtes Traegheitsmoment faellt
+     * in AxisVM nicht auf: die Bruecke misst die FLAECHE zurueck.
      */
-    wahr('I_y ist die starke Achse des Blechs', qsBl.Iy > qsBl.Iz,
+    wahr('I_z ist die starke Achse des Blechs (wie seine Abmessungen)', qsBl.Iz > qsBl.Iy,
          `${qsBl.Iy} gegen ${qsBl.Iz}`);
     wahr('Keine Laschen mehr',
          !(jA.staebe ?? []).some((x) => /^ANKERLASCHE_/.test(x.name)));
@@ -32506,8 +32509,10 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
       fall: fa.key, erg: MA142.mastNachweise(AN142.abfangModell(erg.modell, ab.auflager, fa, fb, false),
         { knickBeiwert: w.knickBeiwert, knicken: knick, torsion: true }) })));
   };
-  pruef('A200/15 m, Knicken aus: der Mast ohne Knicken', abMast(false).etaNachweis, 0.6156, 1e-3, '');
-  pruef('… Knicken an: mit Knicken', abMast(true).etaNachweis, 0.6617, 1e-3, '');
+  // Seit dem 3. Oktober mit der gewählten Windstufe (hier EK1) statt fest EK2
+  // (`mitTrasse`): vorher 0.6156 / 0.6617.
+  pruef('A200/15 m, Knicken aus: der Mast ohne Knicken', abMast(false).etaNachweis, 0.5456, 1e-3, '');
+  pruef('… Knicken an: mit Knicken', abMast(true).etaNachweis, 0.5898, 1e-3, '');
   wahr('Die Anwendung reicht den Schalter am Abfangjoch durch (mastOptionen)',
        /const optM = mastOptionen\(werte\)/.test(q142)
        && /knicken: w\.nachweise\?\.knickenMast === true/.test(q142));
@@ -36809,8 +36814,9 @@ if (AJ.abfangDbDa()) {
        JSON.stringify(plan));
   const q208 = APP_QUELLE();
   wahr('Die App reicht den Plan an beide Abfangjoch-Szenen (gewählt, nebenan)',
-       q208.includes('mastZeichnen: plan[aktivId],\n                    ...abfangLastAngaben')
-       && q208.includes('mastZeichnen: zeichnen,\n                           ...abfangLastAngaben'));
+       // Zeilenenden gleichgültig (die Arbeitskopie kann CR LF tragen).
+       /mastZeichnen: plan\[aktivId\],\r?\n\s+\.\.\.abfangLastAngaben/.test(q208)
+       && /mastZeichnen: zeichnen,\r?\n\s+\.\.\.abfangLastAngaben/.test(q208));
 
   // Vorlagen «abgefangen»
   const ids = ['leiter-ts-nfl-abf', 'leiter-fd-nfl-abf', 'leiter-ts-rfl-abf', 'leiter-fd-rfl-abf'];
@@ -37229,6 +37235,93 @@ if (AJ.abfangDbDa()) {
        && ax213.includes("istAbfang ? (hatMast ? 'mast' : 'punkt')"));
   const dl213 = readFileSync(join(HIER, 'durchlauf.mjs'), 'utf8');
   wahr('Der Durchgang fährt das Abfangjoch (allein und zwei übereinander)', dl213.includes("=== Abfangjoch ==="));
+}
+
+
+/* =========================================================================
+ * 214  ABFANGJOCHE ÜBEREINANDER: MAST GETEILT, MASTWIND, WINDSTUFE,
+ *      BINDEBLECH DER DRUCKSTÜTZE (3. Oktober)
+ * =========================================================================
+ * «Biegemoment und Querkraft in Jochrichtung weichen noch 11–14 % ab.
+ * nachgehen. hängt das mit der einspannung von mast und joch zusammen oder
+ * weil die beiden joche eine rahmentragwerk wirken.» Vier Befunde:
+ *  a) das untere Joch hing am Ansatzknoten des oberen (gleicher Name),
+ *  b) den Masten des Abfangjochs fehlte im Stabwerk der Mastwind,
+ *  c) das Abfangjoch las Windstufe und Trasse aus Feldern, die es nicht
+ *     gibt (immer EK2, Spannweite 0),
+ *  d) die Bindebleche der Druckstütze standen im Löser quer - das waren
+ *     die 11-14 %.
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const AS214 = await import(J('app.stabwerk.js'));
+  const C214 = await import(J('core.constants.js'));
+  const N214 = await import(J('core.nachbarn.js'));
+  const DA214 = await import(J('data.anbauteile.js'));
+  const LA214 = await import(J('core.lasten.js'));
+  const SW214 = await import(J('core.stabwerk.js'));
+  const teil = (vid, x) => ({ ...DA214.neuesAnbauteil(vid, x), ort: 'joch' });
+  const blatt = (o = {}) => {
+    let w = C214.tragwerkHinzu({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+      L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', ...o }, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+    w = C214.tragwerkWeg(w, 'T1');
+    w.anbauteile = [teil('leiter-ts-nfl-abf', 4.0)];
+    w = C214.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 6.0 });
+    w.anbauteile = [teil('leiter-fd-nfl-abf', 4.0)];
+    C214.mastenVon(w).forEach((m) => {
+      w = C214.setzeMastAnker(w, m.id, { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus', befestigung: 'ankerplatte' });
+    });
+    return w;
+  };
+  const stab = (w) => {
+    const ws = N214.rechensatzMitNachbarn(w);
+    return AS214.rechneStabwerk({ werte: w, letzte: { erg: berechne(ws, ...N214.kernArgumente(ws)) }, stabwerk: null });
+  };
+  const h = stab(blatt());
+  const d = h.roh.dat;
+  const K = new Map(d.knoten.map((k) => [k.name, k]));
+  // a) jedes Joch auf seiner Höhe am Masten
+  const kons = d.staebe.filter((x) => /_KONSOLE_[AB]$/.test(x.name));
+  wahr('Jede Konsole geht waagrecht vom Masten ab - kein Joch hängt am Anschluss des anderen',
+       kons.length === 4 && kons.every((x) => Math.abs(K.get(x.von).z - K.get(x.bis).z) < 1e-9),
+       kons.map((x) => `${x.name} ${(K.get(x.von).z - K.get(x.bis).z).toFixed(2)}`).join(', '));
+  const zug = d.staebe.filter((x) => /^MAST_M1_S\d+$/.test(x.name));
+  const zs = [...new Set(zug.flatMap((x) => [K.get(x.von).z, K.get(x.bis).z]))].sort((a, b) => a - b);
+  wahr('Der gemeinsame Mast ist an beiden Anschlüssen und am Anker geteilt, ein Zug ohne Lücke',
+       zug.length === zs.length - 1 && zs.some((z) => Math.abs(z + 1.5) < 1e-6) && zs.some((z) => Math.abs(z) < 1e-6)
+       && zs.some((z) => Math.abs(z + 1.0) < 1e-6) && Math.abs(zs[0] + 7.5) < 1e-6, zs.join(' / '));
+  // b) Mastwind
+  const mw = (dd, fall) => dd.lasten.strecke.filter((l) => /^MAST_M1_S\d+$/.test(l.stab) && l.lastfall === fall)
+    .reduce((su, l) => { const st = dd.staebe.find((x) => x.name === l.stab);
+      return su + l.wert * Math.abs(K.get(st.von).z - K.get(st.bis).z); }, 0);
+  // Der Prüfstand rechnet mit HEB 240 (`standardwerte`): 0.30 kN/m bei EK1.
+  pruef('Mastwind am Abfangjoch-Masten, Gleisrichtung: Tabellenwert × Länge, einmal (EK1, HEB 240)', mw(d, 'WindY'), 0.30 * 7.5, 1e-6, 'kN');
+  pruef('… und in Jochrichtung', mw(d, 'WindX'), 0.30 * 7.5, 1e-6, 'kN');
+  // c) Windstufe und Trasse
+  const s0 = LA214.mitTrasse({ windKlasse: '1.3', flSpannweite: 45, trasseRadius: 800 });
+  wahr('mitTrasse: Windstufe, Spannweite und Radius der Eingabe; ein gesetztes Feld gilt',
+       s0.ek === 'EK3' && s0.L_FL === 45 && s0.R === 800 && LA214.mitTrasse({ windKlasse: '1.3', ek: 'EK1' }).ek === 'EK1'
+       && LA214.mitTrasse({ windKlasse: '1.0' }).ek === 'EK0');
+  const h3 = stab(blatt({ windKlasse: '1.3' }));
+  const eta = (hh, re) => hh.reihe.find((b) => re.test(b.name ?? b.key))?.eta;
+  wahr('Das Abfangjoch folgt der Windstufe (EK3 über EK1) - Stabwerk und Kern',
+       eta(h3, /T3/) > eta(h, /T3/) + 0.01 && eta(h3, /M1/) > eta(h, /M1/) + 0.01
+       && N214.abfangAuswertungFuer(blatt({ windKlasse: '1.3' }), getStahl('S235')).max.eta
+          > N214.abfangAuswertungFuer(blatt(), getStahl('S235')).max.eta + 0.01,
+       `T3 ${eta(h, /T3/).toFixed(3)} → ${eta(h3, /T3/).toFixed(3)}, M1 ${eta(h, /M1/).toFixed(3)} → ${eta(h3, /M1/).toFixed(3)}`);
+  // d) Bindeblech der Druckstütze
+  const qb = d.querschnitte.find((q) => /ANKERBLECH/.test(q.name));
+  const ohne = { ...qb }; delete ohne.A; delete ohne.Iy; delete ohne.Iz; delete ohne.It;
+  const aus = SW214.qsWerte(ohne);
+  wahr('Bindeblech der Druckstütze: die Zahlen der Datei sind die der Abmessungen (stark um lokal z)',
+       qb.Iz > 100 * qb.Iy && Math.abs(aus.Iy - qb.Iy) < 1e-15 && Math.abs(aus.Iz - qb.Iz) < 1e-15,
+       `I_y ${(qb.Iy * 1e8).toFixed(2)} · I_z ${(qb.Iz * 1e8).toFixed(1)} cm⁴`);
+  // Alle Rechtecke mit eigenen Zahlen: dieselbe Probe, damit es kein drittes Mal vorkommt.
+  const schief = d.querschnitte.filter((q) => q.form === 'Rectangle' && Number.isFinite(q.Iy) && Number.isFinite(q.Iz))
+    .filter((q) => { const o = { ...q }; delete o.A; delete o.Iy; delete o.Iz; delete o.It; const r = SW214.qsWerte(o);
+      return Math.abs(r.Iy - q.Iy) > 1e-12 * Math.max(1, r.Iy) && Math.abs(r.Iy - q.Iy) / r.Iy > 1e-6
+          || Math.abs(r.Iz - q.Iz) / r.Iz > 1e-6; });
+  wahr('Kein Rechteckquerschnitt der Datei führt Zahlen, die seinen Abmessungen widersprechen',
+       schief.length === 0, schief.map((q) => q.name).join(', '));
 }
 
 console.log('\n' + '='.repeat(104));
