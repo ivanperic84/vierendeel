@@ -507,6 +507,17 @@ export function abfangSzene(typ, jt, opt = {}) {
    * einer beim abgefangenen Leiter. Der Ständer hängt am selben Punkt und
    * reicht bis zur Höhe des Bauteils.
    */
+  /*
+   * >>> DAS 3D KENNT DIE ANBAUTEILE DES ABFANGJOCHS (3. Oktober). <<<
+   * «checke das anbringen von anbauteilen an einem Abfangjoch und die
+   * funktion mit dem drag and drop und ob das heranzoomen funktioniert wenn
+   * man ein anbauteil auswählt.» Befund im Browser: die Karte ging auf, das
+   * Bild fuhr nicht heran, und ziehen liess sich das Teil nicht - die Szene
+   * führte die Liste `anbauteile` nicht, an der beides hängt (Bereich je
+   * Teil mit seinem Index in der Eingabe; `zeigeAnbauteil`, Ziehen in
+   * render.3d.js). Das Tragjoch führt sie seit je.
+   */
+  const detailBereiche = [];
   (opt.anbauteile ?? []).forEach((at, j) => {
     if (!at || at.aktiv === false) return;
     if ((at.ort ?? 'joch') !== 'joch') return;
@@ -515,7 +526,8 @@ export function abfangSzene(typ, jt, opt = {}) {
     const fb = farbeFuer(`anbau|${at.vorlage ?? at.name}`,
                          at.name ?? 'Anbauteil', 'anbau');
     const teil = `AT_${j + 1}`;
-    const opt2 = { gruppe: 'anbau', teil, farbeBauteil: fb,
+    // `anbauteil`: daran erkennt das 3D die Fläche als greifbares Teil (Ziehen).
+    const opt2 = { gruppe: 'anbau', teil, farbeBauteil: fb, anbauteil: at,
                    label: `${at.name ?? 'Anbauteil'} · ${an.art === 'mitte'
                      ? `Mitte Träger (${an.seite === 'H' ? 'hinten' : 'vorn'})`
                      : 'über beide Gurte'}` };
@@ -532,6 +544,15 @@ export function abfangSzene(typ, jt, opt = {}) {
     const zs = (at.module ?? []).map((m2) => Number(m2?.z) || 0);
     const zTief = zs.length ? Math.min(...zs, 0) : -0.25;
     const zHoch = zs.length ? Math.max(...zs, 0) : 0;
+    /*
+     * DER GRIFF: eine Klemme quer über dem Träger. Ein Leiter in der
+     * Trägermittelebene ist sonst nur ein Stäbchen zwischen den Gurten -
+     * im Bild kaum zu sehen und mit der Maus nicht zu treffen.
+     */
+    flaechen.push(...quader([x, 0, hG / 2 + 0.03], [0.10, 2 * yAchse(x) + 0.12, 0.05], opt2));
+    detailBereiche.push({ teil, id: at.id, index: j, name: at.name, x, r: 0.3,
+                          zMin: Math.min(zTief, -hG / 2) - 0.1, zMax: Math.max(zHoch, hG / 2) + 0.1,
+                          xMin: x - 0.3, xMax: x + 0.3 });
     if (zTief < -0.01) {
       flaechen.push(...stab([x, 0, 0], [x, 0, zTief], 0.045, opt2));
       flaechen.push(...quader([x, 0, zTief], [0.09, 0.09, 0.06], opt2));
@@ -981,6 +1002,7 @@ export function abfangSzene(typ, jt, opt = {}) {
     grenzen: { xMin: x0, xMax: x1, yMin: y0, yMax: y1,
                zMin: z0 - 1.2, zMax: z1 + 0.8 },
     stationen,
+    anbauteile: detailBereiche,
     L: jt, art: 'abfangjoch', typ,
     // Der Nachweisschnitt liegt im Randfeld - dort fällt er (Randfeld ist
     // das längste Feld, siehe abfangRahmenfeld).

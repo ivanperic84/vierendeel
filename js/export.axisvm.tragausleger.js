@@ -419,6 +419,8 @@ export function tragauslegerModell(satz, opt = {}) {
    */
   let wA = null;
   try { wA = flLastwerte(TA_WIND_BAUSTEIN, { ek }).Qy; } catch { wA = null; }
+  // Einheitswind (alte Norm): nur die Angriffsfläche des vorderen Profils, h × 1.0 kN/m².
+  if (ek === 'EK0' && p?.h > 0) wA = p.h / 100;   // p.h in cm
   if (wA > 0) {
     staebe.filter((s) => /^[VH]_S\d+$/.test(s.name)).forEach((s) => {
       strecke.push({ name: `Q_WindY_${s.name}`, stab: s.name, richtung: 'Y',

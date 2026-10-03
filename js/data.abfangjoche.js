@@ -60,6 +60,24 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
+import { windWertStufe, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
+
+/**
+ * Wind auf das Abfangjoch je Meter [kN/m] für die Klasse `ek`.
+ *
+ * >>> EINHEITSWIND: NUR DIE ANGRIFFSFLÄCHE (3. Oktober). <<< «beachte noch
+ * bei dem einheitswind, das die last sich aus der angriffsfläche ergibt bei
+ * den jochen, die zweite eben wird nicht wie bei den EK 1 bis 3
+ * mitgenommen.» Der Tabellenwert (EK1-EK3) führt die zweite Ebene mit; der
+ * Einheitswind trifft allein die Höhe des vorderen Profils × 1.0 kN/m².
+ */
+export function abfangWind(a, ek) {
+  if (ek === EINHEIT_EK) {
+    const h = Number(/(\d+)/.exec(String(a?.profil ?? ''))?.[1]);
+    if (h > 0) return EINHEIT_Q * h / 1000;
+  }
+  return windWertStufe(a?.wind, ek) ?? 0;
+}
 
 let DB = null;
 

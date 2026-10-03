@@ -802,6 +802,34 @@ export function abfangDiagramme(ab, breite = 900) {
  * @param {object} opt     {breite, name, laengeMax, knickKurve}
  * @returns {string|null}  null auf Zug und ohne Kurve
  */
+/**
+ * >>> DAS ALTE BEMESSUNGSDIAGRAMM DES GITTERMASTS (3. Oktober). <<<
+ * «lese die alten bemessungdiagramme der gittermasten und führe die unter
+ * verläufe, wenn einheitswind ausgewält ist.» Das Diagramm des Sortiments
+ * ist eine Gerade zwischen den zulässigen Fussmomenten der beiden
+ * Richtungen (M_a allein, M_b allein); eingetragen ist der massgebende
+ * charakteristische Zustand aus dem Stabwerk. η = M_a/zul_a + M_b/zul_b.
+ *
+ * @param {object} d  Ergebnis von `gitterDiagramm` (core.stabmast.js)
+ */
+export function gitterBemDiagramm(d, opt = {}) {
+  if (!d || !(d.zulA > 0) || !(d.zulB > 0)) return null;
+  const xMax = Math.max(d.zulA, d.Ma * 1.08);
+  const punkte = xMax > d.zulA + 1e-9 ? [0, d.zulA, xMax] : [0, d.zulA];
+  const werte = xMax > d.zulA + 1e-9 ? [d.zulB, 0, 0] : [d.zulB, 0];
+  return linienDiagramm({
+    titel: `Bemessungsdiagramm Gittermast ${d.typ}${opt.name ? ` · ${opt.name}` : ''}`
+         + ' — zulässige Fussmomente (alte Bemessung)',
+    breite: opt.breite ?? 900, hoehe: 260,
+    xLabel: 'Fussmoment M_a [kNm] (Biegung in Richtung a)', yLabel: 'M_b [kNm]',
+    punkte,
+    serien: [{ name: `zulässig · ${d.zulA.toFixed(1)} / ${d.zulB.toFixed(1)} kNm`, werte, einheit: 'kNm' }],
+    marke: { x: d.Ma, y: d.Mb,
+             text: `${d.bez ?? d.fall ?? ''} · M_a ${d.Ma.toFixed(1)} · M_b ${d.Mb.toFixed(1)} · η ${d.eta.toFixed(3)}`,
+             schlecht: d.eta > 1 },
+  });
+}
+
 export function ankerDiagramm(e, sortiment, opt = {}) {
   const nw = e?.nachweis;
   if (!nw || nw.N >= 0) return null;               // Zugstab: keine Kurve

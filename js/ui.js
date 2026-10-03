@@ -8335,6 +8335,9 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null, sw = null) 
       teile.push(diagrammBlock(`anker-bem-${i}`,
         'Bemessungsdiagramm der Stütze', w.bemessung));
     }
+    // Das Bemessungsdiagramm der Gittermasten steht für sich (unten, `gitterBem`):
+    // es kommt aus dem Stabwerk und gehört nicht in den eingeklappten Ersatzbalken.
+    if (w.gitter) return '';
     if (w.schnitt) {
       teile.push(diagrammBlock(`mast-schnitt-${i}`,
         'Schnittgrössen über die Höhe', w.schnitt));
@@ -8357,6 +8360,9 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null, sw = null) 
     return abschnitt(w.titel ?? '') + teile.join('');
   }).join('');
 
+  const gitterBem = (weitere ?? []).map((w, i) => (w.gitter
+    ? abschnitt(w.titel ?? '') + diagrammBlock(`gitter-bem-${i}`,
+      'Bemessungsdiagramm (alte Bemessung, Einheitswind)', w.gitter) : '')).join('');
   const kern = `
     ${dia ? diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen) : ''}
     ${dia ? diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene) : ''}
@@ -8376,8 +8382,9 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null, sw = null) 
     ${sw.masten.map((m) => abschnitt(`Mast ${m.name} · Stabwerk`)
       + diagrammBlock(`sw-mast-eta-${m.name}`, 'Ausnutzung über die Höhe', m.eta)
       + diagrammBlock(`sw-mast-schnitt-${m.name}`, 'Schnittgrössen über die Höhe', m.schnitt)).join('')}
+    ${gitterBem}
     ${klapp('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich', kern, 'Kern')}`
-    : kern;
+    : gitterBem + kern;
   verdrahteDiagramme(node);
   verdrahteKlapp(node);
 }

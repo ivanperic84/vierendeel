@@ -3646,12 +3646,26 @@ export class Modellansicht {
     const liste = this.szene?.anbauteile ?? [];
     if (!liste.length) return null;
     const tr = this._treffer(e);
-    if (tr) {
-      if (!tr.flaeche.anbauteil || tr.flaeche.passiv) return null;
-      const b = liste.find((d) => d.teil === tr.flaeche.teil);
-      return b ? { b, a: tr.flaeche.anbauteil } : null;
-    }
     const [px, py] = this._geraetePunkt(e);
+    if (tr) {
+      if (tr.flaeche.passiv) return null;
+      let fl = tr.flaeche.anbauteil ? tr.flaeche : null;
+      /*
+       * >>> EIN TEIL, DAS AUF DEM TRÄGER SITZT (3. Oktober). <<< Der Treffer
+       * nimmt die Fläche mit der kleinsten Tiefe ihres Schwerpunkts - eine
+       * lange Gurtfläche gewinnt damit gegen die kleine Klemme, die auf ihr
+       * liegt (am Abfangjoch im Browser gesehen: das Bild drehte, statt das
+       * Teil zu ziehen). Liegt unter dem Zeiger die Fläche eines
+       * Anbauteils, gilt sie.
+       */
+      if (!fl) {
+        fl = this._sichtbareFlaechen().find((f) => f.anbauteil && !f.passiv && f._2d
+          && this._imPolygon(px, py, f._2d)) ?? null;
+      }
+      if (!fl) return null;
+      const b = liste.find((d) => d.teil === fl.teil);
+      return b ? { b, a: fl.anbauteil } : null;
+    }
     const proj = this._projektor();
     const rand = 6 * this._s;
     const im = liste.filter((b) => [b.xMin, b.xMax, b.zMin, b.zMax].every(Number.isFinite))

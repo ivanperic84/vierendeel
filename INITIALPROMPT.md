@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6483 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6498 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,12 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Anker:** das Stabmodell des Abfangjochs baut den Anker jetzt
+  (fehlte ganz); am geteilten Masten steht er einmal statt je Tragwerk
+  (vorher halbe Ankerkraft, unsichere Seite). Anbauteile am Abfangjoch im 3D
+  heranfahrbar und greifbar (⚠ Ziehen im Browser nicht bestätigt).
+  Einheitswind am Abfangjoch = Profilhöhe; Bemessungsdiagramm der Gittermasten
+  unter Verläufe bei Einheitswind.
 - **3. Oktober, Einheitswind (alte Norm):** vierte Windstufe «1.0 kN/m², ohne
   Formbeiwert» (intern `EK0`, Regel in `data.fl.js`): Joch auf seine
   Windangriffsfläche, Masten auf die Profilbreite, Anbauteile aus dem

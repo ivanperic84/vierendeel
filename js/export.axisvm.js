@@ -1453,6 +1453,75 @@ function gleicheLage(s, name, p) {
  * Knoten auf der Mastachse an, haengte aber nichts daran - seine COM-Datei
  * hatte keine einzige Last aus Traverse, Leiter oder Lampe.
  */
+/**
+ * >>> DER ANKER AM MASTEN DES ABFANGJOCHS (3. Oktober). <<<
+ *
+ * Befund beim Durchrechnen («checke die funktionsweise … von Abfangjochen
+ * … mit ankern»): das Stabmodell des Abfangjochs baute den Anker nicht -
+ * `ankerAus` stand leer da. Im Stabwerk trug der Mast den Leiterzug allein
+ * (gemessen zwei A160 übereinander mit Druckstütze längs: Mast η 2.23),
+ * und der Anker hatte keinen Nachweis aus dem Stabwerk.
+ *
+ * Gebaut wird derselbe Anker wie am Joch und am Einzelmasten
+ * (`ankerBauen`), angehängt an den fertigen Baustein: der Maststab wird am
+ * Ankerpunkt geteilt; liegt der Punkt über dem Trägeranschluss (das Modell
+ * des Abfangjochs endet dort), wird der Mast bis zum Ankerpunkt
+ * verlängert - er steht ja wirklich höher. Im Blatt reiht
+ * `mastNeuAufreihen` den geteilten Masten aus allen Teilpunkten neu auf.
+ */
+function abfangAnkerAnbauen(bau, satz, opt = {}) {
+  const praefix = opt.praefix ?? '';
+  ['A', 'B'].forEach((ende) => {
+    const ak = ende === 'B' ? satz.mastAnkerB : satz.mastAnkerA;
+    if (!(ak?.typ && ak.h > 0 && ak.a > 0)) return;
+    const key = opt.mastNamen?.[ende] ?? ende;
+    const re = new RegExp(`^MAST_${key}(_O|_S\\d+)?$`);
+    const zug = bau.staebe.filter((st) => re.test(st.name) && (st.artFest ?? 'stab') === 'stab');
+    if (!zug.length) return;
+    const z = (n) => bau.knoten.get(n).z;
+    const kn = [...new Set(zug.flatMap((st) => [st.von, st.bis]))].sort((a, b) => z(a) - z(b));
+    const kFuss = kn[0], kTop = kn[kn.length - 1];
+    const x = bau.knoten.get(kFuss).x, zFuss = z(kFuss);
+    const zAnk = r6(zFuss + ak.h);
+    let kAnk = kn.find((n) => Math.abs(z(n) - zAnk) < 1e-6);
+    if (!kAnk) {
+      kAnk = `MAST_${key}_ANK`;
+      bau.knoten.set(kAnk, { name: kAnk, x, y: 0, z: zAnk });
+      const frei = (() => {
+        let k = zug.length + 1;
+        while (bau.staebe.some((st) => st.name === `MAST_${key}_S${k}`)) k += 1;
+        return `MAST_${key}_S${k}`;
+      })();
+      const st = zug.find((s2) => (z(s2.von) - zAnk) * (z(s2.bis) - zAnk) < 0);
+      if (st) {
+        // Teilen: das Stück am alten Anfang behält den Namen, das andere ist neu.
+        const neu = { ...st, name: frei, roh: frei, praefix: '', von: kAnk };
+        st.bis = kAnk;
+        bau.staebe.splice(bau.staebe.indexOf(st) + 1, 0, neu);
+        // Streckenlasten (Mastwind) gelten beiden Stücken.
+        const sl = bau.eigeneLasten?.strecke ?? [];
+        sl.filter((l) => l.stab === st.name).forEach((l) => sl.push({ ...l, name: `${l.name}_AK`, stab: frei }));
+      } else if (zAnk > z(kTop)) {
+        // Über dem Trägeranschluss: der Mast läuft bis zum Ankerpunkt weiter.
+        const vor = zug.find((s2) => s2.von === kTop || s2.bis === kTop);
+        bau.staebe.push({ ...vor, name: frei, roh: frei, praefix: '', von: kTop, bis: kAnk });
+      } else return;
+    }
+    const s = sammler(praefix);
+    s.kn(kAnk, x, 0, zAnk);
+    const qsStarr = s.qs(rechteck(STARR));
+    const auflager = [], ankerAus = [];
+    ankerBauen({ s, md: { anker: ak }, ende, mn: () => key, x, h: 0, zFuss,
+                 zOben: zAnk + 1, mastKn: new Map([[zAnk, kAnk]]), qsStarr, auflager, ankerAus });
+    s.knoten.forEach((k, name) => { if (!bau.knoten.has(name)) bau.knoten.set(name, k); });
+    s.querschnitte.forEach((q, name) => { if (!bau.querschnitte.has(name)) bau.querschnitte.set(name, q); });
+    bau.staebe.push(...s.staebe);
+    bau.auflager.push(...auflager.map((a) => ({ ...a, fest: true })));
+    bau.ankerAus.push(...ankerAus);
+  });
+  return bau;
+}
+
 function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
   // Gruppiert wie am Joch: die Baugruppe haelt zusammen, was zusammengehoert.
   const mastGruppen = new Map();
@@ -2042,10 +2111,25 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * Tragwerk von links nimmt sie mit; die weiteren lassen sie aus.
    */
   const mastAnbauVergeben = new Set();
+  const ankerVergeben = new Set();
   alle.forEach((t) => {
     const dz = hoehenversatz(t, gesetzt, mastenJe, werte);
     const ent = entflochten.get(t.id) ?? { dx: 0, mastDx: 0, wegen: null };
     const satzT = tragwerkSatz(werte, t.id, { mastAnbauAus: mastAnbauVergeben });
+    /*
+     * >>> EIN MAST, EIN ANKER (3. Oktober). <<< Befund: am geteilten Masten
+     * baute JEDES Tragwerk den Anker (T1_ANKER_M2 und T2_ANKER_M2) - zwei
+     * Stützen im Stabwerk, jede mit der halben Kraft; der Ankernachweis lag
+     * damit auf der unsicheren Seite. Wie bei den Teilen am Masten bekommt
+     * ihn das erste Tragwerk, das den Masten trägt.
+     */
+    {
+      const [aV, bV] = mastenJe.get(t.id) ?? [];
+      [['mastAnkerA', aV?.[1]?.id], ['mastAnkerB', bV?.[1]?.id]].forEach(([f, id]) => {
+        if (!id || !satzT[f]?.typ) return;
+        if (ankerVergeben.has(id)) satzT[f] = null; else ankerVergeben.add(id);
+      });
+    }
     let m;
     try {
       m = deps.modellVon(satzT);
@@ -2352,7 +2436,7 @@ export function stabmodell(m, opt = {}) {
    */
   const satzOpt = opt.satz ?? opt.eingabe ?? null;
   if (tragwerksart(m).key === 'abfangjoch' && satzOpt) {
-    return abfangBau(satzOpt, opt);
+    return abfangAnkerAnbauen(abfangBau(satzOpt, opt), satzOpt, opt);
   }
   /*
    * >>> DER TRAGAUSLEGER EBENSO (28. September, Etappe 2). <<<

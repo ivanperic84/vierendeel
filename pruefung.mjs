@@ -36955,6 +36955,117 @@ if (AJ.abfangDbDa()) {
   }
 }
 
+/* =========================================================================
+ * 210  ANKER AM ABFANGJOCH UND AM GETEILTEN MASTEN; ANBAUTEILE AM ABFANGJOCH
+ *      IM 3D; EINHEITSWIND AUF EINE EBENE; BEMESSUNGSDIAGRAMM (3. Oktober)
+ * =========================================================================
+ * «checke die funktionsweise und den workflow und die plots von
+ * Abfangjochen (übereinander für Tragseil und Fahrdraht abfangung) mit
+ * ankern.» - «checke das anbringen von anbauteilen an einem Abfangjoch und
+ * die funktion mit dem drag and drop und ob das heranzoomen funktioniert» -
+ * «beachte noch bei dem einheitswind, das die last sich aus der
+ * angriffsfläche ergibt bei den jochen, die zweite eben wird nicht wie bei
+ * den EK 1 bis 3 mitgenommen.» - «lese die alten bemessungdiagramme der
+ * gittermasten und führe die unter verläufe, wenn einheitswind ausgewält ist.»
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const C210 = await import(J('core.constants.js'));
+  const N210 = await import(J('core.nachbarn.js'));
+  const AS210 = await import(J('app.stabwerk.js'));
+  const DA210 = await import(J('data.anbauteile.js'));
+  const V210 = await import(J('core.vierendeel.js'));
+  const RA210 = await import(J('render.abfang.js'));
+  const RC210 = await import(J('render.charts.js'));
+  const FL210 = await import(J('data.fl.js'));
+  let ankerDa = true;
+  try { ankerDa = (await import(J('data.anker.js'))).ankerTypen().length > 0; } catch { ankerDa = false; }
+  const rechne210 = (w0) => {
+    const w = N210.rechensatzMitNachbarn(w0);
+    const erg = V210.berechne(w, ...N210.kernArgumente(w));
+    return AS210.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+  };
+  const grund = () => ({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' });
+  const teilJ = (vid, x) => ({ ...DA210.neuesAnbauteil(vid, x), ort: 'joch' });
+  const anker = { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus', befestigung: 'ankerplatte' };
+
+  if (ankerDa) {
+    // Zwei Abfangjoche übereinander: oben Tragseile, unten Fahrdrähte, Druckstütze längs je Mast.
+    let w = C210.tragwerkHinzu(grund(), 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+    w = C210.tragwerkWeg(w, 'T1');
+    w.anbauteile = [teilJ('leiter-ts-nfl-abf', 4.0), teilJ('leiter-ts-nfl-abf', 8.5)];
+    w = C210.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 6.0 });
+    w.anbauteile = [teilJ('leiter-fd-nfl-abf', 4.0), teilJ('leiter-fd-nfl-abf', 8.5)];
+    const ohne = rechne210(w);
+    let wA = w;
+    C210.mastenVon(w).forEach((m) => { wA = C210.setzeMastAnker(wA, m.id, anker); });
+    const mit = rechne210(wA);
+    const dat = mit.roh.dat, lsg = mit.roh.lsg;
+    const ids = C210.mastenVon(wA).map((m) => C210.mastName(wA, m));
+    const fuesse = dat.auflager.map((a) => a.knoten).filter((n) => /ANKER_.*_F$/.test(n));
+    wahr('Abfangjoche übereinander: der Anker steht im Stabwerk, je Mast EINMAL',
+         !mit.fehler && fuesse.length === ids.length, fuesse.join(' '));
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const kette = ids.every((id) => {
+      const ms = dat.staebe.filter((s) => new RegExp('^MAST_' + id + '_S\\d+$').test(s.name));
+      const z = ms.map((s) => [kn.get(s.von).z, kn.get(s.bis).z].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0]);
+      return z.length > 2 && z.every((p, i) => i === 0 || Math.abs(p[0] - z[i - 1][1]) < 1e-6);
+    });
+    wahr('… der Mast ist ein lückenloser Zug, am Ankerpunkt geteilt', kette);
+    const Z = 2 * FL210.abfangkraft('drahtwerk-n-fl-stcu-50', { tempFall: 'tragsicherheit' }).Z
+            + 2 * FL210.abfangkraft('drahtwerk-n-fl-cu-107', { tempFall: 'tragsicherheit' }).Z;
+    const rA = lsg.auflagerkraefte('G_Ablenk');
+    const hAnker = rA.filter((a) => /ANKER/.test(a.knoten)).reduce((s, a) => s + Math.abs(a.uy), 0);
+    const hAlle = rA.reduce((s, a) => s + a.uy, 0);
+    pruef('… Gleichgewicht: der ständige Leiterzug (2 Tragseile + 2 Fahrdrähte) kommt an den Auflagern an',
+          Math.abs(hAlle), Z, 0.01, 'kN');
+    wahr('… und die Druckstützen tragen ihn fast ganz', hAnker > 0.9 * Z, `${hAnker.toFixed(2)} von ${Z.toFixed(2)} kN`);
+    const etaM = (h) => Math.max(...(h.reihe ?? []).filter((b) => /Mast/.test(b.name ?? '')).map((b) => b.eta));
+    wahr('… der Mast wird entlastet (vorher fehlte der Anker im Stabmodell des Abfangjochs)',
+         etaM(mit) < 0.5 * etaM(ohne), `Mast η ${etaM(ohne).toFixed(3)} → ${etaM(mit).toFixed(3)}`);
+
+    // Jochreihe: der Anker am geteilten Masten einmal.
+    let r = C210.tragwerkHinzu(grund(), 'joch', { xLage: 20, L: 20 });
+    const m2 = C210.mastenVon(r).find((m) => Math.abs(m.x - 20) < 0.2);
+    r = C210.setzeMastAnker(r, m2.id, anker);
+    const hr = rechne210(r);
+    const fr = hr.roh.dat.auflager.map((a) => a.knoten).filter((n) => /ANKER_.*_F$/.test(n));
+    wahr('Jochreihe: der Anker am geteilten Masten steht einmal im Stabwerk (vorher je Tragwerk einer, halbe Kraft)',
+         fr.length === 1, fr.join(' '));
+  }
+
+  // Abfangjoch-Szene: Anbauteile für Heranfahren und Ziehen.
+  const at = [{ ...DA210.neuesAnbauteil('leiter-fd-nfl-abf', 4.0), ort: 'joch' }];
+  const sz = RA210.abfangSzene('A160', 12.5, { anbauteile: at });
+  wahr('Abfangjoch-Szene: führt ihre Anbauteile mit Bereich und Index (Heranfahren, Ziehen)',
+       sz.anbauteile?.length === 1 && sz.anbauteile[0].index === 0 && Math.abs(sz.anbauteile[0].x - 4) < 1e-9
+       && sz.anbauteile[0].zMax > sz.anbauteile[0].zMin);
+  wahr('… ihre Flächen sind als Anbauteil greifbar, mit einer Klemme über dem Träger',
+       sz.flaechen.filter((f) => f.anbauteil === at[0] && f.teil === sz.anbauteile[0].teil).length >= 12);
+  const q3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('3D: ein Teil auf dem Träger gilt als Treffer, auch wenn die Gurtfläche davor liegt',
+       q3d.includes('this._sichtbareFlaechen().find((f) => f.anbauteil && !f.passiv && f._2d'));
+
+  // Einheitswind am Abfangjoch: eine Ebene = Profilhöhe.
+  const a160 = AJ.getAbfangjoch('A160');
+  pruef('Einheitswind am Abfangjoch A160: Profilhöhe × 1.0 kN/m² (eine Ebene)', AJ.abfangWind(a160, 'EK0'), 0.16, 1e-12, 'kN/m');
+  wahr('… EK1-EK3 bleiben beim Tabellenwert', AJ.abfangWind(a160, 'EK1') === a160.wind['0.9']
+       && AJ.abfangWind(a160, 'EK3') === a160.wind['1.3']);
+
+  // Bemessungsdiagramm der Gittermasten.
+  const svg = RC210.gitterBemDiagramm({ zulA: 137.3, zulB: 137.3, Ma: 60, Mb: 20, eta: 80 / 137.3,
+    bez: 'Ständig + Wind +y', typ: 'II 45' }, { name: 'M1' });
+  wahr('Bemessungsdiagramm Gittermast: Gerade der zulässigen Fussmomente mit dem massgebenden Zustand',
+       typeof svg === 'string' && svg.includes('Bemessungsdiagramm Gittermast II 45') && svg.includes('η 0.583'));
+  wahr('… ohne zulässige Momente kein Diagramm', RC210.gitterBemDiagramm({ zulA: 0, zulB: 1 }) === null);
+  const q210 = APP_QUELLE();
+  wahr('Die App führt es unter Verläufe, wenn der Einheitswind gewählt ist',
+       q210.includes("if (ekVonWindklasse(werte.windKlasse) === 'EK0') {") && q210.includes("setz('gitter-bem', w.gitter);"));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Reihenmarken leiser: die Ampel trägt nur die Zahl', css.includes('.sw-bauteil.ok b   { color: var(--ok); }')
+       && !css.includes('.sw-bauteil.ok   { border-color: var(--ok);'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

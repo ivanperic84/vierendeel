@@ -3288,11 +3288,15 @@ body.datei-ueber::after {
   border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
 }
 .sw-bauteil b { font-weight: 600; }
-.sw-bauteil.ok   { border-color: var(--ok);   color: var(--ok); }
-.sw-bauteil.warn { border-color: var(--warn); color: var(--warn); }
-.sw-bauteil.fail {
-  border-color: var(--fail); color: var(--fail); background: var(--fail-s);
-}
+/*
+ * LEISER (3. Oktober): «nimm hier die fahrgen etwas raus, so das der fokus
+ * auf die unteren kacheln bleibt.» Rahmen und Name bleiben neutral; die
+ * Ampel trägt nur noch die Zahl - und beim Überschreiten der Rahmen.
+ */
+.sw-bauteil.ok b   { color: var(--ok); }
+.sw-bauteil.warn b { color: var(--warn); }
+.sw-bauteil.fail   { border-color: var(--fail); }
+.sw-bauteil.fail b { color: var(--fail); }
 
 .sw-knopf { flex: 0 0 auto; font-weight: 600; }
 .stabwerk-leiste.veraltet .sw-knopf {

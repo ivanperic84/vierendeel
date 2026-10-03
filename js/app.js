@@ -19,7 +19,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bautei
          klassifizierung, urteilFusszeile, mitBauteilen, nachweiseAuswahl } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
-import { diagramme, abfangDiagramme, ankerDiagramm,
+import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
@@ -1462,6 +1462,17 @@ function weitereDiagramme(erg, breite) {
                  ausnutzung: md?.ausnutzung ?? null,
                  verformung: md?.verformung ?? null });
   });
+  /*
+   * Das alte Bemessungsdiagramm der Gittermasten - beim Einheitswind (alte
+   * Norm), mit den Fussmomenten des Stabwerks (3. Oktober).
+   */
+  if (ekVonWindklasse(werte.windKlasse) === 'EK0') {
+    const g = stabwerkGilt();
+    Object.entries(g?.h?.gitterJe ?? {}).forEach(([id, gj]) => {
+      const svg = gj?.diagramm ? gitterBemDiagramm(gj.diagramm, { breite, name: id }) : null;
+      if (svg) liste.push({ titel: `Gittermast ${id} · Typ ${gj.typ}`, gitter: svg });
+    });
+  }
   return liste;
 }
 
@@ -1489,6 +1500,7 @@ function weitereDiagramme(erg, breite) {
 
 /** Die Titel der Bauteildiagramme - dieselben wie in der Seitenleiste. */
 const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
+                       'gitter-bem': 'Bemessungsdiagramm (alte Bemessung)',
                        'mast-schnitt': 'Schnittgrössen über die Höhe',
                        'mast-eta': 'Ausnutzung über die Höhe',
                        'mast-verf': 'Verformung über die Höhe' };
@@ -1552,6 +1564,7 @@ function diagrammSatz(erg, breite) {
       satz[`${art}-${i}`] = { svg, titel: `${w.titel} · ${BUEHNE_TITEL[art]}` };
     };
     setz('anker-bem', w.bemessung);
+    setz('gitter-bem', w.gitter);
     setz('mast-schnitt', w.schnitt);
     setz('mast-eta', w.ausnutzung);
     setz('mast-verf', w.verformung);
