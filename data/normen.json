@@ -17,6 +17,7 @@
    {"name":"L 80x80x8","form":"gleichschenklig","aH":80,"aV":80,"t":8,"r1":10,"r2":5,"g":9.63,"A":12.27,"iy":2.43,"iz":2.43,"imin":1.56,"zsH":2.26,"zsV":2.26,"Wy":12.58,"Wz":12.58},
    {"name":"L 80x80x10","form":"gleichschenklig","aH":80,"aV":80,"t":10,"r1":10,"r2":5,"g":11.86,"A":15.11,"iy":2.41,"iz":2.41,"imin":1.55,"zsH":2.34,"zsV":2.34,"Wy":15.45,"Wz":15.45},
    {"name":"L 90x90x9","form":"gleichschenklig","aH":90,"aV":90,"t":9,"r1":11,"r2":5.5,"g":12.18,"A":15.52,"iy":2.73,"iz":2.73,"imin":1.76,"zsH":2.54,"zsV":2.54,"Wy":17.93,"Wz":17.93},
+   {"name":"L 90x90x11","form":"gleichschenklig","aH":90,"aV":90,"t":11,"r1":11,"r2":5.5,"g":14.7,"A":18.72,"iy":2.71,"iz":2.71,"imin":1.75,"zsH":2.62,"zsV":2.62,"Wy":21.57,"Wz":21.57,"hinweis":"Werte aus dem Normumriss (EN 10056-1); Gurt des Gittermasts."},
    {"name":"L 100x100x10","form":"gleichschenklig","aH":100,"aV":100,"t":10,"r1":12,"r2":6,"g":15.04,"A":19.15,"iy":3.04,"iz":3.04,"imin":1.95,"zsH":2.82,"zsV":2.82,"Wy":24.61,"Wz":24.61},
    {"name":"L 100x100x12","form":"gleichschenklig","aH":100,"aV":100,"t":12,"r1":12,"r2":6,"g":17.83,"A":22.71,"iy":3.02,"iz":3.02,"imin":1.94,"zsH":2.9,"zsV":2.9,"Wy":29.12,"Wz":29.12},
    {"name":"L 120x120x12","form":"gleichschenklig","aH":120,"aV":120,"t":12,"r1":13,"r2":6.5,"g":21.62,"A":27.54,"iy":3.65,"iz":3.65,"imin":2.35,"zsH":3.4,"zsV":3.4,"Wy":42.73,"Wz":42.73},
@@ -25,6 +26,7 @@
    {"name":"L 150x150x18","form":"gleichschenklig","aH":150,"aV":150,"t":18,"r1":16,"r2":8,"g":40.06,"A":51.03,"iy":4.54,"iz":4.54,"imin":2.92,"zsH":4.37,"zsV":4.37,"Wy":98.73,"Wz":98.73},
    {"name":"L 200x200x20","form":"gleichschenklig","aH":200,"aV":200,"t":20,"r1":18,"r2":9,"g":59.93,"A":76.35,"iy":6.11,"iz":6.11,"imin":3.92,"zsH":5.68,"zsV":5.68,"Wy":199.11,"Wz":199.11},
    {"name":"L 120x80x12","form":"ungleichschenklig","aH":120,"aV":80,"t":12,"r1":11,"r2":5.5,"g":17.81,"A":22.69,"iy":2.24,"iz":3.77,"imin":1.71,"zsH":2.03,"zsV":4,"Wy":19.14,"Wz":40.37,"hinweis":"Ungleichschenklig. Die Widerstandsmomente beziehen sich auf die schenkelparallelen Achsen bei liegendem 120-mm-Schenkel. Der Nachweis um die Hauptachsen ist gesondert zu führen."},
+   {"name":"L 100x65x9","form":"ungleichschenklig","aH":100,"aV":65,"t":9,"r1":10,"r2":5,"g":11.11,"A":14.15,"iy":1.82,"iz":3.15,"imin":1.39,"zsH":1.59,"zsV":3.32,"Wy":9.52,"Wz":21.05,"hinweis":"Ungleichschenklig (Gittermast). Werte aus dem Normumriss (EN 10056-1), schenkelparallele Achsen bei liegendem langem Schenkel."},
    {"name":"L 130x80x12","form":"ungleichschenklig","aH":130,"aV":80,"t":12,"g":18.65,"A":23.76,"iy":2.24,"iz":4.14,"imin":1.73,"zsH":1.97,"zsV":4.47,"Wy":19.75,"Wz":47.76,"hinweis":"Ungleichschenklig, in den aktuellen Normprofilreihen nicht mehr enthalten. Die Querschnittswerte sind aus der Sollgeometrie gerechnet (zwei Rechtecke, ohne Ausrundungen) und liegen damit rund 2 % unter den Walzwerten – auf der sicheren Seite. Die Widerstandsmomente gelten für die schenkelparallelen Achsen bei liegendem 130-mm-Schenkel; der Nachweis um die Hauptachsen ist gesondert zu führen."}
   ],
   "walzprofile": [

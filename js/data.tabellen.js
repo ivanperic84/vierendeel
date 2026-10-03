@@ -97,8 +97,17 @@ export const AUFBAU = {
      * Masttyp. Damit gehen sie ohne weiteres Zutun durch Datenpaket,
      * Excel-Mappe und Abgleich, die alle ueber diesen Aufbau laufen.
      */
+    /*
+     * >>> DIE GITTERMASTEN (3. Oktober). <<<
+     * Weisung: «Einen alten Masttyp ergänzen … Es ist ein Gittermast,
+     * struktur wie die Joche, mit unterschied das Winkel nach innen und der
+     * untere teil konisch ausgebildet ist.» Dritte Liste des Sortiments:
+     * je Typ die Gurte unten/oben, die Teilung der Bindebleche und die
+     * Aussenbreiten an den Stationen (Listen in einer Spalte).
+     */
     listen: [{ name: 'typen', pfad: 'typen', schluessel: 'profil' },
-             { name: 'fundamente', pfad: 'fundamente', schluessel: 'typ' }],
+             { name: 'fundamente', pfad: 'fundamente', schluessel: 'typ' },
+             { name: 'gittermasten', pfad: 'gittermasten', schluessel: 'typ' }],
   },
   tragjoche: {
     titel: 'Tragjochtypen',

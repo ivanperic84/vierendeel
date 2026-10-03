@@ -332,7 +332,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6333 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6372 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2001,7 +2001,22 @@ auf einer Kopie; Ergebnis in `Versand/kombinierte_masten_axisvm_*.json`):
 vier Gurte als Stabzüge, Lager an den vier Gurtfüssen, Bleche als Stäbe auf
 vier Seiten, Teilung im Modell vereinfacht, das Rohr läuft im Oberteil und
 ist über kurze Glieder an die Gurte gehalten. Querschnitt je Linie, Lasten
-und Freigaben gingen über COM nicht durch. (3) Sortiment in `data/masten.json` (Tabelle
+und Freigaben gingen über COM nicht durch. (3) **Sortiment gebaut
+(3. Oktober, Prüfstand 206):** dritte Liste `gittermasten` in
+`data/masten.json` (Sicherung `masten_vor_gittermasten_2026-10-03.json`),
+vier Typen (zwei nach Detailzeichnung, zwei abgeleitet), je Typ Gurte,
+Teilung, Aussenbreiten an den Stationen, Bleche, Rohr; `AUFBAU.masten`,
+Katalogabschnitt «Gittermasten» (15 Abschnitte), Zugriff und
+`gittermastGeometrie` in data.masten.js (Stationen mit Höhe, Aussenmass,
+Gurtachse, Blechlänge = Breite − 2 · Schenkel). Zwei Winkel neu in
+`normen.json` (aus dem Normumriss; einer davon ungleichschenklig). Gegen
+die Stücklisten: beim quadratischen Typ treffen alle Blechlängen, beim
+rechteckigen beide Richtungen. **Befund:** der lange abgeleitete Typ ist
+RECHTECKIG (in einer Richtung über die ganze Höhe verjüngt) - die Annahme
+«Breiten wie der gezeichnete Typ» galt nur für die andere Richtung; die
+Geometrie führt deshalb auch im Oberteil veränderliche Breiten
+(`breiteAOben`). Sein Mastaufsatz ist offen (ohne Rohr). **Der Mast ist
+noch nirgends wählbar** - nächster Schritt ist (4) das Stabmodell. (3) Sortiment in `data/masten.json` (Tabelle
 Gittermasten, Winkel in `normen.json` prüfen). (4) Stabmodell: vier Gurte
 nach innen, Bleche auf vier Seiten, konisch, Rohr oben eingespannt; als Mast
 in Einzelmast und Joch. (5) 3D-Bild. (6) Nachweise je Stab + Diagramm-Kachel.
@@ -2682,7 +2697,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6333 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6372 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

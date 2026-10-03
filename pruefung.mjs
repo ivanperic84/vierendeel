@@ -23489,7 +23489,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   // Zwoelf seit dem 24. September: die Mastfundamente (siehe data.katalog.js).
   // Dreizehn seit dem 26. September: der Tragausleger im Abfangjoch-Sortiment.
   // Vierzehn seit dem 30. September: die Signalteile (Signalbauer).
-  pruef('Vierzehn Abschnitte', K.ABSCHNITTE.length, 14, 1e-12, 'Stk');
+  // Fünfzehn seit dem 3. Oktober: die Gittermasten.
+  pruef('Fünfzehn Abschnitte', K.ABSCHNITTE.length, 15, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23573,7 +23574,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle vierzehn Abschnitte', gesamt.abschnitte.length, 14, 1e-12, 'Stk');
+    pruef('… ueber alle fünfzehn Abschnitte', gesamt.abschnitte.length, 15, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23690,8 +23691,9 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
      * der Tragausleger steht im Abfangjoch-Sortiment (gleiche Bauart).
      * ZEHN seit dem 30. September: die Signalteile bei den Anbauteilen.
      */
-    wahr('Sortiment: zehn Abschnitte in sechs Dateien',
-         sort.length === 10 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    // Elf seit dem 3. Oktober: die Gittermasten bei den Masten.
+    wahr('Sortiment: elf Abschnitte in sechs Dateien',
+         sort.length === 11 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -36368,6 +36370,73 @@ titel('205  Lastgenerator Variante B: Fahrdrahtabzug + Kettenwerk am Joch');
        S205.feld('generator').standard.vorlagen.join() === 'hs-fahrdraht,kw-nfl-joch');
   wahr('… und warnt, wenn der Fahrdrahtabzug ohne Kettenwerk angehakt ist',
        APP_QUELLE().includes('<b>Ohne Kettenwerk:</b>'));
+}
+
+// ===========================================================================
+titel('206  Gittermast (kombinierter Mast): Sortiment und Geometrie');
+/*
+ * Weisung 3. Oktober: «Einen alten Masttyp ergänzen … Es ist ein Gittermast,
+ * struktur wie die Joche, mit unterschied das Winkel nach innen und der
+ * untere teil konisch ausgebildet ist. … im oberen teil ist ein rohr der in
+ * den oberen teil des gittermasten eingespannt ist.» Entscheide: Typen mit
+ * Detailzeichnung und zwei abgeleitete; «teilung nach zeichnung, gurt oben
+ * L 70x70x7». Etappe Sortiment: dritte Liste in data/masten.json, Geometrie
+ * in data.masten.js (`gittermastGeometrie`). Die Zahlen stehen in der Datei;
+ * hier wird geprüft, dass sie in sich aufgehen.
+ */
+{
+  const M206 = await import(J('data.masten.js'));
+  const N206 = await import(J('data.normen.js'));
+  if (!M206.gittermastenDa()) {
+    console.log('  (kein Gittermast-Sortiment in diesem Datenordner - übersprungen)');
+  } else {
+    const alle = M206.gittermasten();
+    wahr('Das Sortiment führt die Gittermasten als dritte Liste der Masten',
+         alle.length >= 4, alle.map((g) => g.typ).join(', '));
+    const winkel = new Set(N206.winkelprofile().map((w) => w.name));
+    wahr('Jeder Gurtwinkel steht in der Normtabelle',
+         alle.every((g) => winkel.has(g.gurtUnten) && winkel.has(g.gurtOben)),
+         alle.flatMap((g) => [g.gurtUnten, g.gurtOben]).filter((n) => !winkel.has(n)).join(', ') || 'alle da');
+    const geo = alle.map((g) => [g, M206.gittermastGeometrie(g.typ)]);
+    wahr('Keine Geometrie meldet einen Fehler (Teilung geht auf, Bleche nicht negativ)',
+         geo.every(([, G]) => G.fehler.length === 0),
+         geo.filter(([, G]) => G.fehler.length).map(([g, G]) => `${g.typ}: ${G.fehler.join('; ')}`).join(' | ') || 'kein Fehler');
+    geo.forEach(([g, G]) => {
+      const su = (l) => l.reduce((a, b) => a + b, 0) / 1000;
+      pruef(`${g.typ}: Teilung unten = Höhe bis zum Knick`, su(g.teilungUnten), g.hUnten, 1e-9, 'm');
+      pruef(`${g.typ}: Teilung oben = Höhe des Oberteils`, su(g.teilungOben), g.hOben, 1e-9, 'm');
+      const knick = G.stationen.find((s) => s.blech?.art === 'knick');
+      wahr(`${g.typ}: der Knick liegt auf ${g.hUnten} m, der Kopf auf ${G.hoehe} m`,
+           Math.abs(knick.z - g.hUnten) < 1e-9 && Math.abs(G.stationen.at(-1).z - G.hoehe) < 1e-9);
+      wahr(`${g.typ}: unten wird der Mast nach oben nie breiter (konisch)`,
+           G.stationen.filter((s) => s.teil === 'unten').every((s, i, l) => i === 0
+             || (s.a <= l[i - 1].a + 1e-9 && s.b <= l[i - 1].b + 1e-9)));
+      wahr(`${g.typ}: die Gurtachse liegt innerhalb der Aussenkante`,
+           G.stationen.every((s) => s.achseA < s.a && s.achseB < s.b && s.achseA > 0 && s.achseB > 0));
+      // Wo die Stückliste Blechlängen nennt: Aussenbreite − 2 · Schenkel trifft sie.
+      const bl = G.stationen.filter((s) => s.blech);
+      [['blechLaengenA', 'la'], ['blechLaengenB', 'lb']].forEach(([feld, k]) => {
+        if (!Array.isArray(g[feld])) return;
+        const ab = g[feld].map((soll, i) => Math.abs(bl[i].blech[k] * 1000 - soll));
+        wahr(`${g.typ}: Blechlängen ${k === 'la' ? 'a' : 'b'} = Aussenbreite − 2 · Schenkel (Stückliste, ${g[feld].length} Stationen)`,
+             Math.max(...ab) < 0.5, `grösste Abweichung ${Math.max(...ab).toFixed(2)} mm`);
+      });
+      if (Number.isFinite(g.blechLaengeOben)) {
+        const oben = bl.filter((s) => s.blech.art === 'oben');
+        wahr(`${g.typ}: Blechlänge oben wie die Stückliste`,
+             oben.every((s) => Math.abs(s.blech.la * 1000 - g.blechLaengeOben) < 0.5));
+      }
+    });
+    const mitZ = alle.filter((g) => g.quelle === 'zeichnung').length;
+    wahr('Zwei Typen nach Detailzeichnung, die übrigen als «abgeleitet» gekennzeichnet',
+         mitZ === 2 && alle.every((g) => ['zeichnung', 'abgeleitet'].includes(g.quelle)));
+    const rohr = geo.find(([g]) => g.rohr)?.[1]?.rohr;
+    wahr('Das Rohr oben: Durchmesser, Wanddicke, freie Länge und Länge im Oberteil',
+         rohr && rohr.d > 0.1 && rohr.t > 0.003 && rohr.frei > 3 && rohr.innen > 3,
+         JSON.stringify(rohr));
+  }
+  wahr('Die zwei neuen Gurtwinkel stehen in der Normtabelle',
+       ['L 90x90x11', 'L 100x65x9'].every((n) => N206.winkelprofile().some((w) => w.name === n)));
 }
 
 // ===========================================================================

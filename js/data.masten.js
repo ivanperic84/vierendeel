@@ -27,7 +27,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
-import { mastprofileNorm } from './data.normen.js';
+import { mastprofileNorm, winkelprofile } from './data.normen.js';
 
 let SORT = null;
 
@@ -230,6 +230,107 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
 export function mastWindBeide(name, ek = 'EK2', steg = 'jochachse') {
   const gegen = steg === 'quer' ? 'jochachse' : 'quer';
   return { jochachse: mastWind(name, ek, steg), gleis: mastWind(name, ek, gegen) };
+}
+
+/* ===========================================================================
+ * >>> DIE GITTERMASTEN (kombinierter Mast, 3. Oktober). <<<
+ * =========================================================================
+ *
+ * Weisung: «Einen alten Masttyp ergänzen … Es ist ein Gittermast, struktur
+ * wie die Joche, mit unterschied das Winkel nach innen und der untere teil
+ * konisch ausgebildet ist. … im oberen teil ist ein rohr der in den oberen
+ * teil des gittermasten eingespannt ist.»
+ *
+ * Vier Winkelgurte in den Ecken, die Schenkel nach INNEN; Bindebleche auf
+ * allen vier Seiten, stumpf zwischen den Schenkeln (Blechlänge = Aussen-
+ * breite − 2 · Schenkel). Unten konisch bis zum Knick, darüber gerade. Das
+ * Sortiment führt je Typ die Gurte, die TEILUNG DER ZEICHNUNG (Entscheid
+ * «teilung nach zeichnung») und die Aussenbreiten an den Stationen.
+ *
+ * `gittermastGeometrie` macht daraus, was Modell, Bild und Nachweis
+ * brauchen: die Stationen mit Höhe, Aussenmass, Gurtachsen und Blech.
+ * ========================================================================= */
+export const gittermasten = () => SORT?.gittermasten ?? [];
+export const gittermastenDa = () => gittermasten().length > 0;
+
+export function getGittermast(typ) {
+  const g = gittermasten().find((x) => x.typ === typ);
+  if (!g) throw new Error(`Unbekannter Gittermast: ${typ}`);
+  return g;
+}
+
+/**
+ * Die Geometrie eines Gittermasts, in Metern, z ab Mastfuss.
+ *
+ * Richtung a ist die breite Seite (beim rechteckigen Typ der lange Schenkel),
+ * b die schmale. Die Gurtachse liegt um den Schwerpunktabstand des Winkels
+ * innerhalb der Aussenkante.
+ *
+ * @returns {{typ, hUnten, hOben, hoehe, gurtUnten, gurtOben, stationen: Array,
+ *            rohr: object|null, fehler: string[]}}
+ *   stationen: { z, teil: 'unten'|'oben', a, b, achseA, achseB, gurt,
+ *                blech: { b, t, la, lb, art } }
+ */
+export function gittermastGeometrie(typ) {
+  const g = typeof typ === 'string' ? getGittermast(typ) : typ;
+  const fehler = [];
+  const winkel = (name) => {
+    const w = winkelprofile().find((x) => x.name === name);
+    if (!w) fehler.push(`Gurtwinkel ${name} fehlt in der Normtabelle`);
+    return w ?? null;
+  };
+  const wU = winkel(g.gurtUnten), wO = winkel(g.gurtOben);
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const mm = (v) => r6((Number(v) || 0) / 1000);
+  // Langer Schenkel (aH) in Richtung a; die Tabelle führt zsH/zsV in cm:
+  // zsV ist der Schwerpunktabstand entlang des langen Schenkels.
+  const lage = (w) => ({ sa: mm(w?.aH), sb: mm(w?.aV),
+    ea: mm((w?.zsV ?? 0) * 10), eb: mm((w?.zsH ?? 0) * 10) });
+  const lU = lage(wU), lO = lage(wO);
+  const stationen = [];
+  const stelle = (z, teil, a, b, l, gurt, blech, art) => {
+    stationen.push({ z: r6(z), teil, a, b,
+      achseA: r6(a - 2 * l.ea), achseB: r6(b - 2 * l.eb), gurt,
+      blech: blech ? { b: mm(blech.b), t: mm(blech.t), art,
+        la: r6(a - 2 * l.sa), lb: r6(b - 2 * l.sb) } : null });
+  };
+  const tu = g.teilungUnten ?? [], to = g.teilungOben ?? [];
+  if (tu.length !== (g.breiteA ?? []).length || tu.length !== (g.breiteB ?? []).length) {
+    fehler.push('Teilung unten und Aussenbreiten haben nicht gleich viele Stationen');
+  }
+  // Der Fuss selbst (z = 0) - ohne Blech, dort stehen die Fussplatten.
+  stelle(0, 'unten', mm(g.fuss?.a), mm(g.fuss?.b), lU, g.gurtUnten, null, 'fuss');
+  let z = 0;
+  tu.forEach((d, i) => {
+    z += d / 1000;
+    const letzte = i === tu.length - 1;
+    const art = i === 0 ? 'fuss' : letzte ? 'knick' : 'unten';
+    stelle(z, 'unten', mm(g.breiteA?.[i]), mm(g.breiteB?.[i]), lU, g.gurtUnten,
+           g.blech?.[art] ?? g.blech?.unten, art);
+  });
+  if (Math.abs(z - g.hUnten) > 1e-6) fehler.push(`Teilung unten ergibt ${z.toFixed(3)} m statt ${g.hUnten} m`);
+  const ka = mm(g.kopf?.a), kb = mm(g.kopf?.b);
+  // Das Oberteil ist meist gerade (Kopfmass); ein Typ verjüngt sich in
+  // einer Richtung bis zum Kopf - dann führt das Sortiment die Breiten
+  // auch oben (`breiteAOben`, `breiteBOben`, je Station der Teilung).
+  to.forEach((d, i) => {
+    z += d / 1000;
+    const a = Number.isFinite(g.breiteAOben?.[i]) ? mm(g.breiteAOben[i]) : ka;
+    const b = Number.isFinite(g.breiteBOben?.[i]) ? mm(g.breiteBOben[i]) : kb;
+    stelle(z, 'oben', a, b, lO, g.gurtOben, g.blech?.oben, 'oben');
+  });
+  const hoehe = r6((Number(g.hUnten) || 0) + (Number(g.hOben) || 0));
+  if (Math.abs(z - hoehe) > 1e-6) fehler.push(`Teilung oben endet bei ${z.toFixed(3)} m statt ${hoehe} m`);
+  stationen.forEach((s) => {
+    if (s.blech && (s.blech.la < -1e-9 || s.blech.lb < -1e-9)) {
+      fehler.push(`Station ${s.z.toFixed(2)} m: Blechlänge negativ`);
+    }
+  });
+  const rohr = g.rohr?.d > 0 ? { d: mm(g.rohr.d), t: mm(g.rohr.t),
+    frei: Number(g.rohr.frei) || 0, innen: Number(g.rohr.innen) || 0 } : null;
+  return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),
+           hoehe, gurtUnten: g.gurtUnten, gurtOben: g.gurtOben, winkelUnten: wU, winkelOben: wO,
+           stationen, rohr, fehler };
 }
 
 export function getMastprofil(name) {

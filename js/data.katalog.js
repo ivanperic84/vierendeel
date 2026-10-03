@@ -291,6 +291,55 @@ export const ABSCHNITTE = [
       text('zeichnung', 'Zeichnung'),
     ],
   },
+  /* -------------------------------------------------------------------------
+   * >>> DIE GITTERMASTEN (3. Oktober). <<<
+   * Weisung: «Einen alten Masttyp ergänzen … Es ist ein Gittermast, struktur
+   * wie die Joche, mit unterschied das Winkel nach innen und der untere
+   * teil konisch ausgebildet ist.» Vier Winkelgurte, Bindebleche auf allen
+   * vier Seiten; je Typ Gurte, Teilung und Aussenbreiten an den Stationen.
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'gittermasten', db: 'masten', tabelle: 'gittermasten', liste: 'gittermasten',
+    titel: 'Gittermasten', herkunft: 'sortiment', schluessel: 'typ',
+    notiz: 'Kombinierter Mast als Fachwerkrahmen: unten konisch bis zum Knick, '
+         + 'darüber gerade. Teilung ab Mastfuss; die Aussenbreiten gelten an den '
+         + 'Stationen der unteren Teilung (die letzte ist der Knick).',
+    felder: [
+      text('typ', 'Typ', { pflicht: true }),
+      text('quelle', 'Quelle',
+        { notiz: '«zeichnung» = Detailzeichnung; «abgeleitet» = aus Katalog und Übersicht.' }),
+      text('gurtUnten', 'Gurt unten', { pflicht: true, notiz: 'Verweist auf ein Winkelprofil.' }),
+      text('gurtOben', 'Gurt oben', { pflicht: true, notiz: 'Verweist auf ein Winkelprofil.' }),
+      zahl('hUnten', 'Höhe Unterteil (bis Knick)', 'm', { pflicht: true, von: 1, bis: 20 }),
+      zahl('hOben', 'Höhe Oberteil', 'm', { pflicht: true, von: 0, bis: 20 }),
+      satz('fuss', 'Aussenmass am Fuss', [mm('a', 'a (breit)'), mm('b', 'b (schmal)')]),
+      satz('kopf', 'Aussenmass ab Knick', [mm('a', 'a'), mm('b', 'b')]),
+      liste('teilungUnten', 'Teilung unten ab Fuss', 'mm', { pflicht: true }),
+      liste('teilungOben', 'Teilung oben ab Knick', 'mm', { pflicht: true }),
+      liste('breiteA', 'Aussenbreite a an den Stationen', 'mm', { pflicht: true }),
+      liste('breiteB', 'Aussenbreite b an den Stationen', 'mm', { pflicht: true }),
+      liste('breiteAOben', 'Aussenbreite a im Oberteil', 'mm',
+        { notiz: 'Nur wo sich das Oberteil verjüngt; sonst gilt das Kopfmass.' }),
+      liste('breiteBOben', 'Aussenbreite b im Oberteil', 'mm'),
+      satz('blech', 'Bindebleche', [
+        satz('fuss', 'erste Station', [mm('b', 'Breite'), mm('t', 'Dicke')]),
+        satz('unten', 'Unterteil', [mm('b', 'Breite'), mm('t', 'Dicke')]),
+        satz('knick', 'am Knick', [mm('b', 'Breite'), mm('t', 'Dicke')]),
+        satz('oben', 'Oberteil', [mm('b', 'Breite'), mm('t', 'Dicke')]),
+      ]),
+      satz('rohr', 'Rohr oben', [
+        mm('d', 'Aussendurchmesser'), mm('t', 'Wanddicke'),
+        zahl('frei', 'freie Länge über dem Kopf', 'm'),
+        zahl('innen', 'Länge im Oberteil (Einspannung)', 'm'),
+      ]),
+      zahl('gewicht', 'Gewicht', 'kg', { von: 50, bis: 5000 }),
+      liste('blechLaengenA', 'Blechlängen a (Stückliste)', 'mm',
+        { notiz: 'Zur Gegenprobe: Aussenbreite − 2 · Schenkel.' }),
+      liste('blechLaengenB', 'Blechlängen b (Stückliste)', 'mm'),
+      mm('blechLaengeOben', 'Blechlänge oben (Stückliste)'),
+      text('hinweis', 'Hinweis'),
+    ],
+  },
   {
     key: 'tragjoche', db: 'tragjoche', tabelle: 'typen', liste: 'typen',
     titel: 'Tragjochtypen', herkunft: 'sortiment', schluessel: 'typ',
