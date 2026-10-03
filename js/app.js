@@ -4458,7 +4458,7 @@ function klappWechsel(schluessel, offen) {
  */
 function dialogGenerator() {
   const g = { gleise: 2, abstand: 4.5, versatz: 0, ersetzen: true,
-              vorlagen: ['haengestuetze'], ...(werte.generator ?? {}) };
+              vorlagen: ['hs-fahrdraht', 'kw-nfl-joch'], ...(werte.generator ?? {}) };
 
   const koerper = () => `
     <div class="gen-gitter">
@@ -4497,9 +4497,16 @@ function dialogGenerator() {
   const vorschau = () => {
     const o = lies();
     const r = erzeugeGleislasten({ L: werte.L, ...o });
+    // Der Fahrdrahtabzug trägt kein Gewicht - ohne Kettenwerk fehlte es
+    // dem Joch (3. Oktober, Variante B).
+    const ohneKw = o.vorlagen.includes('hs-fahrdraht')
+      && !o.vorlagen.some((id) => /^(kw-|leiter-nfl|leiter-rfl)/.test(id));
     ui.el('gen-vorschau').innerHTML = r.gleisX.length
       ? `<b>${r.teile.length}</b> Anbauteile auf <b>${r.gleisX.length}</b> Gleisen bei
          x = ${r.gleisX.map((x) => x.toFixed(2)).join(' · ')} m.` +
+        (ohneKw ? `<br><b>Ohne Kettenwerk:</b> die Hängestütze mit Fahrdrahtabzug trägt
+         kein Gewicht des Kettenwerks - «Kettenwerk N-FL (Fahrdraht an Hängestütze)»
+         dazu anhaken.` : '') +
         (r.ausserhalb ? `<br><b>${r.ausserhalb}</b> Gleis(e) lägen ausserhalb des
          Jochs (0 … ${werte.L.toFixed(2)} m) und werden ausgelassen.` : '')
       : 'Keine Gleislage innerhalb des Jochs, Abstand oder Anzahl anpassen.';

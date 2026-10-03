@@ -1784,8 +1784,15 @@ export const FELDER = [
   // Zuletzt benutzte Einstellung des Lastgenerators, damit er beim
   // nächsten Aufruf nicht wieder bei null anfängt.
   { key: 'generator', gruppe: 'anbau', typ: 'objekt', versteckt: true,
+    /*
+     * JE GLEIS: FAHRDRAHTABZUG UND KETTENWERK (3. Oktober, «lastgenerator
+     * variante B»). Seit die Hängestütze nur noch den Fahrdraht abzieht
+     * (ohne Gewicht), setzt der Generator dazu das Kettenwerk am Joch -
+     * Tragseil ganz, vom Fahrdraht nur das Gewicht, damit Wind und
+     * Umlenkung des Fahrdrahts nicht doppelt zählen (`kw-nfl-joch`).
+     */
     label: 'Lastgenerator', standard: { gleise: 2, abstand: 4.5, ersetzen: true,
-                                        vorlagen: ['hs-fahrdraht'] } },
+                                        vorlagen: ['hs-fahrdraht', 'kw-nfl-joch'] } },
 
   // --- Verteilte Einwirkungen ---------------------------------------------
   { key: 'lastHerkunft', optionenDialog: true, gruppe: 'ein', typ: 'auswahl', label: 'Herkunft der Lasten',

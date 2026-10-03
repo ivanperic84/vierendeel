@@ -36329,6 +36329,48 @@ titel('204  Aufhängeseile nur auf Zug; Jochaufsatz einfach 2 m / 4 m');
 }
 
 // ===========================================================================
+titel('205  Lastgenerator Variante B: Fahrdrahtabzug + Kettenwerk am Joch');
+/*
+ * Weisung 3. Oktober: «lastgenerator variante B» - je Gleis die Hängestütze
+ * mit Fahrdrahtabzug UND das Kettenwerk N-FL; der Fahrdraht darf dabei nicht
+ * doppelt wirken. Neue Vorlage `kw-nfl-joch`: Tragseil ganz, vom Fahrdraht
+ * nur das Gewicht.
+ */
+{
+  A.setzeAnbauteilDB(ANBAU_KATALOG);
+  try {
+    const o = { ek: 'EK1', R: 600, spannweite: 50 };
+    const su = (a) => A.baugruppeSumme(a, o);
+    const neu = [A.neuesAnbauteil('hs-fahrdraht', 10), A.neuesAnbauteil('kw-nfl-joch', 10)].map(su);
+    const paar = (f) => neu[0][f] + neu[1][f];
+    A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+    const alt = su(A.neuesAnbauteil('hs-fahrdraht', 10));      // bisher: Kettenwerk an der Stütze
+    A.setzeAnbauteilDB(ANBAU_KATALOG);
+    pruef('Gewicht je Gleis wie vorher (Stütze + Tragseil + Fahrdraht)', paar('Gz'), alt.Gz, 1e-9, 'kN');
+    pruef('Umlenkkraft je Gleis wie vorher (Tragseil am Joch + Fahrdraht an der Stütze)',
+          paar('Gx'), alt.Gx, 1e-9, 'kN');
+    wahr('… der Fahrdraht lenkt nur EINMAL um (an der Hängestütze, nicht am Kettenwerk)',
+         Math.abs(neu[1].Gx) < Math.abs(alt.Gx) && Math.abs(neu[0].Gx) > 0,
+         `Stütze ${neu[0].Gx.toFixed(3)} + Kettenwerk ${neu[1].Gx.toFixed(3)} = ${paar('Gx').toFixed(3)} kN`);
+    wahr('Wind quer: Summe der Einzelleiter (Tabelle: 2 × 0.0085 statt 0.020 kN/m am Kettenwerk)',
+         Math.hypot(paar('Qx'), paar('Qy')) > 0
+         && Math.hypot(paar('Qx'), paar('Qy')) <= Math.hypot(alt.Qx, alt.Qy) + 1e-9,
+         `${Math.hypot(alt.Qx, alt.Qy).toFixed(3)} → ${Math.hypot(paar('Qx'), paar('Qy')).toFixed(3)} kN`);
+    const kw = A.vorlagen().find((v) => v.id === 'kw-nfl-joch').module;
+    wahr('Vorlage: Tragseil ganz, Fahrdraht ohne Wind und ohne Ablenkung',
+         kw[0].bauteil === 'drahtwerk-n-fl-stcu-50' && kw[1].bauteil === 'drahtwerk-n-fl-cu-107'
+         && kw[1].wirktQ === false && kw[1].wirktAblenk === false && kw[1].wirktG !== false);
+  } finally {
+    A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+  }
+  const S205 = await import(J('ui.schema.js'));
+  wahr('Der Generator setzt je Gleis beide Vorlagen (Vorgabe)',
+       S205.feld('generator').standard.vorlagen.join() === 'hs-fahrdraht,kw-nfl-joch');
+  wahr('… und warnt, wenn der Fahrdrahtabzug ohne Kettenwerk angehakt ist',
+       APP_QUELLE().includes('<b>Ohne Kettenwerk:</b>'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
