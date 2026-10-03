@@ -8,7 +8,34 @@ zu lesen, bevor etwas geändert wird.
 Stand: **4. Oktober 2026**; Prüfstand 6562 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
-Durchgang) wird gepusht.
+Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
+`git log --oneline -1`; der Arbeitsbaum ist sauber, alles ist gepusht.
+
+**Nächster Schritt (4. Oktober, wartet auf den Auftraggeber):**
+1. ⚠ **AxisVM-Lauf des Beispiels B** (altes Joch auf zwei Gittermasten) mit
+   der entflochtenen Datei - gefragt, nicht beantwortet. Nur auf Anweisung:
+   `node modell_beispiele.mjs`, dann `com\AxisVM_aufbauen.ps1 -Json <abs>
+   -Rechnen -Auslesen -Stapel` (rund 37 Minuten, im Hintergrund), dann
+   `node vergleich_axisvm.mjs com/AxisVM_Beispiel_B.json --ohne-schub`.
+   Erwartet: Gurt und Blech auf 1-2 % über das ganze Joch, und im Bericht
+   der Brücke KEINE Warnung «zu EINEM gemacht».
+2. ⚠ Offene Rückfragen: alle Tragwerke des Blattes bei «umhüllend» aus dem
+   Stabwerk färben (heute nur das gewählte; empfohlen: ja); ob eine am Leiter
+   eingetragene eigene Spannweite bei «einseitig» ebenfalls halbiert wird
+   (heute ja, meine Lesart); Tragseil R-FL bei −20 °C; Annahmen zum
+   Einheitswind (c-Werte), UL-Rohr 6 mm, «u120» = J120-alt; Kachel für den
+   5-%-Vergleich im Bestandesschutz.
+3. Uneinheitlichkeiten der Tragwerksarten (CLAUDE.md, *Offene Punkte*, erster
+   Punkt): Einzellastfall im Bild aus der Ersatzrechnung, Schnitt nur am
+   Tragjoch, SAF/DXF/PyNite nicht für Abfangjoch und Gittermast, Knicken am
+   Einzelmasten und Abfangjoch aus dem Kern.
+4. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch,
+   Ablage-Paket (ZIP) hin und zurück. `kalibrieren_abfang.mjs` (PyNite) seit
+   den Berichtigungen am Abfangjoch nicht neu gelaufen.
+
+**In `Versand/` (nicht in der Ablage) bereit:** Datenpaket vom Tag,
+`COM_Bruecke/` (vier Skripte, Brücke vom 4. Oktober mit der Knotenwache),
+`vierendeel_tool_2026-10-04.html` (gebündelte Einzeldatei).
 
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
@@ -145,7 +172,8 @@ mit falscher Linklage; PyNite-Links.
 > sind. Dann `git log --oneline -15` und `git status`. Danach
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
-> Halte dich an die stehenden Vorgaben: **nicht pushen ohne meine Weisung**;
+> Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
+> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober);
 > kein Projektmaterial des Betreibers in verfolgte Dateien (keine
 > Zeichnungs- oder Projektnummern, kein Betreibername, nicht `data/*.json`,
 > nicht `Grundlagen/`, `Versand/`, `pruefung_axisvm/`); AxisVM rechnet nur
@@ -158,8 +186,13 @@ mit falscher Linklage; PyNite-Links.
 > Weisung mehrdeutig, frag mit konkreten Varianten zurück, statt zu raten.
 > Eine unerklärte Änderung im Arbeitsstand zuerst bei mir erfragen.
 >
-> Was offen ist, steht oben in `INITIALPROMPT.md` und in `CLAUDE.md`,
-> *Offene Punkte*. Frag mich, womit wir weitermachen.
+> Dateien ausserhalb dieses Projekts nur öffnen, wenn ich den Pfad nenne.
+> Nach jeder Weisung: Wortlaut mit Datum in `CLAUDE.md` (*Entschieden*),
+> Kontrollenzahl und `INITIALPROMPT.md` nachführen, committen.
+>
+> Was offen ist, steht oben in `INITIALPROMPT.md` (*Nächster Schritt*) und
+> in `CLAUDE.md`, *Offene Punkte*. Melde mir kurz den Stand (letzter Commit,
+> Prüfstand) und frag mich, womit wir weitermachen.
 
 ---
 
@@ -169,7 +202,7 @@ mit falscher Linklage; PyNite-Links.
 demselben Rechner sind `data/*.json`, `Grundlagen/`, `Versand/` und
 `pruefung_axisvm/` weiter da (sie stehen nur nicht in der Ablage), AxisVM
 antwortet weiter über COM, und die Git-Anmeldung hängt am Windows-Benutzer,
-nicht am Konto — pushen geht also, **aber nur auf Weisung**.
+nicht am Konto — pushen geht also (ein grüner Stand, Weisung 2. Oktober).
 
 Zwei Dinge wandern nicht mit:
 
@@ -189,8 +222,10 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6147 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6562 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
+node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
+node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 node vergleich_axisvm.mjs com/AxisVM_Einzel_J90_20m.json      # Loeser gegen AxisVM

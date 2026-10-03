@@ -72,8 +72,12 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
   Push den Durchgang auf den **erfundenen Testdaten** (`testdaten/`) und
   bündelt ohne Daten. Keine `gh`-CLI; Anmeldung über den Git Credential
   Manager von Windows.
-  Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
-  1. Oktober, «alles pushen und bereit machen für den account change»). Der Zweig `github-stand-vor-push` ist der alte, von Hand
+  Seit dem 24. August wurde auf Weisung laufend gepusht (1. Oktober,
+  «alles pushen und bereit machen für den account change»; seit dem
+  2. Oktober gilt «pushen wenn es eine funktionierenden stand erlaubt»;
+  4. Oktober: «alles für übergabe account change vorbereiten und
+  startpormpt schreiben» - Arbeitsbaum sauber, gepusht, Einstieg in
+  INITIALPROMPT.md). Der Zweig `github-stand-vor-push` ist der alte, von Hand
   hochgeladene Stand, nur örtlich von Wert.
 - **`Grundlagen/`** (im Projekt, nicht in der Ablage) — die fachliche
   Quelle der Daten: Sortimentsblätter und Werkstattzeichnungen der Tragjoche
