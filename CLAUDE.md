@@ -1994,8 +1994,13 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 `Versand/kombinierte_masten_daten.md`; dem Auftraggeber zur Bestätigung
 vorgelegt (Annahmen für die zwei Typen ohne Detailzeichnung: Teilung und
 Breiten wie beim Typ mit Zeichnung, Bleche = Breite − 2 · Schenkel, Kopfmass
-des langen Typs offen). (2) AxisVM-Modelle auslesen (COM, nur lesen - braucht
-ein Leseskript in `com/`). (3) Sortiment in `data/masten.json` (Tabelle
+des langen Typs offen) - **bestätigt am 3. Oktober («annahmen ok»)**.
+(2) AxisVM-Modelle ausgelesen (`com/AxisVM_modell_lesen.ps1`, nur lesen,
+auf einer Kopie; Ergebnis in `Versand/kombinierte_masten_axisvm_*.json`):
+vier Gurte als Stabzüge, Lager an den vier Gurtfüssen, Bleche als Stäbe auf
+vier Seiten, Teilung im Modell vereinfacht, das Rohr läuft im Oberteil und
+ist über kurze Glieder an die Gurte gehalten. Querschnitt je Linie, Lasten
+und Freigaben gingen über COM nicht durch. (3) Sortiment in `data/masten.json` (Tabelle
 Gittermasten, Winkel in `normen.json` prüfen). (4) Stabmodell: vier Gurte
 nach innen, Bleche auf vier Seiten, konisch, Rohr oben eingespannt; als Mast
 in Einzelmast und Joch. (5) 3D-Bild. (6) Nachweise je Stab + Diagramm-Kachel.
@@ -2682,6 +2687,7 @@ VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node vergleich_profile.mjs [1]   # Profiltabellen gegen ihren gerundeten Umriss (nur > 1 %)
+powershell -File com/AxisVM_modell_lesen.ps1 -Datei <modell.axs> -Aus <aufbau.json>   # AxisVM-Datei nur lesen (Knoten, Linien, Querschnitte, Lager)
 python3 qp_markierungen.py [--ab JJJJ-MM-TT] [<pdf>]   # Markierungen in Grundlagen/QP -> Versand/qp_markierungen/
 node vergleich_axisvm.mjs com/AxisVM_<name>.json      # Loeser gegen AxisVM, Stab fuer Stab
 node vergleich_starrheit.mjs com/AxisVM_<name>.json   # Starrfaktor-Reihe und Drehprobe an den Gurten
