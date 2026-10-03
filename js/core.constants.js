@@ -622,6 +622,20 @@ export function freieLaenge(w, id, L, ohne = []) {
     if (!stapelbar) nimm(bereichVon(y)[0]);
   });
   fremdeMastlagen(w, id, ohne).forEach(nimm);
+  /*
+   * >>> DAS ABFANGJOCH RAGT ÜBER SEINE MASTEN (3. Oktober). <<<
+   * Gefunden beim Durchspielen «zusätzlicher Abfangträger an bestehenden
+   * Masten»: seine Länge ist die TRÄGERlänge, die Masten stehen um den
+   * Überstand innen (Lage = erster Mast). Die Grenze oben zählt aber den
+   * Abstand bis zum fremden Masten - ein zweiter Träger zwischen M2 und M3
+   * (12.00 m) wurde von 12.50 auf 12.00 m gekürzt, seine Stützweite fiel
+   * auf 11.50 m und er bekam einen eigenen vierten Masten statt M3 zu
+   * teilen. Begrenzt wird die STÜTZWEITE; der Träger darf um beide
+   * Überstände länger sein.
+   */
+  if (tragwerksart(t).key === 'abfangjoch' && Number.isFinite(grenze)) {
+    grenze += 2 * abfangUeberstand({ ...t, L });
+  }
   const neu = Math.min(L, grenze);
   return { L: Number.isFinite(neu) ? neu : L,
            geklemmt: Math.abs(neu - L) > 1e-9 };

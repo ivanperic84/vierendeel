@@ -124,7 +124,8 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
-import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer } from './core.stabnachweis.js';
+import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer,
+         stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenGewaehlt } from './core.reaktionen.js';
 import { verformteFigur, wegImStab } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
@@ -1310,8 +1311,23 @@ function neuRechnen(neuZeichnen = true) {
     ui.zeichneTabs(ui.el('tabs'), ui.EINGABE_TABS, tabEingabe, (t) => {
       tabEingabe = t; neuRechnen();
     });
-    ui.zeichneMaske(ui.el('maske'), werte, tabEingabe, aendern, setzeAnbauteile, extras);
+    /*
+     * >>> DER NEUBAU BEHÄLT DIE ROLLSTELLUNG (3. Oktober). <<<
+     * Gemeldet: «vereinzelt springt die sidebar nach oben wenn ich eine
+     * auswahl vornehmen will wie zum beispiel beim mastprofil.» Ein Neubau
+     * leert die Leiste für einen Augenblick - der Browser setzt sie dabei
+     * auf den Anfang. Der Anker (bedientes Feld) fing das nur innerhalb von
+     * drei Sekunden und nur, wenn das Feld danach noch dasteht; baut das
+     * Stabwerk später oder ein anderer Auslöser neu, sprang sie. Jetzt gilt
+     * die alte Stellung, solange der Reiter derselbe ist; der Anker
+     * verfeinert sie danach.
+     */
+    const mEl = ui.el('maske');
+    const rollAlt = maskeTabGezeichnet === tabEingabe ? mEl.scrollTop : 0;
+    maskeTabGezeichnet = tabEingabe;
+    ui.zeichneMaske(mEl, werte, tabEingabe, aendern, setzeAnbauteile, extras);
     verdrahteExtras(app);
+    mEl.scrollTop = rollAlt;
     maskenAnkerHalten();
   };
 
@@ -1958,7 +1974,34 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
     const roh = g.h.roh;
     const lf = roh ? wegeFall(g) : null;
     const an = lf ? anteileFuer(lf, roh.dat) : null;
+    /*
+     * >>> DER GITTERMAST IM EINZELLASTFALL (3. Oktober). <<<
+     * Gemeldet mit Bild (LF1 gewählt, σ_v): «hier wird kein plot der
+     * resultate dargestellt beim gittermasten, warum?» - beim gewählten
+     * Lastfall zeigt das Bild den Ersatzbalken, und der kennt die Stäbe des
+     * Fachwerks nicht; aus dem Stabwerk kam nur die Hülle. Jetzt rechnet
+     * das Stabwerk die Stäbe des Gittermasts im gewählten Fall nach
+     * (dieselben Funktionen wie die Hülle, eine Kombination).
+     */
+    let gitterWerte = null;
+    if (!umh && hatGitter && roh && an) {
+      const kr = kraefteAusAnteilen(roh.lsg, an);
+      const nw = stabNachweise(roh.dat, kr, g.h.fyd, {});
+      const A = new Map(roh.dat.querschnitte.map((q) => [q.name, Number(q.A) || 0]));
+      const qsVon = new Map(roh.dat.staebe.map((st) => [st.name, st.querschnitt]));
+      const b = (f, i, j) => Math.max(Math.abs(f[i]), Math.abs(f[j]));
+      gitterWerte = (name) => {
+        const s = nw.je.get(name), f = kr.get(name);
+        if (!s || !f) return null;
+        const a = A.get(qsVon.get(name)) ?? 0;
+        const N = b(f, 0, 6);
+        return { eta: s.eta, sig_v: s.sig, sig: a > 0 ? N / a / 1000 : null, N,
+                 V: Math.max(b(f, 1, 7), b(f, 2, 8)), M: Math.max(b(f, 4, 10), b(f, 5, 11)),
+                 T: b(f, 3, 9) };
+      };
+    }
     stabwerkFaerben(sz, g.h.jeStab, {
+      gitterWerte,
       jochKey: g.jochKey, mastNamen: erg.modell?.federn?.namen ?? {}, nurWege: !umh,
       weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
   }
@@ -5195,6 +5238,8 @@ function plotNummer(n) {
  * rollt.
  * ========================================================================= */
 let maskenAnker = null;
+// Der Reiter, für den die Leiste zuletzt gebaut wurde (Rollstellung halten).
+let maskeTabGezeichnet = null;
 function ankerSelektor(f) {
   if (f.id) return `#${CSS.escape(f.id)}`;
   const a = [...f.attributes].filter((x) => x.name.startsWith('data-'))

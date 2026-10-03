@@ -46,14 +46,14 @@
  * Wind (Streckenlast auf den Achsstäben, kN/m am KOPF des Gitters): je
  * Gurtabschnitt ein Viertel, im Verhältnis der Windangriffsfläche A_s
  * seiner Höhe zu der am Kopf (Betreiberwerte der Tragjoche, übertragen -
- * `gitterWindflaeche` in data.masten.js); über dem Kopf der Durchmesser
- * des Rohrs bzw. die Kante des Aufsatzes. Eigengewicht:
+ * `gitterWindflaeche` in data.masten.js); über dem Kopf das Rohr mit
+ * 1.2 · q · d, der Aufsatz mit der Last je m² auf seine Kante. Eigengewicht:
  * je echtem Stab aus A · ρ · g, wenn die Datei es als Last führt (Stabwerk
  * der Anwendung); AxisVM rechnet es selbst.
  * ---------------------------------------------------------------------------
  */
 
-import { gittermastGeometrie, gittermasten, gitterWindflaeche, obenWindflaeche } from './data.masten.js';
+import { gittermastGeometrie, gittermasten, gitterWindflaeche, gittermastProfil } from './data.masten.js';
 import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -319,7 +319,19 @@ export function gittermastenEinsetzen(dat) {
       const inA = (richtung === 'X' && Math.abs(dirA[0]) > 0.5) || (richtung === 'Y' && Math.abs(dirA[1]) > 0.5);
       return gitterWindflaeche(G, z, inA ? 'a' : 'b').cA;
     };
-    const obenCA = obenWindflaeche(G);
+    /*
+     * Über dem Kopf: Rohr 1.2 · q · d, Aufsatz Last je m² × Kante - beides
+     * hängt an der Einwirkungsklasse. Die Last des Achsstabs (kN/m am Kopf)
+     * sagt, welche es ist: sie steht im Ersatzprofil je Klasse.
+     */
+    const pG = gittermastProfil(gittermasten().find((x) => x.typ === G.typ));
+    const obenFaktor = (wert) => {
+      const ek = ['EK1', 'EK2', 'EK3'].find((k) => ['quer', 'laengs']
+        .some((r) => Math.abs((pG?.wind?.[r]?.[k] ?? NaN) - Math.abs(wert)) < 1e-9)) ?? 'EK1';
+      const kopfW = ['quer', 'laengs'].map((r) => pG?.wind?.[r]?.[ek])
+        .find((v) => Math.abs(v - Math.abs(wert)) < 1e-9) ?? Math.abs(wert);
+      return kopfW > 0 ? (pG?.windOben?.[ek] ?? 0) / kopfW : 0;
+    };
     let egFall = null;
     zug.staebe.forEach((st) => {
       const z0 = Math.min(kn.get(st.von).z, kn.get(st.bis).z) - fuss.z;
@@ -338,7 +350,7 @@ export function gittermastenEinsetzen(dat) {
         obenStaebe.filter((o) => !o.innen).forEach((o) => {
           const zm = (o.z0 + o.z1) / 2;
           if (zm < z0 || zm > z1 || !qOben) return;
-          const f = wind ? obenCA / bezug : 1;
+          const f = wind ? obenFaktor(l.wert) : 1;
           lasten.strecke.push({ ...l, name: `${l.name.replace(st.name, o.name)}`, stab: o.name,
                                 wert: r6(l.wert * f) });
         });

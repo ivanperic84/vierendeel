@@ -33,7 +33,7 @@ import { esc } from './design.js';
 // die AxisVM-Ausleitung baut ihre U-Profile aus demselben Umriss.
 import { UNP_NEIGUNG, blechWerte, profilGeometrie, umrissPunkte,
          querschnittAusUmriss } from './core.profilgeometrie.js';
-import { gittermastGeometrie } from './data.masten.js';
+import { gittermastGeometrie, gitterWindHerleitung } from './data.masten.js';
 export { UNP_NEIGUNG, blechWerte, profilGeometrie, umrissPunkte, querschnittAusUmriss };
 
 /* ===========================================================================
@@ -403,8 +403,39 @@ function gitterBlattHtml(e) {
       Im Stabwerk steht der Mast als Fachwerk (Gurte, Bleche, Rohr je Stab). A, I und W der
       Profiltafel sind Ersatzwerte des Kopfquerschnitts für die vorläufige Anzeige des
       Ersatzbalkens.</p>
+    ${gitterWindHtml(e.p.gitter)}
     ${e.p.hinweis ? `<p class="hinweis" style="margin:3px 0 0">${esc(e.p.hinweis)}</p>` : ''}
   </div></div>`;
+}
+
+/**
+ * Die Herleitung der Windlast am Gittermast - «so festhalten in der app für
+ * die nachvollziehbarkeit» (Weisung 3. Oktober).
+ */
+function gitterWindHtml(typ) {
+  let h = null;
+  try { h = gitterWindHerleitung(typ); } catch { h = null; }
+  if (!h?.jeFlaeche) return '';
+  const f2 = (v) => Number(v).toFixed(2), f3 = (v) => Number(v).toFixed(3);
+  const eks = ['EK1', 'EK2', 'EK3'];
+  const zeilen = h.zeilen.map((z) => `<tr><td>${esc(z.stelle)} (${f2(z.z)} m)</td><td>${z.richtung}</td>
+    <td class="num">${f3(z.As)}</td><td class="num">${Math.round(z.breite * 1000)}</td><td class="num">${f2(z.phi)}</td>
+    ${eks.map((ek) => `<td class="num">${f2(z.w[ek])}</td>`).join('')}</tr>`).join('');
+  const oben = h.oben ? `<tr><td>${h.oben.art === 'rohr' ? 'Rohr' : 'Mastaufsatz'} über dem Kopf</td><td>a, b</td>
+    <td class="num">${f3(h.oben.mass)}</td><td class="num">${Math.round(h.oben.mass * 1000)}</td><td class="num">–</td>
+    ${eks.map((ek) => `<td class="num">${f2(h.oben.w[ek])}</td>`).join('')}</tr>` : '';
+  return `<h4 style="margin:10px 0 4px">Wind auf den Gittermast — Herleitung</h4>
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Stelle</th><th>Wind in</th><th class="num">A_s [m²/m]</th><th class="num">Breite [mm]</th>
+        <th class="num">Völligkeit</th>${eks.map((ek) => `<th class="num">w ${ek} [kN/m]</th>`).join('')}</tr></thead>
+      <tbody>${zeilen}${oben}</tbody></table></div>
+    <p class="notiz" style="margin:4px 0 0">Die Windlast der Tragjoche (Tabelle des Betreibers, je Meter) ist auf ihre
+      Windangriffsfläche je Meter bezogen (stehende Gurtschenkel + Vertikalbleche einer Seite); das Mittel über die
+      Jochtypen ergibt ${eks.map((ek) => `${f2(h.jeFlaeche[ek])}`).join(' / ')} kN je m² Angriffsfläche (EK1 / EK2 / EK3).
+      Der Gittermast bekommt w = dieser Wert · A_s, mit A_s = zwei Gurtschenkel der Seite quer zum Wind + Bindebleche je
+      Meter Höhe (höchstens die Breite); Völligkeit = A_s / Breite. Das Stabwerk setzt je Gurtabschnitt die Fläche seiner
+      Höhe an.${h.oben?.art === 'rohr' ? ` Das Rohr: w = 1.2 · q · d mit q = ${eks.map((ek) => f2(h.staudruck?.[ek] ?? 0)).join(' / ')} kN/m².`
+        : h.oben ? ' Der Mastaufsatz (Quadratrohr): derselbe Wert je m² auf seine Kante.' : ''}</p>`;
 }
 
 export function profilBlattHtml(e) {

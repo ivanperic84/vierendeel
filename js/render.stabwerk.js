@@ -242,6 +242,12 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
           : g.rohr.filter(ueber);
       if (!ls.length) return null;
       f._gitterStaebe = ls;
+      // Im Einzellastfall die Werte dieses Falls (o.gitterWerte), sonst die Hülle.
+      if (!mitHuelle) {
+        f._gitterFall = o.gitterWerte
+          ? ls.reduce((a, z) => groesser(a, o.gitterWerte(z.name)), null) : null;
+        return f._gitterFall ?? {};
+      }
       return ls.reduce((a, z) => groesser(a, plotWerte(z)), null);
     }
     if (m && !nurGitter) {
@@ -296,9 +302,11 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     const staebe = f._gitterStaebe ?? staebeFuer(f.teil, f);
     delete f._gitterStaebe;
     const ww = wFuer(f, staebe ?? (f._mastStab ? [{ name: f._mastStab }] : []));
-    f.werte = { ...(f.werte ?? {}), ...(mitHuelle ? w : {}),
+    const fallW = f._gitterFall ?? null;
+    delete f._gitterFall;
+    f.werte = { ...(f.werte ?? {}), ...(mitHuelle ? w : (fallW ?? {})),
                 ...(Number.isFinite(ww) ? { w: ww } : {}) };
-    if (mitHuelle) f.stabwerk = true;           // für die Legende (Fussnote)
+    if (mitHuelle || fallW) f.stabwerk = true;  // für die Legende (Fussnote)
     if (Number.isFinite(ww)) f.wegeStabwerk = true;
     f.staebe = (staebe ?? []).map((z) => z.name);
     if (f._mastStab) { f.staebe = [f._mastStab]; delete f._mastStab; }

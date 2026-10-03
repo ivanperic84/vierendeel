@@ -344,6 +344,9 @@ export const ABSCHNITTE = [
       satz('probe', 'Durchbiegung auf 8.00 m je Tonne auf 8.00 m (Bemessungsdiagramm)', [
         zahl('fa', 'in Richtung a', 'cm/t'), zahl('fb', 'in Richtung b', 'cm/t'),
       ]),
+      satz('windStaudruck', 'Staudruck q (für das Rohr: 1.2 · q · d)', [
+        zahl('EK1', 'EK1', 'kN/m²'), zahl('EK2', 'EK2', 'kN/m²'), zahl('EK3', 'EK3', 'kN/m²'),
+      ]),
       satz('windJeFlaeche', 'Windlast je m² Windangriffsfläche (aus den Tragjochen)', [
         zahl('EK1', 'EK1', 'kN/m²'), zahl('EK2', 'EK2', 'kN/m²'), zahl('EK3', 'EK3', 'kN/m²'),
       ]),

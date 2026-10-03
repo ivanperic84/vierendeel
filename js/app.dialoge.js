@@ -785,7 +785,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       </div></div>` : ''}
 
     ${mitLaenge() ? `<div class="feld">
-      <label for="dlg-tw-l">Stützweite</label>
+      <label for="dlg-tw-l">${istAbfang() ? 'Jochlänge (Träger)' : 'Stützweite'}</label>
       <input id="dlg-tw-l" type="number" step="0.5" min="${b.min}"
              max="${b.max}" value="${e.L.toFixed(2)}">
       <small class="hinweis">m${b.text

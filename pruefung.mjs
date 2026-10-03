@@ -36514,7 +36514,22 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
       const blU = Gq.stationen.filter((x) => x.blech && x.teil === 'unten').reduce((a, x) => a + x.blech.b * x.blech.lb, 0) / Gq.hUnten;
       pruef('Windangriffsfläche des Gittermasts: zwei Gurtschenkel + Bindebleche je Meter', f.As, 2 * wU.aV / 1000 + blU, 1e-9, 'm²/m');
       wahr('… ohne Normbeiwert (die Fläche selbst), höchstens die volle Breite', f.cA === f.As && f.As <= f.breite);
-      pruef('Über dem Kopf zählt der Durchmesser des Rohrs', M207.obenWindflaeche(Gq), Gq.rohr.d, 1e-12, 'm²/m');
+      // «für rohre den faktor 1.2 ansetzen bezüglich des durchmessers.»
+      const gq = M207.gittermasten().find((g) => g.typ === Gq.typ);
+      pruef('Das Rohr über dem Kopf: 1.2 · q · d', M207.gitterWindOben(Gq, gq, 'EK1'),
+            1.2 * gq.windStaudruck.EK1 * Gq.rohr.d, 1e-12, 'kN/m');
+      const ga = M207.gittermasten().find((g) => g.aufsatz?.a > 0);
+      if (ga) pruef('Der Mastaufsatz (Quadratrohr): Last je m² × Kante',
+        M207.gitterWindOben(M207.gittermastGeometrie(ga.typ), ga, 'EK1'), ga.windJeFlaeche.EK1 * ga.aufsatz.a / 1000, 1e-12, 'kN/m');
+      // «so festhalten in der app für die nachvollziehbarkeit»: die Herleitung im Profilblatt.
+      const her = M207.gitterWindHerleitung(Gq.typ);
+      wahr('Die Herleitung führt je Stelle und Richtung Angriffsfläche, Völligkeit und Last',
+           her.zeilen.length === 6 && her.zeilen.every((z) => z.As > 0 && z.phi > 0 && z.phi <= 1
+             && Math.abs(z.w.EK1 - gq.windJeFlaeche.EK1 * z.As) < 1e-12) && her.oben?.w.EK1 > 0);
+      const PB207 = await import(J('ui.profilblatt.js'));
+      const blatt = PB207.profilBlattHtml({ art: 'mast', name: 'x', p: M207.getMastprofil(M207.GITTER_PRAEFIX + Gq.typ), rolle: 'Mast' });
+      wahr('… und steht im Profilblatt des Gittermasts (mit dem Ansatz des Rohrs)',
+           blatt.includes('Wind auf den Gittermast') && blatt.includes('Völligkeit') && blatt.includes('1.2 · q · d'));
       wahr('Kein Gitterbeiwert der Norm mehr im Code', M207.GITTER_CF === undefined && M207.CF_ROHR === undefined);
     }
     // --- Die Länge ist die des Typs -----------------------------------------
@@ -36565,7 +36580,7 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     pruef('Wind im Modell: am untersten Gurtabschnitt Last je m² × Angriffsfläche seiner Höhe',
           wFuss, quad.windJeFlaeche.EK1 * M207.gitterWindflaeche(G, (G.stationen[0].z + G.stationen[1].z) / 2, 'a').As, 0.002, 'kN/m');
     const wRohr = dat.lasten.strecke.find((l) => l.lastfall === 'WindX' && /_ROHR_S1$/.test(l.stab));
-    pruef('… am freien Rohr Last je m² × Durchmesser', wRohr?.wert, quad.windJeFlaeche.EK1 * M207.obenWindflaeche(G), 0.002, 'kN/m');
+    pruef('… am freien Rohr 1.2 · q · d', wRohr?.wert, 1.2 * quad.windStaudruck.EK1 * G.rohr.d, 0.002, 'kN/m');
     wahr('… das Rohr im Gitter trägt keinen Wind', !dat.lasten.strecke.some((l) => /^Wind/.test(l.lastfall) && /_ROHR_I$/.test(l.stab)));
     const eg = dat.lasten.strecke.filter((l) => /^EG_MAST_/.test(l.name));
     wahr('Eigengewicht je echtem Stab (Gurte, Bleche, Rohr)', eg.length === g.gurte.length + g.bleche.length + g.oben.length);
@@ -36663,6 +36678,52 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     const vJ = hJ.verformung;
     wahr('… die Verformung kommt aus den Achsknoten des Stabwerks',
          !vJ || ['A', 'B'].every((e) => !vJ[e] || vJ[e].quelle === 'stabwerk'));
+
+    // --- Einzellastfall im Bild; Seitenleiste; zweiter Abfangträger -------------
+    {
+      /*
+       * 3. Oktober, mit Bild: «hier wird kein plot der resultate dargestellt
+       * beim gittermasten, warum?» (Einzellastfall gewählt). Die Flächen des
+       * Gittermasts bekommen im gewählten Fall die Werte dieses Falls.
+       */
+      const RK = await import(J('render.koerper.js'));
+      const RS = await import(J('render.stabwerk.js'));
+      const mkE = RK.mastKoerper({ profil: p207, achse: 'y', x: 0, zFuss: -G.laenge, zKopf: 0, name: 'A' });
+      RS.stabwerkFaerben({ flaechen: mkE.flaechen, linien: [] }, h.jeStab,
+        { mastNamen: { A: g.id }, nurWege: true, gitterWerte: (name) => ({ eta: 0.123, sig_v: 27, N: 1, name }) });
+      const gF = mkE.flaechen.filter((f) => f.gitter);
+      wahr('Einzellastfall: die Flächen des Gittermasts tragen die Werte des gewählten Falls',
+           gF.length > 0 && gF.filter((f) => f.werte?.eta === 0.123).length > gF.length * 0.9);
+      const mkO = RK.mastKoerper({ profil: p207, achse: 'y', x: 0, zFuss: -G.laenge, zKopf: 0, name: 'A' });
+      RS.stabwerkFaerben({ flaechen: mkO.flaechen, linien: [] }, h.jeStab, { mastNamen: { A: g.id }, nurWege: true });
+      wahr('… ohne Werte des Falls bleibt er neutral (nicht die Hülle)',
+           mkO.flaechen.filter((f) => f.gitter).every((f) => !Number.isFinite(f.werte?.eta)));
+      const q207 = APP_QUELLE();
+      wahr('Die App rechnet die Stäbe des Gittermasts im gewählten Fall nach',
+           q207.includes('gitterWerte = (name) => {') && q207.includes('stabNachweise(roh.dat, kr, g.h.fyd, {})'));
+      // «vereinzelt springt die sidebar nach oben wenn ich eine auswahl vornehmen will»
+      wahr('Der Neubau der Seitenleiste behält die Rollstellung (gleicher Reiter)',
+           q207.includes('const rollAlt = maskeTabGezeichnet === tabEingabe ? mEl.scrollTop : 0;')
+           && q207.includes('mEl.scrollTop = rollAlt;'));
+      /*
+       * Zweiter Abfangträger zwischen zwei vorhandenen Masten: die Längengrenze
+       * zählt die Stützweite, der Träger ragt um beide Überstände darüber.
+       */
+      const AJ207 = await import(J('data.abfangjoche.js'));
+      if (AJ207.abfangDbDa?.() ?? true) {
+        const typA = AJ207.abfangjoche()[0].typ;
+        const La = AJ207.abfangLaengenbereich(AJ207.getAbfangjoch(typA)).max;
+        let b = C207.tragwerkHinzu(jochW(), 'abfangjoch', { xLage: 20, L: La, abfangTyp: typA });
+        const a1 = C207.tragwerkeVon(b).find((t) => C207.tragwerksart(t).key === 'abfangjoch');
+        const ue = C207.abfangUeberstand(a1);
+        const m3 = C207.mastenVon(b).find((m) => Math.abs(m.x - (20 + La - 2 * ue)) < 1e-6);
+        b = C207.tragwerkHinzu(b, 'abfangjoch', { xLage: 20, L: La - 1, abfangTyp: typA });
+        const a2 = C207.tragwerkeVon(b).find((t) => C207.tragwerksart(t).key === 'abfangjoch' && t.id !== a1.id);
+        const frei = C207.freieLaenge(b, a2.id, La);
+        wahr('Zweiter Abfangträger an denselben Masten: die volle Trägerlänge bleibt (Stützweite = Mastabstand)',
+             Boolean(m3) && Math.abs(frei.L - La) < 1e-9, `L ${frei.L} von ${La}, Überstand ${ue}`);
+      }
+    }
 
     // --- Sperre und Wege ohne Gittermast ---------------------------------------
     let ta = C207.tragwerkHinzu(jochW(), 'tragausleger', { xLage: 40, L: 8 });
