@@ -1511,7 +1511,8 @@ const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
  * die des Ersatzbalkens eingeklappt darunter.
  */
 function stabwerkVerlaeufe(breite) {
-  const g = tragwerksart(werte).key === 'joch' && anzeigeKombi === 'umhuellend'
+  // Seit dem 3. Oktober auch am Abfangjoch («Bild und Verläufe nachziehen»).
+  const g = ['joch', 'abfangjoch'].includes(tragwerksart(werte).key) && anzeigeKombi === 'umhuellend'
     ? stabwerkGilt() : null;
   return g ? stabwerkDiagramme(g.h.jeStab, g.jochKey, linienDiagramm, breite) : null;
 }
@@ -1887,7 +1888,7 @@ function zeichneAuswertung() {
      */
     ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
                       abD ? null : vergleich, weitereDiagramme(erg, 860),
-                      abD ? null : stabwerkVerlaeufe(860));
+                      stabwerkVerlaeufe(860));
   }
 }
 
@@ -2077,6 +2078,18 @@ function blattSzene(erg) {
                      */
                     erg: erg.abfang ?? null })
     : jochSzeneMitStabwerk(erg, plan[aktivId]));
+  /*
+   * >>> DAS ABFANGJOCH IM 3D AUS DEM STABWERK (3. Oktober). <<<
+   * «Bild und Verläufe nachziehen»: Gurte, Gabel, Bleche und Masten tragen
+   * bei «umhüllend» die Hülle je Stab aus dem Stabwerk, wie am Tragjoch -
+   * die Szene kommt in örtlichen Koordinaten, also vor dem Verschieben.
+   * Ein gewählter Einzellastfall zeigt weiter den Kern.
+   */
+  if (!ta && tragwerksart(werte).key === 'abfangjoch' && eigen && anzeigeKombi === 'umhuellend') {
+    const g = stabwerkGilt();
+    if (g) stabwerkFaerben(eigen, g.h.jeStab, { jochKey: g.jochKey,
+                                               mastNamen: erg.modell?.federn?.namen ?? {} });
+  }
   /*
    * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
    *

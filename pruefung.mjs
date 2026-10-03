@@ -37422,6 +37422,59 @@ if (AJ.abfangDbDa()) {
        iSw > 0 && iKern > iSw && lay.includes("gruppen.push({ titel: 'Abfangjoch · Stabwerk', teile: ["));
 }
 
+
+/* =========================================================================
+ * 218  ABFANGJOCH: 3D-BILD UND VERLÄUFE AUS DEM STABWERK (3. Oktober)
+ * =========================================================================
+ * Weisung: «Bild und Verläufe nachziehen und dan axis prüfung». Kacheln und
+ * Schiene standen auf dem Stabwerk, das Bild und die Verläufe auf dem
+ * Ersatzbalken (einfacher Balken).
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const AS218 = await import(J('app.stabwerk.js'));
+  const C218 = await import(J('core.constants.js'));
+  const N218 = await import(J('core.nachbarn.js'));
+  const DA218 = await import(J('data.anbauteile.js'));
+  const RS218 = await import(J('render.stabwerk.js'));
+  const RA218 = await import(J('render.abfang.js'));
+  const RC218 = await import(J('render.charts.js'));
+  const teil = (vid, x) => ({ ...DA218.neuesAnbauteil(vid, x), ort: 'joch' });
+  let w = C218.tragwerkHinzu({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' }, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+  w = C218.tragwerkWeg(w, 'T1');
+  w.anbauteile = [teil('leiter-ts-nfl-abf', 4.0), teil('leiter-ts-nfl-abf', 8.5)];
+  w = C218.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 6.0 });
+  w.anbauteile = [teil('leiter-fd-nfl-abf', 4.0), teil('leiter-fd-nfl-abf', 8.5)];
+  const ws = N218.rechensatzMitNachbarn(w);
+  const h = AS218.rechneStabwerk({ werte: w, letzte: { erg: berechne(ws, ...N218.kernArgumente(ws)) }, stabwerk: null });
+  const satz = C218.tragwerkSatz(w);
+  const key = `tragwerk:${w.twId}`;
+  const sz = RA218.abfangSzene(satz.abfangTyp, Number(satz.L), { anbauteile: satz.anbauteile ?? [], lager: satz,
+    mast: { profil: 'HEB 240', hoehe: satz.mastH, stegrichtung: 'jochachse' } });
+  RS218.stabwerkFaerben(sz, h.jeStab, { jochKey: key, mastNamen: { A: 'M1', B: 'M2' } });
+  const fl = (re) => sz.flaechen.filter((f) => re.test(f.teil));
+  const max = (re) => Math.max(...fl(re).filter((f) => f.stabwerk).map((f) => f.werte.eta));
+  wahr('Jede Gurt-, Gabel- und Blechfläche des Bildes trägt Werte aus dem Stabwerk',
+       fl(/^GURT|^GABEL|^BL_/).length > 100 && fl(/^GURT|^GABEL|^BL_/).every((f) => f.stabwerk && f.staebe?.length),
+       `${fl(/^GURT|^GABEL|^BL_/).filter((f) => f.stabwerk).length} von ${fl(/^GURT|^GABEL|^BL_/).length}`);
+  pruef('Das grösste η am Gurt im Bild ist das der Kachel', max(/^GURT|^GABEL/), h.teile[`${key}|UPE`].eta, 1e-9, '');
+  pruef('… am Bindeblech ebenso', max(/^BL_/), h.teile[`${key}|blech`].eta, 1e-9, '');
+  pruef('… und an den Masten (grösster der beiden)', max(/^MAST/),
+        Math.max(h.bauteile['mast:M1'].eta, h.bauteile['mast:M2'].eta), 2e-3, '');
+  wahr('Die Legende nennt das Stabwerk als Quelle', sz.quelleWerte === 'stabwerk');
+  const d = RS218.stabwerkDiagramme(h.jeStab, key, RC218.linienDiagramm, 900);
+  wahr('Verläufe aus dem Stabwerk: Gurte vorn / hinten, Bleche je Station, Gurtkraft, je Mast',
+       !!d && /Gurt vorn/.test(d.gurt) && /Gurt hinten/.test(d.gurt) && !/Obergurt/.test(d.gurt)
+       && !!d.blech && !!d.kraft && d.masten.map((m) => m.name).join() === 'M1,M2');
+  const app = APP_QUELLE();
+  wahr('Die Anwendung färbt das Abfangjoch bei «umhüllend» aus dem Stabwerk und zeigt dessen Verläufe',
+       app.includes("tragwerksart(werte).key === 'abfangjoch' && eigen && anzeigeKombi === 'umhuellend'")
+       && app.includes("['joch', 'abfangjoch'].includes(tragwerksart(werte).key) && anzeigeKombi === 'umhuellend'"));
+  // Das Tragjoch findet seine Stäbe weiter wie bisher.
+  wahr('Das Tragjoch bleibt bei seinen Gurten (kein Abfang-Weg)',
+       RS218.jochStaebe({ a: { name: 'OGL_S1', bauteil: 'tragwerk', x0: 0, x1: 1 } }, 'tragwerk')?.abfang !== true);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

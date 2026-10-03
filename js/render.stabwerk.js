@@ -121,10 +121,51 @@ function groesser(a, b) {
 /** Ist das ein Gurtstab eines Gittermasts? (Namen aus export.axisvm.gitter.js) */
 export const istGitterStab = (name) => /(?:^|_)MAST_[^_]+_G[1-4]_S\d+$/.test(String(name));
 
+/*
+ * >>> DAS ABFANGJOCH (3. Oktober). <<<
+ * Weisung: «Bild und Verläufe nachziehen» - am Abfangjoch standen Kacheln und
+ * Schiene auf dem Stabwerk, das 3D-Bild und die Verläufe auf dem Ersatzbalken
+ * (einfacher Balken). Seine Stäbe heissen anders: zwei Gurte vorn / hinten
+ * (`V_S…`, `H_S…`, im Gabelbereich `GABEL_V…` / `GABEL_H…` an Stelle des
+ * Gurts), Bleche oben / unten (`BL_O…`, `BL_U…`). Die Szene nennt ihre
+ * Flächen GURT_V / GURT_H / GABEL und BL_O<k> / BL_U<k>.
+ */
+const AB_GURT = /(?:^|_)(?:GABEL_)?(V|H)(?:_S)?\d+$/;
+const AB_BLECH = /(?:^|_)BL_(O|U)\d+(?:_2)?$/;
+
+function abfangStaebe(alle, jochKey) {
+  const gurte = alle.filter((z) => z.bauteil === jochKey && z.rolle === 'gurtU' && AB_GURT.test(z.name));
+  if (!gurte.length) return null;
+  const versatz = Math.min(...gurte.map((z) => z.x0));
+  const gurt = {};
+  gurte.forEach((z) => {
+    const teil = `GURT_${AB_GURT.exec(z.name)[1]}`;
+    (gurt[teil] ??= []).push({ z, x0: z.x0 - versatz, x1: z.x1 - versatz });
+  });
+  Object.values(gurt).forEach((l) => l.sort((p, q) => p.x0 - q.x0));
+  const blech = {};
+  alle.filter((z) => z.bauteil === jochKey && z.rolle === 'blech' && AB_BLECH.test(z.name)).forEach((z) => {
+    const teil = `BL_${AB_BLECH.exec(z.name)[1]}`;
+    (blech[teil] ??= []).push({ z, x: (z.x0 + z.x1) / 2 - versatz });
+  });
+  return { versatz, gurt, blech, abfang: true };
+}
+
+/** Der Teil einer Fläche der Abfangjoch-Szene, wie `abfangStaebe` ihn führt. */
+function abfangTeil(teil, f) {
+  const t = String(teil ?? '');
+  if (/^BL_[OU]\d+$/.test(t)) return t.slice(0, 4);
+  if (t === 'GABEL' && f?.punkte?.length) {
+    const ym = f.punkte.reduce((a, p) => a + p[1], 0) / f.punkte.length;
+    return ym >= 0 ? 'GURT_V' : 'GURT_H';
+  }
+  return t;
+}
+
 export function jochStaebe(jeStab, jochKey = 'tragwerk') {
   const alle = Object.values(jeStab ?? {});
   const gurte = alle.filter((z) => z.bauteil === jochKey && GURT.test(z.name));
-  if (!gurte.length) return null;
+  if (!gurte.length) return abfangStaebe(alle, jochKey);
   const versatz = Math.min(...gurte.map((z) => z.x0));
   const gurt = {};
   gurte.forEach((z) => {
@@ -211,11 +252,19 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
    * auf massgebenden stab im modell klicken»); über diese Liste findet
    * die Ansicht die Flächen, die sie hervorhebt.
    */
-  const staebeFuer = (teil, f) => {
+  const staebeFuer = (teilRoh, f) => {
+    const teil = js.abfang ? abfangTeil(teilRoh, f) : teilRoh;
     const b = ausX(f);
     if (!b) return [];
     const xm = (b.x0 + b.x1) / 2;
     if (js.gurt[teil]) {
+      // Am Abfangjoch reicht ein Gurtstück der Szene von Station zu Station
+      // und kann mehrere Stäbe decken - dann alle, das Bild zeigt ihr Grösstes.
+      if (js.abfang) {
+        // Stirnflächen (ohne Breite in x) nehmen die Stäbe, die dort anstossen.
+        const e = b.x1 - b.x0 < 1e-6 ? -1e-6 : 1e-6;
+        return js.gurt[teil].filter((q) => q.x1 > b.x0 + e && q.x0 < b.x1 - e).map((q) => q.z);
+      }
       const s = js.gurt[teil].find((q) => xm >= q.x0 - 1e-6 && xm <= q.x1 + 1e-6);
       return s ? [s.z] : [];
     }
@@ -387,8 +436,10 @@ function ueber(liste, feld) {
 export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900) {
   const js = jochStaebe(jeStab, jochKey);
   if (!js) return null;
-  const og = [...(js.gurt.OG_L ?? []), ...(js.gurt.OG_R ?? [])];
-  const ug = [...(js.gurt.UG_L ?? []), ...(js.gurt.UG_R ?? [])];
+  // Am Abfangjoch (3. Oktober) die zwei Gurte vorn / hinten statt OG / UG.
+  const og = js.abfang ? (js.gurt.GURT_V ?? []) : [...(js.gurt.OG_L ?? []), ...(js.gurt.OG_R ?? [])];
+  const ug = js.abfang ? (js.gurt.GURT_H ?? []) : [...(js.gurt.UG_L ?? []), ...(js.gurt.UG_R ?? [])];
+  const [nOG, nUG] = js.abfang ? ['Gurt vorn', 'Gurt hinten'] : ['Obergurt', 'Untergurt'];
   const grenzen = [...og, ...ug].flatMap((s) => [s.x0, s.x1]);
   const tEta = treppe(grenzen, [ueber(og, 'eta'), ueber(ug, 'eta')]);
   const tN = treppe(grenzen, [ueber(og, 'N'), ueber(ug, 'N')]);
@@ -396,14 +447,14 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
   const gurt = linienDiagramm({
     titel: `Ausnutzung der Gurte${zusatz}`, breite, hoehe: 230,
     xLabel: 'x [m]', yLabel: 'η [–]', punkte: tEta.punkte, grenze: 1.0,
-    serien: [{ name: 'Obergurt', werte: tEta.werte[0] },
-             { name: 'Untergurt', werte: tEta.werte[1] }],
+    serien: [{ name: nOG, werte: tEta.werte[0] },
+             { name: nUG, werte: tEta.werte[1] }],
   });
   const kraft = linienDiagramm({
     titel: `Gurtkraft |N|${zusatz}`, breite, hoehe: 230,
     xLabel: 'x [m]', yLabel: 'N [kN]', punkte: tN.punkte,
-    serien: [{ name: 'Obergurt', werte: tN.werte[0] },
-             { name: 'Untergurt', werte: tN.werte[1] }],
+    serien: [{ name: nOG, werte: tN.werte[0] },
+             { name: nUG, werte: tN.werte[1] }],
   });
   // Bleche: je Station das Grösste der vier Ebenen.
   const stationen = new Map();
