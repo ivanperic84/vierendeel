@@ -36483,6 +36483,22 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     const einzel = (typ, o = {}) => C207.tragwerkWeg(C207.tragwerkHinzu(jochW(), 'einzelmast',
       { mastProfil: M207.GITTER_PRAEFIX + typ, mastH: 8, mastLaenge: 0, ...o }), 'T1');
 
+    /*
+     * Weisung 3. Oktober: «wind aus den tragjochen herleiten für die
+     * gittermasten, mittelwert ansetzen.» Windlast je Meter des Tragjochs
+     * durch seine Bauhöhe = Druck auf die Ansichtsfläche; das Mittel über
+     * die Typen steht im Sortiment der Gittermasten.
+     */
+    {
+      const tj = T.tragjoche().filter((t) => /^J\d+$/.test(t.typ) && t.wind && t.jd > 0);
+      const stufen = [['EK1', '0.9'], ['EK2', '1.1'], ['EK3', '1.3']];
+      const ok = tj.length > 0 && M207.gittermasten().every((g) => stufen.every(([ek, q]) => {
+        const m = tj.reduce((sum, t) => sum + Number(t.wind[q]) / (t.jd / 1000), 0) / tj.length;
+        return Math.abs(Number(g.windDruck?.[ek]) - m) < 0.006;
+      }));
+      wahr('Der Winddruck der Gittermasten ist das Mittel der Tragjoche (Windlast je Meter / Bauhöhe)', ok,
+           `${tj.length} Tragjochtypen · ${JSON.stringify(M207.gittermasten()[0].windDruck)}`);
+    }
     // --- Die Länge ist die des Typs -----------------------------------------
     const quad = M207.gittermasten().find((g) => g.fuss.a === g.fuss.b && g.rohr?.d > 0);
     const recht = M207.gittermasten().find((g) => g.fuss.a !== g.fuss.b && g.rohr?.d > 0);
