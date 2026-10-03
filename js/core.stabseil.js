@@ -32,9 +32,12 @@
  * ein kleines Gleichungssystem, und wer nach dem Ausfall der anderen doch
  * wieder Zug bekäme, kommt zurück (höchstens acht Durchgänge).
  *
- * Nur die Seile der ANKER (Seilkopf am Masten). Die Seile der Aufhängung
- * am Tragausleger bleiben linear - dort meldet `aufhaengungNachweis` ein
- * gedrücktes Seil als eigenen Befund (Entscheid 28. September).
+ * Die Seile der ANKER (Seilkopf am Masten) und - seit dem 3. Oktober - die
+ * Seile der AUFHÄNGUNG am Tragausleger. Weisung: «seildruck nicht zulassen
+ * in der app.» Bis dahin blieben sie linear und `aufhaengungNachweis`
+ * meldete ein gedrücktes Seil als Befund (Entscheid 28. September); jetzt
+ * fällt es in der Kombination aus, das andere trägt allein. Fallen alle
+ * Seile eines Auslegers aus, hebt er ab - das bleibt ein Befund.
  * ---------------------------------------------------------------------------
  */
 
@@ -50,9 +53,13 @@ export const SEIL_AUS = 'SeilAus|';
 export function seilAnker(dat) {
   const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
   return (dat?.staebe ?? [])
-    .filter((s) => /(?:^|_)SEILKOPF_/.test(s.name) && s.nichtlinear?.x === 'nurZug')
+    .filter((s) => /(?:^|_)(SEILKOPF_|AUFHAENGUNG(_[PN])?$)/.test(s.name)
+      && s.nichtlinear?.x === 'nurZug')
     .map((link) => {
-      const stab = dat.staebe.find((s) => s !== link && s.von === link.bis);
+      // Die Aufhängung ist selbst das Seil (ein Glied von Knoten zu Knoten);
+      // am Anker ist der Seilkopf der Link, das Seil der Stab dahinter.
+      const stab = /AUFHAENGUNG(_[PN])?$/.test(link.name) ? link
+        : dat.staebe.find((s) => s !== link && s.von === link.bis);
       if (!stab) return null;
       const a = kn.get(stab.von), b = kn.get(stab.bis);
       if (!a || !b) return null;

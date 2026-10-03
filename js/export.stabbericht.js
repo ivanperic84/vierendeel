@@ -383,7 +383,7 @@ function nachweise(d, U) {
       <p>Senkrechter Anteil der Seilkräfte (${a.seile ?? 1} Seil${(a.seile ?? 1) > 1 ? 'e' : ''}),
       charakteristisch über die wirklichen Zustände, gegen den Kontrollwert der Zeichnung.</p>
       ${formel('η', 'S<sub>v</sub> / V<sub>zul</sub>', `${zahl(a.Sv, 3)} kN / ${zahl(a.Vzul, 2)} kN`, zahl(a.eta, 3))}
-      <p class="klein">Massgebend: ${esc(a.bez ?? a.fall ?? '')}.${a.druck ? ` ⚠ Ein Seil wird gedrückt: ${zahl(a.druck.N, 2)} kN in «${esc(a.druck.bez ?? '')}».` : ''}</p>
+      <p class="klein">Massgebend: ${esc(a.bez ?? a.fall ?? '')}.${a.druck ? ` ⚠ Der Ausleger hebt ab: in «${esc(a.druck.bez ?? '')}» müssten alle Seile drücken (${zahl(a.druck.N, 2)} kN).` : a.schlaff ? ` Ein Seil fällt aus (trägt keinen Druck): in «${esc(a.schlaff.bez ?? '')}» müsste es ${zahl(Math.abs(a.schlaff.N), 2)} kN drücken; das andere trägt allein.` : ''}</p>
       <p>${urteilMarke(a.eta, a.ueber)}</p>` : '';
     const lang = la?.charakteristisch ? `<h4>${esc(t.pos)} · Längsanker (Auskunft)</h4>
       <p>Seilkraft charakteristisch ${zahl(Math.abs(la.charakteristisch.F), 2)} kN

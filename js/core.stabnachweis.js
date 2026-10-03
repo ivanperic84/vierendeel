@@ -970,7 +970,7 @@ export function laengsankerKraft(dat, lsg, alleFaelle, nachweisFaelle, knoten = 
            charakteristisch: groesste(wirklicheZustaende(alleFaelle)),
            bemessung: groesste(nachweisFaelle ?? []) };
 }
-export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG') {
+export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG', seilInfo = null) {
   /*
    * EIN ODER ZWEI SEILE (Entscheid 28. September: zwei Seile, an der
    * Ankertraverse gespreizt). V_zul gilt dem AUSLEGER - verglichen wird die
@@ -986,7 +986,15 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
     return L > 0 ? Math.abs(b.z - a.z) / L : 0;
   };
   const sinus = sinusVon(seile[0]);
-  let best = null, druck = null;
+  let best = null, druck = null, schlaff = null;
+  /*
+   * >>> KEIN SEILDRUCK (3. Oktober, «seildruck nicht zulassen in der app»). <<<
+   * Mit `seilInfo` (core.stabseil.js) ist ein Seil, das drücken müsste, in
+   * dieser Kombination AUSGEFALLEN: es trägt 0, das andere allein (die
+   * Kombination führt den Hilfsfall, alle Nachweise lesen ihn). Gemeldet
+   * wird es als `schlaff` - eine Auskunft. Ein Befund (`druck`) bleibt nur,
+   * wenn ALLE Seile ausfallen: dann hebt der Ausleger ab.
+   */
   /*
    * >>> NUR WIRKLICHE ZUSTÄNDE (Entscheid 28. September). <<<
    * Die charakteristischen Fälle führen G auch in zwei Hälften («Ständig
@@ -1000,11 +1008,24 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
   wirklicheZustaende(faelle).forEach((lf) => {
     const kr = kraefteAusAnteilen(lsg, anteileFuer(lf, dat));
     let Sv = 0, N = -Infinity, da = false;
+    const aus = seilInfo?.je?.get(lf.key) ?? null;
+    const alleAus = aus && seile.every((st) => aus.get(st.name)?.schlaff);
     seile.forEach((st) => {
       const f = kr.get(st.name);
       if (!f) return;
       da = true;
-      const Ni = -f[0];                      // Zug positiv
+      const inf = aus?.get(st.name);
+      if (inf?.schlaff && !alleAus) {
+        // Ausgefallen: trägt nichts. Die grösste Kraft, die es hätte
+        // drücken müssen, als Auskunft.
+        if (!schlaff || inf.NohneAusfall < schlaff.N) {
+          schlaff = { N: inf.NohneAusfall, seil: st.name, fall: lf.key, bez: lf.bez };
+        }
+        N = Math.max(N, 0);
+        return;
+      }
+      // Fallen alle aus, gilt die lineare Kraft - und der Befund darunter.
+      const Ni = alleAus ? inf.NohneAusfall : -f[0];   // Zug positiv
       Sv += Ni * sinusVon(st);
       N = Math.max(N, Ni);
       // Unter 0.01 kN ist es Rechenrauschen (reiner Wind am Masten verformt
@@ -1019,6 +1040,7 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
   if (!best) return null;
   return { stab: seile[0].name, seile: seile.length, Vzul, ...best, sinus,
            eta: Vzul > 0 ? Math.max(0, best.Sv) / Vzul : null,
+           schlaff,
            druck, ueber: (Vzul > 0 && best.Sv > Vzul) || Boolean(druck) };
 }
 

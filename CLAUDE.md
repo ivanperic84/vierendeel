@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Kein Seildruck; Jochaufsatz einfach 4 m; Annahmen Gittermast (3. Oktober) | Im Wortlaut: «annahmen ok, mit axis modell auslesen weitermachen. offene punkte zuerst klären. seildruck nicht zulassen in der app. das mit dem lastgenerator habe ich nicht verstanden. jochaufsatz einfach ist bei rund 4m länge was einen angriffspunkt bei 2m ausmacht. die traverse und leiter sind dann auf 4m.» (1) **Annahmen zum Gittermast bestätigt** (zwei Typen ohne Detailzeichnung: Teilung und Breiten wie beim gezeichneten, Bleche = Breite − 2 · Schenkel, oberes Teil 490 mm). (2) **Seile der Aufhängung nur auf Zug** - ändert den Entscheid vom 28. September («linear, gedrücktes Seil als Befund»): sie laufen über denselben Ausfall wie der Seilanker (`seilAnker` nimmt `AUFHAENGUNG[_P/_N]` mit, core.stabseil.js); ein Seil, das drücken müsste, trägt 0, das andere allein, alle Nachweise lesen den Hilfsfall. `aufhaengungNachweis` meldet es als `schlaff` (Auskunft, Kachel «ein Seil fällt aus»); Befund `druck` («Ausleger hebt ab») nur, wenn alle ausfallen. Gemessen L 6 m mit Fahrdrahtabzug: vorher −0.24 kN Druck; nachher UPE 0.167 → 0.177, Blech 0.226 → 0.233, Mast 0.390 → 0.391, Seil η 0.396 gleich. (3) **Jochaufsatz einfach:** Aufsatz z 2.00, Traverse und Leiter z 4.00 (Sicherung `anbauteile_vor_ja_einfach_4m_2026-10-03.json`). (4) Lastgenerator: nicht verstanden - neu erklärt, Entscheid offen. Prüfstand 204 |
 | Alter Masttyp: kombinierter Mast als Gittermast (3. Oktober) | Weisung: «Einen alten Masttyp ergänzen, die Grundlagen … Grundlagen\Kombinierte Masten. Es ist ein Gittermast, struktur wie die Joche, mit unterschied das Winkel nach innen und der untere teil konisch ausgebildet ist. Als beispiel beachte noch die axismodell im Grundlagenordner. im oberen teil ist ein rohr der in den oberen teil des gittermasten eingespannt ist.» Auf Rückfrage: **Typen** «1 und falls möglich den IV 45 Typ ableiten aus den Übersichtszeichnungen» (die Typen mit Detailzeichnung - zwei -, dazu I 45 und IV 45 aus Katalog/Übersicht abgeleitet); **Nachweis «Stabwerk + Diagramm als Kontrolle»** (Gurtwinkel und Bindebleche je Stab wie beim Joch, die zulässigen Momente der Bemessungsdiagramme als zweite Kachel); **AxisVM «Ja, nur lesen»** (die beiden Modelle im Ordner über COM öffnen und Aufbau auslesen, nicht rechnen); **Umfang «Einzelmast und Jochmast, Rohr als Teil»** (wählbar, wo heute ein HEB steht; das Rohr oben ein echter Stab, eingespannt, mit Spannungsnachweis). Stand: Daten gelesen (Notiz `Versand/kombinierte_masten_daten.md`, nicht in der Ablage), siehe *Laufende Arbeit* |
 | Tragausleger am Jochmasten im Stabwerk; M1 ziehen; Arm in der Höhe; Schwenk (3. Oktober) | Mit drei Bildern: «wenn ich hier den linken masten ziehe dann entzwei ich das modell (joch / tragausleger) - warum wird der ausleger als balken angegeben? den ausleger in der höhe anpassen können per drag and drop, das drahtwerk mitziehen.» Auf Rückfrage **«M2 bleibt, Joch passt sich an»**: trägt ein anderes Tragwerk den Masten am Ende B, bleibt er beim Ziehen von Ende A stehen; das Joch beginnt an der neuen Stelle, L folgt (danach Standardlänge), Teile auf dem Joch und Nachweisstelle behalten ihre Lage auf dem Blatt (`mastStelleSetzen`, ui.js; gilt auch am Endmasten einer Jochreihe). Gemessen: M1 0 → 1.00, Joch x 1 / L 19, M2 bei 20 mit Joch und Ausleger. **«Ja, jetzt anschliessen»**: die Sperre «Tragausleger in einer Reihe» ist weg (`reiheOhneStabmodell`); das Blattmodell baut ihn mit, der geteilte Mast ist ein Zug (8 Abschnitte bis zum Seilpunkt), Aufhängung und Längsanker je Ausleger über den Namen mit Präfix, V_zul aus dem Sortiment, Knicken und Fundament vom Masten. Gemessen J90/20 m (HEB 240 des Prüfstands, Hängestütze) + Ausleger 13 m an M2 (14.00 m): Aufhängung η 0.5908 = allein 0.5909, Mast allein 0.947 → mit Joch **1.375**, Fundament M2 0.599; im Browser (HEB 260, ohne Teile) M2 1.178, Seil 0.49, UPE 0.27 - vorher Ersatzbalken 1.330. **Arm in der Höhe:** ein Punkt, dessen Glied waagrecht an einem senkrechten Träger hängt (Ausleger an der Hängestütze), zieht in z; die folgenden Module auf derselben Höhe weiter aussen wandern mit (`armAmTraeger`, `punktZiehen`); der Leiterpunkt bleibt in x, der NT-Ausleger am Mast auch. Dazu **«wenn button ganzes querprofil, kamera schwenken, nicht springen»**: `schwenkeAufsGanze` (render.3d.js) fährt Ziel, Verschiebung, Abstand und Blickwinkel gemeinsam; Knopf, Taste g, Kontextmenü. Prüfstand 203 |
 | Anbauteil-Katalog bereinigt (3. Oktober) | Mit Bild der Kacheln, im Wortlaut: «Hängestütze mit Fahrdrahtabzug nicht Fahrleitung - Jochaufsatz einfach genügt, ohne Zusatzleiter, da dies immer der Fall ist. Jochaufsatz doppelt mein dass es zwei traversen mit ZL hat in der höhe verteilt. - den Jochaufsatz alt kann man auch gleich versehen wie den Jochaufsatz einfach. - Anstatt Leiter Kettenwerk N-FL bzw. R-FL - die leitertraverse kommt meist nur an vertikale bauteile / tragwerke zu liegen. - lampe led mit rohr ist an rohr auf dem masten befestigt, also ein vertikale ausrichtung. - unter übrige kann man ein freies bauteil aufführen - was noch fehlt sind die trafos dies sind an den masten befestigt. man kann hier einen 50 kVA Typ aufführen - die lampe LED kann man wegnehmen, diese ist meist gar nicht relevant.» Auf Rückfrage: **Fahrdraht ohne Gewicht** (`hs-fahrdraht` trägt `drahtwerk-n-fl-cu-107`, `wirktG: false`, wie «Fahrdrahtabzug am Mast»; G 1.500 → 0.500 kN); **doppelt «1 wobei man hier die masse aus den beispielen … herausnehmen kann»** - Kursaufgaben S. 2: H 630, unten Traverse 2.50 m (357 über Joch-OK → z 3.68) mit zwei Bündeln 2× Cu 95 bei ±1.20, oben 1.12 m (503 → z 5.14) mit 1× Cu 95, Leiter 0.77 m unter der Traverse (wie Beispiel 1); **alt «1 wobei man hier eine recherche machen kann …»** - A-15.2 S. 3, Typ 1/362: 3.62 m, Traverse 0.87 m am Kopf, Bündel 2× Cu 95 bei x 0.80; **Lampen «1 lampen sind meist an rohren auf masten oder an jochen»** - beide LED-Vorlagen weg, «Lampe mit Rohr am Mast» und neu «… am Joch», Rohr lotrecht (z 0.5, Lampe z 1.0). Trafo 50 kVA unter «Am Masten», die Vorlage 100 kVA weg (Baustein bleibt), Leiter-Traverse nur am Masten, «Freies Bauteil» als Kachel unter «Übrige». Skizze: ein Stiel beim doppelten (Regel «zwei Stiele» weg), Leiter unter einer Traverse an ihr, Rohr auf der Achse senkrecht, freies Bauteil als Kasten. Sicherung `data/sicherung/anbauteile_vor_vorlagen_bereinigt_2026-10-03.json`, Datenpaket neu. **Der Prüfstand führt die bisherigen `hs-fahrdraht`, LED-Lampen und Trafo 100 als Prüfvorlagen weiter** (`PRUEFVORLAGEN` in pruefung.mjs) - seine Messwerte stehen darauf; der Katalog wird in Abschnitt 202 geprüft. Das Startdokument trägt keine Anbauteile (Zahlen unverändert). ⚠ siehe *Offene Punkte* (Seil gedrückt, Lastgenerator, Höhen des einfachen Aufsatzes) |
@@ -330,7 +331,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6319 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6326 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -341,8 +342,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Browser (Prüfseite, gelöscht): Ausleger an M2 gesetzt, Schiene UPE 0.27 /
   Bl 0.14 / Se 0.49 / M2 1.18 aus dem Stabwerk, kein «Ersatzbalken»; der
   Schwenk mit Zwischenbildern. Das Ziehen von M1 und des Arms im 3D selbst
-  nur am Prüfstand, nicht mit der Maus geprüft. Nicht gepusht (Befund des
-  Durchgangs offen, siehe *Offene Punkte*).
+  nur am Prüfstand, nicht mit der Maus geprüft. Gepusht nach dem
+  Seilausfall (Durchgang ohne Befund).
 - **3. Okt., Anbauteil-Katalog bereinigt** (Prüfstand 202, siehe
   *Entschieden*). Im Browser die Skizzen aller 20 Vorlagen angesehen
   (Probeseite, gelöscht). Der Durchgang meldet seither einen Befund
@@ -2327,7 +2328,7 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **Tragausleger kurz mit Fahrdrahtabzug: ein Seil gedrückt** (3. Okt.,
+- ~~Tragausleger kurz mit Fahrdrahtabzug: ein Seil gedrückt~~ - erledigt 3. Okt. (Seile nur auf Zug, siehe *Entschieden*). Bisher: (3. Okt.,
   `durchlauf.mjs` meldet es). L 6 m, Hängestütze mit Fahrdrahtabzug bei
   L − 0.65: `AUFHAENGUNG_N` −0.24 kN unter «Ständig + Wind −y»; mit der
   früheren Vorlage (Kettenwerk mit Gewicht) und mit `hs-nur` kein Druck.
@@ -2337,7 +2338,7 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   ui.schema.js) - seit dem 3. Oktober nur noch den Fahrdrahtabzug ohne
   Kettenwerk. Ob er zusätzlich «Kettenwerk N-FL» setzen soll, ist zu
   entscheiden (Achtung: Fahrdraht nicht doppelt umlenken).
-- ⚠ **Jochaufsatz einfach: Höhen der Vorlage** (Traverse z 2.00, Aufsatz
+- ~~Jochaufsatz einfach: Höhen der Vorlage~~ - erledigt 3. Okt. (2 m / 4 m). Bisher: (Traverse z 2.00, Aufsatz
   z 1.00) weichen von Beispiel 1 ab (h 4.60 m, Traverse 3.82 m über der
   OG-Achse); doppelt und alt stehen jetzt nach den Plänen. Angleichen?
 - ~~**Endfeld am Stoss in der Reihe**~~ - gebaut am 2. Oktober (siehe
@@ -2675,7 +2676,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6319 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6326 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

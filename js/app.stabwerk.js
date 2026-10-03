@@ -378,7 +378,8 @@ export function rechneStabwerk(app) {
     ausleger = {
       name: `Mast ${erg.modell?.federn?.namen?.A || id}`,
       Vzul: bau.tragausleger.Vzul,
-      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, bau.tragausleger.Vzul),
+      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, bau.tragausleger.Vzul,
+                                       'AUFHAENGUNG', seilInfo),
       // Der Längsanker (Regelfall seit 28. September) - Seilkraft als Auskunft.
       laengsanker: bau.tragausleger.laengsverankerung !== null
         ? laengsankerKraft(dat, lsg, alleFaelle, faelle) : null,
@@ -461,7 +462,7 @@ export function rechneStabwerk(app) {
     ausleger = {
       name: `Mast ${id ?? ''}`.trim(),
       Vzul,
-      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, Vzul, `${pre}AUFHAENGUNG`),
+      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, Vzul, `${pre}AUFHAENGUNG`, seilInfo),
       laengsanker: lvX ? laengsankerKraft(dat, lsg, alleFaelle, faelle, `${pre}LV_M`) : null,
       laengsankerX: lvX ? Number(satz.laengsverankerungX) || null : null,
       knick: id ? knick?.[id] ?? null : null,

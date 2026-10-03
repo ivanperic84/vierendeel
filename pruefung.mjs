@@ -36280,6 +36280,55 @@ titel('203  Ausleger am Jochmasten im Stabwerk; M1 ziehen; Arm in der Höhe; Sch
 }
 
 // ===========================================================================
+titel('204  Aufhängeseile nur auf Zug; Jochaufsatz einfach 2 m / 4 m');
+/*
+ * Weisung 3. Oktober: «seildruck nicht zulassen in der app.» und
+ * «jochaufsatz einfach ist bei rund 4m länge was einen angriffspunkt bei 2m
+ * ausmacht. die traverse und leiter sind dann auf 4m.»
+ * Befund davor (Durchgang): kürzester Tragausleger mit Fahrdrahtabzug, Seil
+ * AUFHAENGUNG_N −0.24 kN unter «Ständig + Wind −y». Jetzt fällt es in der
+ * Kombination aus (wie der Seilanker, core.stabseil.js), das andere trägt.
+ */
+{
+  const AS204 = await import(J('app.stabwerk.js'));
+  const N204 = await import(J('core.nachbarn.js'));
+  const SS204 = await import(J('core.stabseil.js'));
+  A.setzeAnbauteilDB(ANBAU_KATALOG);
+  try {
+    const m = A.vorlagen().find((v) => v.id === 'ja-einfach').module;
+    wahr('Jochaufsatz einfach: Angriffspunkt auf 2 m, Traverse und Leiter auf 4 m',
+         m[0].z === 2 && m[1].z === 4 && m[2].z === 4, m.map((x) => x.z).join(' / '));
+    const L = AJ.tragauslegerTypen()[0].L;
+    const ta = (vorlage, o = {}) => ({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
+      mastVorhanden: true, twId: 'T1', trasseRadius: 600, flSpannweite: 50, mastH: 7.5,
+      anbauteile: [{ ...A.neuesAnbauteil(vorlage, L - 0.65), name: 'FL' }], ...o });
+    const stab = (w0) => {
+      const w = N204.rechensatzMitNachbarn(w0);
+      const erg = berechne(w, ...N204.kernArgumente(w));
+      return AS204.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+    };
+    const h = stab(ta('hs-fahrdraht'));
+    const a = h.ausleger?.aufhaengung;
+    wahr('Kürzester Ausleger mit Fahrdrahtabzug: kein Seildruck mehr (kein Befund)',
+         a && !a.druck && a.ueber === false, JSON.stringify(a?.druck));
+    wahr('… das Seil fällt in «Ständig + Wind −y» aus, statt zu drücken',
+         a?.schlaff && /AUFHAENGUNG_[PN]$/.test(a.schlaff.seil) && a.schlaff.N < -0.1,
+         `${a?.schlaff?.seil} ${a?.schlaff?.N?.toFixed(3)} kN in «${a?.schlaff?.bez}»`);
+    wahr('… die Kombination führt den Hilfsfall des Seils (alle Nachweise lesen ihn)',
+         (h.roh?.dat?.kombinationen ?? []).some((k) => k.key === a.schlaff.fall
+           && k.anteile.some((x) => String(x.lastfall).startsWith(SS204.SEIL_AUS))));
+    wahr('Zwei Seile der Aufhängung stehen in der Seilliste (nur Zug)', h.seile === 2, `${h.seile}`);
+    const nur = stab(ta('hs-nur')).ausleger?.aufhaengung;
+    wahr('Ohne Fahrdraht (nur Hängestütze) fällt keines aus', nur && !nur.schlaff && !nur.druck);
+  } finally {
+    A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+  }
+  wahr('Die Kachel sagt «ein Seil fällt aus», der Befund heisst «Ausleger hebt ab»',
+       readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes("a.schlaff ? ' · ein Seil fällt aus' : ''")
+       && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('AUSLEGER HEBT AB'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

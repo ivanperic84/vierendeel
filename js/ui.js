@@ -6996,7 +6996,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     };
     const a = swH.ausleger.aufhaengung;
     const aufh = a ? kachel('η Aufhängung', f3(a.eta),
-      `S_v ${f2(a.Sv)} / ${f2(swH.ausleger.Vzul)} kN · char.${a.druck ? ' · SEIL GEDRÜCKT' : ''}`,
+      `S_v ${f2(a.Sv)} / ${f2(swH.ausleger.Vzul)} kN · char.${a.druck ? ' · AUSLEGER HEBT AB'
+        : a.schlaff ? ' · ein Seil fällt aus' : ''}`,
       ampelU(a.druck ? 2 : a.eta), {
         ...(a.bez ? { fall: fallKurz(a.bez) } : {}),
         titel: `Senkrechter Anteil der Seilkraft (${a.seile > 1 ? `${a.seile} Seile, `
@@ -7005,10 +7006,18 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
              + 'charakteristisch, nur wirkliche Zustände (ganzes G, G + Wind, '
              + 'Havarie). Darüber verlangt die Zeichnung eine separate statische '
              + 'Berechnung.'
+             // Seit dem 3. Oktober («seildruck nicht zulassen in der app»)
+             // fällt ein Seil aus, statt zu drücken; Befund nur, wenn alle
+             // ausfallen.
              + (a.druck ? `
 
-SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
-               + 'ein Seil trägt keinen Druck.' : ''),
+AUSLEGER HEBT AB: in «${a.druck.bez}» müssten alle Seile drücken `
+               + `(${f2(a.druck.N)} kN) - ein Seil trägt keinen Druck.` : '')
+             + (!a.druck && a.schlaff ? `
+
+Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.N))} kN `
+               + 'drücken und hängt deshalb durch; das andere trägt allein. '
+               + 'Alle Nachweise rechnen mit diesem Zustand.' : ''),
       }) : kachel('η Aufhängung', '–', 'nicht gerechnet', '');
     /*
      * DER LÄNGSANKER (Regelfall seit 28. September) - als AUSKUNFT, ohne
