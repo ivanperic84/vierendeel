@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6428 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6426 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -28,7 +28,7 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
   Rohr bzw. Mastaufsatz; `export.axisvm.gitter.js`), Nachweis je Stab, das
   Bemessungsdiagramm als Kontrolle, 3D aus dem Stabwerk gefärbt. Gegengerechnet
   mit PyNite (`vergleich_gittermast.mjs`, ≤ 0.005 %) und AxisVM (0.00-0.03 %
-  ohne Schubverformung). Wind nach der Norm für Gittertragwerke (Rohr als Kreiszylinder). ⚠ Offen: Wanddicke des Mastaufsatzes nach
+  ohne Schubverformung). Wind: Betreiberwerte der Joche je Windangriffsfläche. ⚠ Offen: Wanddicke des Mastaufsatzes nach
   einem anderen Typ; Knicken später (mit den Tragjochen), kein Fundament; nicht am Abfangjoch
   und Tragausleger (CLAUDE.md, *Offene Punkte*).
 - **2. Oktober, Endfeld am Stoss:** in der Jochreihe endet jedes Joch

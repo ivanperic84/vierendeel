@@ -44,10 +44,10 @@
  *
  * >>> DIE LASTEN WANDERN MIT. <<<
  * Wind (Streckenlast auf den Achsstäben, kN/m am KOPF des Gitters): je
- * Gurtabschnitt ein Viertel, im Verhältnis der wirksamen Windfläche
- * c_f · A_s seiner Höhe zu der am Kopf (Norm für Gittertragwerke,
- * `gitterWindflaeche` in data.masten.js); über dem Kopf das Rohr als
- * Kreiszylinder bzw. der Aufsatz als Quadratrohr. Eigengewicht:
+ * Gurtabschnitt ein Viertel, im Verhältnis der Windangriffsfläche A_s
+ * seiner Höhe zu der am Kopf (Betreiberwerte der Tragjoche, übertragen -
+ * `gitterWindflaeche` in data.masten.js); über dem Kopf der Durchmesser
+ * des Rohrs bzw. die Kante des Aufsatzes. Eigengewicht:
  * je echtem Stab aus A · ρ · g, wenn die Datei es als Last führt (Stabwerk
  * der Anwendung); AxisVM rechnet es selbst.
  * ---------------------------------------------------------------------------
@@ -313,7 +313,7 @@ export function gittermastenEinsetzen(dat) {
     }
 
     // --- Lasten der Achsstäbe umsetzen --------------------------------------
-    // Die wirksame Windfläche c_f · A_s auf der Höhe z (data.masten.js):
+    // Die Windangriffsfläche A_s auf der Höhe z (data.masten.js):
     // Wind in X ist Wind in Richtung a, wenn a in x liegt.
     const cA = (richtung, z) => {
       const inA = (richtung === 'X' && Math.abs(dirA[0]) > 0.5) || (richtung === 'Y' && Math.abs(dirA[1]) > 0.5);

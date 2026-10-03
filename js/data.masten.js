@@ -340,45 +340,38 @@ export function gittermastGeometrie(typ) {
   return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),
            hoehe, laenge: r6(hoehe + (oben?.laenge ?? 0)),
            gurtUnten: g.gurtUnten, gurtOben: g.gurtOben, winkelUnten: wU, winkelOben: wO,
-           stationen, rohr, aufsatz, oben, windStaudruck: g.windStaudruck ?? null, fehler };
+           stationen, rohr, aufsatz, oben, windJeFlaeche: g.windJeFlaeche ?? null, fehler };
 }
 
 /* ===========================================================================
- * >>> WIND AUF DEN GITTERMAST: NACH DER NORM FÜR GITTERTRAGWERKE. <<<
+ * >>> WIND AUF DEN GITTERMAST: DIE BETREIBERWERTE DER TRAGJOCHE, ÜBERTRAGEN. <<<
  * =========================================================================
  *
- * Weisung 3. Oktober: «für den gittermasten die herleitung verwenden für die
- * bestimmung der windeinwirkung. beachte noch das wir oben einen
- * rohrquerschnitt haben beim aufsatz.»
+ * Weisung 3. Oktober (dritte am selben Tag, sie gilt): «die betreiberwerte
+ * beibehalten und diese auf den gittermasten übertragen in anlehnung der
+ * windangriffsfläche pro m1 die normwerte verwerfen, diese werde ich selbst
+ * prüfen».
  *
- * Räumliches Gittertragwerk mit quadratischem Grundriss und kantigen Stäben
- * (EN 1993-3-1, Anhang B; derselbe Aufbau wie EN 1991-1-4, 7.11):
+ * Die Tabelle des Betreibers führt die Windlast der Tragjoche je Meter. Auf
+ * ihre WINDANGRIFFSFLÄCHE je Meter bezogen (die Stäbe einer Seite: zwei
+ * stehende Gurtschenkel + Vertikalbleche) ergibt sich eine Last je m²
+ * Angriffsfläche; ihr Mittel über die Jochtypen steht im Sortiment der
+ * Gittermasten (`windJeFlaeche`, je Einwirkungsklasse). Der Gittermast
+ * bekommt
  *
- *     A_s   Ansichtsfläche der Stäbe EINER Seite je Meter Höhe [m²/m]:
- *           die beiden Gurtschenkel in dieser Seite + ihre Bindebleche
- *     φ     A_s / Seitenbreite (Völligkeit)
- *     c_f   3.96 · (1 − 1.5 φ + 1.8 φ²)   - für den ganzen Mast, die
- *           abgeschattete Rückseite ist darin
- *     w     q · c_f · A_s                  [kN/m]
+ *     w(z) = windJeFlaeche · A_s(z)      [kN/m]
  *
- * Wo die Seite fast zu ist (am Knick: zwei Schenkel füllen die Breite),
- * gilt höchstens der geschlossene Körper: c = 2.1 auf die Breite
- * (Rechteckquerschnitt, scharfkantig). Darüber: das ROHR als Kreiszylinder
- * mit c = 1.2 auf den Durchmesser (unterkritisch, sichere Seite), der
- * Mastaufsatz als Quadratrohr mit c = 2.1.
- *
- * Schlankheitsabminderung und Strukturbeiwert stehen auf 1 (sichere Seite).
- * q je Einwirkungsklasse steht im Sortiment (`windStaudruck`) - dieselben
- * Stufen, unter denen die Windlast der Tragjoche tabelliert ist.
+ * mit seiner eigenen Angriffsfläche auf der Höhe z: die beiden Gurtschenkel
+ * der Seite quer zum Wind + ihre Bindebleche, höchstens die volle Breite.
+ * Über dem Kopf zählt der Durchmesser des Rohrs bzw. die Kante des
+ * Aufsatzes. Kein Normbeiwert - die Herleitung nach der Norm für
+ * Gittertragwerke (vom selben Tag) ist verworfen.
  * ========================================================================= */
-export const GITTER_CF = (phi) => 3.96 * (1 - 1.5 * phi + 1.8 * phi * phi);
-export const CF_GESCHLOSSEN = 2.1;
-export const CF_ROHR = 1.2;
 
 /**
- * Wirksame Windfläche c_f · A je Meter [m²/m] auf der Höhe z, für Wind in
- * Richtung `richtung` ('a' oder 'b'): er trifft die Seite, die quer dazu liegt.
- * @returns {{cA:number, As:number, phi:number, cf:number, breite:number, gedeckelt:boolean}}
+ * Windangriffsfläche je Meter [m²/m] auf der Höhe z, für Wind in Richtung
+ * `richtung` ('a' oder 'b'): er trifft die Seite, die quer dazu liegt.
+ * @returns {{cA:number, As:number, phi:number, breite:number}}  cA = As
  */
 export function gitterWindflaeche(G, z, richtung = 'a') {
   const st = G.stationen;
@@ -402,15 +395,11 @@ export function gitterWindflaeche(G, z, richtung = 'a') {
   const bleche = hTeil > 0 ? teil.reduce((a, x) =>
     a + x.blech.b * Math.max(0, quer === 'a' ? x.blech.la : x.blech.lb), 0) / hTeil : 0;
   const As = Math.min(breite, 2 * schenkel + bleche);
-  const phi = breite > 0 ? As / breite : 1;
-  const cf = GITTER_CF(phi);
-  const gitter = cf * As, voll = CF_GESCHLOSSEN * breite;
-  return { cA: Math.min(gitter, voll), As, phi, cf, breite, gedeckelt: gitter > voll };
+  return { cA: As, As, phi: breite > 0 ? As / breite : 1, breite };
 }
 
-/** Wirksame Windfläche c · d des Rohrs bzw. Aufsatzes über dem Kopf [m²/m]. */
-export const obenWindflaeche = (G) => (!G.oben ? 0
-  : (G.oben.art === 'rohr' ? CF_ROHR * G.oben.d : CF_GESCHLOSSEN * G.oben.a));
+/** Windangriffsfläche des Rohrs bzw. Aufsatzes über dem Kopf [m²/m]. */
+export const obenWindflaeche = (G) => (!G.oben ? 0 : (G.oben.d ?? G.oben.a));
 
 /** Kreisrohr d × t [m]: A [m²], I [m⁴], W [m³], I_t [m⁴]. */
 export function rohrWerte(d, t) {
@@ -444,9 +433,10 @@ export function kastenWerte(a, t) {
  *   A         vier Gurtwinkel des Oberteils
  *   Iy, Iz    Steiner der vier Gurte am KOPF (die schmalste Stelle, sichere
  *             Seite - am Fuss ist der Mast fast doppelt so breit)
- *   wind      Windlast am Kopf des Gitters [kN/m] nach der Norm für
- *             Gittertragwerke (`gitterWindflaeche`); das Stabwerk setzt je
- *             Abschnitt die Fläche seiner Höhe an, am Rohr die des Rohrs
+ *   wind      Windlast am Kopf des Gitters [kN/m]: die Betreiberwerte der
+ *             Tragjoche, auf die Windangriffsfläche übertragen
+ *             (`gitterWindflaeche`); das Stabwerk setzt je Abschnitt die
+ *             Fläche seiner Höhe an, am Rohr den Durchmesser
  *   laenge    feste Gesamtlänge: Gitter + Rohr bzw. Aufsatz
  *
  * Ohne Tabelle `gittermasten` im Sortiment gibt es keinen Gittermast.
@@ -467,9 +457,9 @@ export function gittermastProfil(g) {
   const Iz = 4 * (Iw_b + w.A * (kopf.achseB * 50) ** 2);
   const h = kopf.a * 1000, b = kopf.b * 1000;              // mm
   const A = 4 * w.A;
-  // Wind am KOPF des Gitters [kN/m]: q · c_f · A_s (siehe gitterWindflaeche);
-  // das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
-  const druck = g.windStaudruck ?? null;
+  // Wind am KOPF des Gitters [kN/m]: Last je m² Angriffsfläche × A_s (siehe
+  // gitterWindflaeche); das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
+  const druck = g.windJeFlaeche ?? null;
   const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3']
     .map((ek) => [ek, Math.round((Number(druck[ek]) || 0)
       * gitterWindflaeche(G, G.hoehe, richtung).cA * 1000) / 1000])) : null);

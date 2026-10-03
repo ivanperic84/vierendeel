@@ -36484,33 +36484,38 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
       { mastProfil: M207.GITTER_PRAEFIX + typ, mastH: 8, mastLaenge: 0, ...o }), 'T1');
 
     /*
-     * Wind auf den Gittermast. Zuerst «wind aus den tragjochen herleiten …
-     * mittelwert ansetzen», am selben Tag ersetzt: «für den gittermasten die
-     * herleitung verwenden für die bestimmung der windeinwirkung. beachte noch
-     * das wir oben einen rohrquerschnitt haben beim aufsatz.» Also nach der
-     * Norm für Gittertragwerke: w = q · c_f · A_s mit c_f = 3.96 (1 − 1.5 φ +
-     * 1.8 φ²), höchstens der geschlossene Körper (2.1 · Breite); das Rohr
-     * als Kreiszylinder (1.2 · d), der Aufsatz als Quadratrohr (2.1 · a).
+     * Wind auf den Gittermast, dritte Weisung vom 3. Oktober (sie gilt): «die
+     * betreiberwerte beibehalten und diese auf den gittermasten übertragen in
+     * anlehnung der windangriffsfläche pro m1 die normwerte verwerfen, diese
+     * werde ich selbst prüfen». Windlast je Meter des Tragjochs durch seine
+     * Windangriffsfläche je Meter (stehende Gurtschenkel + Vertikalbleche),
+     * Mittel über die Typen; der Gittermast bekommt sie auf SEINE Fläche.
      */
     {
-      pruef('Gitterbeiwert: c_f(0.2) = 3.96 · (1 − 0.3 + 0.072)', M207.GITTER_CF(0.2), 3.96 * 0.772, 1e-12, '');
       const tj = T.tragjoche().filter((t) => /^J\d+$/.test(t.typ) && t.wind);
-      const stufen = Object.keys(tj[0]?.wind ?? {}).map(Number).sort((a, b) => a - b);
-      wahr('Der Staudruck je Einwirkungsklasse ist der der Tragjoch-Tabelle',
-           stufen.length === 3 && M207.gittermasten().every((g) => ['EK1', 'EK2', 'EK3']
-             .every((ek, i) => Number(g.windStaudruck?.[ek]) === stufen[i])), stufen.join(' / '));
+      const flaeche = (j) => {
+        const w = typUebernehmen({ ...standardwerte(), typ: j.typ }, j);
+        w.L = Math.min(20, j.laengeNorm?.[1] ?? 20);
+        const m = modell(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl), j);
+        return (m.profOG.aV + m.profUG.aV) / 1000
+          + m.stationsListe.filter((x) => x.vertikal).reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / w.L;
+      };
+      const As = tj.map(flaeche);
+      const stufen = [['EK1', '0.9'], ['EK2', '1.1'], ['EK3', '1.3']];
+      const ok = tj.length > 0 && M207.gittermasten().every((g) => stufen.every(([ek, q]) => {
+        const mi = tj.reduce((sum, t, k) => sum + Number(t.wind[q]) / As[k], 0) / tj.length;
+        return Math.abs(Number(g.windJeFlaeche?.[ek]) - mi) < 0.006;
+      }));
+      wahr('Die Windlast je m² Angriffsfläche ist das Mittel der Tragjoche (Betreiberwert / A_s)', ok,
+           `${tj.length} Tragjochtypen · ${JSON.stringify(M207.gittermasten()[0].windJeFlaeche)}`);
       const Gq = M207.gittermastGeometrie(M207.gittermasten().find((g) => g.fuss.a === g.fuss.b && g.rohr?.d > 0).typ);
       const f = M207.gitterWindflaeche(Gq, 0.5, 'a');
       const wU = Gq.winkelUnten;
       const blU = Gq.stationen.filter((x) => x.blech && x.teil === 'unten').reduce((a, x) => a + x.blech.b * x.blech.lb, 0) / Gq.hUnten;
-      pruef('Ansichtsfläche einer Seite: zwei Gurtschenkel + Bindebleche je Meter', f.As, 2 * wU.aV / 1000 + blU, 1e-9, 'm²/m');
-      pruef('… wirksame Fläche c_f · A_s mit der Völligkeit A_s / Breite', f.cA, M207.GITTER_CF(f.As / f.breite) * f.As, 1e-9, 'm²/m');
-      const k = M207.gitterWindflaeche(Gq, Gq.hoehe, 'a');
-      wahr('Wo die Seite fast zu ist, gilt höchstens der geschlossene Körper (2.1 · Breite)',
-           k.gedeckelt && Math.abs(k.cA - M207.CF_GESCHLOSSEN * k.breite) < 1e-12, `φ ${k.phi.toFixed(2)}`);
-      pruef('Das Rohr über dem Kopf: Kreiszylinder, 1.2 · d', M207.obenWindflaeche(Gq), M207.CF_ROHR * Gq.rohr.d, 1e-12, 'm²/m');
-      const Ga = M207.gittermasten().find((g) => g.aufsatz?.a > 0);
-      if (Ga) pruef('Der Mastaufsatz: Quadratrohr, 2.1 · a', M207.obenWindflaeche(M207.gittermastGeometrie(Ga.typ)), 2.1 * Ga.aufsatz.a / 1000, 1e-12, 'm²/m');
+      pruef('Windangriffsfläche des Gittermasts: zwei Gurtschenkel + Bindebleche je Meter', f.As, 2 * wU.aV / 1000 + blU, 1e-9, 'm²/m');
+      wahr('… ohne Normbeiwert (die Fläche selbst), höchstens die volle Breite', f.cA === f.As && f.As <= f.breite);
+      pruef('Über dem Kopf zählt der Durchmesser des Rohrs', M207.obenWindflaeche(Gq), Gq.rohr.d, 1e-12, 'm²/m');
+      wahr('Kein Gitterbeiwert der Norm mehr im Code', M207.GITTER_CF === undefined && M207.CF_ROHR === undefined);
     }
     // --- Die Länge ist die des Typs -----------------------------------------
     const quad = M207.gittermasten().find((g) => g.fuss.a === g.fuss.b && g.rohr?.d > 0);
@@ -36557,10 +36562,10 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     const wFuss = dat.lasten.strecke.filter((l) => l.lastfall === 'WindX' && /_G[1-4]_S1$/.test(l.stab)).reduce((a, l) => a + l.wert, 0);
     const kopf = G.stationen[G.stationen.length - 1];
     const p207 = M207.getMastprofil(M207.GITTER_PRAEFIX + quad.typ);
-    pruef('Wind im Modell: am untersten Gurtabschnitt q · c_f · A_s seiner Höhe',
-          wFuss, quad.windStaudruck.EK1 * M207.gitterWindflaeche(G, (G.stationen[0].z + G.stationen[1].z) / 2, 'a').cA, 0.002, 'kN/m');
+    pruef('Wind im Modell: am untersten Gurtabschnitt Last je m² × Angriffsfläche seiner Höhe',
+          wFuss, quad.windJeFlaeche.EK1 * M207.gitterWindflaeche(G, (G.stationen[0].z + G.stationen[1].z) / 2, 'a').As, 0.002, 'kN/m');
     const wRohr = dat.lasten.strecke.find((l) => l.lastfall === 'WindX' && /_ROHR_S1$/.test(l.stab));
-    pruef('… am freien Rohr q · 1.2 · d', wRohr?.wert, quad.windStaudruck.EK1 * M207.obenWindflaeche(G), 0.002, 'kN/m');
+    pruef('… am freien Rohr Last je m² × Durchmesser', wRohr?.wert, quad.windJeFlaeche.EK1 * M207.obenWindflaeche(G), 0.002, 'kN/m');
     wahr('… das Rohr im Gitter trägt keinen Wind', !dat.lasten.strecke.some((l) => /^Wind/.test(l.lastfall) && /_ROHR_I$/.test(l.stab)));
     const eg = dat.lasten.strecke.filter((l) => /^EG_MAST_/.test(l.name));
     wahr('Eigengewicht je echtem Stab (Gurte, Bleche, Rohr)', eg.length === g.gurte.length + g.bleche.length + g.oben.length);
