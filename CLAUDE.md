@@ -2376,7 +2376,8 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
 - ⚠ **Einheitlichkeit der Tragwerksarten** (Durchsicht 3. Oktober; Stabwerk, Nachweiskacheln, Bericht, Excel, Reaktionsblatt,
-  verformte Figur, Anker und COM-Datei des Blattes haben alle vier): (a) **3D-Färbung** aus dem Stabwerk am Tragjoch (Hülle), Gittermast
+  verformte Figur, Anker und COM-Datei des Blattes haben alle vier): (0) die **rechte Schiene** zeigt am Abfangjoch den Gurt des Ersatzbalkens (1.14), die Kachel den des
+  Stabwerks (0.88); der Plot «w» kommt seit dem 3. Oktober überall aus dem Stabwerk; (a) **3D-Färbung** aus dem Stabwerk am Tragjoch (Hülle), Gittermast
   und Tragausleger; am Abfangjoch und am Walzprofil-Einzelmasten aus dem Kern - am Abfangjoch stehen damit Bild (einfacher Balken)
   und Kacheln (Stabwerk) auf verschiedenen Rechnungen; (b) **Verläufe und Schnitt** aus dem Stabwerk nur am Tragjoch;
   (c) **Einzellastfall** im Bild überall aus dem Kern (ausser Gittermast); (d) **SAF, DXF, PyNite** nicht für Abfangjoch und

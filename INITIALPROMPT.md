@@ -23,6 +23,9 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, verformte Figur:** erscheint mit dem Plot «w» / «η w», Werte an
+  der Figur, Flächen im Plot «w» aus denselben Wegen (`wegeAusFigur`); Knopf δ
+  weg.
 - **3. Oktober, Abfangjoch, vier Befunde:** zwei Abfangjoche übereinander
   hingen am selben Mastknoten; den Masten fehlte im Stabwerk der Mastwind; das
   Abfangjoch rechnete immer mit EK2 und ohne Spannweite (`mitTrasse`); die
