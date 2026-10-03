@@ -961,6 +961,19 @@ export function zeichneSchienen(app) {
     if (app.letzte?.mitJoch === false) {
       gruppen.push({ titel: 'Mast',
         teile: [['Ma', app.letzte.erg?.mast?.eta ?? 0, 'Mast, Querschnitt']] });
+    } else if (e.abfang && swG?.h?.teile?.[`${swG.jochKey}|UPE`]) {
+      /*
+       * >>> AM ABFANGJOCH WIE IN DEN KACHELN (3. Oktober). <<<
+       * Weisung: «Schiene am Abfangjoch auch auf das Stabwerk umstellen.»
+       * Die Schiene zeigte den Gurt des Ersatzbalkens (einfacher Balken,
+       * 1.14 im gemeldeten Fall), die Kachel daneben den des Stabwerks
+       * (0.88) - zwei Zahlen für dasselbe Bauteil.
+       */
+      const t = (k) => swG.h.teile[`${swG.jochKey}|${k}`];
+      gruppen.push({ titel: 'Abfangjoch · Stabwerk', teile: [
+        ['G', t('UPE')?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name} (Stabwerk)`],
+        ['Bl', t('blech')?.eta ?? 0, 'Bindeblech (Stabwerk)'],
+      ] });
     } else if (e.abfang) {
       /*
        * >>> DAS ABFANGJOCH HAT ZWEI GURTE, NICHT VIER. <<<

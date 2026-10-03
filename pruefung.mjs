@@ -37408,6 +37408,20 @@ if (AJ.abfangDbDa()) {
   }
 }
 
+
+/* =========================================================================
+ * 217  DIE SCHIENE AM ABFANGJOCH AUS DEM STABWERK (3. Oktober)
+ * =========================================================================
+ * Weisung: «Schiene am Abfangjoch auch auf das Stabwerk umstellen.»
+ * ========================================================================= */
+{
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const iSw = lay.indexOf("} else if (e.abfang && swG?.h?.teile?.[`${swG.jochKey}|UPE`]) {");
+  const iKern = lay.indexOf('} else if (e.abfang) {');
+  wahr('Gilt das Stabwerk, zeigt die Schiene am Abfangjoch Gurt und Blech aus dem Stabwerk - der Kern erst danach',
+       iSw > 0 && iKern > iSw && lay.includes("gruppen.push({ titel: 'Abfangjoch · Stabwerk', teile: ["));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
