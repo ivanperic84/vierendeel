@@ -29,7 +29,7 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
   Bemessungsdiagramm als Kontrolle, 3D aus dem Stabwerk gefärbt. Gegengerechnet
   mit PyNite (`vergleich_gittermast.mjs`, ≤ 0.005 %) und AxisVM (0.00-0.03 %
   ohne Schubverformung). Wind: Betreiberwerte der Joche je Windangriffsfläche, Rohr 1.2 · q · d (Herleitung im Profilblatt). ⚠ Offen: Wanddicke des Mastaufsatzes nach
-  einem anderen Typ; Knicken später (mit den Tragjochen), kein Fundament; nicht am Abfangjoch
+  einem anderen Typ; Länge je Typ fest (entschieden), UL-Ausführungen der übrigen Typen nicht erfasst; Knicken später (mit den Tragjochen), kein Fundament; nicht am Abfangjoch
   und Tragausleger (CLAUDE.md, *Offene Punkte*).
 - **2. Oktober, Endfeld am Stoss:** in der Jochreihe endet jedes Joch
   5 cm vor der Mastachse, Stationen nach der Standardlänge, das Endfeld
