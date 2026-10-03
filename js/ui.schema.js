@@ -1804,11 +1804,17 @@ export const FELDER = [
     // und zwar die Zeile der Mastwindtabelle und die Windkraefte der
     // Anbauteile. Der alte Text nannte nur das Joch und stand damit an
     // einem Tragwerk, das keines hat.
+    // Der Hinweis steht fest da (die Maske baut ihn nicht bei jeder Wahl neu):
+    // er nennt deshalb beide Fälle. Einheitswind (3. Oktober) - Regel in data.fl.js.
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
       ? 'Wählt die Zeile der Lasttabelle für den Mastwind und die '
       + 'Windkräfte der Anbauteile; der Staudruck dient der Einordnung.'
       : 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
-      + 'der Einordnung.')},
+      + 'der Einordnung.')
+      + ' Einheitswind (alte Norm): 1.0 kN/m² auf die Angriffsfläche, ohne '
+      + 'Formbeiwert — Joch (stehende Gurtschenkel + Vertikalbleche), Masten '
+      + '(Profilbreite), Anbauteile (Fläche aus dem Tabellenwert); für den '
+      + 'Vergleich im Bestandesschutz. Von Hand eingegebene Windkräfte bleiben.'},
   { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'

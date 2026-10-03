@@ -57,6 +57,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { windWertStufe } from './data.fl.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
          abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
@@ -1540,7 +1541,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Beide teilen sich auf die zwei Gurte, wie das Eigengewicht.
    */
   const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[ekAn] ?? '1.1';
-  const wJoch = a?.wind?.[qpEk] ?? 0;
+  const wJoch = windWertStufe(a?.wind, ekAn) ?? 0;
   const sKl = String(opt.schneeKlasse ?? '1.25');
   const sJoch = (opt.schneeAktiv === false ? 0 : (a?.schnee?.[sKl] ?? 0));
   staebe.filter((st2) => st2.art === 'stab'

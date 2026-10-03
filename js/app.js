@@ -2268,7 +2268,8 @@ function aktualisiereModell(erg) {
    * des Schnitts; sie gilt aber fuer das ganze Tragwerk.
    */
   if (ui.el('pos-ek')) {
-    ui.el('pos-ek').textContent = ekVonWindklasse(werte.windKlasse);
+    const ekAnz = ekVonWindklasse(werte.windKlasse);
+    ui.el('pos-ek').textContent = ekAnz === 'EK0' ? 'Einheitswind' : ekAnz;
   }
   // Die Masskette der Zeichnung: die Ansicht zeichnet daraus Fanglinien.
   ansicht.masskette = erg.modell.masskette ?? [];

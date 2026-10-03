@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6445 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6483 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,13 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Einheitswind (alte Norm):** vierte Windstufe «1.0 kN/m², ohne
+  Formbeiwert» (intern `EK0`, Regel in `data.fl.js`): Joch auf seine
+  Windangriffsfläche, Masten auf die Profilbreite, Anbauteile aus dem
+  Tabellenwert / (q · c). Für den Vergleich im Bestandesschutz (5-%-Regel);
+  ein Vergleich alt/neu in einem Blick ist nicht gebaut.
+- **3. Oktober, Gittermast I 30 UL** (16.00 m, Rohr ø 140 × 6) im Sortiment;
+  Anbauteile am Gittermast gemessen (Traverse, Leiter, Lampe, Trafo rechnen).
 - **3. Oktober, Abfangjoch:** ein Mast, ein Körper auch bei zwei Abfangträgern
   an denselben Masten (Zeichenplan in `abfangSzene`); vier Vorlagen «Tragseil /
   Fahrdraht N-FL / R-FL abgefangen» (Spalte `abfangung`, setzt die Abfangart

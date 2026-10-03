@@ -435,7 +435,9 @@ function gitterWindHtml(typ) {
       Der Gittermast bekommt w = dieser Wert · A_s, mit A_s = zwei Gurtschenkel der Seite quer zum Wind + Bindebleche je
       Meter Höhe (höchstens die Breite); Völligkeit = A_s / Breite. Das Stabwerk setzt je Gurtabschnitt die Fläche seiner
       Höhe an.${h.oben?.art === 'rohr' ? ` Das Rohr: w = 1.2 · q · d mit q = ${eks.map((ek) => f2(h.staudruck?.[ek] ?? 0)).join(' / ')} kN/m².`
-        : h.oben ? ' Der Mastaufsatz (Quadratrohr): derselbe Wert je m² auf seine Kante.' : ''}</p>`;
+        : h.oben ? ' Der Mastaufsatz (Quadratrohr): derselbe Wert je m² auf seine Kante.' : ''}
+      <b>Einheitswind (alte Norm):</b> w = 1.0 kN/m² · A_s, die Zahl der Spalte A_s in kN/m${h.oben
+        ? `; über dem Kopf 1.0 · ${h.oben.art === 'rohr' ? 'd' : 'Kante'} = ${f2(h.oben.w.EK0)} kN/m` : ''}.</p>`;
 }
 
 export function profilBlattHtml(e) {

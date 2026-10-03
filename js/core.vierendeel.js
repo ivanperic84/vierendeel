@@ -544,6 +544,25 @@ export function stationenX(m) {
   return xs.map((x, i) => (i === 0 ? 0 : i === xs.length - 1 ? m.L : x - kA));
 }
 
+/**
+ * Windangriffsfläche des Tragjochs je Meter [m²/m] für den Einheitswind:
+ * stehende Gurtschenkel + Vertikalbleche einer Seite (dieselbe Fläche, auf
+ * die der Gittermast die Betreiberwerte bezieht). Nur beim Einheitswind
+ * gerechnet - sie braucht die Stationen, also einen Modellaufbau mit einer
+ * gewöhnlichen Windstufe.
+ */
+export function jochWindflaeche(inp, profOG, profUG, stahl, joch) {
+  if (inp?.windKlasse !== '1.0' || !joch || inp.lastHerkunft === 'manuell') return null;
+  try {
+    const m = modell({ ...inp, windKlasse: '0.9' }, profOG, profUG, stahl, joch);
+    const L = Number(inp.L) || 0;
+    if (!(L > 0)) return null;
+    return (m.profOG.aV + m.profUG.aV) / 1000
+      + m.stationsListe.filter((x) => x.vertikal)
+        .reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / L;
+  } catch { return null; }
+}
+
 export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   /*
    * >>> DIESELBE WEICHE WIE IN `berechne` (20. September). <<<
@@ -595,7 +614,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     return Math.max(0.02, bFeldGurt[gurt] + (jetzt - roh) / U.m__mm);
   };
 
-  const char = charakteristischeLasten(inp, joch);
+  const char = charakteristischeLasten(inp, joch, jochWindflaeche(inp, profOG, profUG, stahl, joch));
   // Baugruppen ZUERST in Einzellasten auflösen: je Modul und je freiem
   // Lastblock ein Eintrag mit eigenem Angriffspunkt. Erst danach kennt der
   // Rechenkern nur noch Einzellasten - und erst danach ist bekannt, ob
@@ -1187,7 +1206,7 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
  * Tragsicherheitsnachweis.
  */
 export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
-  const char = charakteristischeLasten(inp, joch);
+  const char = charakteristischeLasten(inp, joch, jochWindflaeche(inp, profOG, profUG, stahl, joch));
   // Die Übersicht zeigt die charakteristischen Werte je Gruppe. Dafür braucht
   // sie die AUFGELÖSTEN Teile: erst dort steht, welche Gruppe was trägt.
   const flach = expandiereAnbauteile(inp.anbauteile, {

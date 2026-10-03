@@ -230,8 +230,57 @@ export const EK_KLASSEN = [
 ];
 
 /** Referenz-Staudruck einer Klasse [kN/m²]. */
-export const staudruck = (ek) =>
-  EK_KLASSEN.find((k) => k.key === ek)?.qp ?? 1.10;
+export const staudruck = (ek) => (ek === EINHEIT_EK ? EINHEIT_Q
+  : EK_KLASSEN.find((k) => k.key === ek)?.qp ?? 1.10);
+
+/* ===========================================================================
+ * >>> DER EINHEITSWIND DER ALTEN NORM (3. Oktober). <<<
+ * ===========================================================================
+ * Weisung: «kannt du noch für eine berechnung nach alter norm, den
+ * einheitswind unter lasten auswählbar machen. früher wurde nur der
+ * winddruck 1.0 kN/m2 angewendet, ohne die 1.4 formbeiwerte und bei den
+ * jochen wurde der wind nur auf die jeweilige angriffsfläche angesetzt. sow
+ * wie auch bei den masten. … dieser sollte auch auf die anbauteile gelten.»
+ * (Anlass: Bestandesschutz - Lastzunahme bis 5 % der Grenzausnutzung ohne
+ * vertieften Nachweis, wenn damals nach gültiger Norm gerechnet wurde.)
+ *
+ * Er ist eine vierte Windstufe neben EK1-EK3 und heisst intern `EK0` (die
+ * Lasttabelle führt diese Spalte schon, leer). w = Angriffsfläche · 1.0.
+ *
+ * WOHER DIE ANGRIFFSFLÄCHE KOMMT: die Tabellenwerte sind A · q(EK) · c
+ * (gemessen: 72 von 76 Windzeilen skalieren mit 0.9 / 1.1 / 1.3 auf 6 %).
+ * Die Fläche ist also Tabellenwert / (q · c), gemittelt über die Klassen -
+ * c = 1.4 für Tragwerke und flächige Teile, 1.0 für Drähte (dort steckt
+ * kein Formbeiwert im Wert). Steht in der Spalte EK0 eine Zahl, gilt sie.
+ * Joch und Gittermast rechnen ihre Fläche aus der Geometrie (dort steht der
+ * Tabellenwert nicht für EINE Ansichtsfläche).
+ * =========================================================================== */
+export const EINHEIT_EK = 'EK0';
+export const EINHEIT_Q = 1.0;
+/** Formbeiwert, der in den Tabellenwerten steckt (Tragwerk, flächig). */
+export const TABELLEN_BEIWERT = 1.4;
+
+/**
+ * Windwert einer Tabellenzeile `{EK1, EK2, EK3}` für die Klasse `ek`; beim
+ * Einheitswind die Angriffsfläche × 1.0 (siehe oben).
+ */
+export function windWert(t, ek, c = TABELLEN_BEIWERT) {
+  if (ek !== EINHEIT_EK) return t?.[ek];
+  if (Number.isFinite(t?.[EINHEIT_EK])) return t[EINHEIT_EK];
+  const a = EK_KLASSEN.map((k) => (Number.isFinite(t?.[k.key]) ? t[k.key] / (k.qp * c) : null))
+    .filter((v) => v !== null);
+  // auf 0.1 mm Angriffsbreite gerundet - die Tabellenwerte selbst sind auf 1-2 Stellen gerundet
+  return a.length ? Math.round(EINHEIT_Q * a.reduce((s, v) => s + v, 0) / a.length * 1e4) / 1e4 : undefined;
+}
+
+/** Dasselbe für Tabellen, die nach dem Staudruck benannt sind ('0.9', '1.1', '1.3'). */
+export function windWertStufe(t, ek, c = TABELLEN_BEIWERT) {
+  const je = Object.fromEntries(EK_KLASSEN.map((k) => [k.key, t?.[String(k.qp)]]));
+  return windWert(je, ek, c);
+}
+
+/** Der Beiwert, der im Tabellenwert eines Bauteils der Lasttabelle steckt. */
+export const tabellenBeiwert = (b) => (b?.gruppe === 'drahtwerk' ? 1.0 : TABELLEN_BEIWERT);
 
 /**
  * Profilbeiwerte nach RTE 27200.
@@ -254,7 +303,8 @@ export const PROFILBEIWERTE = [
  * @param {string} ek Einwirkungsklasse
  * @param {number} c Profilbeiwert
  */
-export const windAusFlaeche = (A, ek, c = 1.4) => (A ?? 0) * staudruck(ek) * c;
+export const windAusFlaeche = (A, ek, c = 1.4) =>
+  (A ?? 0) * staudruck(ek) * (ek === EINHEIT_EK ? 1 : c);   // Einheitswind: ohne Formbeiwert
 
 /**
  * Lastwerte eines Bauteils in der Form, die der Rechenkern braucht.
@@ -272,7 +322,7 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
   // Multiplikation schlicht falsch.
   const f = (istStreckenlast(b) ? (laenge ?? 0) : 1) * (anzahl ?? 1);
   const wert = (feld) => {
-    const v = b[feld]?.[ek];
+    const v = windWert(b[feld], ek, tabellenBeiwert(b));
     return Number.isFinite(v) ? v * f : 0;
   };
   return {
@@ -282,8 +332,8 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
     streckenlast: istStreckenlast(b),
     // Fehlt ein Windwert für diese Klasse, ist das eine Lücke in der Quelle
     // und keine Null - das wird ausgewiesen statt verschwiegen.
-    ohneWindQuer: !Number.isFinite(b.windQuer?.[ek]),
-    ohneWindLaengs: !Number.isFinite(b.windLaengs?.[ek]),
+    ohneWindQuer: !Number.isFinite(windWert(b.windQuer, ek, tabellenBeiwert(b))),
+    ohneWindLaengs: !Number.isFinite(windWert(b.windLaengs, ek, tabellenBeiwert(b))),
   };
 }
 

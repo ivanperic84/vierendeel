@@ -36827,6 +36827,134 @@ if (AJ.abfangDbDa()) {
        && s208.includes("artV !== abfangVorgabeFuer(tragwerksart(app.werte).key)"));
 }
 
+/* =========================================================================
+ * 209  EINHEITSWIND (ALTE NORM); GITTERMAST UL; ANBAUTEILE AM GITTERMAST (3. Oktober)
+ * =========================================================================
+ * «kannt du noch für eine berechnung nach alter norm, den einheitswind
+ * unter lasten auswählbar machen. früher wurde nur der winddruck 1.0 kN/m2
+ * angewendet, ohne die 1.4 formbeiwerte und bei den jochen wurde der wind
+ * nur auf die jeweilige angriffsfläche angesetzt. sow wie auch bei den
+ * masten. … dieser sollte auch auf die anbauteile gelten.» - «UL-
+ * Ausführungen aufnehmen. als wanddicke die 6mm belassen. rohr ist nur am
+ * kopf und knick gehalten. die zwei uL des I 30 zusammenführen.» - «können
+ * traversen / Leiter / Lampen / Trafos am masttyp gittermast angebaut
+ * werden?»
+ * ========================================================================= */
+{
+  const FL209 = await import(J('data.fl.js'));
+  const LA209 = await import(J('core.lasten.js'));
+  const M209 = await import(J('data.masten.js'));
+  const C209 = await import(J('core.constants.js'));
+  const N209 = await import(J('core.nachbarn.js'));
+  const AS209 = await import(J('app.stabwerk.js'));
+  const DA209 = await import(J('data.anbauteile.js'));
+  const V209 = await import(J('core.vierendeel.js'));
+
+  wahr('Windstufe «Einheitswind 1.0 kN/m²» steht neben EK1-EK3 und heisst intern EK0',
+       LA209.WIND_KLASSEN.length === 4 && LA209.ekVonWindklasse('1.0') === 'EK0'
+       && LA209.WIND_KLASSEN.find((k) => k.key === '1.0').einheit === true);
+  pruef('Staudruck des Einheitswinds', FL209.staudruck('EK0'), 1.0, 1e-12, 'kN/m²');
+  pruef('Freie Fläche 1 m²: EK1 mit Formbeiwert 1.4', FL209.windAusFlaeche(1, 'EK1', 1.4), 1.26, 1e-12, 'kN');
+  pruef('… beim Einheitswind ohne Formbeiwert', FL209.windAusFlaeche(1, 'EK0', 1.4), 1.0, 1e-12, 'kN');
+  pruef('Tabellenzeile A · q · 1.4 gibt beim Einheitswind A · 1.0',
+        FL209.windWert({ EK1: 0.5 * 0.9 * 1.4, EK2: 0.5 * 1.1 * 1.4, EK3: 0.5 * 1.3 * 1.4 }, 'EK0'), 0.5, 1e-9, 'kN');
+  wahr('… die übrigen Klassen liest sie unverändert', FL209.windWert({ EK1: 0.3, EK2: 0.37 }, 'EK2') === 0.37);
+  wahr('… eine Zahl in der Spalte EK0 der Tabelle gilt vor der Herleitung',
+       FL209.windWert({ EK0: 0.2, EK1: 0.63 }, 'EK0') === 0.2);
+  pruef('Mast HEB 240: Einheitswind = Profilbreite × 1.0', M209.mastWind('HEB 240', 'EK0'), 0.24, 0.005, 'kN/m');
+  pruef('Mast HEB 260', M209.mastWind('HEB 260', 'EK0'), 0.26, 0.005, 'kN/m');
+  const hst = 'anbauteil-haengestuetze-od-haengerohr';
+  pruef('Anbauteil (Hängestütze): Tabellenwert EK1 / (0.9 · 1.4), über die Klassen gemittelt',
+        FL209.flLastwerte(hst, { ek: 'EK0' }).Qy / FL209.flLastwerte(hst, { ek: 'EK1' }).Qy, 1 / 1.26, 0.03, '-');
+  const dr = 'drahtwerk-cu-95';
+  pruef('Draht: kein Formbeiwert im Tabellenwert - Einheitswind = Wert / q',
+        FL209.flLastwerte(dr, { ek: 'EK0' }).Qx / FL209.flLastwerte(dr, { ek: 'EK1' }).Qx, 1 / 0.9, 0.03, '-');
+
+  // Tragjoch: 1.0 kN/m² auf die Windangriffsfläche (stehende Gurtschenkel + Vertikalbleche).
+  const j209 = (wk) => ({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', windKlasse: wk });
+  const m09 = modell(j209('0.9'), getProfil('L 90x90x9'), getProfil('L 90x90x9'), getStahl(j209('0.9').stahl), T.getTragjoch('J90'));
+  const w10 = j209('1.0');
+  const m10 = modell(w10, getProfil(w10.profOG), getProfil(w10.profUG), getStahl(w10.stahl), T.getTragjoch('J90'));
+  const As209 = (m09.profOG.aV + m09.profUG.aV) / 1000
+    + m09.stationsListe.filter((x) => x.vertikal).reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / 20;
+  pruef('Tragjoch J90/20 m: w_k = 1.0 kN/m² · Windangriffsfläche je Meter', m10.char.wk, As209, 1e-9, 'kN/m');
+  wahr('… kleiner als der Tabellenwert EK1, und die Herkunft nennt den Einheitswind',
+       m10.char.wk < m09.char.wk && /Einheitswind/.test(m10.char.herkunft.wind), `${m10.char.wk.toFixed(3)} gegen ${m09.char.wk}`);
+  wahr('… Eigengewicht und Schnee bleiben', m10.char.gk === m09.char.gk && m10.char.sk === m09.char.sk);
+  pruef('jochWindflaeche: ohne Einheitswind nichts zu rechnen', V209.jochWindflaeche(j209('0.9'), null, null, null, T.getTragjoch('J90')) === null ? 1 : 0, 1, 0, '-');
+
+  // Gittermast: A_s · 1.0, Rohr d · 1.0 (ohne 1.2).
+  const gq = M209.gittermasten().find((g) => g.typ === 'II 45') ?? M209.gittermasten()[0];
+  const Gq = M209.gittermastGeometrie(gq.typ);
+  const pq = M209.gittermastProfil(gq);
+  wahr('Gittermast: Einheitswind am Kopf = Angriffsfläche × 1.0 (auf drei Stellen)',
+       Math.abs(pq.wind.quer.EK0 - M209.gitterWindflaeche(Gq, Gq.hoehe, 'a').As) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
+  if (Gq.oben?.art === 'rohr') {
+    pruef('… am Rohr der Durchmesser × 1.0, ohne den Faktor 1.2', M209.gitterWindOben(Gq, gq, 'EK0'), Gq.oben.d, 1e-12, 'kN/m');
+  }
+
+  const rechne209 = (w0) => {
+    const w = N209.rechensatzMitNachbarn(w0);
+    const erg = V209.berechne(w, ...N209.kernArgumente(w));
+    return AS209.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+  };
+  const eta = (h) => Math.max(...Object.values(h.bauteile ?? {}).map((b) => b.eta));
+  const ein = (profil, wk, o = {}) => C209.tragwerkWeg(C209.tragwerkHinzu(j209(wk), 'einzelmast',
+    { mastProfil: profil, mastLaenge: 10, ...o }), 'T1');
+  const hE1 = rechne209(ein('HEB 260', '0.9')), hE0 = rechne209(ein('HEB 260', '1.0'));
+  wahr('Einzelmast HEB 260/10 m im Stabwerk: Einheitswind rechnet, η unter dem der EK1',
+       !hE0.fehler && eta(hE0) < eta(hE1) && eta(hE0) > 0, `${eta(hE1).toFixed(3)} → ${eta(hE0).toFixed(3)}`);
+  const gp = M209.GITTER_PRAEFIX + gq.typ;
+  const hG1 = rechne209(ein(gp, '0.9', { mastLaenge: 0 })), hG0 = rechne209(ein(gp, '1.0', { mastLaenge: 0 }));
+  wahr('Einzelmast Gittermast: Einheitswind kommt im Fachwerk an (Wind am Rohr mit eigener Regel)',
+       !hG0.fehler && eta(hG0) < eta(hG1) && eta(hG0) > 0, `${eta(hG1).toFixed(3)} → ${eta(hG0).toFixed(3)}`);
+
+  // --- Gittermast I 30 UL ---------------------------------------------------
+  const ul = M209.gittermasten().find((g) => g.typ === 'I 30 UL');
+  const i30 = M209.gittermasten().find((g) => g.typ === 'I 30');
+  wahr('Sortiment: Typ I 30 UL (eine Ausführung, die zwei der Übersicht zusammengeführt)',
+       Boolean(ul) && M209.gittermasten().filter((g) => /^I 30 UL/.test(g.typ)).length === 1);
+  if (ul && i30) {
+    const GU = M209.gittermastGeometrie(ul.typ);
+    pruef('… Gesamthöhe 16.00 m (Gitter 10.40 + Rohr 5.60)', GU.laenge, 16.0, 1e-9, 'm');
+    wahr('… Rohr ø 140 × 6 mm, nur im Oberteil (Knick bis Kopf) gehalten',
+         GU.oben.art === 'rohr' && Math.abs(GU.oben.d - 0.14) < 1e-12 && Math.abs(GU.oben.t - 0.006) < 1e-12
+         && Math.abs(GU.oben.innen - ul.hOben) < 1e-9);
+    wahr('… das Gitter ist das des Typs I 30 (Gurte, Teilung, Breiten, Bleche, Diagramm)',
+         ['gurtUnten', 'gurtOben', 'teilungUnten', 'teilungOben', 'breiteA', 'breiteB', 'blech', 'zulMoment']
+           .every((k) => JSON.stringify(ul[k]) === JSON.stringify(i30[k])));
+    const hU = rechne209(ein(M209.GITTER_PRAEFIX + ul.typ, '0.9', { mastLaenge: 0 }));
+    const datU = hU.roh.dat, gU = datU.gittermasten[0];
+    const kn = new Map(datU.knoten.map((k) => [k.name, k]));
+    const zSp = Math.max(...gU.achse.map((n) => kn.get(n).z)) - gU.zFuss;
+    pruef('… im Stabwerk steht die Spitze auf 16.00 m', zSp, 16.0, 1e-6, 'm');
+    wahr('… und der Mast wird nachgewiesen', !hU.fehler && eta(hU) > 0 && eta(hU) < 5, `η ${eta(hU).toFixed(3)}`);
+  }
+
+  // --- Anbauteile am Gittermast ---------------------------------------------
+  {
+    let w0 = ein(gp, '0.9', { mastLaenge: 0 });
+    const mid = C209.mastenVon(w0)[0].id;
+    const teil = (vid, h) => ({ ...DA209.neuesAnbauteil(vid, 0), ort: 'mastA', mastId: mid, x: 0, hMast: h });
+    const leer = rechne209(w0);
+    const faelle = [['leiter-traverse', Gq.laenge - 0.5, 'Traverse am Rohr'], ['leiter-rl', 9.0, 'Rückleiter im Oberteil'],
+      ['mast-lampe-alt-rohr', Gq.laenge, 'Lampe auf der Spitze'], ['mast-trafo-50', 4.0, 'Trafo im Unterteil']];
+    faelle.forEach(([vid, h, name]) => {
+      const t = [teil(vid, h)];
+      const r = rechne209({ ...w0, mastAnbauteile: t, anbauteile: t });
+      const dat = r.roh?.dat;
+      const kn = dat ? new Map(dat.knoten.map((k) => [k.name, k])) : null;
+      const zF = dat?.gittermasten?.[0]?.zFuss ?? 0;
+      // Der Anschluss sitzt auf einem Achsknoten des Gittermasts in der gesetzten Höhe.
+      const achse = dat ? dat.gittermasten[0].achse.some((n) => Math.abs(kn.get(n).z - zF - h) < 1e-6) : false;
+      wahr(`Gittermast: ${name} (${h.toFixed(2)} m) hängt im Fachwerk und wird gerechnet`,
+           !r.fehler && !r.ohneModell && achse && eta(r) > eta(leer) - 1e-9 && Number.isFinite(eta(r)),
+           `η ${eta(leer).toFixed(3)} → ${eta(r).toFixed(3)}`);
+    });
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

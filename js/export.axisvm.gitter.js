@@ -326,7 +326,7 @@ export function gittermastenEinsetzen(dat) {
      */
     const pG = gittermastProfil(gittermasten().find((x) => x.typ === G.typ));
     const obenFaktor = (wert) => {
-      const ek = ['EK1', 'EK2', 'EK3'].find((k) => ['quer', 'laengs']
+      const ek = ['EK1', 'EK2', 'EK3', 'EK0'].find((k) => ['quer', 'laengs']
         .some((r) => Math.abs((pG?.wind?.[r]?.[k] ?? NaN) - Math.abs(wert)) < 1e-9)) ?? 'EK1';
       const kopfW = ['quer', 'laengs'].map((r) => pG?.wind?.[r]?.[ek])
         .find((v) => Math.abs(v - Math.abs(wert)) < 1e-9) ?? Math.abs(wert);

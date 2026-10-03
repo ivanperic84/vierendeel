@@ -60,6 +60,9 @@ export const WIND_KLASSEN = [
   { key: '0.9', ek: 'EK1', qp: 0.90, label: 'EK1. Referenz-Staudruck 0.90 kN/m²' },
   { key: '1.1', ek: 'EK2', qp: 1.10, label: 'EK2. Referenz-Staudruck 1.10 kN/m²' },
   { key: '1.3', ek: 'EK3', qp: 1.30, label: 'EK3. Referenz-Staudruck 1.30 kN/m²' },
+  // Einheitswind der alten Norm (3. Oktober) - siehe data.fl.js, `EINHEIT_EK`.
+  { key: '1.0', ek: 'EK0', qp: 1.00, einheit: true,
+    label: 'Einheitswind 1.0 kN/m² (alte Norm, ohne Formbeiwert)' },
 ];
 
 /** Schneestufen der Zeichnung. sk = Referenz-Schneelast [kN/m2]. */
@@ -83,7 +86,7 @@ export const LASTHERKUNFT = [
  * @param {object|null} joch Eintrag aus data.tragjoche.js (nur für 'tabelle')
  * @returns {{gk:number, sk:number, wk:number, herkunft:object}} in [kN/m]
  */
-export function charakteristischeLasten(inp, joch) {
+export function charakteristischeLasten(inp, joch, windflaeche = null) {
   if (inp.lastHerkunft === 'manuell' || !joch) {
     return {
       gk: inp.gkManuell, sk: inp.skManuell, wk: inp.wkManuell,
@@ -92,7 +95,17 @@ export function charakteristischeLasten(inp, joch) {
     };
   }
   const gJoch = (joch.gewicht * U.g) / 1000;
-  const wk = joch.wind[inp.windKlasse];
+  /*
+   * EINHEITSWIND: «bei den jochen wurde der wind nur auf die jeweilige
+   * angriffsfläche angesetzt» - Ansichtsfläche einer Seite je Meter (stehende
+   * Gurtschenkel + Vertikalbleche, `windflaeche` aus dem Modell) × 1.0 kN/m².
+   * Ohne Fläche (kein Modell zur Hand) der Tabellenwert EK1 ohne Staudruck
+   * und Formbeiwert - er liegt darüber, sichere Seite.
+   */
+  const einheit = WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.einheit === true;
+  const wk = einheit
+    ? (windflaeche > 0 ? windflaeche * 1.0 : joch.wind['0.9'] / (0.9 * 1.4))
+    : joch.wind[inp.windKlasse];
   const sk = joch.schnee[inp.schneeKlasse];
   if (wk === undefined) throw new Error(`Windklasse ${inp.windKlasse} nicht in Tabelle`);
   if (sk === undefined) throw new Error(`Schneeklasse ${inp.schneeKlasse} nicht in Tabelle`);
@@ -104,7 +117,10 @@ export function charakteristischeLasten(inp, joch) {
       gewichtTabelle: joch.gewicht,
       eigengewicht: `${joch.gewicht} kg/m (Tabelle) → ${gJoch.toFixed(3)} kN/m` +
                     (inp.gZusatz ? ` + ${inp.gZusatz.toFixed(3)} kN/m Zuschlag` : ''),
-      wind: `${WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.ek} ` +
+      wind: einheit
+        ? `Einheitswind 1.0 kN/m² (alte Norm) auf die Angriffsfläche `
+          + `${windflaeche > 0 ? `${windflaeche.toFixed(3)} m²/m` : 'aus dem Tabellenwert'} → ${wk.toFixed(3)} kN/m`
+        : `${WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.ek} ` +
             `(Referenz-Staudruck ${inp.windKlasse} kN/m²) → ${wk} kN/m Laufmeterlast`,
       schnee: inp.schneeAktiv
         ? `Referenz-Schneelast ${inp.schneeKlasse} kN/m² → ${sk} kN/m Laufmeterlast`

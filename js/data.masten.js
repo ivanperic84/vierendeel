@@ -27,6 +27,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
+import { windWert, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
 import { mastprofileNorm, winkelprofile } from './data.normen.js';
 
 let SORT = null;
@@ -208,7 +209,7 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
   const w = getMastprofil(name).wind;
   if (!w) return null;
   const richtung = steg === 'quer' ? 'laengs' : 'quer';
-  return w[richtung]?.[ek] ?? null;
+  return windWert(w[richtung], ek) ?? null;   // Einheitswind: Profilbreite × 1.0
 }
 
 /**
@@ -412,6 +413,8 @@ export const ROHR_FAKTOR = 1.2;
 /** Windlast über dem Kopf [kN/m] je Einwirkungsklasse: Rohr bzw. Aufsatz. */
 export function gitterWindOben(G, g, ek) {
   if (!G.oben) return 0;
+  // Einheitswind (alte Norm): 1.0 kN/m² auf den Durchmesser bzw. die Kante, ohne Beiwert.
+  if (ek === EINHEIT_EK) return EINHEIT_Q * (G.oben.art === 'rohr' ? G.oben.d : G.oben.a);
   if (G.oben.art === 'rohr') return ROHR_FAKTOR * (Number(g.windStaudruck?.[ek]) || 0) * G.oben.d;
   return (Number(g.windJeFlaeche?.[ek]) || 0) * G.oben.a;
 }
@@ -430,11 +433,12 @@ export function gitterWindHerleitung(typ) {
   stellen.forEach(([name, z]) => ['a', 'b'].forEach((r) => {
     const f = gitterWindflaeche(G, z, r);
     zeilen.push({ stelle: name, z, richtung: r, As: f.As, breite: f.breite, phi: f.phi,
-      w: Object.fromEntries(eks.map((ek) => [ek, (Number(g.windJeFlaeche?.[ek]) || 0) * f.As])) });
+      w: { ...Object.fromEntries(eks.map((ek) => [ek, (Number(g.windJeFlaeche?.[ek]) || 0) * f.As])),
+           [EINHEIT_EK]: EINHEIT_Q * f.As } });
   }));
   return { typ: g.typ, jeFlaeche: g.windJeFlaeche ?? null, staudruck: g.windStaudruck ?? null,
            zeilen, oben: G.oben ? { art: G.oben.art, mass: G.oben.d ?? G.oben.a,
-             w: Object.fromEntries(eks.map((ek) => [ek, gitterWindOben(G, g, ek)])) } : null };
+             w: Object.fromEntries([...eks, EINHEIT_EK].map((ek) => [ek, gitterWindOben(G, g, ek)])) } : null };
 }
 
 /** Kreisrohr d × t [m]: A [m²], I [m⁴], W [m³], I_t [m⁴]. */
@@ -496,8 +500,8 @@ export function gittermastProfil(g) {
   // Wind am KOPF des Gitters [kN/m]: Last je m² Angriffsfläche × A_s (siehe
   // gitterWindflaeche); das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
   const druck = g.windJeFlaeche ?? null;
-  const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3']
-    .map((ek) => [ek, Math.round((Number(druck[ek]) || 0)
+  const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3', EINHEIT_EK]
+    .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? EINHEIT_Q : (Number(druck[ek]) || 0))
       * gitterWindflaeche(G, G.hoehe, richtung).cA * 1000) / 1000])) : null);
   const p = {
     name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,
@@ -511,7 +515,7 @@ export function gittermastProfil(g) {
     // «quer» = Wind in der Jochachse bei a in der Jochachse: Wind in Richtung a.
     wind: druck ? { quer: je('a'), laengs: je('b') } : null,
     // Über dem Kopf (Rohr: 1.2 · q · d; Aufsatz: Last je m² × Kante) [kN/m].
-    windOben: Object.fromEntries(['EK1', 'EK2', 'EK3']
+    windOben: Object.fromEntries(['EK1', 'EK2', 'EK3', EINHEIT_EK]
       .map((ek) => [ek, Math.round(gitterWindOben(G, g, ek) * 1000) / 1000])),
   };
   gitterSpeicher.set(g, p);

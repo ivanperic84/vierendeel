@@ -9,6 +9,7 @@
  * Kontextobjekt aus app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { windWertStufe } from './data.fl.js';
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { APP_NAME, tragwerkSatz, tragwerksart } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
@@ -170,7 +171,7 @@ function dialogSortimentAbfang(app, { f0, f2, f3 }) {
       const r = abfangAuswertung({
         typ: a.typ, jt,
         gk: (a.gewicht ?? 0) * 9.81 / 1000,
-        wk: a.wind?.[qpEk] ?? 0,
+        wk: windWertStufe(a.wind, satz.ek ?? 'EK2') ?? 0,
         sk: satz.schneeAktiv === false ? 0 : (a.schnee?.[sKl] ?? 0),
         anbauteile: satz.anbauteile ?? [],
         gammaG: app.werte.gammaG, gammaQ: app.werte.gammaQ, psi0: app.werte.psi0,

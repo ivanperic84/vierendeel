@@ -3134,7 +3134,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
 
 /** Einwirkungsklasse aus der gewählten Windstufe. */
 const ekVonWerten = (w) =>
-  ({ '0.9': 'EK1', '1.1': 'EK2', '1.3': 'EK3' })[w.windKlasse] ?? 'EK2';
+  ({ '0.9': 'EK1', '1.1': 'EK2', '1.3': 'EK3', '1.0': 'EK0' })[w.windKlasse] ?? 'EK2';
 
 /**
  * Modulliste einer Baugruppe.

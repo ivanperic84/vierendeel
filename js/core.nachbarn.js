@@ -32,6 +32,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { windWertStufe } from './data.fl.js';
 import { tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
          versteckt, tragwerkSatz, tragwerkPos } from './core.constants.js';
 import { berechne } from './core.vierendeel.js';
@@ -107,7 +108,7 @@ function abfangEinmal(w, satzA, stahl, anbauteile) {
     typ: w.abfangTyp, jt: Number(w.L),
     // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
     gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
-    wk: a2?.wind?.[qpEk] ?? 0,
+    wk: windWertStufe(a2?.wind, satzA.ek ?? 'EK2') ?? 0,
     sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
     anbauteile,
     gammaG: w.gammaG, gammaQ: w.gammaQ, psi0: w.psi0,
