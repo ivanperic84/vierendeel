@@ -85,7 +85,12 @@ function Eig($obj, [string[]]$namen) {
 }
 
 # --- AxisVM -----------------------------------------------------------------
+# Welche AxisVM-Prozesse laufen schon? Am Ende wird nur der EIGENE beendet.
+$vorher = @(Get-Process -Name 'AxisVM*' -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
 $app = New-Object -ComObject 'AxisVM.AxisVMApplication'
+Start-Sleep -Milliseconds 800
+$eigene = @(Get-Process -Name 'AxisVM*' -ErrorAction SilentlyContinue |
+            Where-Object { $vorher -notcontains $_.Id } | ForEach-Object { $_.Id })
 foreach ($p in @(@{n='Visible'; v=0}, @{n='AskCloseAll'; v=0}, @{n='AskSaveOnLastReleased'; v=0},
                  @{n='AskCloseOnLastReleased'; v=0}, @{n='CloseOnLastReleased'; v=1})) {
     try { $app.($p.n) = $p.v } catch { }
@@ -219,3 +224,11 @@ $m = $null
 [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($app)
 $app = $null
 [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+<#  Gemessen am 3. Oktober 2026: die Instanz blieb nach dem Loslassen der
+    Verweise stehen und hielt die Datei gesperrt (drei Laeufe, drei Fenster).
+    Deshalb wird der Prozess, den DIESER Lauf gestartet hat, beendet - nie
+    einer, der vorher schon lief.                                          #>
+Start-Sleep -Seconds 2
+foreach ($id in $eigene) {
+    try { if (Get-Process -Id $id -ErrorAction SilentlyContinue) { Stop-Process -Id $id -Force -Confirm:$false } } catch { }
+}
