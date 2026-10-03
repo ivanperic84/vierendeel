@@ -22011,7 +22011,14 @@ const CH9x = await import(J('core.checks.js'));
      * beiden Endbleche.
      */
     const gurtS = m.staebe.filter((x) => x.querschnitt === 'GURT');
-    const blS = m.staebe.filter((x) => x.querschnitt === 'BLECH');
+    // Die starren Enden tragen seit dem 3. Oktober den Querschnitt STARR (siehe
+    // Abschnitt 212) - ein Riegel wird deshalb an seinem Mittelstück erkannt.
+    const riegelVon = (mm, qs) => {
+      const kern = new Set(mm.staebe.filter((x) => x.querschnitt === qs && x.name.endsWith('_2'))
+        .map((x) => x.name.slice(0, -2)));
+      return mm.staebe.filter((x) => x.querschnitt === qs || kern.has(x.name.slice(0, -2)));
+    };
+    const blS = riegelVon(m, 'BLECH');
     const beS = m.staebe.filter((x) => x.querschnitt === 'BLECH_ENDE');
     /*
      * ZWEI BLECHE JE STATION - oben und unten auf Flanschhoehe (Weisung,
@@ -22052,7 +22059,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     {
       const m240 = XA.abfangAxisvmModell('A240', 8.0, {});
-      const stS = m240.staebe.filter((x) => x.querschnitt === 'STEIFE');
+      const stS = riegelVon(m240, 'STEIFE');
       pruef('A240 / 8.00 m: vier Steifen im Modell',
             stS.filter((x) => x.name.endsWith('_2')).length, 4, 1e-9, 'Stk');
       const qsQ = m240.querschnitte.find((q2) => q2.name === 'STEIFE');
@@ -37143,6 +37150,33 @@ if (AJ.abfangDbDa()) {
   const vq = readFileSync(join(HIER, 'vergleich_axisvm.mjs'), 'utf8');
   wahr('vergleich_axisvm.mjs: Rechnung ohne Schubverformung und Ortsfilter für die Klemmzonen',
        vq.includes("process.argv.includes('--ohne-schub')") && vq.includes("process.argv.indexOf('--ausser-x')"));
+}
+
+
+/* =========================================================================
+ * 212  ABFANGJOCH: DIE STARREN ENDEN SIND STARR (3. Oktober)
+ * =========================================================================
+ * Frage des Auftraggebers zum Quervergleich mit AxisVM: «wie sieht es mit
+ * den querprofilwerten aus? und wurde eventuell starrelemente im axis in
+ * den gurten verbaut?» - AxisVM baut aus `art: 'starr'` einen Starrkörper;
+ * der eigene Löser nahm den genannten Querschnitt mal STARR_FAKTOR, und das
+ * war am Blechende ein Flachstahl. Der liegende Träger war damit zu weich
+ * (36.4 gegen 25.4 mm in AxisVM; jetzt 25.7 mm).
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const AXA212 = await import(J('export.axisvm.abfang.js'));
+  const SW212 = await import(J('core.stabwerk.js'));
+  for (const [typ, L] of [['A160', 12.5], ['A240', 12.5]]) {
+    const d = AXA212.abfangAxisvmModell(typ, L, { anbauteile: [] });
+    const st = d.staebe.filter((x) => x.art === 'starr');
+    wahr(`${typ}: jeder starre Stab trägt den Ersatzquerschnitt STARR, keiner den eines Bauteils`,
+         st.length > 0 && st.every((x) => x.querschnitt === 'STARR'),
+         [...new Set(st.map((x) => x.querschnitt))].join(', '));
+    const q = d.querschnitte.find((x) => x.name === 'STARR');
+    const w = q && SW212.qsWerte(q), g = SW212.qsWerte(d.querschnitte.find((x) => x.name === 'GURT'));
+    wahr('… und der steht in der Datei, auch ohne Masten, weit steifer als der Gurt',
+         !!w && w.Iy > 100 * g.Iy && w.Iz > 100 * g.Iz);
+  }
 }
 
 console.log('\n' + '='.repeat(104));

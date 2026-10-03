@@ -766,7 +766,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
         for (const g of ['V', 'H']) {
           staebe.push({
             name: `GARM_${g}${k}_${x.toFixed(3)}`, von: nm(g, i), bis: nmG(g, i),
-            querschnitt: 'GURT', steifesMaterial: false,
+            querschnitt: 'STARR', steifesMaterial: false,
             lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
           });
         }
@@ -827,6 +827,19 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Die steifen Enden sind STARRKOERPER (`art: 'starr'`), nicht dicke
    * Staebe: stehende Vorgabe des Auftraggebers, und beim Tragjoch traegt
    * `blechende` dieselbe Rolle.
+   *
+   * >>> UND SIE TRAGEN DEN QUERSCHNITT «STARR», NICHT DEN DES BLECHS. <<<
+   *
+   * Frage des Auftraggebers am 3. Oktober zum Quervergleich: «wurde
+   * eventuell starrelemente im axis in den gurten verbaut?» - ja, AxisVM
+   * baut aus `art: 'starr'` einen Starrkoerper und sieht den Querschnitt
+   * gar nicht an. Der eigene Loeser nimmt dagegen den genannten Querschnitt
+   * mal STARR_FAKTOR: ein 79 mm langes «starres» Blechende war bei ihm ein
+   * Flachstahl 100/8 mit zehnfachem E - um seine schwache Achse weicher als
+   * der Gurt. Gemessen an zwei A160/12.5 m uebereinander, Durchbiegung in
+   * Traegermitte unter dem Leiterzug: AxisVM 25.4 mm, Loeser 36.4 mm, mit
+   * dem Ersatzquerschnitt 500x500 wie am Tragjoch 25.7 mm. Dasselbe gilt
+   * den Armen zur Gabel und zu den Anbauteilen (dort ohne messbare Wirkung).
    */
   /*
    * EIN RIEGEL: STARR - BAUTEIL - STARR, und die beiden starren Stuecke
@@ -849,13 +862,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     knoten.push({ name: na, x, y: -halb, z: zo },
                 { name: nb2, x, y: halb, z: zo });
     staebe.push({ name: `${name}_1`, von: nH, bis: na,
-                  querschnitt: qsName, steifesMaterial: false, lcsZ,
+                  querschnitt: 'STARR', steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'starr' });
     staebe.push({ name: `${name}_2`, von: na, bis: nb2,
                   querschnitt: qsName, steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
     staebe.push({ name: `${name}_3`, von: nb2, bis: nV,
-                  querschnitt: qsName, steifesMaterial: false, lcsZ,
+                  querschnitt: 'STARR', steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'starr' });
   };
 
@@ -1021,12 +1034,11 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       A: pm.A / 1e4, Iy: pm.Iy / 1e8, Iz: pm.Iz / 1e8, It: pm.It / 1e8,
     };
   })() : null;
-  if (mastQs) {
-    querschnitte.push(mastQs);
-    querschnitte.push({ name: 'STARR', form: 'Rectangle',
-                        parameter: [500, 500],
-                        profil: 'steifer Stab, Konsole und Link' });
-  }
+  if (mastQs) querschnitte.push(mastQs);
+  // Immer: auch ohne Masten tragen die starren Blechenden diesen Querschnitt.
+  querschnitte.push({ name: 'STARR', form: 'Rectangle',
+                      parameter: [500, 500],
+                      profil: 'steifer Stab, Konsole und Link' });
 
   const anschluss = opt.auflagerAnschluss ?? 'schott';
   const auflager = [];
@@ -1216,7 +1228,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     for (const g of ['V', 'H']) {
       staebe.push({
         name: `SCHOTT_${ende}${g}`, von: kA, bis: anschlussKnoten(g, i),
-        querschnitt: 'GURT', steifesMaterial: false,
+        querschnitt: 'STARR', steifesMaterial: false,
         lcsZ: [0, 0, 1],
         /*
          * Das Skript baut aus `art: 'link'` ein LinkElement und liest die
@@ -1360,7 +1372,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       staebe.push({
         // Ein Anbauteil im Gabelbereich greift an der Gabel an.
         name: `ATARM_${j + 1}${g}`, von: knA, bis: anschlussKnoten(g, i),
-        querschnitt: 'GURT', steifesMaterial: false,
+        querschnitt: 'STARR', steifesMaterial: false,
         lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
       });
     });
