@@ -5148,7 +5148,74 @@ export function stabmodellJson(m, opt = {}) {
     lasten: l,
   };
   // Gittermasten: der Zug auf der Mastachse wird zum Fachwerk (3. Oktober).
-  return gittermastenEinsetzen(datei);
+  return knotenEntflechten(gittermastenEinsetzen(datei));
+}
+
+/**
+ * >>> KEINE ZWEI KNOTEN AN DERSELBEN STELLE (4. Oktober). <<<
+ *
+ * Befund zu den «Klemmzonen» (Quervergleich vom 3. Oktober: Untergurt in
+ * Feldmitte AxisVM N 13.8 / V 31.4 kN, eigener Löser N 114.5 / V 1.9 kN).
+ * Im Beispiel sitzen Hängestütze und Kettenwerk an derselben Stelle x: die
+ * Mitte des Anschlusskörpers der Stütze (`AT2_UG`) und der Reihenknoten des
+ * Kettenwerks (`AT3_UG_R1`) liegen deckungsgleich. Die Datei führt zwei
+ * Knoten, der eigene Löser rechnet zwei - AxisVM gibt beim Anlegen für
+ * dieselbe Stelle DENSELBEN Knoten zurück (in der Zuordnung beide Nr. 965)
+ * und macht aus zwei Anbauteilen einen Starrkörper. Der hält den Untergurt
+ * an zwei Stationen in x und nimmt ihm dazwischen die Gurtkraft ab.
+ * Gegenprobe: dieselbe Verschmelzung im eigenen Löser gibt AxisVM auf
+ * 1-2 % wieder (Gurt N 87 → 1.3 %, V 94 → 1.7 %, Blech V 12 → 0.15 %).
+ *
+ * Gemeint sind zwei Teile. Deshalb rückt hier einer der beiden Knoten um
+ * 20 mm zu einem Nachbarn seines eigenen Teils - nur ein Knoten, an dem
+ * ausschliesslich Starrglieder hängen und weder Last noch Auflager sitzt:
+ * im Starrkörper ist seine Lage ohne Belang, das Tragwerk bleibt dasselbe.
+ * Was sich so nicht lösen lässt, steht in `deckungsgleich` (die Brücke
+ * meldet es laut).
+ */
+const ENTFLECHT_WEG = 0.02;
+export function knotenEntflechten(datei) {
+  const ort = (k) => `${k.x.toFixed(4)},${k.y.toFixed(4)},${k.z.toFixed(4)}`;
+  const je = new Map();
+  datei.knoten.forEach((k) => { (je.get(ort(k)) ?? je.set(ort(k), []).get(ort(k))).push(k); });
+  const doppelt = [...je.values()].filter((l) => l.length > 1);
+  if (!doppelt.length) return datei;
+  const kn = new Map(datei.knoten.map((k) => [k.name, k]));
+  const an = new Map();
+  datei.staebe.forEach((s) => [s.von, s.bis].forEach((n, i) => {
+    (an.get(n) ?? an.set(n, []).get(n)).push({ s, nachbar: i ? s.von : s.bis });
+  }));
+  const belegt = new Set([
+    ...(datei.auflager ?? []).map((a) => a.knoten),
+    ...Object.values(datei.lasten ?? {}).flatMap((l) => (Array.isArray(l) ? l : []).map((x) => x.knoten)),
+  ].filter(Boolean));
+  const frei = (k) => !belegt.has(k.name) && (an.get(k.name) ?? []).length > 0
+    && (an.get(k.name) ?? []).every((a) => a.s.art === 'starr');
+  const offen = [];
+  doppelt.forEach((gruppe) => {
+    // Einer bleibt stehen: der erste, der sich NICHT rücken lässt, sonst der erste.
+    const fest = gruppe.find((k) => !frei(k)) ?? gruppe[0];
+    gruppe.filter((k) => k !== fest).forEach((k) => {
+      const ziele = frei(k) ? (an.get(k.name) ?? [])
+        .map((a) => kn.get(a.nachbar))
+        .map((n) => ({ n, d: Math.hypot(n.x - k.x, n.y - k.y, n.z - k.z) }))
+        .filter((z) => z.d > 3 * ENTFLECHT_WEG)
+        .sort((p, q) => q.d - p.d) : [];
+      const z = ziele.find((zz) => {
+        const t = ENTFLECHT_WEG / zz.d;
+        return !je.has(ort({ x: k.x + (zz.n.x - k.x) * t, y: k.y + (zz.n.y - k.y) * t,
+                             z: k.z + (zz.n.z - k.z) * t }));
+      });
+      if (!z) { offen.push([fest.name, k.name]); return; }
+      const t = ENTFLECHT_WEG / z.d;
+      k.x = r6(k.x + (z.n.x - k.x) * t);
+      k.y = r6(k.y + (z.n.y - k.y) * t);
+      k.z = r6(k.z + (z.n.z - k.z) * t);
+      je.set(ort(k), [k]);
+    });
+  });
+  if (offen.length) datei.deckungsgleich = offen;
+  return datei;
 }
 
 /** Baut das JSON und lädt es herunter. */

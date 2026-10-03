@@ -2042,6 +2042,30 @@ foreach ($k in $d.knoten) {
 }
 Schreib "  $($kn.Count) Knoten"
 
+<#  ZWEI NAMEN, EIN KNOTEN (4. Oktober).
+    AxisVM gibt fuer eine Stelle, an der schon ein Knoten liegt, dessen
+    Nummer zurueck. Zwei Bauteile, deren Knoten deckungsgleich liegen,
+    haengen dann aneinander - gemessen am 3. Oktober: zwei Anbauteile
+    wurden ein Starrkoerper und nahmen dem Untergurt die Gurtkraft ab
+    (N 13.8 statt 114.5 kN). Die Ausleitung rueckt solche Knoten seither
+    auseinander; was trotzdem zusammenfaellt, steht hier.               #>
+$jeNr = @{}
+foreach ($name in $kn.Keys) {
+    $nr = $kn[$name]
+    if (-not $jeNr.ContainsKey($nr)) { $jeNr[$nr] = New-Object System.Collections.Generic.List[string] }
+    $jeNr[$nr].Add($name)
+}
+$verschmolzen = @($jeNr.Keys | Where-Object { $jeNr[$_].Count -gt 1 })
+if ($verschmolzen.Count -gt 0) {
+    Schreib ''
+    Schreib "  WARNUNG: $($verschmolzen.Count) Stellen, an denen AxisVM mehrere Knoten der Datei"
+    Schreib '  zu EINEM gemacht hat. Die Bauteile dort haengen im Modell aneinander:'
+    foreach ($nr in ($verschmolzen | Sort-Object)) {
+        Schreib ("    Knoten {0}: {1}" -f $nr, (($jeNr[$nr] | Sort-Object) -join ' = '))
+    }
+    $gefunden.Add("$($verschmolzen.Count) deckungsgleiche Knoten verschmolzen (siehe Abschnitt 5)") | Out-Null
+}
+
 <#  WIE EIN STUMMEL GEBAUT WIRD.
     Vorgabe des Auftraggebers: die Starrelemente sind in AxisVM auch als
     solche zu modellieren und nicht als dicke Staebe mit steifem

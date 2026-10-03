@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6553 Kontrollen grün,
+Stand: **4. Oktober 2026**; Prüfstand 6562 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,9 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **4. Oktober:** Klemmzonen geklärt (`knotenEntflechten`, Wache in der Brücke);
+  Druckstützen am Abfangjoch im 3D in Resultatfarbe. ⚠ Beispiel B entflochten
+  in AxisVM nicht neu gebaut (nur auf Anweisung).
 - **3./4. Oktober, Abfangjoch:** 3D-Bild, Verläufe und Schiene aus dem Stabwerk;
   das berichtigte Blatt mit zwei Abfangjochen und Druckstützen in AxisVM
   nachgerechnet (Gurt, Blech ≤ 0.1 %, Mast M_y 2.7-5 % bei kleinen Werten).
@@ -44,7 +47,7 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
   Bindeblech des Abfangjochs stand im Löser hochkant (I_y/I_z vertauscht),
   Abfangjoch-η des Stabwerks lagen zu hoch. Danach die starren Blechenden des
   Abfangjochs wirklich starr (Querschnitt STARR): Gurt und Blech gegen AxisVM
-  unter 1 %. ⚠ Offen: Klemmzonen der Anbauteile am Tragjoch. Handbuch 20 Kapitel; Kopie und Tragwerk-Vorlage
+  unter 1 %. Klemmzonen am Tragjoch geklärt (4. Oktober: AxisVM verschmolz deckungsgleiche Knoten, Ausleitung entflicht). Handbuch 20 Kapitel; Kopie und Tragwerk-Vorlage
   nehmen die Abfangart der Leiter mit.
 - **3. Oktober, Anker:** das Stabmodell des Abfangjochs baut den Anker jetzt
   (fehlte ganz); am geteilten Masten steht er einmal statt je Tragwerk

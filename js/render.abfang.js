@@ -721,6 +721,15 @@ export function abfangSzene(typ, jt, opt = {}) {
         etaGzg: opt.ergVerf?.[name]?.eta ?? null,
         farbeBauteil: fb,
         anker: md.anker ?? null,
+        /*
+         * >>> DIE STUETZE TRAEGT IHRE AUSNUTZUNG - AUCH HIER (4. Oktober). <<<
+         * Gemeldet mit Bild (zwei Abfangjoche mit Druckstuetzen): «die
+         * druckstützen werden hier nicht in den resultatfarben dargestellt
+         * im 3d modell.» Die Anwendung reichte den Ankernachweis herein
+         * (`ergAnker`), gelesen hat ihn hier niemand - am Tragjoch steht die
+         * Zeile seit dem 16. September (render.3d.js).
+         */
+        ankerEta: opt.ergAnker?.[name]?.nachweis?.eta ?? null,
         // Wie in `render.3d.js`: das Sortiment gehoert nicht in die Szene.
         ankerSpreiz: md.anker?.typ
           ? (() => { try { return ankerSpreizung(md.anker.typ); }

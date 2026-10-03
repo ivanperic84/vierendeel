@@ -2066,7 +2066,16 @@ function blattSzene(erg) {
                      */
                     ergMast: erg.mast ?? null,
                     ergVerf: erg.verformung ?? null,
-                    ergAnker: erg.anker ?? null,
+                    /*
+                     * Der Anker im Bild mit der Zahl der Kachel (4. Oktober):
+                     * gilt das Stabwerk, sein Nachweis je Mast, sonst der Kern.
+                     */
+                    ergAnker: (() => {
+                      const g = stabwerkGilt();
+                      const n = erg.modell.federn?.namen ?? {};
+                      return Object.fromEntries(['A', 'B'].map((e) =>
+                        [e, g?.h?.ankerJe?.[n[e] ?? e] ?? erg.anker?.[e] ?? null]));
+                    })(),
                     lager: tragwerkSatz(werte),
                     mastZeichnen: plan[aktivId],
                     ...abfangLastAngaben(tragwerkSatz(werte)),

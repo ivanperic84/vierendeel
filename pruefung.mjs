@@ -37475,6 +37475,86 @@ if (AJ.abfangDbDa()) {
        RS218.jochStaebe({ a: { name: 'OGL_S1', bauteil: 'tragwerk', x0: 0, x1: 1 } }, 'tragwerk')?.abfang !== true);
 }
 
+
+/* =========================================================================
+ * 219  KEINE DECKUNGSGLEICHEN KNOTEN; ANKER AM ABFANGJOCH IN FARBE (4. Oktober)
+ * =========================================================================
+ * «mach weiter mit dem klemmzonen problem»: AxisVM gibt zwei Knoten an
+ * derselben Stelle dieselbe Nummer - Hängestütze und Kettenwerk an einer
+ * Stelle x wurden EIN Starrkörper (Untergurt N 13.8 statt 114.5 kN). Die
+ * Ausleitung rückt solche Knoten auseinander, die Brücke meldet den Rest.
+ * «die druckstützen werden hier nicht in den resultatfarben dargestellt».
+ * ========================================================================= */
+{
+  const AX219 = await import(J('export.axisvm.js'));
+  const AS219 = await import(J('app.stabwerk.js'));
+  const N219 = await import(J('core.nachbarn.js'));
+  const DA219 = await import(J('data.anbauteile.js'));
+  const doppelt = (dat) => {
+    const m = new Map();
+    dat.knoten.forEach((k) => { const o = [k.x, k.y, k.z].map((v) => v.toFixed(4)).join(); m.set(o, (m.get(o) ?? 0) + 1); });
+    return [...m.values()].filter((n) => n > 1).length;
+  };
+  // (a) Die Regel an einem kleinen Fall: zwei Starrketten treffen sich in einem Punkt.
+  const klein = () => ({
+    knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 0, y: 0, z: 0 },
+             { name: 'A1', x: -0.2, y: 0, z: 0 }, { name: 'B1', x: 0, y: 0, z: -0.5 },
+             { name: 'B2', x: 0, y: 0.2, z: 0 }],
+    staebe: [{ name: 'a', von: 'A', bis: 'A1', art: 'starr' }, { name: 'b', von: 'B', bis: 'B1', art: 'starr' },
+             { name: 'c', von: 'B2', bis: 'B', art: 'starr' }],
+    auflager: [], lasten: { punkt: [{ knoten: 'A', richtung: 'Z', wert: 1, lastfall: 'G' }], moment: [], strecke: [] } });
+  const k1 = AX219.knotenEntflechten(klein());
+  const B = k1.knoten.find((k) => k.name === 'B'), A = k1.knoten.find((k) => k.name === 'A');
+  wahr('Zwei Knoten an derselben Stelle: der ohne Last rückt 20 mm zum fernsten Nachbarn seines Teils, der mit Last bleibt',
+       A.x === 0 && A.z === 0 && Math.abs(B.z + 0.02) < 1e-9 && B.x === 0 && B.y === 0 && !k1.deckungsgleich,
+       `B ${B.x}/${B.y}/${B.z}`);
+  const fest = klein();
+  fest.staebe[1].art = 'stab';
+  fest.staebe[0].art = 'link';
+  const k2 = AX219.knotenEntflechten(fest);
+  wahr('Hängt an beiden ein echter Stab oder ein Link, bleibt die Lage - und die Datei nennt das Paar',
+       doppelt(k2) === 1 && JSON.stringify(k2.deckungsgleich) === '[["A","B"]]', JSON.stringify(k2.deckungsgleich));
+  const ohne = { knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 1, y: 0, z: 0 }], staebe: [], lasten: {} };
+  wahr('Ohne deckungsgleiche Knoten bleibt die Datei, wie sie ist',
+       JSON.stringify(AX219.knotenEntflechten(JSON.parse(JSON.stringify(ohne)))) === JSON.stringify(ohne));
+  // (b) Hängestütze und Kettenwerk an derselben Stelle am J90/20 m.
+  const teil = (vid, x) => ({ ...DA219.neuesAnbauteil(vid, x), ort: 'joch' });
+  const mit = (liste) => {
+    const w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: liste };
+    const ws = N219.rechensatzMitNachbarn(w);
+    return AS219.rechneStabwerk({ werte: w, letzte: { erg: berechne(ws, ...N219.kernArgumente(ws)) }, stabwerk: null });
+  };
+  const h = mit([teil('hs-fahrdraht', 10), teil('kw-nfl-joch', 10)]);
+  const dat = h.roh.dat;
+  const zwei = ['AT0_UG', 'AT1_UG_R1'].map((n) => dat.knoten.find((k) => k.name === n));
+  wahr('Hängestütze und Kettenwerk an derselben Stelle: kein Knoten der Datei liegt auf einem anderen',
+       doppelt(dat) === 0 && !dat.deckungsgleich && zwei.every(Boolean)
+       && Math.abs(Math.hypot(zwei[0].x - zwei[1].x, zwei[0].y - zwei[1].y, zwei[0].z - zwei[1].z) - 0.02) < 1e-6,
+       `doppelt ${doppelt(dat)}`);
+  wahr('… und am Reihenknoten des Kettenwerks hängen nur Starrglieder (seine Lage ist im Starrkörper ohne Belang)',
+       dat.staebe.filter((s) => s.von === 'AT1_UG_R1' || s.bis === 'AT1_UG_R1').every((s) => s.art === 'starr'));
+  // (c) Die Brücke sagt es, wenn AxisVM trotzdem zwei Namen einen Knoten gibt.
+  const ps = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('Die Brücke meldet Knoten, die AxisVM zu einem gemacht hat',
+       ps.includes('ZWEI NAMEN, EIN KNOTEN') && ps.includes('zu EINEM gemacht hat'));
+  // (d) Der Anker am Abfangjoch trägt seine Ausnutzung im Bild.
+  if (AJ.abfangDbDa()) {
+    const RA219 = await import(J('render.abfang.js'));
+    const ak = { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus', befestigung: 'ankerplatte' };
+    const szene = (ergAnker) => RA219.abfangSzene('A160', 12.5, { anbauteile: [], lager: {},
+      mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse', anker: ak }, ergAnker });
+    const fa = (sz) => sz.flaechen.filter((f) => /^ANKER_/.test(f.teil ?? ''));
+    const mitEta = szene({ A: { nachweis: { eta: 0.31 } }, B: { nachweis: { eta: 0.42 } } });
+    wahr('Abfangjoch: die Druckstütze trägt im Bild die Ausnutzung ihres Nachweises',
+         fa(mitEta).length > 0 && fa(mitEta).every((f) => f.werte?.eta === (f.teil === 'ANKER_A' ? 0.31 : 0.42)),
+         `${fa(mitEta).filter((f) => f.werte).length} von ${fa(mitEta).length}`);
+    wahr('… ohne Nachweis bleibt sie ohne Wert (grau)', fa(szene(null)).every((f) => !Number.isFinite(f.werte?.eta)));
+    wahr('Die Anwendung reicht den Anker des Stabwerks, sonst den des Kerns',
+         APP_QUELLE().includes("g?.h?.ankerJe?.[n[e] ?? e] ?? erg.anker?.[e] ?? null"));
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
