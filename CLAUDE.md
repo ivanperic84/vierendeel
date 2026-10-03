@@ -2383,7 +2383,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Anzeige, Rechenverfahren «Ersatzbalken») rechnet ihn als Vollstab mit dem Kopfquerschnitt;
   (h) weitere Typen des Katalogs nicht erfasst (auch II 30 UL, III 30 UL); Wanddicke des UL-Rohrs einheitlich 6 mm statt der zwei gezeichneten.
 - ⚠ **Abfangjoch gegen AxisVM, Rest 6-20 %** (3. Okt., nach der Berichtigung der Blechlage): der liegende Träger ist im Löser weicher
-  (36.4 gegen 25.4 mm); Ursache offen. Und **Klemmzonen der Anbauteile am Tragjoch**: örtlich grosse Unterschiede zu AxisVM
+  (36.4 gegen 25.4 mm); Ursache offen. Die Profilaufdoppelung ist es nicht: sie steht in beiden Modellen gleich (Doppel-U am langen
+  Ende, AxisVM misst dieselben I), bestätigt am 3. Oktober im Wortlaut «verstärkung nur am ende mit der längeren gabel um das grössere
+  moment aufzunehmen»; gemessen im Löser ohne / mit / starr 39.8 / 36.4 / 35.8 mm. Und **Klemmzonen der Anbauteile am Tragjoch**: örtlich grosse Unterschiede zu AxisVM
   (Starrkörper gegen steife Stäbe; im Beispiel zwei Teile an derselben Stelle) - nicht untersucht.
 - ⚠ **Schubverformung der Bindebleche:** die Anwendung rechnet sie (Entscheid 25. Sept.), AxisVM
   in den gebauten Modellen nicht. Am Gittermast macht das unter Torsion 21-39 % mehr Verdrehung;
