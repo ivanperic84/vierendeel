@@ -233,6 +233,105 @@ export function reiheOhneStabmodell(werteRoh) {
   return null;
 }
 
+/*
+ * >>> DIE MODELLDATEI DES BLATTES - EINE STELLE FÜR LÖSER UND AxisVM
+ *     (3. Oktober). <<<
+ *
+ * Auftrag «checke die einheitlichkeit und kompletheit der funktionen der
+ * einzelnen tragwerkstypen»: war ein Abfangjoch gewählt, leitete der
+ * COM-Knopf nur dieses eine Joch aus (eigener Weg, `exportiereAbfangJson`) -
+ * ohne das zweite Abfangjoch am selben Masten, ohne Anker, mit drei statt
+ * zwanzig Kombinationen; das Stabwerk der Anwendung rechnete das ganze
+ * Blatt. Jetzt baut diese Funktion die Datei für beide: `rechneStabwerk`
+ * mit Eigengewicht in der Lastliste, die Ausleitung ohne (AxisVM setzt es
+ * je Stab selbst an).
+ */
+export function stabwerkModell(werte, erg, satz, eingaben, opt) {
+  /*
+   * >>> DIE GANZE REIHE, NICHT NUR DAS AKTIVE TRAGWERK. <<<
+   *
+   * `blattWennMehrere` baut alle sichtbaren Tragwerke in EIN Modell und
+   * verschmilzt dabei die geteilten Masten - dieselbe Stelle, aus der
+   * auch AxisVM sein Blattmodell bekommt. Steht nur ein Tragwerk da,
+   * gibt sie null zurueck, und der bisherige Weg gilt unveraendert.
+   *
+   * DIE LASTEN KOMMEN DANN VOM BLATT und werden NICHT ueberschrieben:
+   * es holt sie je Tragwerk (`lasten(m_t, bau_t)`) und entdoppelt, was
+   * am geteilten Masten zweimal anfiele. `lasten(erg.modell, bau)` ueber
+   * das ganze Blatt gerechnet waere das Modell des aktiven Tragwerks
+   * gegen die Knoten aller - beim ersten Anlauf stand danach kein
+   * einziger staendiger Lastfall mehr in der Datei.
+   */
+  const deps = { modellVon: (s) => modell({ ...s, beiwerteFest: null },
+    getProfil(s.profOG), getProfil(s.profUG),
+    getStahl(s.stahl), getTragjoch(s.typ)) };
+  let bau = blattWennMehrere(satz, deps, opt);
+  if (!bau) {
+    /*
+     * >>> AUCH DER EINZELFALL NENNT SEINE MASTEN BEIM NAMEN. <<<
+     *
+     * Ohne `mastNamen` heissen sie nach dem ENDE des Jochs (MAST_A,
+     * MAST_B) - im Blattmodell dagegen nach dem Masten (MAST_M1). Das
+     * Urteil schriebe dann «Mast B», sobald ein Joch allein dasteht, und
+     * «Mast M2», sobald ein zweites danebensteht. Derselbe Mast, zwei
+     * Namen, je nach Nachbarschaft; die Anwendung nennt ihn ueberall M1
+     * (Entscheid vom 19. September: Namen nach dem Typ T A M MT).
+     */
+    const t0T = tragwerkeVon(werte)[0];
+    const [mA, mB] = t0T ? (mastenFuer(werte, t0T) ?? []) : [];
+    /*
+     * Der Mast heisst im Modell wie in den Kacheln (`federn.namen`): am
+     * Tragausleger «MT1», nicht nach seiner Kennung - sonst fände die
+     * Kachel ihren Stab nicht (28. September). Am Joch sind beide gleich.
+     */
+    const nm = erg.modell?.federn?.namen ?? {};
+    /*
+     * DAS ABFANGJOCH BAUT SEINEN MASTEN NUR MIT ANGABE (29. September):
+     * Profil, Anschlusshöhe, Stegrichtung - wie die COM-Ausleitung
+     * (`mastFuerAbfang`). Ohne sie stünde es auf Punkten.
+     */
+    const abfangMast = tragwerksart(satz).key === 'abfangjoch'
+      && satz.mastVorhanden !== false && (mA?.profil ?? satz.mastProfil)
+      && Number(satz.mastH) > 0
+      ? { profil: mA?.profil ?? satz.mastProfil, hoehe: Number(satz.mastH),
+          stegrichtung: satz.mastSteg ?? 'jochachse' }
+      : null;
+    bau = stabmodell(erg.modell, { ...opt,
+      mastNamen: { A: nm.A || mA?.id || 'A', B: nm.B || mB?.id || 'B' },
+      // Ein Tragwerk mit eigenem Baustein (Abfangjoch, Tragausleger)
+      // baut aus dem Satz, nicht aus dem Jochmodell (28. September).
+      satz, mast: abfangMast });
+    /*
+     * MIT EIGENGEWICHT UND GETRENNTEM G - wie die COM-Ausleitung. Der
+     * Loeser steuert sein Eigengewicht zwar selbst bei; hier kommt es aus
+     * der Lastliste, damit beide Wege dieselbe staendige Last sehen wie
+     * AxisVM. Getrennt, weil die charakteristischen Einzelfaelle es
+     * brauchen (Entscheid vom 20. September).
+     */
+    bau.lasten = lasten(erg.modell, bau, opt);
+  }
+  const dat = stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz, eingaben });
+  return { dat, bau };
+}
+
+/**
+ * Die Modelldatei des ganzen Blattes für AxisVM: dieselbe, die das Stabwerk
+ * rechnet, ohne die Eigengewichtslasten und ohne die Hilfsfälle der Seile.
+ * Alle sichtbaren Tragwerke (wie die Blatt-Ausleitung der übrigen Arten).
+ */
+export function stabwerkDatei(werte, erg, opt = {}) {
+  const grund = reiheOhneStabmodell(werte);
+  if (grund) throw new Error(grund);
+  const satz = rechensatz(werte);
+  const saetze = (sichtbareTragwerke(werte) ?? []).map((t) => tragwerkSatz(werte, t.id));
+  const eingaben = [satz, ...saetze.filter((s) => s.twId !== satz.twId)];
+  const { dat } = stabwerkModell(werte, erg, satz, eingaben,
+    { knotenmodell: 'anschnitt', gTrennen: true, ...opt, eigengewicht: true });
+  // AxisVM setzt das Eigengewicht je Stab selbst an (`AddBeamSelfWeight`).
+  dat.lasten.strecke = dat.lasten.strecke.filter((l) => !/(^|_)EG_/.test(l.name ?? ''));
+  return dat;
+}
+
 export function rechneStabwerk(app) {
   const erg = app.letzte?.erg;
   if (!erg?.modell) return null;
@@ -264,70 +363,7 @@ export function rechneStabwerk(app) {
   let dat = null; let lsg = null; let bau = null; let seile = [];
   const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
   try {
-    /*
-     * >>> DIE GANZE REIHE, NICHT NUR DAS AKTIVE TRAGWERK. <<<
-     *
-     * `blattWennMehrere` baut alle sichtbaren Tragwerke in EIN Modell und
-     * verschmilzt dabei die geteilten Masten - dieselbe Stelle, aus der
-     * auch AxisVM sein Blattmodell bekommt. Steht nur ein Tragwerk da,
-     * gibt sie null zurueck, und der bisherige Weg gilt unveraendert.
-     *
-     * DIE LASTEN KOMMEN DANN VOM BLATT und werden NICHT ueberschrieben:
-     * es holt sie je Tragwerk (`lasten(m_t, bau_t)`) und entdoppelt, was
-     * am geteilten Masten zweimal anfiele. `lasten(erg.modell, bau)` ueber
-     * das ganze Blatt gerechnet waere das Modell des aktiven Tragwerks
-     * gegen die Knoten aller - beim ersten Anlauf stand danach kein
-     * einziger staendiger Lastfall mehr in der Datei.
-     */
-    const deps = { modellVon: (s) => modell({ ...s, beiwerteFest: null },
-      getProfil(s.profOG), getProfil(s.profUG),
-      getStahl(s.stahl), getTragjoch(s.typ)) };
-    bau = blattWennMehrere(satz, deps, opt);
-    if (!bau) {
-      /*
-       * >>> AUCH DER EINZELFALL NENNT SEINE MASTEN BEIM NAMEN. <<<
-       *
-       * Ohne `mastNamen` heissen sie nach dem ENDE des Jochs (MAST_A,
-       * MAST_B) - im Blattmodell dagegen nach dem Masten (MAST_M1). Das
-       * Urteil schriebe dann «Mast B», sobald ein Joch allein dasteht, und
-       * «Mast M2», sobald ein zweites danebensteht. Derselbe Mast, zwei
-       * Namen, je nach Nachbarschaft; die Anwendung nennt ihn ueberall M1
-       * (Entscheid vom 19. September: Namen nach dem Typ T A M MT).
-       */
-      const t0T = tragwerkeVon(werte)[0];
-      const [mA, mB] = t0T ? (mastenFuer(werte, t0T) ?? []) : [];
-      /*
-       * Der Mast heisst im Modell wie in den Kacheln (`federn.namen`): am
-       * Tragausleger «MT1», nicht nach seiner Kennung - sonst fände die
-       * Kachel ihren Stab nicht (28. September). Am Joch sind beide gleich.
-       */
-      const nm = erg.modell?.federn?.namen ?? {};
-      /*
-       * DAS ABFANGJOCH BAUT SEINEN MASTEN NUR MIT ANGABE (29. September):
-       * Profil, Anschlusshöhe, Stegrichtung - wie die COM-Ausleitung
-       * (`mastFuerAbfang`). Ohne sie stünde es auf Punkten.
-       */
-      const abfangMast = tragwerksart(satz).key === 'abfangjoch'
-        && satz.mastVorhanden !== false && (mA?.profil ?? satz.mastProfil)
-        && Number(satz.mastH) > 0
-        ? { profil: mA?.profil ?? satz.mastProfil, hoehe: Number(satz.mastH),
-            stegrichtung: satz.mastSteg ?? 'jochachse' }
-        : null;
-      bau = stabmodell(erg.modell, { ...opt,
-        mastNamen: { A: nm.A || mA?.id || 'A', B: nm.B || mB?.id || 'B' },
-        // Ein Tragwerk mit eigenem Baustein (Abfangjoch, Tragausleger)
-        // baut aus dem Satz, nicht aus dem Jochmodell (28. September).
-        satz, mast: abfangMast });
-      /*
-       * MIT EIGENGEWICHT UND GETRENNTEM G - wie die COM-Ausleitung. Der
-       * Loeser steuert sein Eigengewicht zwar selbst bei; hier kommt es aus
-       * der Lastliste, damit beide Wege dieselbe staendige Last sehen wie
-       * AxisVM. Getrennt, weil die charakteristischen Einzelfaelle es
-       * brauchen (Entscheid vom 20. September).
-       */
-      bau.lasten = lasten(erg.modell, bau, opt);
-    }
-    dat = stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz, eingaben });
+    ({ dat, bau } = stabwerkModell(werte, erg, satz, eingaben, opt));
     // Seilanker nur auf Zug (30. September): je Seil ein Hilfsfall, VOR dem
     // Lösen - siehe core.stabseil.js.
     seile = seilAnker(dat);

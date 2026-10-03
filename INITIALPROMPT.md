@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6514 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6519 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,11 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Durchsicht der Tragwerksarten:** der COM-Knopf leitet bei
+  gewähltem Abfangjoch das ganze Blatt aus (`stabwerkDatei`, dieselbe Datei wie
+  das Stabwerk); `durchlauf.mjs` fährt das Abfangjoch. ⚠ Offen: Entscheid, ob
+  alle Tragwerke des Blattes im 3D gefärbt werden (heute nur das gewählte), und
+  die Liste der Uneinheitlichkeiten unter *Offene Punkte*.
 - **3. Oktober, Quervergleich AxisVM:** zwei Beispielblätter gebaut und
   gerechnet (`modell_beispiele.mjs`). Fehler gefunden und behoben: das liegende
   Bindeblech des Abfangjochs stand im Löser hochkant (I_y/I_z vertauscht),

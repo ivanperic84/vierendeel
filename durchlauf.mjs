@@ -456,6 +456,93 @@ if (!AJ.tragauslegerDa()) {
 }
 
 /* ===========================================================================
+ * >>> DAS ABFANGJOCH (3. Oktober). <<<
+ * ===========================================================================
+ *
+ * Auftrag: «checke die einheitlichkeit und kompletheit der funktionen der
+ * einzelnen tragwerkstypen». Der Durchlauf fuhr das Abfangjoch gar nicht -
+ * und der COM-Knopf leitete bei gewähltem Abfangjoch nur dieses eine Joch
+ * aus, während das Stabwerk das Blatt rechnete. Je Fall: Stabwerk (Weg der
+ * Anwendung), Datei für AxisVM (dieselbe, in sich stimmig), 3D-Bild.
+ * ========================================================================= */
+console.log('\n=== Abfangjoch ===');
+if (!AJ.abfangDbDa()) {
+  console.log('  (kein Abfangjoch-Sortiment in diesem Datenordner - übersprungen)');
+} else {
+  const AS = await import(J('app.stabwerk.js'));
+  const RA = await import(J('render.abfang.js'));
+  const ANK = await import(J('data.anker.js'));
+  let ankerDa = false;
+  try { ANK.setzeAnkerDB(daten('anker.json')); ankerDa = true; } catch { /* ohne Anker */ }
+  const typ = AJ.abfangjoche?.()?.[0]?.typ ?? 'A160';
+  const teil = (vid, x) => ({ ...A.neuesAnbauteil(vid, x), ort: 'joch' });
+  const vorl = A.getVorlage('leiter-ts-nfl-abf') ? 'leiter-ts-nfl-abf' : null;
+  const eins = (H = 7.5) => {
+    let w = C.tragwerkHinzu(joch(), 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: typ, mastH: H });
+    w = C.tragwerkWeg(w, 'T1');
+    w.anbauteile = vorl ? [teil(vorl, 4.0), teil(vorl, 8.5)] : [];
+    return w;
+  };
+  const zwei = () => {
+    let w = C.tragwerkHinzu(eins(7.5), 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: typ, mastH: 6.0 });
+    w.anbauteile = vorl ? [teil(vorl, 4.0)] : [];
+    if (ankerDa) {
+      C.mastenVon(w).forEach((m) => {
+        w = C.setzeMastAnker(w, m.id, { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus', befestigung: 'ankerplatte' });
+      });
+    }
+    return w;
+  };
+  for (const [name, w0] of [['allein, zwei Leiter', eins()], ['zwei übereinander' + (ankerDa ? ', Druckstützen' : ''), zwei()]]) {
+    const fall = `Abfangjoch ${name}`;
+    const w = NACH.rechensatzMitNachbarn(w0);
+    const erg = versuch(fall, 'berechne', () => V.berechne(w, ...NACH.kernArgumente(w)));
+    if (!erg.ok) continue;
+    const sw = versuch(fall, 'Stabwerk (Weg der Anwendung)', () =>
+      AS.rechneStabwerk({ werte: w0, letzte: { erg: erg.r }, stabwerk: null }));
+    let zeile = '';
+    if (sw.ok) {
+      const s = sw.r;
+      if (s.ohneModell || s.fehler) befunde.push({ fall, weg: 'Stabwerk', text: s.ohneModell ?? s.fehler });
+      else {
+        const eta = Object.entries(s.teile).map(([k, v]) => [k, v?.eta]);
+        zeile = `${s.staebe} Stäbe, ${s.tragwerke} Tragwerk(e) · `
+          + eta.map(([k, e]) => `${k.replace('tragwerk:', '').replace('tragwerk|', '').replace('mast:', '')} ${Number(e).toFixed(3)}`).join(' · ');
+        if (!eta.length || !eta.every(([, e]) => Number.isFinite(e))) {
+          befunde.push({ fall, weg: 'Stabwerk', text: `Zahl fehlt: ${eta.map((x) => x.join(' ')).join(', ')}` });
+        }
+      }
+    }
+    console.log(`  ${name.padEnd(36)}${zeile}`);
+    versuch(fall, 'COM-Datei (Datei des Stabwerks)', () => {
+      const d = AS.stabwerkDatei(w0, erg.r);
+      const kn = new Set(d.knoten.map((x) => x.name)), st = new Set(d.staebe.map((x) => x.name));
+      const qs = new Set(d.querschnitte.map((x) => x.name)), lf = new Set(d.lastfaelle.map((x) => x.key));
+      const leer = d.staebe.filter((x) => !kn.has(x.von) || !kn.has(x.bis) || !qs.has(x.querschnitt)).length
+        + d.lasten.punkt.filter((l) => !kn.has(l.knoten) || !lf.has(l.lastfall)).length
+        + d.lasten.strecke.filter((l) => !st.has(l.stab) || !lf.has(l.lastfall)).length;
+      const eg = d.lasten.strecke.filter((l) => /(^|_)EG_/.test(l.name ?? '')).length;
+      const starrFalsch = d.staebe.filter((x) => x.art === 'starr' && !/STARR$|ARM$/.test(x.querschnitt)).length;
+      const anker = d.staebe.filter((x) => /ANKER/.test(x.name)).length;
+      const soll = C.anzahlTragwerke(w0);
+      const traeger = new Set(d.staebe.filter((x) => /(^|_)V_S\d+$/.test(x.name)).map((x) => x.name.replace(/V_S\d+$/, ''))).size;
+      if (leer || eg || starrFalsch || traeger !== soll || (ankerDa && soll > 1 && !anker)) {
+        throw new Error(`${leer} Verweise ins Leere, ${eg} Eigengewichtslasten, ${starrFalsch} starre Stäbe mit Bauteilquerschnitt, `
+          + `${traeger} von ${soll} Trägern, ${anker} Ankerstäbe`);
+      }
+      console.log(`  ${'… COM-Datei'.padEnd(36)}${d.knoten.length} Knoten, ${d.staebe.length} Stäbe, ${traeger} Träger, `
+        + `${anker} Ankerstäbe, ${d.kombinationen.length} Kombinationen`);
+    });
+    versuch(fall, '3D-Bild', () => {
+      const s = C.tragwerkSatz(w0);
+      const sz = RA.abfangSzene(s.abfangTyp, Number(s.L), { anbauteile: s.anbauteile ?? [], lager: s });
+      if (!(sz?.flaechen?.length > 0)) throw new Error('leere Szene');
+      if ((s.anbauteile ?? []).length && !(sz.anbauteile ?? []).length) throw new Error('Anbauteile fehlen in der Szene');
+    });
+  }
+}
+
+/* ===========================================================================
  * DECKT DIE AUSLEITUNG DAS GANZE BLATT AB?
  *
  * Eine Jochreihe steht auf dem Blatt von x0 bis zum letzten Masten. Umfasst

@@ -37179,6 +37179,58 @@ if (AJ.abfangDbDa()) {
   }
 }
 
+
+/* =========================================================================
+ * 213  COM-AUSLEITUNG BEI GEWÄHLTEM ABFANGJOCH = DATEI DES STABWERKS
+ *      (3. Oktober)
+ * =========================================================================
+ * «Checke die einheitlichkeit und kompletheit der funktionen der einzelnen
+ * tragwerkstypen» - der COM-Knopf leitete bei gewähltem Abfangjoch nur
+ * dieses eine Joch aus (ohne das zweite am selben Masten, ohne Anker, drei
+ * Kombinationen); das Stabwerk rechnete das Blatt.
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const AS213 = await import(J('app.stabwerk.js'));
+  const C213 = await import(J('core.constants.js'));
+  const N213 = await import(J('core.nachbarn.js'));
+  const DA213 = await import(J('data.anbauteile.js'));
+  const teil = (vid, x) => ({ ...DA213.neuesAnbauteil(vid, x), ort: 'joch' });
+  let w = C213.tragwerkHinzu({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' }, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+  w = C213.tragwerkWeg(w, 'T1');
+  w.anbauteile = [teil('leiter-ts-nfl-abf', 4.0)];
+  w = C213.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 6.0 });
+  w.anbauteile = [teil('leiter-fd-nfl-abf', 4.0)];
+  C213.mastenVon(w).forEach((m) => {
+    w = C213.setzeMastAnker(w, m.id, { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus', befestigung: 'ankerplatte' });
+  });
+  const ws = N213.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N213.kernArgumente(ws));
+  const sw = AS213.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const d = AS213.stabwerkDatei(w, erg);
+  const r = sw.roh.dat;
+  wahr('Die Datei für AxisVM führt dieselben Knoten, Stäbe, Querschnitte und Kombinationen wie das Stabwerk',
+       JSON.stringify(d.knoten) === JSON.stringify(r.knoten) && JSON.stringify(d.staebe) === JSON.stringify(r.staebe)
+       && JSON.stringify(d.querschnitte) === JSON.stringify(r.querschnitte)
+       && JSON.stringify(d.kombinationen) === JSON.stringify(r.kombinationen),
+       `${d.knoten.length} Knoten, ${d.staebe.length} Stäbe, ${d.kombinationen.length} Kombinationen`);
+  wahr('… beide Abfangträger, die Masten einmal und die Anker stehen darin',
+       ['T2_V_S0', 'T3_V_S0'].every((n) => d.staebe.some((x) => x.name === n))
+       && d.staebe.some((x) => /ANKER/.test(x.name))
+       && d.auflager.filter((x) => x.modell === 'mast').length === 2);
+  wahr('… ohne Eigengewichtslasten (AxisVM setzt sie je Stab an), sonst dieselben Lasten',
+       !d.lasten.strecke.some((l) => /(^|_)EG_/.test(l.name ?? ''))
+       && r.lasten.strecke.some((l) => /(^|_)EG_/.test(l.name ?? ''))
+       && JSON.stringify(d.lasten.punkt) === JSON.stringify(r.lasten.punkt)
+       && d.lasten.strecke.length === r.lasten.strecke.filter((l) => !/(^|_)EG_/.test(l.name ?? '')).length);
+  const ax213 = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
+  wahr('Der COM-Knopf nimmt bei gewähltem Abfangjoch mit Masten diese Datei; Vorgabe «Mast», wo einer steht',
+       ax213.includes("stabwerkDatei(app.werte, app.letzte.erg, { knotenmodell })")
+       && ax213.includes("istAbfang ? (hatMast ? 'mast' : 'punkt')"));
+  const dl213 = readFileSync(join(HIER, 'durchlauf.mjs'), 'utf8');
+  wahr('Der Durchgang fährt das Abfangjoch (allein und zwei übereinander)', dl213.includes("=== Abfangjoch ==="));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

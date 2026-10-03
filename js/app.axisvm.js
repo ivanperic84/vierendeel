@@ -14,6 +14,7 @@ import { berechne, modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { esc } from './design.js';
+import { stabwerkDatei } from './app.stabwerk.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { KNOTENMODELLE, auflagerAngebot, auflagerVorgabe, exportiereAxisvm, exportiereDxf, exportiereJson } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
@@ -60,11 +61,13 @@ export function dialogAxisvm(app, format = 'json') {
     </label>`).join('');
   // Die Vorgabe hängt an der Bauweise: die Altbauweise ist zu flach, als
   // dass ein Kräftepaar aus Ober- und Untergurt das Ende halten dürfte.
-  const vorgabe = istAbfang ? 'punkt' : auflagerVorgabe(app.letzte.erg.modell);
   // Das Mastmodell baut den Mast wirklich auf - ohne Mast in der Eingabe
   // gibt es nichts zu bauen. Ausgegraut statt versteckt: so ist zu sehen,
   // dass es das Modell gibt und woran es haengt.
   const hatMast = !!app.letzte.erg.modell.federn?.mast;
+  // Auch das Abfangjoch geht mit Masten hinaus, wenn es welche hat
+  // (3. Oktober): das ist das Modell, das die Anwendung rechnet.
+  const vorgabe = istAbfang ? (hatMast ? 'mast' : 'punkt') : auflagerVorgabe(app.letzte.erg.modell);
   /*
    * >>> NUR DIE LAGERUNG, DIE DIESES TRAGWERK HAT. <<<
    *
@@ -105,7 +108,9 @@ export function dialogAxisvm(app, format = 'json') {
          <b>${Number(app.werte.L).toFixed(2)} m</b> aus: zwei Gurte, die
          Bindebleche jeder Station auf Flanschhöhe, die Quersteifen an den
          Bereichsgrenzen und die Gabel am Jochende auf ihrer versetzten
-         Achse.`
+         Achse. <b>Mit Masten</b> geht das ganze Blatt hinaus, wie die
+         Anwendung es rechnet (alle Tragwerke, Masten, Anker, alle
+         Kombinationen); <b>auf Punkten</b> nur dieses Joch.`
       : `Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
          die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
          Lasten laufen <b>je Einwirkungsgruppe getrennt und charakteristisch</b>
@@ -304,6 +309,35 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
       const stegrichtung = satz?.mastSteg ?? app.werte.mastSteg ?? 'jochachse';
       return hoehe > 0 ? { profil: m0.profil, hoehe, stegrichtung } : null;
     };
+    /*
+     * >>> MIT MASTEN: DIE DATEI DES STABWERKS, DAS GANZE BLATT (3. Oktober). <<<
+     * Bis hierher ging auch dann nur dieses eine Joch hinaus - ohne das
+     * zweite Abfangjoch am selben Masten, ohne Anker, mit drei statt zwanzig
+     * Kombinationen, während die Anwendung das ganze Blatt rechnete. Jetzt
+     * dieselbe Datei wie der Stabwerksknopf (`stabwerkDatei`); das Joch
+     * allein auf Punkten bleibt der Weg darunter.
+     */
+    if (auflagerModell === 'mast' && mastFuerAbfang(aktSatz)) {
+      const blatt = () => {
+        const d = stabwerkDatei(app.werte, app.letzte.erg, { knotenmodell });
+        const text = JSON.stringify(d, null, 1);
+        const name = `AxisVM_${typ}_L${jt.toFixed(1)}m_${knotenmodell}_blatt.json`;
+        if (!skripte) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+          a.download = name;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        return { name, ...(skripte ? { text } : {}),
+                 kennzahlen: { knoten: d.knoten.length, staebe: d.staebe.length,
+                               querschnitte: d.querschnitte.length,
+                               lasten: d.lasten.punkt.length + (d.lasten.moment ?? []).length
+                                     + d.lasten.strecke.length } };
+      };
+      return skripte ? mitSkripten(app, 'COM-Ausleitung', blatt)
+                     : app.handlung('COM-Ausleitung', blatt);
+    }
     return (skripte ? (f) => mitSkripten(app, 'COM-Ausleitung', f)
                     : (f) => app.handlung('COM-Ausleitung', f))(
       () => exportiereAbfangJson(typ, jt, {
