@@ -904,7 +904,8 @@ export function aktualisiereMaske(container, werte, extras = {}) {
         const soll = v === null || v === undefined ? '' : String(v);
         if (inp.value !== soll) inp.value = soll;
       });
-      const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, trasse);
+      const l = baugruppeSumme({ ...a, module: [m], lasten: [] },
+                               { ...trasse, artIndex: +d.dataset.modul });
       d.querySelector('.modul-lasten').innerHTML = modulLastenHtml(l, b);
       // Der Deckel der Ablenkung zieht mit (29. September).
       const ablD = b?.rolle === 'drahtwerk' ? d.querySelector('.klapp-r') : null;
@@ -3373,7 +3374,7 @@ function modulListeHtml(a, i, werte) {
     let b = null;
     try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
     const kt = kette.get(k);
-    const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, trasse);
+    const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, { ...trasse, artIndex: k });
     const streckenlast = b && istStreckenlast(b);
     const drahtwerk = b?.rolle === 'drahtwerk';
     // Beim Drahtwerk steht der ABLENKWINKEL zur Eingabe, nicht die Spannweite:
@@ -3743,7 +3744,10 @@ function baugruppeKraft(a, trasse) {
 
 /** Trasseangaben aus den Eingabewerten. */
 const trasseVon = (w) => ({ ek: ekVonWerten(w), R: w.trasseRadius,
-  spannweite: w.flSpannweite });
+  spannweite: w.flSpannweite,
+  // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober) - die
+  // Anzeige rechnet wie der Kern.
+  artWahl: w.havarie ?? null, artVorgabe: abfangVorgabeFuer(tragwerksart(w).key) });
 
 /** Auswahlliste in einer Modulzeile. */
 function modWahl(i, k, feld, label, wert, optionen) {

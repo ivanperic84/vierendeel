@@ -19367,9 +19367,14 @@ const CH9x = await import(J('core.checks.js'));
      * Von Hand: T = 0.8 kNm, e = 0.656 m -> Ersatzkraft 1.22 kN bei
      * x = 6.00. Der Balken (Stuetzweite 12.00, Kragarm 0.25) gibt am Ende A
      * 0.635 kN; mit gamma_G = 1.3 sind das 0.83 kN.
+     *
+     * SEIT DEM 3. OKTOBER DIE HAELFTE: der Leiter ist am Abfangjoch ohne
+     * Eintrag «einseitig abgefangen» und zaehlt mit der halben Spannweite
+     * (Weisung «halbe Spannweite gilt beim einseitig abgefangenen leiter»,
+     * Abschnitt 216) - T = 0.4 kNm, am Auflager 0.413 kN.
      */
     pruef('Das Kraeftepaar am Auflager',
-          mitV.auflager.A.Ptors, 0.83, 0.02, 'kN');
+          mitV.auflager.A.Ptors, 0.413, 0.01, 'kN');
     pruef('Ohne Versatz steht dort nichts',
           ohneV.auflager.A.Ptors, 0, 1e-12, 'kN');
     /*
@@ -29335,8 +29340,10 @@ if (AJ.abfangDbDa()) {
      * schlimmer als eine fehlende.
      */
     const uq118 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    // Drei Leser seit dem 3. Oktober: dazu die Trasse der Anzeige (halbe
+    // Spannweite beim einseitig abgefangenen Leiter).
     wahr('Die Karte holt die Vorgabe aus derselben Stelle',
-         (uq118.match(/abfangVorgabeFuer\(tragwerksart\(/g) ?? []).length === 2);
+         (uq118.match(/abfangVorgabeFuer\(tragwerksart\(/g) ?? []).length === 3);
     wahr('… und der Kern ebenso',
          AB118.ABFANGJOCH_ART_VORGABE === LA118.abfangVorgabeFuer('abfangjoch'));
     const ohne = lauf118(null, null);
@@ -37353,6 +37360,52 @@ if (AJ.abfangDbDa()) {
   wahr('Die Flächen tragen im Plot «w» den Weg der Figur (eine Quelle für Farbe und Zahl)',
        app.includes('function wegeAusFigur(szene, fig)') && app.includes('wegeAusFigur(szene, ansicht.verformt);')
        && app.includes('f.wegeStabwerk = true;'));
+}
+
+
+/* =========================================================================
+ * 216  EINSEITIG ABGEFANGEN: DIE HALBE SPANNWEITE (3. Oktober)
+ * =========================================================================
+ * Weisung: «halbe Spannweite gilt beim einseitig abgefangenen leiter».
+ * Gewicht, Wind, Schnee und Ablenkung des Leiters aus der halben
+ * Spannweite - an jeder Tragwerksart, in Kern, Stabwerk, Bild und Anzeige.
+ * ========================================================================= */
+{
+  const DA216 = await import(J('data.anbauteile.js'));
+  const at = { ...DA216.neuesAnbauteil('leiter-ts-nfl-abf', 4), id: 'AT-216', ort: 'joch' };
+  const k = DA216.leiterKennung(at, at.module[0], 0);
+  const o = { ek: 'EK1', R: 600, spannweite: 40 };
+  const durch = DA216.baugruppeSumme(at, { ...o, havarie: { [k]: { art: 'durchgehend' } } });
+  const eins = DA216.baugruppeSumme(at, { ...o, havarie: { [k]: { art: 'einseitig', richtung: '+y' } } });
+  const beid = DA216.baugruppeSumme(at, { ...o, havarie: { [k]: { art: 'beidseitig' } } });
+  wahr('Durchgehend: Gewicht und Wind über die ganze Spannweite (es steht etwas da)',
+       durch.Gz > 0 && durch.Qx > 0 && durch.Gx > 0, `G ${durch.Gz.toFixed(3)} · W quer ${durch.Qx.toFixed(3)} · Ablenkung ${durch.Gx.toFixed(3)} kN`);
+  pruef('Einseitig: das Gewicht ist die Hälfte', eins.Gz, durch.Gz / 2, 1e-9, 'kN');
+  pruef('… der Wind in Gleisrichtung ebenso', eins.Qy, durch.Qy / 2, 1e-9, 'kN');
+  pruef('… und quer', eins.Qx, durch.Qx / 2, 1e-9, 'kN');
+  pruef('… der Schnee', eins.Qz, durch.Qz / 2, 1e-9, 'kN');
+  pruef('… die Ablenkung (ein Feld statt zwei)', eins.Gx, durch.Gx / 2, 1e-6, 'kN');
+  pruef('Beidseitig abgefangen bleibt bei der ganzen Spannweite', beid.Gz, durch.Gz, 1e-9, 'kN');
+  // Die Vorgabe der Tragwerksart, wo der Leiter keinen Eintrag hat.
+  pruef('Ohne Eintrag mit der Vorgabe «einseitig» (Abfangjoch): die Hälfte',
+        DA216.baugruppeSumme(at, { ...o, artVorgabe: 'einseitig' }).Gz, durch.Gz / 2, 1e-9, 'kN');
+  pruef('Ohne Eintrag und ohne Vorgabe (Tragjoch, Mast): ganz',
+        DA216.baugruppeSumme(at, o).Gz, durch.Gz, 1e-9, 'kN');
+  // Eine am Leiter eingetragene Spannweite gilt als Spannweite - auch sie halb.
+  const eigen = { ...at, module: [{ ...at.module[0], laenge: 30 }] };
+  pruef('Eigene Spannweite am Leiter: einseitig ebenfalls die Hälfte',
+        DA216.baugruppeSumme(eigen, { ...o, havarie: { [k]: { art: 'einseitig' } } }).Gz,
+        DA216.baugruppeSumme(eigen, { ...o, havarie: { [k]: { art: 'durchgehend' } } }).Gz / 2, 1e-9, 'kN');
+  // Einzelzeile der Karte: der Index des Moduls geht mit.
+  pruef('Die Modulzeile der Karte rechnet mit ihrem Index (artIndex)',
+        DA216.baugruppeSumme({ ...at, module: [at.module[0]] },
+          { ...o, artWahl: { 'AT-216#3': { art: 'einseitig' } }, artIndex: 3 }).Gz, durch.Gz / 2, 1e-9, 'kN');
+  if (AJ.abfangDbDa()) {
+    const AB216 = await import(J('core.abfangjoch.js'));
+    const lw = (hav) => AB216.abfangAnbauLasten(at, { ek: 'EK1', R: 0, spannweite: 40, havarie: hav });
+    pruef('Abfangjoch: ohne Eintrag einseitig - halbes Gewicht', lw(null).Gz, durch.Gz / 2, 1e-9, 'kN');
+    pruef('… als «durchgehend» eingetragen das ganze', lw({ [k]: { art: 'durchgehend' } }).Gz, durch.Gz, 1e-9, 'kN');
+  }
 }
 
 console.log('\n' + '='.repeat(104));

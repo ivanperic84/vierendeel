@@ -181,7 +181,9 @@ export function auslegerSzene(satz, opt = {}) {
    * dieselbe Regel wie im Modell.
    */
   const sOpt = { ek: ekVonWindklasse(satz.windKlasse), R: Number(satz.trasseRadius) || 0,
-                 spannweite: Number(satz.flSpannweite) || 0 };
+                 spannweite: Number(satz.flSpannweite) || 0,
+                 // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober).
+                 artWahl: satz.havarie ?? null };
   const xG = (x) => sp * x;
   (satz.anbauteile ?? []).forEach((at, j) => {
     if (!at || at.aktiv === false || (at.ort ?? 'joch') !== 'joch') return;

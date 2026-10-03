@@ -2512,6 +2512,8 @@ abgefangen für das abfangjoch.»`)}
 <tr><td>beidseitig abgefangen</td><td>die Züge heben sich auf</td><td>voller Zug einseitig</td></tr>
 <tr><td>einseitig abgefangen</td><td>voller Zug bei +5 °C in seine Richtung</td><td>der gerissene fällt weg, die übrigen mit dem Zug bei −20 °C</td></tr>
 </table>
+<p>Ein einseitig abgefangener Leiter hat nur ein Feld: Gewicht, Wind, Schnee
+und Ablenkung kommen aus der <b>halben Spannweite</b>.</p>
 <p>Die Abfangung steht in der Karte des Bauteils. Am Abfangjoch ist
 «einseitig» die Vorgabe, sonst «durchgehend». Die Vorlagen «Tragseil /
 Fahrdraht N-FL / R-FL abgefangen» setzen einseitig von selbst; eine Kopie

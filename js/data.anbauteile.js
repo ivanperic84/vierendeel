@@ -1198,8 +1198,21 @@ export function expandiereAnbauteile(liste, o = {}) {
        * Stellen mit demselben Wert, und eine davon still, waeren eine
        * Falle: aendert man die eine, rechnet die andere weiter wie frueher.
        */
+      /*
+       * >>> EINSEITIG ABGEFANGEN: DIE HALBE SPANNWEITE (3. Oktober). <<<
+       * Weisung: «halbe Spannweite gilt beim einseitig abgefangenen leiter».
+       * Der Leiter endet hier und hat nur EIN Feld - Gewicht, Wind, Schnee
+       * und Ablenkung kommen aus dessen Hälfte. Die Art steht je Leiter in
+       * der Auswahl (`havarie`, bzw. `artWahl`, wo der Aufrufer die
+       * Leiterzüge selbst rechnet); ohne Eintrag gilt die Vorgabe der
+       * Tragwerksart (`artVorgabe`: am Abfangjoch «einseitig»).
+       */
+      const wahlArt = o.artWahl !== undefined ? o.artWahl : auswahl;
+      const einseitig = b.rolle === 'drahtwerk'
+        && (wahlArt?.[leiterKennung(a, m, o.artIndex ?? i)]?.art
+            ?? o.artVorgabe ?? ABFANG_VORGABE) === 'einseitig';
       const laenge = b.rolle === 'drahtwerk'
-        ? (m.laenge ?? spannweite) : (m.laenge ?? LAENGE_STANDARD);
+        ? (m.laenge ?? spannweite) * (einseitig ? 0.5 : 1) : (m.laenge ?? LAENGE_STANDARD);
       const n = m.anzahl ?? 1;
       // Freies Bauteil: nicht aus der Tabelle, sondern über die Angriffsfläche.
       // Beim Signal (30. Sept.) kommen Gewicht und Flächen aus der Auswahl.

@@ -1084,8 +1084,13 @@ export function abfangAnbindung(a, vorl = null) {
  */
 export function abfangAnbauLasten(at, opt = {}) {
   const an = abfangAnbindung(at);
+  // Mit der Abfangart je Leiter: einseitig zählt die halbe Spannweite
+  // (3. Oktober). Die Leiterzüge rechnet diese Funktion selbst - deshalb
+  // `artWahl` und nicht `havarie`.
   const sum = baugruppeSumme(at, { ek: opt.ek ?? 'EK2', R: Number(opt.R) || 0,
-                                   spannweite: Number(opt.spannweite) || 0 });
+                                   spannweite: Number(opt.spannweite) || 0,
+                                   artWahl: opt.havarie ?? null,
+                                   artVorgabe: ABFANGJOCH_ART_VORGABE });
   /* =========================================================================
    * DIE TORSION DES LIEGENDEN TRAEGERS
    * =========================================================================

@@ -182,7 +182,9 @@ export function tragauslegerModell(satz, opt = {}) {
   /* --- Anbauteile: je Teil der Anschlusspunkt auf der Auslegerachse ------- */
   const ek = ekVonWindklasse(satz.windKlasse);
   const sOpt = { ek, R: Number(satz.trasseRadius) || 0,
-                 spannweite: Number(satz.flSpannweite) || 0 };
+                 spannweite: Number(satz.flSpannweite) || 0,
+                 // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober).
+                 artWahl: satz.havarie ?? null };
   const teile = (satz.anbauteile ?? [])
     .filter((a) => a?.aktiv !== false && (a.ort ?? 'joch') === 'joch')
     .map((a) => ({ a, s: baugruppeSumme(a, sOpt) }));
