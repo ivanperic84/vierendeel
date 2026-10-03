@@ -118,6 +118,9 @@ function groesser(a, b) {
  * @param {object} jeStab   aus stabwerkHuelle
  * @param {string} jochKey  'tragwerk' oder 'tragwerk:<id>' (Reihe)
  */
+/** Ist das ein Gurtstab eines Gittermasts? (Namen aus export.axisvm.gitter.js) */
+export const istGitterStab = (name) => /(?:^|_)MAST_[^_]+_G[1-4]_S\d+$/.test(String(name));
+
 export function jochStaebe(jeStab, jochKey = 'tragwerk') {
   const alle = Object.values(jeStab ?? {});
   const gurte = alle.filter((z) => z.bauteil === jochKey && GURT.test(z.name));
@@ -156,8 +159,11 @@ export function gurtTeilung(js) {
  * @returns {number} wie viele Flächen und Linien Werte bekamen
  */
 export function stabwerkFaerben(sz, jeStab, o = {}) {
-  const js = jochStaebe(jeStab, o.jochKey ?? 'tragwerk');
-  if (!sz || !js) return 0;
+  const jsJoch = jochStaebe(jeStab, o.jochKey ?? 'tragwerk');
+  // Ohne Joch nur, wenn ein Gittermast im Stabwerk steht (Einzelmast).
+  const nurGitter = !jsJoch;
+  if (!sz || (nurGitter && !Object.keys(jeStab ?? {}).some(istGitterStab))) return 0;
+  const js = jsJoch ?? { versatz: 0, gurt: {}, blech: {} };
   // `nurWege`: nur die Verformung setzen (Einzellastfall - die Hülle gilt
   // dann nicht, die Wege des gezeigten Falls schon).
   const mitHuelle = o.nurWege !== true;
@@ -238,7 +244,7 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
       f._gitterStaebe = ls;
       return ls.reduce((a, z) => groesser(a, plotWerte(z)), null);
     }
-    if (m) {
+    if (m && !nurGitter) {
       const id = mastNamen[m[1]] ?? m[1];
       const l = masten[id];
       if (!l || !Number.isFinite(szFuss[m[1]])) return null;

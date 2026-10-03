@@ -350,6 +350,11 @@ function schnittgroessen(d) {
   (d.masten ?? []).forEach((m) => {
     const h = huelleVon(`mast:${m.id}`, 'mast');
     if (h.n) zeilen.push([esc(`Mast ${m.anzeige}`), String(h.n), zahl(h.N, 2), zahl(h.V, 2), zahl(h.M, 3), zahl(h.T, 3)]);
+    // Der Gittermast: seine Teile je für sich (3. Oktober).
+    GITTER_TEILE.forEach(([teil, name]) => {
+      const g = huelleVon(`mast:${m.id}`, teil);
+      if (g.n) zeilen.push([esc(`Mast ${m.anzeige} · ${name}`), String(g.n), zahl(g.N, 2), zahl(g.V, 2), zahl(g.M, 3), zahl(g.T, 3)]);
+    });
   });
   return `<section><h2>§ Schnittgrössen (Stabwerk, Hülle der Bemessung)</h2>
     <p>Je Teil die grössten Beträge über alle Stäbe, beide Enden und alle
@@ -361,6 +366,9 @@ function schnittgroessen(d) {
     ${d.opt.bilder.eta ? bild(d.bilder?.eta, 'Ausnutzung aus dem Stabwerk') : ''}
   </section>`;
 }
+
+/** Die Teile des Gittermasts im Stabwerk (export.axisvm.gitter.js). */
+const GITTER_TEILE = [['gurt', 'Gurtwinkel'], ['blech', 'Bindebleche'], ['rohr', 'Rohr / Aufsatz']];
 
 function teilAbschnitt(d, titel, bauteil, teil) {
   const t = d.sw.teile?.[`${bauteil}|${teil}`];
@@ -393,7 +401,24 @@ function nachweise(d, U) {
     return `${h3(`${esc(t.pos)} — ${esc(t.label)}`)}${teile}${auf}${lang}`;
   }).join('');
   const masten = (d.masten ?? []).map((m) => {
-    const q = teilAbschnitt(d, `Mast ${m.anzeige} · Querschnitt`, `mast:${m.id}`, 'mast');
+    let q = teilAbschnitt(d, `Mast ${m.anzeige} · Querschnitt`, `mast:${m.id}`, 'mast');
+    /*
+     * Der Gittermast (3. Oktober, «Stabwerk + Diagramm als Kontrolle»):
+     * Gurtwinkel, Bindebleche und Rohr je Stab, danach das Bemessungs-
+     * diagramm des Sortiments als Kontrolle - ohne Anteil am Urteil.
+     */
+    q += GITTER_TEILE.map(([teil, name]) =>
+      teilAbschnitt(d, `Mast ${m.anzeige} · ${name}`, `mast:${m.id}`, teil)).join('');
+    const gd = sw.gitterJe?.[m.id]?.diagramm;
+    if (gd && Number.isFinite(gd.eta)) {
+      q += `<h4>Mast ${esc(m.anzeige)} · Kontrolle nach dem Bemessungsdiagramm — ${zahl(gd.eta, 3)}</h4>
+        <p>Zulässige Momente am Mastfuss des Typs ${esc(gd.typ)} (aus sämtlichen Kräften, Wind längs oder quer),
+        geradlinig überlagert; Fussmomente charakteristisch aus dem Stabwerk. Die Kontrolle zählt nicht zum
+        Urteil - nachgewiesen wird je Stab.</p>
+        ${formel('η<sub>D</sub>', 'M<sub>a</sub> / M<sub>a,zul</sub> + M<sub>b</sub> / M<sub>b,zul</sub>',
+                 `${zahl(gd.Ma, 1)} / ${zahl(gd.zulA, 1)} + ${zahl(gd.Mb, 1)} / ${zahl(gd.zulB, 1)} kNm`, zahl(gd.eta, 3))}
+        <p class="klein">Massgebend: ${esc(gd.bez ?? gd.fall ?? '')}.</p>`;
+    }
     const k = m.knick ? `<h4>Mast ${esc(m.anzeige)} · Knicken — η = ${zahl(m.knick.eta, 3)}</h4>
       <p class="klein">Kombination ${esc(m.knick.bez ?? m.knick.fall ?? '')}; Kräfte aus dem Stabwerk.</p>
       ${knickHtml(m.knick)}<p>${urteilMarke(m.knick.eta)}</p>` : '';

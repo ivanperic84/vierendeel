@@ -6444,6 +6444,40 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       // Am Tragausleger kennt der Kern einen Phantom-Masten (Auflager am
       // freien Ende) - mit dem Stabwerk zählt nur der wirkliche.
       if (opt.swH?.ausleger && !sw) return;
+      /*
+       * >>> DER GITTERMAST: JE TEIL EINE KACHEL (3. Oktober). <<<
+       * Entscheid «Stabwerk + Diagramm als Kontrolle»: Gurtwinkel,
+       * Bindebleche und Rohr je Stab aus dem Stabwerk; daneben das
+       * Bemessungsdiagramm des Sortiments (zulässige Fussmomente) - als
+       * Kontrolle mit Ampel, ohne Anteil am Urteil.
+       */
+      if (sw && n.profil.gitter) {
+        const gj = opt.swH?.gitterJe?.[name] ?? null;
+        const teilK = (teil, titel, unter) => {
+          const t = opt.swH?.teile?.[`mast:${name}|${teil}`];
+          if (!t) return;
+          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), `${unter} · Stabwerk`, ampelU(t.eta), {
+            ...(t.bez ? { fall: fallKurz(t.bez) } : {}), ...(t.wo ? { stab: t.wo } : {}),
+            titel: `${t.bez ? `Massgebende Kombination: ${t.bez}\n\n` : ''}`
+                 + `${n.profil.name}: ${titel} aus dem Stabwerk, massgebender Stab ${t.wo ?? ''}.`,
+          }));
+        };
+        teilK('gurt', 'Gurt', gj ? `${gj.gurtUnten} / ${gj.gurtOben}` : n.profil.name);
+        teilK('blech', 'Blech', 'Bindebleche');
+        teilK('rohr', gj?.obenArt === 'aufsatz' ? 'Aufsatz' : 'Rohr',
+              gj?.obenArt === 'aufsatz' ? 'Mastaufsatz' : 'Rohr oben');
+        const d = gj?.diagramm;
+        if (d && Number.isFinite(d.eta)) {
+          mast.push(kachel(`${name} Diagramm`, f3(d.eta), 'Kontrolle · Fussmomente', ampelU(d.eta), {
+            ...(d.bez ? { fall: fallKurz(d.bez) } : {}),
+            titel: `Kontrolle nach dem Bemessungsdiagramm des Typs ${d.typ} (zählt nicht zum Urteil):\n`
+                 + `M_a ${d.Ma.toFixed(1)} / ${d.zulA.toFixed(1)} kNm + M_b ${d.Mb.toFixed(1)} / ${d.zulB.toFixed(1)} kNm `
+                 + `= ${d.eta.toFixed(3)}\nFussmomente charakteristisch aus dem Stabwerk, «${d.bez ?? ''}». `
+                 + 'Nachgewiesen wird je Stab (Kacheln daneben).',
+          }));
+        }
+        return;
+      }
       if (sw) {
         const fS = sw.bez ? { kurz: fallKurz(sw.bez), voll: sw.bez } : null;
         mast.push(kachel(`η ${name}`, f3(sw.eta),
@@ -8124,6 +8158,12 @@ function mastProfilHtml(erg, masten, st) {
   if (!masten.length) return '';
   const fy = st?.fy ?? 235;
   const zeilen = masten.map(({ ende, name, profil, erg: eM }) => {
+    // Der Gittermast hat keinen Flansch und keinen Steg (3. Oktober).
+    if (profil.gitter) {
+      return `<tr><td>Mast ${esc(name)}</td><td>${esc(profil.name)}</td>
+        <td colspan="4">Fachwerkmast: vier Gurtwinkel, Bindebleche und Rohr werden je Stab
+        im Stabwerk nachgewiesen — keine Querschnittsklasse eines Vollstabs.</td></tr>`;
+    }
     const n = (eM ?? erg)?.mast?.[ende];
     let kl = n?.klasse ?? null;
     let quelle = 'Mastnachweis, mit N_Ed,max';

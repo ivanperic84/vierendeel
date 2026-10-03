@@ -41,13 +41,13 @@
  */
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
-import { getMastprofil, getStegrichtung, istGittermast } from './data.masten.js';
+import { getMastprofil, getStegrichtung, istGittermast, getGittermast } from './data.masten.js';
 import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
          laengsankerKraft } from './core.stabnachweis.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
-import { knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
+import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { anteileFuer } from './core.stabnachweis.js';
 import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
@@ -462,6 +462,16 @@ export function rechneStabwerk(app) {
    * seines Masten. Gilt für den gewählten Ausleger; ein nicht gewählter
    * zählt im Urteil der Reihe über seinen Masten.
    */
+  // Die Gittermasten: das Bemessungsdiagramm als Kontrolle (3. Oktober).
+  const gitterJe = {};
+  (dat.gittermasten ?? []).forEach((g) => {
+    let zul = null;
+    try { zul = getGittermast(g.typ).zulMoment ?? null; } catch { zul = null; }
+    const d = gitterDiagramm(dat, lsg, alleFaelleS, g.id, zul);
+    gitterJe[g.id] = { typ: g.typ, diagramm: d, gurtUnten: g.gurtUnten, gurtOben: g.gurtOben,
+                       obenArt: g.obenArt };
+  });
+
   if (!ausleger && (sichtbareTragwerke(werte) ?? []).length > 1
       && tragwerksart(satz).key === 'tragausleger') {
     const t = tragwerkeVon(werte).find((q) => q.id === satz.twId) ?? tragwerkeVon(werte)[0];
@@ -528,6 +538,7 @@ export function rechneStabwerk(app) {
     ausleger,
     knick,
     fundamentJe,
+    gitterJe,
     ankerJe,
     seile: seile.length,
     kennung: eingabeKennung(app.werte),

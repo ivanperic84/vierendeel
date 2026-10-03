@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Gittermast im Stabwerk: Mastaufsatz, Schotte, Wind, Kontrolle (3. Oktober) | Mit Bild der Übersicht, im Wortlaut: «hier ist der Mastaufsatz für den typ IV45 enthalten. Teilung nach vorschlag. weitermachen bis zum schluss und prüfung mit pynite vornehmen und danach noch mit axisvm, beachte das eine meldung zur combrücke kommt nach dem schliessen in axis, diese kannst du selbst schliessen, falls notwendig.» (1) **Der lange Typ** steht mit Mastaufsatz in zwei Längen im Sortiment (Quadratrohr auf dem Kopf; ⚠ die WANDDICKE ist eine Annahme - die Übersicht nennt nur das Aussenmass), oben 16 Felder zu 500 mm. (2) **Modell** (export.axisvm.gitter.js, als letzter Schritt in `stabmodellJson`): der Zug auf der Mastachse wird zum Fachwerk - vier Gurtwinkel auf ihren Schwerachsen (Schenkel nach innen, unten konisch; ungleichschenklig in zwei Ecken im Spiegelbild, `winkelGetauscht`), Bindebleche auf vier Seiten über ihre lichte Länge mit starren Enden, **Schott an jedem Achsknoten** (so hängen Joch, Anbauteile, Anker und das EINE voll eingespannte Auflager am Masten - dem Auftraggeber vorgelegt, auf «weitermachen» so gebaut), Rohr im Oberteil an Knick und Kopf gehalten und frei darüber. **Wind auf die Hüllfläche** mit dem Druck der Vollwandmasten (aus deren Tabellenzeilen: Last / Profilbreite), je Abschnitt mit seiner Breite - sichere Seite, Annahme. (3) **Wählbar** wo ein HEB steht (Ersatzprofil in `mastprofile()`, Länge fest = Gitter + Rohr, `gitterLaengenFest`); am Abfangjoch und Tragausleger verweigert das Stabwerk mit Grund; SAF, DXF und die PyNite-Ausleitung des Jochs brechen mit Grund ab (das Fachwerk steht nur in der COM-Datei und im Stabwerk). (4) **Nachweis** je Stab: Gurt (Winkel, vorzeichenrichtig), Blech (mit Schub), Rohr; Kacheln je Teil; **das Bemessungsdiagramm als Kontrolle** (zul. Fussmomente, geradlinig überlagert, charakteristisch; Kachel mit Ampel, zählt nicht zum Urteil); kein Knicken als Vollstab, kein Standardfundament. (5) **Gemessen:** PyNite (`vergleich_gittermast.mjs`, neuer Erzeuger aus der fertigen Datei `export.pynite.datei.js`): fünf Typen × sieben Lastfälle, Wege und Auflager ≤ 0.005 %. AxisVM (gebaut, gerechnet, ausgelesen; der rechteckige Typ und der mit Aufsatz): Knotenwege 0.00–0.03 %, Torsion 0.2–0.3 % - **gegen den Löser OHNE Schubverformung**; AxisVM rechnet die Stäbe schubstarr. Mit Schub (wie die Anwendung rechnet) Biegung +0.1–0.5 %, die Verdrehung unter Torsion +21 bis +39 % (kurze, hohe Bindebleche). Bemessungsdiagramme: Durchbiegung auf 8.00 m je Tonne Modell / Diagramm +4 bis +6 % bei den gezeichneten und dem ersten abgeleiteten Typ, −5 bis −7 % beim langen. Beispiel J90/20 m auf zwei Gittermasten (quadratischer Typ nach Zeichnung): Gurt 0.416, Blech 0.251, Rohr 0.124. **Befund an der Brücke:** `AddL` heisst (Name, h, b, …) - die Datei führt [Schenkel in lokal y, in lokal z], der ungleichschenklige Winkel lag damit in AxisVM um 90° gedreht (betrifft auch den Untergurt L 120x80x12 früherer Modelle); die Brücke misst jetzt Iy/Iz am angelegten Querschnitt und legt ihn mit getauschten Schenkeln neu an. Neu in der Brücke: `AddPipe`, `AddBox` (Signaturen aus der Typbibliothek gelesen). Sicherungen `masten_vor_gitter_aufsatz_…`, `masten_vor_gitter_diagramm_2026-10-03.json`. Prüfstand 207 |
 | Gittermast: Teilung, Gurt; Lastgenerator Variante B (3. Oktober) | Im Wortlaut: «teilung nach zeichnung, gurt oben L 70x70x7, lastgenerator variante B». (1) Der Gittermast bekommt die **Teilung der Zeichnung** (nicht die vereinfachte des AxisVM-Beispiels); beim Typ ohne Detailzeichnung gilt oben der **Winkel des Katalogs**, nicht der des Beispielmodells. (2) **Lastgenerator:** je Gleis «Hängestütze mit Fahrdrahtabzug» UND die neue Vorlage «Kettenwerk N-FL (Fahrdraht an Hängestütze)» (`kw-nfl-joch`: Tragseil ganz, vom Fahrdraht nur das Gewicht - `wirktAblenk`/`wirktQ` aus), damit Wind und Umlenkung des Fahrdrahts nicht doppelt zählen; der Dialog warnt, wenn der Fahrdrahtabzug ohne Kettenwerk angehakt ist. Gemessen je Gleis gegen die frühere Vorlage (Kettenwerk an der Stütze): Gewicht 1.500 = 1.500 kN, Umlenkung 1.242 = 1.242 kN (Stütze 0.708 + Kettenwerk 0.533), Wind 1.645 → 1.504 kN (Einzelleiter der Tabelle 2 × 0.0085 statt 0.020 kN/m). Sicherung `anbauteile_vor_kettenwerk_generator_2026-10-03.json`. Prüfstand 205 |
 | Kein Seildruck; Jochaufsatz einfach 4 m; Annahmen Gittermast (3. Oktober) | Im Wortlaut: «annahmen ok, mit axis modell auslesen weitermachen. offene punkte zuerst klären. seildruck nicht zulassen in der app. das mit dem lastgenerator habe ich nicht verstanden. jochaufsatz einfach ist bei rund 4m länge was einen angriffspunkt bei 2m ausmacht. die traverse und leiter sind dann auf 4m.» (1) **Annahmen zum Gittermast bestätigt** (zwei Typen ohne Detailzeichnung: Teilung und Breiten wie beim gezeichneten, Bleche = Breite − 2 · Schenkel, oberes Teil 490 mm). (2) **Seile der Aufhängung nur auf Zug** - ändert den Entscheid vom 28. September («linear, gedrücktes Seil als Befund»): sie laufen über denselben Ausfall wie der Seilanker (`seilAnker` nimmt `AUFHAENGUNG[_P/_N]` mit, core.stabseil.js); ein Seil, das drücken müsste, trägt 0, das andere allein, alle Nachweise lesen den Hilfsfall. `aufhaengungNachweis` meldet es als `schlaff` (Auskunft, Kachel «ein Seil fällt aus»); Befund `druck` («Ausleger hebt ab») nur, wenn alle ausfallen. Gemessen L 6 m mit Fahrdrahtabzug: vorher −0.24 kN Druck; nachher UPE 0.167 → 0.177, Blech 0.226 → 0.233, Mast 0.390 → 0.391, Seil η 0.396 gleich. (3) **Jochaufsatz einfach:** Aufsatz z 2.00, Traverse und Leiter z 4.00 (Sicherung `anbauteile_vor_ja_einfach_4m_2026-10-03.json`). (4) Lastgenerator: nicht verstanden - neu erklärt, Entscheid offen. Prüfstand 204 |
 | Alter Masttyp: kombinierter Mast als Gittermast (3. Oktober) | Weisung: «Einen alten Masttyp ergänzen, die Grundlagen … Grundlagen\Kombinierte Masten. Es ist ein Gittermast, struktur wie die Joche, mit unterschied das Winkel nach innen und der untere teil konisch ausgebildet ist. Als beispiel beachte noch die axismodell im Grundlagenordner. im oberen teil ist ein rohr der in den oberen teil des gittermasten eingespannt ist.» Auf Rückfrage: **Typen** «1 und falls möglich den IV 45 Typ ableiten aus den Übersichtszeichnungen» (die Typen mit Detailzeichnung - zwei -, dazu I 45 und IV 45 aus Katalog/Übersicht abgeleitet); **Nachweis «Stabwerk + Diagramm als Kontrolle»** (Gurtwinkel und Bindebleche je Stab wie beim Joch, die zulässigen Momente der Bemessungsdiagramme als zweite Kachel); **AxisVM «Ja, nur lesen»** (die beiden Modelle im Ordner über COM öffnen und Aufbau auslesen, nicht rechnen); **Umfang «Einzelmast und Jochmast, Rohr als Teil»** (wählbar, wo heute ein HEB steht; das Rohr oben ein echter Stab, eingespannt, mit Spannungsnachweis). Stand: Daten gelesen (Notiz `Versand/kombinierte_masten_daten.md`, nicht in der Ablage), siehe *Laufende Arbeit* |
@@ -332,12 +333,19 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6372 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6419 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **3. Okt., Gittermast im Stabwerk, mit PyNite und AxisVM geprüft** (Prüfstand 207, siehe
+  *Entschieden*). Im Browser (Prüfseite, gelöscht): Gittermast am J90/20 m gewählt, Länge 14.29 m
+  gesetzt, Fachwerk im 3D aus dem Stabwerk gefärbt, Kacheln Gurt / Blech / Rohr / Diagramm,
+  Profiltafel und Bericht (Abschnitte je Teil, Kontrolle nach dem Bemessungsdiagramm). Am
+  rechteckigen Typ mit der breiten Seite quer zum Gleis: Gurt 1.005, Diagramm-Kontrolle 0.966.
+  Der Einzelmast mit Gittermast ist im Browser nicht eigens angesehen (Prüfstand: gefärbt).
+  AxisVM lief zweimal (nach jedem Lauf geschlossen). Gepusht.
 - **3. Okt., Ausleger am Jochmasten im Stabwerk, M1 ziehen, Arm in der
   Höhe, Schwenk aufs Ganze** (Prüfstand 203, siehe *Entschieden*). Im
   Browser (Prüfseite, gelöscht): Ausleger an M2 gesetzt, Schiene UPE 0.27 /
@@ -1990,6 +1998,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
    Abfangjoch.~~ — **erledigt am 1. Oktober** (siehe *Entschieden*); das
    Knicken rechnet seit dem 28./30. September mit den Kräften des Stabwerks.
 
+**Gittermast: gebaut (3. Okt.).** Etappen 4-7 erledigt (Stabmodell, 3D, Nachweise je Stab mit
+Diagramm-Kontrolle, COM-Ausleitung; PyNite und AxisVM gegengerechnet) - siehe *Entschieden*.
+Was offen bleibt, steht unter *Offene Punkte*. Der Text darunter ist der Weg dorthin.
+
 **Laufende Arbeit (3. Okt.): Gittermast (kombinierter Mast).** Entscheide in
 *Entschieden*. Etappen: (1) Daten - gelesen aus den Scans, in
 `Versand/kombinierte_masten_daten.md`; dem Auftraggeber zur Bestätigung
@@ -2349,6 +2361,23 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Gittermast, offen** (3. Okt.): (a) Wanddicke des Mastaufsatzes am langen Typ ist eine
+  Annahme (im Sortiment vermerkt); (b) Wind auf die Hüllfläche mit dem Druck der Vollwandmasten
+  ist eine Annahme auf der sicheren Seite - ein Tabellenwert des Betreibers würde sie ersetzen;
+  (c) Schotte nur an Knick, Kopf, Fuss und wo etwas anschliesst - die Rippen der Zeichnung im
+  Unterteil sind nicht erfasst; (d) kein Knicknachweis (weder Gurt zwischen den Blechen noch der
+  Mast als Ganzes) und kein Fundamentnachweis (kein Standardtyp zugeordnet); (e) Gittermast am
+  Abfangjoch und Tragausleger nicht gebaut; (f) SAF, DXF und PyNite-Ausleitung aus der App nicht
+  mit Gittermast; `durchlauf.mjs` fährt ihn deshalb nicht; (g) der Ersatzbalken (vorläufige
+  Anzeige, Rechenverfahren «Ersatzbalken») rechnet ihn als Vollstab mit dem Kopfquerschnitt;
+  (h) weitere Typen des Katalogs nicht erfasst; (i) Handbuchkapitel fehlt.
+- ⚠ **Schubverformung der Bindebleche:** die Anwendung rechnet sie (Entscheid 25. Sept.), AxisVM
+  in den gebauten Modellen nicht. Am Gittermast macht das unter Torsion 21-39 % mehr Verdrehung;
+  die Schnittgrössen der Gurte unterscheiden sich um wenige Prozent. Ob AxisVM mit
+  Schubverformung gebaut werden soll, ist zu entscheiden.
+- ⚠ **Ungleichschenklige Winkel in früheren AxisVM-Modellen** lagen um 90° gedreht (siehe
+  *Entschieden*, Gittermast im Stabwerk). Betroffen sind Modelle mit dem Untergurt L 120x80x12;
+  Vergleiche daran sind nicht nachgemessen.
 - ~~Tragausleger kurz mit Fahrdrahtabzug: ein Seil gedrückt~~ - erledigt 3. Okt. (Seile nur auf Zug, siehe *Entschieden*). Bisher: (3. Okt.,
   `durchlauf.mjs` meldet es). L 6 m, Hängestütze mit Fahrdrahtabzug bei
   L − 0.65: `AUFHAENGUNG_N` −0.24 kN unter «Ständig + Wind −y»; mit der
@@ -2697,12 +2726,13 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6372 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6419 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node vergleich_profile.mjs [1]   # Profiltabellen gegen ihren gerundeten Umriss (nur > 1 %)
+node vergleich_gittermast.mjs [<Typ>] [quer] [--axisvm]   # Gittermast: eigener Loeser gegen PyNite; --axisvm schreibt com/AxisVM_Gittermast_<Typ>.json
 powershell -File com/AxisVM_modell_lesen.ps1 -Datei <modell.axs> -Aus <aufbau.json>   # AxisVM-Datei nur lesen (Knoten, Linien, Querschnitte, Lager)
 python3 qp_markierungen.py [--ab JJJJ-MM-TT] [<pdf>]   # Markierungen in Grundlagen/QP -> Versand/qp_markierungen/
 node vergleich_axisvm.mjs com/AxisVM_<name>.json      # Loeser gegen AxisVM, Stab fuer Stab

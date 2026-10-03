@@ -78,7 +78,7 @@ import { abfangAuswertung, abfangFyd, abfangStuetzweite,
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 import { auslegerAuswertung, auslegerKombi } from './core.tragausleger.js';
 import { auslegerSzene } from './render.tragausleger.js';
-import { gurtTeilung, jochStaebe, stabwerkDiagramme, stabwerkFaerben } from './render.stabwerk.js';
+import { istGitterStab, gurtTeilung, jochStaebe, stabwerkDiagramme, stabwerkFaerben } from './render.stabwerk.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis, verformungGrenzen } from './core.verformung.js';
@@ -1945,11 +1945,16 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
    * verformung mitnehmen»), im Fall der verformten Figur (`wegeFall`).
    */
   const umh = anzeigeKombi === 'umhuellend';
-  const g = tragwerksart(werte).key === 'joch' ? stabwerkGilt() : null;
+  const artS = tragwerksart(werte).key;
+  let g = artS === 'joch' || artS === 'einzelmast' ? stabwerkGilt() : null;
+  // Der Gittermast wird immer aus dem Stabwerk gefärbt (3. Oktober) - auch
+  // als Einzelmast; der Walzprofil-Einzelmast zeigt weiter den Kern.
+  const hatGitter = Boolean(g) && Object.keys(g.h.jeStab ?? {}).some(istGitterStab);
+  if (artS === 'einzelmast' && !hatGitter) g = null;
   const js = g ? jochStaebe(g.h.jeStab, g.jochKey) : null;
   const sz = erzeugeSzene({ ...erg.modell, mastZeichnen: zeichnen,
                             ...(js && umh ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
-  if (js && sz) {
+  if ((js || hatGitter) && sz) {
     const roh = g.h.roh;
     const lf = roh ? wegeFall(g) : null;
     const an = lf ? anteileFuer(lf, roh.dat) : null;

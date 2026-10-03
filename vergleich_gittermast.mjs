@@ -31,8 +31,8 @@ import { fileURLToPath } from 'node:url';
 const HIER = dirname(fileURLToPath(import.meta.url));
 const J = (f) => `file:///${join(HIER, 'js', f).replace(/\\/g, '/')}`;
 const ARBEIT = join(HIER, '.vergleich_gittermast');
-const PYTHON = process.env.PYTHON
-  ?? 'C:/Users/ivan_/AppData/Local/Programs/Python/Python312/python.exe';
+// Das Python mit PyNite (pip install PyNiteFEA); anders: Umgebungsvariable PYTHON.
+const PYTHON = process.env.PYTHON ?? 'python3';
 const D = (f) => JSON.parse(readFileSync(join(HIER, 'data', f), 'utf8'));
 
 (await import(J('data.normen.js'))).setzeNormen(D('normen.json'));
@@ -88,7 +88,13 @@ for (const typ of typen) {
   const kurz = typ.replace(/[^A-Za-z0-9]+/g, '') + (steg === 'quer' ? '_quer' : '');
   const ein = join(ARBEIT, `modell_${kurz}.json`), aus = join(ARBEIT, `ergebnis_${kurz}.json`);
   writeFileSync(ein, JSON.stringify(PD.pyniteDaten(dat)));
-  if (mitAxis) writeFileSync(join(HIER, 'com', `AxisVM_Gittermast_${kurz}.json`), JSON.stringify(dat, null, 1));
+  if (mitAxis) {
+    // AxisVM setzt das Eigengewicht selbst an (je echtem Stab) - die Datei
+    // dafür geht OHNE die Eigengewichtslasten hinaus, sonst stünde es doppelt.
+    const ax = { ...dat, lasten: { ...dat.lasten,
+      strecke: dat.lasten.strecke.filter((l) => !/^EG_/.test(l.name)) } };
+    writeFileSync(join(HIER, 'com', `AxisVM_Gittermast_${kurz}.json`), JSON.stringify(ax, null, 1));
+  }
   const t0 = Date.now();
   const txt = execFileSync(PYTHON, [join(ARBEIT, 'gitter_pynite.py'), ein, aus], { encoding: 'utf8' });
   const py = JSON.parse(readFileSync(aus, 'utf8'));

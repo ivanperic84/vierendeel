@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6372 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6419 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,14 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Gittermast (kombinierter Mast):** wählbar als Einzelmast und
+  Jochmast; im Stabwerk ein Fachwerk (vier Gurtwinkel, Bindebleche, Schotte,
+  Rohr bzw. Mastaufsatz; `export.axisvm.gitter.js`), Nachweis je Stab, das
+  Bemessungsdiagramm als Kontrolle, 3D aus dem Stabwerk gefärbt. Gegengerechnet
+  mit PyNite (`vergleich_gittermast.mjs`, ≤ 0.005 %) und AxisVM (0.00-0.03 %
+  ohne Schubverformung). ⚠ Offen: Wanddicke des Mastaufsatzes und Wind auf die
+  Hüllfläche sind Annahmen; kein Knicken, kein Fundament; nicht am Abfangjoch
+  und Tragausleger (CLAUDE.md, *Offene Punkte*).
 - **2. Oktober, Endfeld am Stoss:** in der Jochreihe endet jedes Joch
   5 cm vor der Mastachse, Stationen nach der Standardlänge, das Endfeld
   am Stoss gekürzt (je halb, wenn beide Enden stossen); die Ausleitung

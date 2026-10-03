@@ -1944,6 +1944,17 @@ foreach ($q in $d.querschnitte) {
             aber eindeutig aus der Flaeche (siehe mastQuerschnitt). Deshalb
             trifft die Rueckmessung unten hier auf ein sauberes Ergebnis und
             nicht auf die zwei Prozent, die beim Winkel bleiben.        #>
+        <#  ROHR UND QUADRATROHR (3. Oktober, Gittermast). Signaturen aus der
+            Typbibliothek gelesen: AddPipe(Name, d, t, Process) und
+            AddBox(Name, h, b, tw, tf, R, Process). Das Quadratrohr geht
+            scharfkantig hinaus (R = 0), wie die Datei es rechnet.        #>
+        @{ name = 'CrossSections.AddPipe(Name, d, t, cspRolled)'; tu = {
+            if ($q.form -ne 'Pipe') { throw 'kein Rohr' }
+            $m.CrossSections.AddPipe($q.name, $p[0] * $mm, $p[1] * $mm, $cspGewalzt) } },
+        @{ name = 'CrossSections.AddBox(Name, h, b, tw, tf, R, cspRolled)'; tu = {
+            if ($q.form -ne 'Box') { throw 'kein Quadratrohr' }
+            $m.CrossSections.AddBox($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                    $p[2] * $mm, 0.0, $cspGewalzt) } },
         @{ name = 'CrossSections.AddI(Name, h, b, tw, tf, R, cspRolled)'; tu = {
             if ($q.form -ne 'I') { throw 'kein I-Profil' }
             $m.CrossSections.AddI($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
@@ -1951,6 +1962,34 @@ foreach ($q in $d.querschnitte) {
     ) -Leise:($qs.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'CrossSections' $m.CrossSections; Beenden 4 "Querschnitt $($q.name) nicht anlegbar." }
     $qs[$q.name] = $r.wert
+    <#  DER UNGLEICHSCHENKLIGE WINKEL: WELCHER SCHENKEL LIEGT WO? (3. Oktober)
+        AddL heisst in der Typbibliothek (Name, h, b, tw, tf, r1, r2); die
+        Datei fuehrt [Schenkel in lokal y, Schenkel in lokal z]. Ob das h von
+        AxisVM in lokal y oder z liegt, wird nicht angenommen, sondern am
+        angelegten Querschnitt gemessen: die Datei nennt Iy und Iz in ihren
+        lokalen Achsen. Liegt das groessere Traegheitsmoment in der anderen
+        Achse als in der Datei, wird der Winkel mit getauschten Schenkeln
+        neu angelegt - und der Bericht sagt es.                          #>
+    if ($q.form -eq 'Angle' -and $q.Iy -and $q.Iz -and
+        ([Math]::Abs([double]$p[0] - [double]$p[1]) -gt 1e-9)) {
+        try {
+            $it = $m.CrossSections.Item($qs[$q.name])
+            if (($it.Iy -gt $it.Iz) -ne ([double]$q.Iy -gt [double]$q.Iz)) {
+                $neu = $m.CrossSections.AddL(($q.name + '_g'), $p[1] * $mm, $p[0] * $mm, $p[2] * $mm,
+                                             $p[2] * $mm, $p[3] * $mm, $p[4] * $mm, $cspGewalzt)
+                if ($neu -gt 0) {
+                    $it2 = $m.CrossSections.Item($neu)
+                    Schreib ("    {0,-16} Schenkel getauscht angelegt: Iy/Iz {1:N1}/{2:N1} cm4 statt {3:N1}/{4:N1} (Datei {5:N1}/{6:N1})" -f
+                             $q.name, ($it2.Iy * 1e8), ($it2.Iz * 1e8), ($it.Iy * 1e8), ($it.Iz * 1e8),
+                             ([double]$q.Iy * 1e8), ([double]$q.Iz * 1e8))
+                    $qs[$q.name] = $neu
+                }
+            } else {
+                Schreib ("    {0,-16} Schenkellage wie die Datei: Iy/Iz {1:N1}/{2:N1} cm4" -f
+                         $q.name, ($it.Iy * 1e8), ($it.Iz * 1e8))
+            }
+        } catch { Schreib "    $($q.name): Schenkellage nicht pruefbar - $($_.Exception.Message)" }
+    }
 }
 Schreib "  $($qs.Count) Querschnitte"
 

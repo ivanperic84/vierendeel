@@ -36440,6 +36440,231 @@ titel('206  Gittermast (kombinierter Mast): Sortiment und Geometrie');
 }
 
 // ===========================================================================
+// ===========================================================================
+titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontrolle');
+/*
+ * Weisung 3. Oktober: «hier ist der Mastaufsatz für den typ IV45 enthalten.
+ * Teilung nach vorschlag. weitermachen bis zum schluss und prüfung mit pynite
+ * vornehmen und danach noch mit axisvm». Entscheide davor: «Stabwerk +
+ * Diagramm als Kontrolle», «Einzelmast und Jochmast, Rohr als Teil».
+ *
+ * Der Gittermast ist wählbar, wo ein HEB steht; in der fertigen Datei wird
+ * der Zug auf der Mastachse zum Fachwerk (export.axisvm.gitter.js). Die
+ * Zahlen des Sortiments (Durchbiegung des Bemessungsdiagramms, zulässige
+ * Momente) stehen in der Datei, nicht hier.
+ */
+{
+  const M207 = await import(J('data.masten.js'));
+  const C207 = await import(J('core.constants.js'));
+  const N207 = await import(J('core.nachbarn.js'));
+  const AS207 = await import(J('app.stabwerk.js'));
+  const SW207 = await import(J('core.stabwerk.js'));
+  const GI207 = await import(J('export.axisvm.gitter.js'));
+  const PD207 = await import(J('export.pynite.datei.js'));
+  const SN207 = await import(J('core.stabnachweis.js'));
+  if (!M207.gittermastenDa()) {
+    console.log('  (kein Gittermast-Sortiment in diesem Datenordner - übersprungen)');
+  } else {
+    const typen = M207.gittermasten().map((g) => g.typ);
+    const profile = M207.mastprofile().filter((p) => p.gitter);
+    wahr('Jeder Gittermast steht als Mastprofil im Wähler (hinter den Walzprofilen)',
+         profile.length === typen.length && profile.every((p) => p.name === M207.GITTER_PRAEFIX + p.gitter),
+         profile.map((p) => p.name).join(', '));
+    wahr('Das Ersatzprofil trägt Kopfmass, Fläche, Trägheit, Wind und die feste Länge',
+         profile.every((p) => p.h > 0 && p.A > 0 && p.Iy > 0 && p.Iz > 0 && p.laenge > p.hoehe
+           && p.wind?.quer?.EK1 > 0 && p.wind?.laengs?.EK1 > 0));
+    const stab = (w0) => {
+      const w = N207.rechensatzMitNachbarn(w0);
+      const erg = berechne(w, ...N207.kernArgumente(w));
+      return AS207.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+    };
+    const jochW = (o = {}) => ({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+      L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', ...o });
+    const einzel = (typ, o = {}) => C207.tragwerkWeg(C207.tragwerkHinzu(jochW(), 'einzelmast',
+      { mastProfil: M207.GITTER_PRAEFIX + typ, mastH: 8, mastLaenge: 0, ...o }), 'T1');
+
+    // --- Die Länge ist die des Typs -----------------------------------------
+    const quad = M207.gittermasten().find((g) => g.fuss.a === g.fuss.b && g.rohr?.d > 0);
+    const recht = M207.gittermasten().find((g) => g.fuss.a !== g.fuss.b && g.rohr?.d > 0);
+    const aufs = M207.gittermasten().find((g) => g.aufsatz?.a > 0);
+    const fest = C207.gitterLaengenFest(einzel(quad.typ, { mastLaenge: 9 }));
+    pruef('Ein Gittermast bekommt die Länge seines Typs eingetragen (Gitter + Rohr)',
+          Number(C207.mastenVon(fest)[0].laenge), M207.gittermastGeometrie(quad.typ).laenge, 1e-9, 'm');
+    const ohne = einzel(quad.typ, { mastProfil: 'HEB 260', mastLaenge: 9 });
+    wahr('Ohne Gittermast bleibt der Stand derselbe (kein Schreiben)', C207.gitterLaengenFest(ohne) === ohne);
+
+    // --- Das Fachwerk in der Datei ------------------------------------------
+    const h = stab(einzel(quad.typ));
+    wahr('Einzelmast mit Gittermast rechnet im Stabwerk', h && !h.fehler && !h.ohneModell, h?.fehler ?? h?.ohneModell ?? '');
+    const dat = h.roh.dat;
+    const g = dat.gittermasten?.[0];
+    const G = M207.gittermastGeometrie(quad.typ);
+    wahr('Die Datei führt den Gittermast: Typ, Achsknoten, Gurte, Bleche, Rohr',
+         g?.typ === quad.typ && g.achse.length >= 3 && g.gurte.length % 4 === 0 && g.bleche.length > 0 && g.oben.length >= 2);
+    wahr('Kein Stab auf der Mastachse unter dem Kopf, kein Merk-Querschnitt mehr',
+         !dat.staebe.some((s) => /^MAST_[^_]+_S\d+$/.test(s.name)) && !dat.querschnitte.some((q) => q.gitter));
+    const stationen = G.stationen.length;
+    wahr('Vier Gurte, an jeder Station der Zeichnung geteilt',
+         g.gurte.length >= 4 * (stationen - 1), `${g.gurte.length} Gurtstäbe, ${stationen} Stationen`);
+    pruef('Bindebleche auf allen vier Seiten an jeder Station mit Blech',
+          g.bleche.length, 4 * G.stationen.filter((s) => s.blech && s.blech.la >= GI207.BLECH_MIN).length, 1e-9, '');
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const bl = dat.staebe.find((s) => s.name === g.bleche[0]);
+    const s1 = G.stationen.find((s) => s.blech);
+    pruef('Das Blech trägt über seine lichte Länge (Aussenbreite − 2 · Schenkel)',
+          Math.hypot(kn.get(bl.bis).x - kn.get(bl.von).x, kn.get(bl.bis).y - kn.get(bl.von).y), s1.blech.la, 1e-6, 'm');
+    wahr('Jeder Achsknoten im Gitter ist über ein Schott starr an vier Gurte gebunden',
+         g.achse.filter((n) => kn.get(n).z - g.zFuss <= G.hoehe + 1e-6)
+           .every((n) => dat.staebe.filter((s) => s.art === 'starr' && s.von === n && /_SCH\d+_[1-4]$/.test(s.name)).length === 4));
+    wahr('Ein Auflager: der Fussknoten auf der Achse, voll eingespannt',
+         dat.auflager.length === 1 && dat.auflager[0].knoten === g.achse[0]
+         && ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz'].every((f) => dat.auflager[0][f] === 'Rigid'));
+    const rohrI = dat.staebe.find((s) => s.name === `MAST_${g.id}_ROHR_I`);
+    pruef('Das Rohr steckt im Oberteil: vom Fusspunkt der Einspannung bis zum Kopf',
+          kn.get(rohrI.bis).z - kn.get(rohrI.von).z, G.rohr.innen, 1e-6, 'm');
+    pruef('… und ragt frei darüber bis zur Gesamtlänge',
+          Math.max(...g.achse.map((n) => kn.get(n).z)) - g.zFuss, G.laenge, 1e-6, 'm');
+    // Wind: Hüllfläche, am Fuss breiter als am Kopf.
+    const wFuss = dat.lasten.strecke.filter((l) => l.lastfall === 'WindX' && /_G[1-4]_S1$/.test(l.stab)).reduce((a, l) => a + l.wert, 0);
+    const kopf = G.stationen[G.stationen.length - 1];
+    const p207 = M207.getMastprofil(M207.GITTER_PRAEFIX + quad.typ);
+    pruef('Wind auf die Hüllfläche: am Fuss im Verhältnis der Breite grösser als am Kopf',
+          wFuss, p207.wind.quer.EK1 * (G.stationen[0].b + G.stationen[1].b) / 2 / kopf.b, 0.01, 'kN/m');
+    const eg = dat.lasten.strecke.filter((l) => /^EG_MAST_/.test(l.name));
+    wahr('Eigengewicht je echtem Stab (Gurte, Bleche, Rohr)', eg.length === g.gurte.length + g.bleche.length + g.oben.length);
+
+    // --- Nachweise je Stab ----------------------------------------------------
+    wahr('Rollen: Gurt, Blech und Rohr des Gittermasts; kein Stab ohne Rolle',
+         SN207.stabRolle(g.gurte[0]) === 'gurt' && SN207.stabRolle(g.bleche[0]) === 'blech'
+         && SN207.stabRolle(g.oben[0]) === 'rohr' && (h.ohneRolle?.length ?? 0) === 0);
+    const teil = (k) => h.teile[`mast:${g.id}|${k}`];
+    wahr('Je Teil ein η: Gurt, Blech, Rohr - das Bauteil «Mast» ist das Grösste',
+         [teil('gurt'), teil('blech'), teil('rohr')].every((t) => Number.isFinite(t?.eta) && t.eta > 0)
+         && Math.abs(h.bauteile[`mast:${g.id}`].eta - Math.max(teil('gurt').eta, teil('blech').eta, teil('rohr').eta)) < 1e-12,
+         `Gurt ${teil('gurt').eta.toFixed(4)} · Blech ${teil('blech').eta.toFixed(4)} · Rohr ${teil('rohr').eta.toFixed(4)}`);
+    wahr('Der Gurt wird als Winkel vorzeichenrichtig nachgewiesen', teil('gurt').detail?.art === 'winkel');
+    wahr('Kein Knicken als Vollstab, kein Standardfundament', !h.knick?.[g.id] && !h.fundamentJe?.[g.id]);
+    const dg = h.gitterJe?.[g.id]?.diagramm;
+    wahr('Die Kontrolle nach dem Bemessungsdiagramm: M_a / zul + M_b / zul, charakteristisch',
+         dg && Math.abs(dg.eta - (dg.Ma / dg.zulA + dg.Mb / dg.zulB)) < 1e-12 && dg.zulA === quad.zulMoment.a,
+         dg ? `${dg.Ma.toFixed(1)} / ${dg.zulA} + ${dg.Mb.toFixed(1)} / ${dg.zulB} = ${dg.eta.toFixed(3)}` : '');
+
+    // --- Gleichgewicht und Symmetrie ----------------------------------------
+    const lsg = SW207.loese(dat, { eigengewicht: false });
+    const rG = lsg.auflagerkraefte('G')[0];
+    const sumG = dat.lasten.strecke.filter((l) => l.lastfall === 'G').reduce((a, l) => {
+      const st = dat.staebe.find((s) => s.name === l.stab);
+      const p = kn.get(st.von), q = kn.get(st.bis);
+      return a + l.wert * Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z);
+    }, 0);
+    pruef('Gleichgewicht: die Auflagerkraft trägt das Eigengewicht des Fachwerks', rG.uz, -sumG, 1e-6, 'kN');
+    const spitze = g.achse[g.achse.length - 1];
+    const dat2 = JSON.parse(JSON.stringify(dat));
+    dat2.lasten.punkt.push({ name: 'PX', knoten: spitze, richtung: 'X', wert: 1, lastfall: 'PX' },
+                           { name: 'PY', knoten: spitze, richtung: 'Y', wert: 1, lastfall: 'PY' });
+    dat2.lastfaelle.push({ key: 'PX', label: 'PX', art: 'Others' }, { key: 'PY', label: 'PY', art: 'Others' });
+    const l2 = SW207.loese(dat2, { eigengewicht: false });
+    const iS = l2.knotenIdx.get(spitze);
+    pruef('Der quadratische Mast ist in beiden Richtungen gleich steif (Spitze, 1 kN)',
+          l2.u.get('PX')[iS * 6], l2.u.get('PY')[iS * 6 + 1], 1e-6, 'm');
+
+    // --- Der rechteckige Typ: ungleichschenklig, gespiegelt ------------------
+    const hR = stab(einzel(recht.typ));
+    const datR = hR.roh.dat;
+    const qT = datR.querschnitte.filter((q) => q.tausch);
+    wahr('Ungleichschenkliger Gurt: zwei der vier Ecken tragen den Winkel im Spiegelbild',
+         qT.length === 1 && datR.staebe.filter((s) => s.querschnitt === qT[0].name).length
+           === datR.staebe.filter((s) => s.querschnitt === qT[0].name.replace(/_T$/, '')).length,
+         qT.map((q) => q.name).join(', '));
+    const qN = datR.querschnitte.find((q) => q.name === qT[0].name.replace(/_T$/, ''));
+    wahr('… mit getauschten Trägheitsmomenten und demselben Deviationsmoment',
+         Math.abs(qT[0].Iy - qN.Iz) < 1e-15 && Math.abs(qT[0].Iz - qN.Iy) < 1e-15 && Math.abs(qT[0].Iyz - qN.Iyz) < 1e-15);
+    // Die Durchbiegung des Bemessungsdiagramms: 1 t auf 8.00 m, Weg auf 8.00 m.
+    const probe = (typ, soll) => {
+      const d0 = JSON.parse(JSON.stringify(stab(einzel(typ)).roh.dat));
+      const gg = d0.gittermasten[0];
+      const gk = d0.knoten.filter((k) => new RegExp(`^MAST_${gg.id}_G[1-4]_\\d+$`).test(k.name));
+      const zs = [...new Set(gk.map((k) => Math.round((k.z - gg.zFuss) * 1e4) / 1e4))];
+      const z8 = zs.reduce((a, b) => (Math.abs(b - 8) < Math.abs(a - 8) ? b : a));
+      const vier = gk.filter((k) => Math.abs(k.z - gg.zFuss - z8) < 1e-4);
+      vier.forEach((k, i) => d0.lasten.punkt.push(
+        { name: `A${i}`, knoten: k.name, richtung: 'X', wert: 9.81 / 4, lastfall: 'PA' },
+        { name: `B${i}`, knoten: k.name, richtung: 'Y', wert: 9.81 / 4, lastfall: 'PB' }));
+      d0.lastfaelle.push({ key: 'PA', label: 'PA', art: 'Others' }, { key: 'PB', label: 'PB', art: 'Others' });
+      const ls = SW207.loese(d0, { eigengewicht: false });
+      const m4 = (fall, c) => vier.reduce((a, k) => a + ls.u.get(fall)[ls.knotenIdx.get(k.name) * 6 + c], 0) / 4;
+      const kor = (8 / z8) ** 3;
+      return { fa: m4('PA', 0) * 100 * kor, fb: m4('PB', 1) * 100 * kor, soll };
+    };
+    M207.gittermasten().filter((x) => x.probe?.fa > 0).forEach((x) => {
+      const r = probe(x.typ, x.probe);
+      wahr(`${x.typ}: Durchbiegung auf 8.00 m je Tonne trifft das Bemessungsdiagramm auf 10 %`,
+           Math.abs(r.fa / x.probe.fa - 1) < 0.10 && Math.abs(r.fb / x.probe.fb - 1) < 0.10,
+           `a ${r.fa.toFixed(2)} / ${x.probe.fa} · b ${r.fb.toFixed(2)} / ${x.probe.fb} cm/t`);
+    });
+
+    // --- Der Typ mit Mastaufsatz ---------------------------------------------
+    if (aufs) {
+      const hA = stab(einzel(aufs.typ));
+      const gA = hA.roh.dat.gittermasten[0];
+      const qA = hA.roh.dat.querschnitte.find((q) => q.form === 'Box');
+      wahr('Mastaufsatz: Quadratrohr ab dem Kopf, kein Rohr im Oberteil',
+           gA.obenArt === 'aufsatz' && qA && !hA.roh.dat.staebe.some((s) => /_ROHR_I$/.test(s.name))
+           && Number.isFinite(hA.teile[`mast:${gA.id}|rohr`]?.eta));
+      wahr('… wo die Schenkel zusammenstossen, steht eine starre Verbindung statt eines Blechs',
+           hA.roh.dat.staebe.some((s) => /_BT_/.test(s.name) && s.art === 'starr'));
+    }
+
+    // --- Am Joch ---------------------------------------------------------------
+    const hJ = stab(jochW({ mastProfil: M207.GITTER_PRAEFIX + quad.typ, mastH: 7.3 }));
+    wahr('Tragjoch auf zwei Gittermasten: ein Stabwerk, beide Masten als Fachwerk',
+         hJ && !hJ.fehler && hJ.roh.dat.gittermasten.length === 2
+         && Number.isFinite(hJ.teile['mast:M1|gurt']?.eta) && Number.isFinite(hJ.bauteile.tragwerk?.eta),
+         hJ?.fehler ?? `Gurt M1 ${hJ.teile['mast:M1|gurt'].eta.toFixed(4)}`);
+    wahr('… das Joch hängt über seine Konsolen an Achsknoten mit Schott',
+         ['MAST_M1_A_UG', 'MAST_M1_A_OG'].every((n) => hJ.roh.dat.gittermasten[0].achse.includes(n)));
+    const vJ = hJ.verformung;
+    wahr('… die Verformung kommt aus den Achsknoten des Stabwerks',
+         !vJ || ['A', 'B'].every((e) => !vJ[e] || vJ[e].quelle === 'stabwerk'));
+
+    // --- Sperre und Wege ohne Gittermast ---------------------------------------
+    let ta = C207.tragwerkHinzu(jochW(), 'tragausleger', { xLage: 40, L: 8 });
+    ta = C207.tragwerkWeg(ta, 'T1');
+    ta = C207.setzeMastAngabe(ta, C207.mastenVon(ta)[0].id, 'mastProfil', M207.GITTER_PRAEFIX + quad.typ);
+    wahr('Tragausleger am Gittermast: das Stabwerk verweigert mit Grund',
+         /Gittermast/.test(AS207.reiheOhneStabmodell(ta) ?? ''));
+    // PyNite aus der Datei: Winkel in Hauptachsen.
+    const pd = PD207.pyniteDaten(dat);
+    const qW = dat.querschnitte.find((q) => q.form === 'Angle');
+    const ha = PD207.hauptachsen({ Iy: qW.Iy, Iz: qW.Iz, Iyz: qW.Iyz });
+    pruef('PyNite aus der Datei: der Winkel geht in Hauptachsen hinaus (I_1 + I_2 = I_y + I_z)',
+          ha.Iy + ha.Iz, qW.Iy + qW.Iz, 1e-15, 'm4');
+    wahr('… und ohne Deviationsmoment (I_1 · I_2 = I_y · I_z − I_yz²)',
+         Math.abs(ha.Iy * ha.Iz - (qW.Iy * qW.Iz - qW.Iyz ** 2)) < 1e-20 && pd.staebe.length === dat.staebe.length);
+    const AX207 = await import(J('export.axisvm.js'));
+    let grund = '';
+    try { AX207.ohneGittermast({ querschnitte: new Map([['x', { gitter: quad.typ }]]) }, 'SAF-Ausleitung'); }
+    catch (e) { grund = e.message; }
+    wahr('SAF, DXF und die PyNite-Ausleitung des Jochs brechen mit Gittermast mit Grund ab', /Gittermast/.test(grund));
+    // Die Brücke kennt Rohr und Quadratrohr und misst die Schenkellage.
+    const ps = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+    wahr('COM-Brücke: AddPipe, AddBox und die Messung der Schenkellage des ungleichschenkligen Winkels',
+         ps.includes('CrossSections.AddPipe($q.name') && ps.includes('CrossSections.AddBox($q.name')
+         && ps.includes('Schenkel getauscht angelegt') && !/[^\x00-\x7F]/.test(ps));
+    // Bild: das Fachwerk, gefärbt aus dem Stabwerk.
+    const RK207 = await import(J('render.koerper.js'));
+    const RS207 = await import(J('render.stabwerk.js'));
+    const mk = RK207.mastKoerper({ profil: p207, achse: 'y', x: 0, zFuss: -G.laenge, zKopf: 0, name: 'A' });
+    const arten = new Set(mk.flaechen.map((f) => f.gitter?.art).filter(Boolean));
+    wahr('3D: Gurte, Bleche und Rohr als eigene Flächen des Masts', ['gurt', 'blech', 'rohr'].every((a) => arten.has(a)));
+    const n207 = RS207.stabwerkFaerben({ flaechen: mk.flaechen, linien: [] }, h.jeStab, { mastNamen: { A: g.id } });
+    const gef = mk.flaechen.filter((f) => f.gitter && Number.isFinite(f.werte?.eta));
+    wahr('… gefärbt aus dem Stabwerk: das grösste η im Bild ist das der Kachel',
+         n207 > 0 && Math.abs(Math.max(...gef.map((f) => f.werte.eta)) - h.bauteile[`mast:${g.id}`].eta) < 1e-9,
+         `${gef.length} Flächen`);
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

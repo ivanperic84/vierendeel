@@ -106,6 +106,48 @@ export function knickenAusStabwerk(dat, lsg, faelle, id, basis, m, o = {}) {
  * `fundamentNachweis`, dem ein Ergebnis in der Gestalt von
  * `vergleichKombinationen` gereicht wird (Ende A, eine Station am Fuss).
  */
+/**
+ * >>> DAS BEMESSUNGSDIAGRAMM DES GITTERMASTS ALS KONTROLLE (3. Oktober). <<<
+ *
+ * Entscheid «Stabwerk + Diagramm als Kontrolle»: nachgewiesen wird je Stab;
+ * daneben steht, was das Bemessungsdiagramm des Sortiments sagt - die
+ * zulässigen Momente am Mastfuss «aus sämtlichen Kräften (Wind ∥ oder ⊥)»,
+ * geradlinig überlagert:
+ *
+ *     η = M_a / M_a,zul + M_b / M_b,zul
+ *
+ * Charakteristisch (zulässige Werte, alle Beiwerte 1 - dieselben Fälle wie
+ * Fundament und Anker), die Fussmomente aus den Auflagerkräften des
+ * Stabwerks. M_a ist das Moment aus Kräften in Richtung a (die breite
+ * Seite des Masts).
+ *
+ * @param {{a:number, b:number}} zul  zulässige Momente [kNm]
+ * @returns {{eta, Ma, Mb, zulA, zulB, fall, bez}|null}
+ */
+export function gitterDiagramm(dat, lsg, faelle, id, zul) {
+  const g = (dat.gittermasten ?? []).find((x) => x.id === id);
+  if (!g || !(zul?.a > 0) || !(zul?.b > 0)) return null;
+  const fuss = g.achse[0];
+  const aInX = Math.abs(g.dirA?.[0] ?? 1) > 0.5;
+  let best = null;
+  faelle.filter((l) => FUNDAMENT_FALLARTEN.includes(l.art)).forEach((l) => {
+    let Mx = 0, My = 0;
+    anteileFuer(l, dat).forEach(({ lastfall, faktor }) => {
+      if (!faktor || !lsg.u.has(lastfall)) return;
+      const r = lsg.auflagerkraefte(lastfall).find((x) => x.knoten === fuss);
+      if (!r) return;
+      Mx += faktor * (r.fix ?? 0); My += faktor * (r.fiy ?? 0);
+    });
+    // Kräfte in x biegen um y.
+    const Ma = Math.abs(aInX ? My : Mx), Mb = Math.abs(aInX ? Mx : My);
+    const eta = Ma / zul.a + Mb / zul.b;
+    if (!best || eta > best.eta) {
+      best = { eta, Ma, Mb, zulA: zul.a, zulB: zul.b, fall: l.key, bez: l.bez, typ: g.typ };
+    }
+  });
+  return best;
+}
+
 export function fundamentAusStabwerk(dat, lsg, faelle, id, basis, satz) {
   const fuss = `MAST_${id}_F`;
   const lf = faelle.filter((l) => FUNDAMENT_FALLARTEN.includes(l.art));

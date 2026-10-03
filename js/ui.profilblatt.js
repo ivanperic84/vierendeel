@@ -33,6 +33,7 @@ import { esc } from './design.js';
 // die AxisVM-Ausleitung baut ihre U-Profile aus demselben Umriss.
 import { UNP_NEIGUNG, blechWerte, profilGeometrie, umrissPunkte,
          querschnittAusUmriss } from './core.profilgeometrie.js';
+import { gittermastGeometrie } from './data.masten.js';
 export { UNP_NEIGUNG, blechWerte, profilGeometrie, umrissPunkte, querschnittAusUmriss };
 
 /* ===========================================================================
@@ -365,8 +366,50 @@ function vermerke(art, g) {
  * @param {object} e  Eintrag der Profiltafel: { art, p, name, rolle, quelle }
  *                    art: 'winkel' | 'walz' | 'mast' | 'anker'
  */
+/**
+ * >>> DAS BLATT DES GITTERMASTS (3. Oktober). <<<
+ * Kein Walzprofil mit Schnitt, sondern ein Fachwerk: Gurte, Aussenmasse,
+ * Teilung, Bleche, Rohr - wie das Sortiment sie führt. Die Zahlen der
+ * Profiltafel (A, I, W) sind ERSATZWERTE des Kopfquerschnitts; sie tragen
+ * nur die vorläufige Anzeige des Ersatzbalkens.
+ */
+function gitterBlattHtml(e) {
+  let G = null;
+  try { G = gittermastGeometrie(e.p.gitter); } catch { G = null; }
+  if (!G) return '<p class="notiz">Zu diesem Gittermast fehlt das Sortiment.</p>';
+  const st = G.stationen;
+  const mm = (v) => Math.round(v * 1000);
+  const knick = st.find((s) => s.blech?.art === 'knick') ?? st[st.length - 1];
+  const kopf = st[st.length - 1];
+  const zeile = (a, b, c = '') => `<tr><td>${esc(a)}</td><td class="num">${esc(b)}</td><td>${esc(c)}</td></tr>`;
+  const oben = G.oben ? (G.oben.art === 'rohr'
+    ? `Rohr ø ${mm(G.oben.d)} × ${(G.oben.t * 1000).toFixed(1)}, ${G.oben.innen.toFixed(2)} m im Oberteil, ${G.oben.laenge.toFixed(2)} m frei`
+    : `Mastaufsatz ${mm(G.oben.a)} × ${mm(G.oben.a)} × ${(G.oben.t * 1000).toFixed(1)}, ${G.oben.laenge.toFixed(2)} m`) : 'ohne';
+  return `<div class="pb"><div class="pb-daten" style="flex:1 1 100%">
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Angabe</th><th class="num">Wert</th><th>Bemerkung</th></tr></thead><tbody>
+      ${zeile('Gurt unten', G.gurtUnten, 'vier Winkel, Schenkel nach innen')}
+      ${zeile('Gurt oben', G.gurtOben, '')}
+      ${zeile('Höhe Unterteil / Oberteil', `${G.hUnten.toFixed(2)} / ${G.hOben.toFixed(2)} m`, 'unten konisch bis zum Knick')}
+      ${zeile('Aussenmass am Fuss a / b', `${mm(st[0].a)} / ${mm(st[0].b)} mm`, '')}
+      ${zeile('Aussenmass am Knick a / b', `${mm(knick.a)} / ${mm(knick.b)} mm`, '')}
+      ${zeile('Aussenmass am Kopf a / b', `${mm(kopf.a)} / ${mm(kopf.b)} mm`, '')}
+      ${zeile('Bindeblech-Stationen', String(st.filter((s) => s.blech).length), 'auf allen vier Seiten, Teilung nach Zeichnung')}
+      ${zeile('Über dem Kopf', oben, '')}
+      ${zeile('Gesamtlänge', `${G.laenge.toFixed(2)} m`, 'Gitter + Rohr bzw. Aufsatz')}
+      </tbody></table></div>
+    <p class="notiz" style="margin:4px 0 0">${esc(e.rolle ?? '')} · Sortiment Gittermasten
+      (${esc(G.quelle === 'zeichnung' ? 'nach Detailzeichnung' : 'aus Katalog und Übersicht abgeleitet')}).
+      Im Stabwerk steht der Mast als Fachwerk (Gurte, Bleche, Rohr je Stab). A, I und W der
+      Profiltafel sind Ersatzwerte des Kopfquerschnitts für die vorläufige Anzeige des
+      Ersatzbalkens.</p>
+    ${e.p.hinweis ? `<p class="hinweis" style="margin:3px 0 0">${esc(e.p.hinweis)}</p>` : ''}
+  </div></div>`;
+}
+
 export function profilBlattHtml(e) {
   if (!e?.p) return '<p class="notiz">Zu diesem Profil sind keine Kenndaten hinterlegt.</p>';
+  if (e.p.gitter) return gitterBlattHtml(e);
   const g = profilGeometrie(e.art, e.p);
   const zeichnung = g ? profilSchnittSvg(g, e.name) : null;
   const tabelle = zeilen(e.art, e.p);

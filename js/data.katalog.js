@@ -336,6 +336,14 @@ export const ABSCHNITTE = [
         mm('a', 'Kantenlänge'), mm('t', 'Wanddicke'),
         zahl('laenge', 'Länge über dem Kopf', 'm'),
       ]),
+      satz('zulMoment', 'Zulässiges Moment am Mastfuss (Bemessungsdiagramm)', [
+        zahl('a', 'aus Kräften in Richtung a', 'kNm'),
+        zahl('b', 'aus Kräften in Richtung b', 'kNm'),
+      ], { notiz: 'Charakteristisch, aus sämtlichen Kräften; die beiden Richtungen '
+                + 'überlagern sich geradlinig (M_a / zul + M_b / zul ≤ 1).' }),
+      satz('probe', 'Durchbiegung auf 8.00 m je Tonne auf 8.00 m (Bemessungsdiagramm)', [
+        zahl('fa', 'in Richtung a', 'cm/t'), zahl('fb', 'in Richtung b', 'cm/t'),
+      ]),
       satz('windDruck', 'Wind auf die Hüllfläche', [
         zahl('EK1', 'EK1', 'kN/m²'), zahl('EK2', 'EK2', 'kN/m²'), zahl('EK3', 'EK3', 'kN/m²'),
       ]),

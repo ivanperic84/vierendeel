@@ -4130,6 +4130,21 @@ export function stuetzung(m, lager) {
  * @param {object} opt {knotenmodell}
  * @returns {{name:string, rows:Array, breiten?:number[]}[]}
  */
+/**
+ * >>> WEGE, DIE DEN GITTERMAST NICHT KENNEN (3. Oktober). <<<
+ * Das Fachwerk des Gittermasts entsteht erst in der fertigen Datei
+ * (`stabmodellJson`, COM-Brücke und eigener Löser). SAF, DXF und die
+ * PyNite-Ausleitung des Jochs bauen aus dem rohen Modell - dort stünde
+ * statt des Fachwerks ein Ersatzstab auf der Mastachse, ein Bauteil, das es
+ * nicht gibt. Lieber ein Abbruch mit Grund als eine Datei, die es behauptet.
+ */
+export function ohneGittermast(bau, weg) {
+  if ([...(bau?.querschnitte?.values?.() ?? [])].some((q) => q.gitter)) {
+    throw new Error(`${weg}: mit Gittermast nicht gebaut - das Fachwerk steht nur in der `
+      + 'COM-Datei (JSON) für AxisVM und im Stabwerk der Anwendung.');
+  }
+}
+
 export function safBlaetter(m, opt = {}) {
   /*
    * EIN FERTIGES MODELL HAT VORRANG.
@@ -4140,6 +4155,7 @@ export function safBlaetter(m, opt = {}) {
    * nur das aktive Tragwerk zu sehen.
    */
   const bau = opt.bau ?? stabmodell(m, opt);
+  ohneGittermast(bau, 'SAF-Ausleitung');
   const l = opt.bau?.lasten ?? lasten(m, bau);
   const stahl = m.stahl.name;
 
@@ -5136,6 +5152,7 @@ export function dxfText(m, opt = {}) {
    * nur das aktive Tragwerk zu sehen.
    */
   const bau = opt.bau ?? stabmodell(m, opt);
+  ohneGittermast(bau, 'DXF-Ausleitung');
   const l = opt.bau?.lasten ?? lasten(m, bau);
 
   // Ebenen: je Querschnitt eine, dazu Auflager und Lastpunkte

@@ -49,7 +49,8 @@ import { EINWIRKUNGEN } from './core.lasten.js';
 import { winkelwerteFuer } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 import { ECKEN } from './geometry.js';
-import { stabmodell, lasten, stuetzung, blattWennMehrere, stabmodellJson }
+import { stabmodell, lasten, stuetzung, blattWennMehrere, stabmodellJson,
+         ohneGittermast }
   from './export.axisvm.js';
 import { dreibein } from './core.stabwerk.js';
 import { herunterladen } from './export.xlsx.js';
@@ -300,6 +301,7 @@ export function pyniteSkript(m, opt = {}) {
   // diese Zeile fehlte im Modell die grösste Einzellast (am Signaljoch
   // 0.70 kN/m gegen 3 × 3.92 kN Anbaulast - das Feldmoment fiel um 45 % zu
   // klein aus).
+  ohneGittermast(bau, 'PyNite-Ausleitung');
   const l = lasten(m, bau, { eigengewicht: true });
   const schubweich = opt.schubweich !== false;
   const gurteSchief = opt.gurteSchief === true;
