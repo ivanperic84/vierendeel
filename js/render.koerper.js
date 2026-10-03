@@ -36,6 +36,8 @@
  * ===========================================================================
  */
 
+import { gittermastGeometrie } from './data.masten.js';
+
 export const MM = 1 / 1000;
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -350,6 +352,86 @@ export function schraegesProfil(p0, p1, poly, opt = {}) {
  *                 Achsabstand der beiden Koerper (oder null)
  * @returns {{flaechen:object[], linien:object[]}}
  */
+/* ===========================================================================
+ * >>> DER GITTERMAST IM BILD (3. Oktober). <<<
+ * =========================================================================
+ *
+ * Vier Winkelgurte in den Ecken, die Schenkel nach innen; Bindebleche auf
+ * allen vier Seiten an den Stationen der Zeichnung; unten konisch, oben
+ * gerade; darüber das Rohr bzw. der Mastaufsatz. Gezeichnet aus derselben
+ * Geometrie, aus der das Stabwerk baut (`gittermastGeometrie`).
+ *
+ * Jede Fläche sagt, WELCHES Teil sie ist (`gitter`: Gurt einer Ecke, Blech
+ * einer Seite, Rohr) - das Stabwerk färbt danach (render.stabwerk.js) über
+ * Lage und Höhe, nicht über eine Stabnummer: das Modell teilt die Gurte
+ * auch dort, wo etwas am Masten hängt.
+ */
+const GM_ECKEN = [[1, +1, +1], [2, -1, +1], [3, -1, -1], [4, +1, -1]];
+const GM_SEITEN = [['Bp', 'a', +1], ['Bm', 'a', -1], ['Ap', 'b', +1], ['Am', 'b', -1]];
+
+export function gitterFlaechen(G, { x, zFuss, achse = 'y', opt = {} }) {
+  const flaechen = [];
+  // a liegt in der «Stegrichtung»: Steg in der Jochachse -> a in x.
+  const inX = achse === 'y';
+  const p3 = (ua, ub, z) => (inX ? [x + ua, ub, zFuss + z] : [x - ub, ua, zFuss + z]);
+  const wU = G.winkelUnten, wO = G.winkelOben;
+  const st = G.stationen;
+  // Der Umriss eines Winkels an einer Station (Ferse aussen, Schenkel innen).
+  const umriss = (s, w, sa, sb) => {
+    const aH = w.aH * MM, aV = w.aV * MM, t = w.t * MM;
+    const ca = sa * s.a / 2, cb = sb * s.b / 2;
+    return [[ca, cb], [ca - sa * aH, cb], [ca - sa * aH, cb - sb * t],
+            [ca - sa * t, cb - sb * t], [ca - sa * t, cb - sb * aV], [ca, cb - sb * aV]]
+      .map(([ua, ub]) => p3(ua, ub, s.z));
+  };
+  for (let i = 0; i < st.length - 1; i += 1) {
+    const w = st[i + 1].teil === 'unten' ? wU : wO;
+    if (!w) continue;
+    GM_ECKEN.forEach(([k, sa, sb]) => {
+      const A = umriss(st[i], w, sa, sb), B = umriss(st[i + 1], w, sa, sb);
+      const o = { ...opt, gitter: { art: 'gurt', k }, xMitte: x,
+                  label: `${opt.grund ?? 'Mast'} · Gurt ${w.name} · ${st[i].z.toFixed(2)} bis ${st[i + 1].z.toFixed(2)} m` };
+      for (let n = 0; n < A.length; n += 1) {
+        const m = (n + 1) % A.length;
+        flaechen.push({ punkte: [A[n], A[m], B[m], B[n]], ...o });
+      }
+      if (i === st.length - 2) flaechen.push({ punkte: B, ...o });
+    });
+  }
+  st.forEach((s) => {
+    if (!s.blech) return;
+    const w = s.teil === 'unten' ? wU : wO;
+    const tW = (w?.t ?? 8) * MM;
+    GM_SEITEN.forEach(([seite, laengs, vz]) => {
+      const l = laengs === 'a' ? s.blech.la : s.blech.lb;
+      if (!(l > 0.005)) return;
+      const aussen = vz * ((laengs === 'a' ? s.b : s.a) / 2 - tW / 2);
+      const p = (u) => (laengs === 'a' ? p3(u, aussen, s.z) : p3(aussen, u, s.z));
+      flaechen.push(...schraegerStab(p(-l / 2), p(l / 2), s.blech.t, s.blech.b, {
+        ...opt, gitter: { art: 'blech', seite },
+        label: `${opt.grund ?? 'Mast'} · Bindeblech ${Math.round(s.blech.b * 1000)}×${Math.round(s.blech.t * 1000)} · ${s.z.toFixed(2)} m`,
+      }));
+    });
+  });
+  if (G.oben) {
+    const r = (G.oben.d ?? G.oben.a) / 2 / MM;          // Polygone in mm
+    const poly = G.oben.art === 'rohr'
+      ? Array.from({ length: 12 }, (_, n) => [r * Math.cos(n * Math.PI / 6), r * Math.sin(n * Math.PI / 6)])
+      : [[-r, -r], [r, -r], [r, r], [-r, r]];
+    const z0 = G.hoehe - (G.oben.innen || 0);
+    // In zwei Stücken: im Gitter und frei darüber (eigene Stäbe im Modell).
+    [[z0, G.hoehe], [G.hoehe, G.laenge]].forEach(([za, zb]) => {
+      if (!(zb > za + 1e-6)) return;
+      for (let z = za; z < zb - 1e-6; z += 0.5) {
+        flaechen.push(...prismaZ(poly, x, zFuss + z, zFuss + Math.min(z + 0.5, zb), {
+          ...opt, gitter: { art: 'rohr' },
+          label: `${opt.grund ?? 'Mast'} · ${G.oben.art === 'rohr' ? 'Rohr' : 'Mastaufsatz'} · ${z.toFixed(2)} m` }));
+      }
+    });
+  }
+  return flaechen;
+}
+
 export function mastKoerper(o) {
   const flaechen = [];
   const linien = [];
@@ -412,7 +494,18 @@ export function mastKoerper(o) {
     const v = verf.get(Math.round((z ?? 0) * 1e6));
     return v ? Math.hypot(v.x ?? 0, v.y ?? 0) * 1000 : null;   // mm
   };
-  if (st.length >= 2) {
+  let gitterG = null;
+  if (profil.gitter) {
+    try { gitterG = gittermastGeometrie(profil.gitter); } catch { gitterG = null; }
+  }
+  if (gitterG && !gitterG.fehler.length) {
+    // Das Fachwerk; gefärbt wird es aus dem Stabwerk (ohne es neutral).
+    flaechen.push(...gitterFlaechen(gitterG, { x, zFuss, achse, opt: {
+      gruppe: 'mast', teil, grund, farbeBauteil: o.farbeBauteil, werte: wGzg ?? undefined } }));
+    linien.push({ gruppe: 'mast', schwerachse: true, werte: wGzg ?? undefined,
+                  label: `Schwerachse ${grund}`,
+                  punkte: [[x, 0, zFuss], [x, 0, zFuss + gitterG.laenge]] });
+  } else if (st.length >= 2) {
     for (let i = 0; i < st.length - 1; i += 1) {
       const u = st[i], ob = st[i + 1];
       const zu2 = zFuss + u.z, zo2 = zFuss + ob.z;
@@ -483,7 +576,10 @@ export function mastKoerper(o) {
                   punkte: [[x, 0, zFuss], [x, 0, zKopf]] });
   }
 
-  const halb = ((achse === 'y' ? profil.b : profil.h) / 2) * MM;
+  // Am Gittermast ist der Fuss breiter als der Kopf (h, b sind Kopfmasse).
+  const halb = gitterG?.stationen?.length
+    ? Math.max(gitterG.stationen[0].a, gitterG.stationen[0].b) / 4
+    : ((achse === 'y' ? profil.b : profil.h) / 2) * MM;
   /* =======================================================================
    * >>> DER FUNDAMENTKOPF IST EIN KOERPER, KEINE SCHRAFFUR. <<<
    * =======================================================================

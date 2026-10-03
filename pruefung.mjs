@@ -14349,7 +14349,7 @@ titel('49  Der Mastnachweis');
    */
   {
     const { mastprofile } = await import(J('data.masten.js'));
-    mastprofile().forEach((p) => {
+    mastprofile().filter((p) => !p.gitter).forEach((p) => {   // Walzprofile; der Gittermast hat keinen Flansch
       const pl = MA.plastischeWiderstaende(p);
       wahr(`${p.name}: W_pl,y groesser als W_el,y`, pl.Wply > p.Wy,
            `${pl.Wply.toFixed(1)} gegen ${p.Wy} cm³`);
@@ -14382,7 +14382,7 @@ titel('49  Der Mastnachweis');
   // --- Querschnittsklasse --------------------------------------------------
   {
     const { mastprofile } = await import(J('data.masten.js'));
-    mastprofile().forEach((p) => {
+    mastprofile().filter((p) => !p.gitter).forEach((p) => {
       const k = MA.mastKlasse(p, 235, 0);
       wahr(`${p.name}: unter Biegung Klasse 1`, k.klasse === 1,
            `Flansch ${k.flansch.ct.toFixed(1)} / Steg ${k.steg.ct.toFixed(1)}`);

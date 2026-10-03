@@ -163,7 +163,7 @@ export function fundamentFuerMast(profil, stegrichtung = 'jochachse') {
  * ========================================================================= */
 export function mastprofile() {
   const norm = mastprofileNorm();
-  if (!mastenDbDa()) return norm;
+  if (!mastenDbDa()) return norm;   // ohne Sortiment auch keine Gittermasten
   const aus = [];
   for (const t of SORT.typen) {
     const p = norm.find((x) => x.name === t.profil);
@@ -174,7 +174,9 @@ export function mastprofile() {
      */
     if (p) aus.push({ ...p, wind: t.wind ?? null });
   }
-  return aus.length ? aus : norm;
+  // Die Gittermasten hinter den Walzprofilen (3. Oktober).
+  const gitter = gittermasten().map(gittermastProfil).filter(Boolean);
+  return [...(aus.length ? aus : norm), ...gitter];
 }
 
 /**
@@ -328,10 +330,98 @@ export function gittermastGeometrie(typ) {
   });
   const rohr = g.rohr?.d > 0 ? { d: mm(g.rohr.d), t: mm(g.rohr.t),
     frei: Number(g.rohr.frei) || 0, innen: Number(g.rohr.innen) || 0 } : null;
+  // Der Mastaufsatz (Quadratrohr auf dem Kopf verschraubt) - statt des Rohrs.
+  const aufsatz = g.aufsatz?.a > 0 ? { a: mm(g.aufsatz.a), t: mm(g.aufsatz.t),
+    laenge: Number(g.aufsatz.laenge) || 0 } : null;
+  // Was über dem Kopf des Gitters steht: Rohr oder Aufsatz, mit Querschnitt.
+  const oben = rohr ? { art: 'rohr', ...rohrWerte(rohr.d, rohr.t), laenge: rohr.frei, innen: rohr.innen }
+    : aufsatz ? { art: 'aufsatz', ...kastenWerte(aufsatz.a, aufsatz.t), laenge: aufsatz.laenge, innen: 0 }
+    : null;
   return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),
-           hoehe, gurtUnten: g.gurtUnten, gurtOben: g.gurtOben, winkelUnten: wU, winkelOben: wO,
-           stationen, rohr, fehler };
+           hoehe, laenge: r6(hoehe + (oben?.laenge ?? 0)),
+           gurtUnten: g.gurtUnten, gurtOben: g.gurtOben, winkelUnten: wU, winkelOben: wO,
+           stationen, rohr, aufsatz, oben, windDruck: g.windDruck ?? null, fehler };
 }
+
+/** Kreisrohr d × t [m]: A [m²], I [m⁴], W [m³], I_t [m⁴]. */
+export function rohrWerte(d, t) {
+  const di = d - 2 * t;
+  const A = Math.PI / 4 * (d * d - di * di);
+  const I = Math.PI / 64 * (d ** 4 - di ** 4);
+  return { form: 'Pipe', d, t, A, I, W: I / (d / 2), It: 2 * I };
+}
+
+/** Quadratrohr a × t [m], scharfkantig: A, I, W, I_t (Bredt). */
+export function kastenWerte(a, t) {
+  const ai = a - 2 * t;
+  const A = a * a - ai * ai;
+  const I = (a ** 4 - ai ** 4) / 12;
+  return { form: 'Box', a, t, A, I, W: I / (a / 2), It: (a - t) ** 3 * t };
+}
+
+/* ===========================================================================
+ * >>> DER GITTERMAST ALS MASTPROFIL (3. Oktober, Etappe 4). <<<
+ * =========================================================================
+ *
+ * Entscheid «Einzelmast und Jochmast, Rohr als Teil»: wählbar, wo heute
+ * ein HEB steht. Der Wähler, die Mastliste und der Rechensatz führen einen
+ * Masten über seinen PROFILNAMEN - der Gittermast bekommt deshalb einen
+ * («Gittermast II 45») und einen Ersatz-Datensatz in der Form der
+ * Mastprofile. Das Stabwerk baut daraus das Fachwerk (vier Gurte, Bleche,
+ * Rohr; export.axisvm.gitter.js) und weist je Stab nach - der Ersatz trägt
+ * nur die vorläufige Anzeige des Ersatzbalkens und die Maske:
+ *
+ *   h, b      Aussenmass am Kopf (a in der «Stegrichtung», b quer dazu)
+ *   A         vier Gurtwinkel des Oberteils
+ *   Iy, Iz    Steiner der vier Gurte am KOPF (die schmalste Stelle, sichere
+ *             Seite - am Fuss ist der Mast fast doppelt so breit)
+ *   wind      Druck auf die Hüllfläche × Kopfbreite [kN/m]; das Stabwerk
+ *             setzt ihn je Abschnitt mit der Breite an seiner Höhe an
+ *   laenge    feste Gesamtlänge: Gitter + Rohr bzw. Aufsatz
+ *
+ * Ohne Tabelle `gittermasten` im Sortiment gibt es keinen Gittermast.
+ * ========================================================================= */
+export const GITTER_PRAEFIX = 'Gittermast ';
+
+const gitterSpeicher = new WeakMap();
+export function gittermastProfil(g) {
+  if (gitterSpeicher.has(g)) return gitterSpeicher.get(g);
+  const G = gittermastGeometrie(g);
+  const w = G.winkelOben;
+  if (!w || G.fehler.length) { gitterSpeicher.set(g, null); return null; }
+  const kopf = G.stationen[G.stationen.length - 1];
+  // Winkel: i in cm, A in cm² -> I in cm⁴; langer Schenkel (aH) liegt in a.
+  // Biegung IN Richtung a läuft um die Achse parallel b: Steiner mit achseA.
+  const Iw_a = (w.iz ?? w.iy) ** 2 * w.A, Iw_b = w.iy ** 2 * w.A;
+  const Iy = 4 * (Iw_a + w.A * (kopf.achseA * 50) ** 2);   // m -> cm, halber Abstand
+  const Iz = 4 * (Iw_b + w.A * (kopf.achseB * 50) ** 2);
+  const h = kopf.a * 1000, b = kopf.b * 1000;              // mm
+  const A = 4 * w.A;
+  const druck = g.windDruck ?? null;
+  const je = (breite) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3']
+    .map((ek) => [ek, Math.round((Number(druck[ek]) || 0) * breite * 100) / 100])) : null);
+  const p = {
+    name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,
+    A, Iy, Iz, Wy: Iy / (h / 20), Wz: Iz / (b / 20),
+    iy: Math.sqrt(Iy / A), iz: Math.sqrt(Iz / A),
+    Wply: Iy / (h / 20), Wplz: Iz / (b / 20),             // elastisch, kein plastischer Zuschlag
+    It: 4 * ((w.aH + w.aV - w.t) * w.t ** 3 / 3) / 1e4,   // mm⁴ -> cm⁴, vier offene Winkel
+    g: Number(g.gewicht) > 0 ? Math.round(g.gewicht / G.hoehe * 10) / 10 : Math.round(4 * w.g * 1.25 * 10) / 10,
+    laenge: G.laenge, hoehe: G.hoehe,
+    // «quer» = Wind in der Jochachse bei a in der Jochachse: er trifft die Seite b.
+    wind: druck ? { quer: je(kopf.b), laengs: je(kopf.a) } : null,
+  };
+  gitterSpeicher.set(g, p);
+  return p;
+}
+
+/** Ist dieses Profil (Name oder Datensatz) ein Gittermast? */
+export const istGittermast = (p) => (typeof p === 'string'
+  ? p.startsWith(GITTER_PRAEFIX) : Boolean(p?.gitter));
+
+/** Der Typ des Gittermasts zu einem Profilnamen, oder null. */
+export const gitterTyp = (name) => (typeof name === 'string' && name.startsWith(GITTER_PRAEFIX)
+  ? name.slice(GITTER_PRAEFIX.length) : null);
 
 export function getMastprofil(name) {
   const p = mastprofile().find((x) => x.name === name);

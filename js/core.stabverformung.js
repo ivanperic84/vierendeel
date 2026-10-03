@@ -117,15 +117,58 @@ export function mastZug(dat, id) {
       return { name: s.name, z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z), unten };
     })
     .sort((p, q) => p.z0 - q.z0);
-  if (!st.length) return null;
+  if (!st.length) {
+    /*
+     * >>> DER GITTERMAST (3. Oktober). <<<
+     * Er hat keinen Stabzug auf der Achse, aber seine ACHSKNOTEN: jeder ist
+     * starr an die vier Gurte seiner Höhe gebunden (Schott) und trägt damit
+     * Weg und Verdrehung des Mastquerschnitts dort. Zwischen ihnen wird wie
+     * im Stab interpoliert (Hermite aus Weg und Verdrehung, ohne Feldanteil).
+     */
+    const g = (dat.gittermasten ?? []).find((x) => x.id === id);
+    if (!g) return null;
+    const pk = g.achse.map((n) => kn.get(n)).filter(Boolean).sort((p, q) => p.z - q.z);
+    if (pk.length < 2) return null;
+    return { fuss: pk[0].z, kopf: pk[pk.length - 1].z - pk[0].z, staebe: [], gitter: true,
+             knoten: pk.map((k) => ({ name: k.name, h: k.z - pk[0].z })) };
+  }
   const fuss = st[0].z0;
   return { fuss, kopf: st[st.length - 1].z1 - fuss,
            staebe: st.map((s) => ({ ...s, h0: s.z0 - fuss, h1: s.z1 - fuss })) };
 }
 
 /** Der Weg des Masten auf der Höhe h über dem Fuss, global [ux, uy, uz]. */
+/** Weg bzw. Verdrehung auf der Achse des Gittermasts, zwischen seinen Achsknoten. */
+function gitterAchse(lsg, anteile, zug, h) {
+  const kn = zug.knoten;
+  const hh = Math.min(Math.max(h, 0), kn[kn.length - 1].h);
+  let i = kn.findIndex((k, n) => n > 0 && hh <= k.h + 1e-9);
+  if (i < 1) i = kn.length - 1;
+  const a = kn[i - 1], b = kn[i];
+  const L = b.h - a.h || 1;
+  const xi = (hh - a.h) / L;
+  const ia = lsg.knotenIdx.get(a.name), ib = lsg.knotenIdx.get(b.name);
+  if (ia === undefined || ib === undefined) return null;
+  const N1 = 1 - 3 * xi ** 2 + 2 * xi ** 3, N2 = xi - 2 * xi ** 2 + xi ** 3;
+  const N3 = 3 * xi ** 2 - 2 * xi ** 3, N4 = -(xi ** 2) + xi ** 3;
+  const u = [0, 0, 0];
+  let phi = 0;
+  (anteile ?? []).forEach(({ lastfall, faktor }) => {
+    const uv = lsg.u.get(lastfall);
+    if (!faktor || !uv) return;
+    const A = (d) => uv[ia * 6 + d], B = (d) => uv[ib * 6 + d];
+    // Lotrechte Achse: du_x/dz = +φ_y, du_y/dz = −φ_x.
+    u[0] += faktor * (N1 * A(0) + N2 * L * A(4) + N3 * B(0) + N4 * L * B(4));
+    u[1] += faktor * (N1 * A(1) - N2 * L * A(3) + N3 * B(1) - N4 * L * B(3));
+    u[2] += faktor * (A(2) * (1 - xi) + B(2) * xi);
+    phi += faktor * (A(5) * (1 - xi) + B(5) * xi);
+  });
+  return { u, phi };
+}
+
 export function mastWeg(dat, lsg, anteile, zug, h) {
   if (!zug) return null;
+  if (zug.gitter) return gitterAchse(lsg, anteile, zug, h)?.u ?? null;
   const s = zug.staebe.find((x) => h >= x.h0 - 1e-9 && h <= x.h1 + 1e-9)
     ?? (h > zug.kopf ? zug.staebe[zug.staebe.length - 1] : null);
   if (!s) return null;
@@ -181,6 +224,7 @@ export function verformteFigur(dat, lsg, anteile, { teilung = 4 } = {}) {
  */
 export function mastVerdrehung(dat, lsg, anteile, zug, h) {
   if (!zug) return null;
+  if (zug.gitter) return gitterAchse(lsg, anteile, zug, h)?.phi ?? null;
   const s = zug.staebe.find((x) => h >= x.h0 - 1e-9 && h <= x.h1 + 1e-9)
     ?? (h > zug.kopf ? zug.staebe[zug.staebe.length - 1] : null);
   if (!s) return null;

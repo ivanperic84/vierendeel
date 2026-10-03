@@ -85,6 +85,26 @@ export function winkelwerteFuer(p) {
   return SPEICHER.get(p);
 }
 
+/**
+ * >>> DER GESPIEGELTE WINKEL (3. Oktober, Gittermast). <<<
+ *
+ * Beim gleichschenkligen Winkel ist das Spiegelbild eine Drehung um 90° -
+ * so stehen die vier Gurte des Jochs. Beim UNGLEICHSCHENKLIGEN nicht: in
+ * zwei der vier Ecken des Gittermasts liegt der lange Schenkel in lokal z
+ * statt in lokal y. Dieselbe Tabelle, die beiden Schenkelrichtungen
+ * getauscht (Masse, Schwerpunkt, Trägheitsradien, Widerstandsmomente).
+ */
+const GETAUSCHT = new WeakMap();
+export function winkelGetauscht(p) {
+  if (!GETAUSCHT.has(p)) {
+    GETAUSCHT.set(p, { ...p, aH: p.aV ?? p.a, aV: p.aH ?? p.a,
+      zsH: p.zsV ?? p.zs, zsV: p.zsH ?? p.zs,
+      iy: p.iz ?? p.iy, iz: p.iy, Wy: p.Wz ?? p.Wy, Wz: p.Wy,
+      name: `${p.name} (Schenkel getauscht)` });
+  }
+  return GETAUSCHT.get(p);
+}
+
 export function winkelwerte(p) {
   const A = p.A * U.cm2__mm2;
   const aH = p.aH ?? p.a, aV = p.aV ?? p.a, t = p.t;

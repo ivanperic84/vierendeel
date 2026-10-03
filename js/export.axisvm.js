@@ -64,6 +64,7 @@ import { getTragausleger, tragauslegerSpreizung } from './data.abfangjoche.js';
 import { winkelwerteFuer, winkelIt } from './core.winkel.js';
 import { uKontur } from './core.profilgeometrie.js';
 import { getProfil } from './data.profiles.js';
+import { gitterMerkQuerschnitt, gittermastenEinsetzen } from './export.axisvm.gitter.js';
 
 /** Wählbare Knotenmodelle. */
 export const KNOTENMODELLE = [
@@ -656,6 +657,9 @@ export function deviationNachtragen(dat) {
  * trifft: die Brücke liest sie zurück und hält an, wenn sie abweicht.
  */
 function mastQuerschnitt(p) {
+  // Der Gittermast steht bis zum Einsetzen (export.axisvm.gitter.js) als
+  // Merk-Querschnitt auf der Mastachse.
+  if (p.gitter) return gitterMerkQuerschnitt(p);
   const rest = p.A * 100 - 2 * p.b * p.tf - (p.h - 2 * p.tf) * p.tw;
   const R = rest > 0 ? Math.sqrt(rest / (4 - Math.PI)) : 0;
   return {
@@ -4737,7 +4741,7 @@ export function stabmodellJson(m, opt = {}) {
     return kreuz.map((v) => (Math.abs(v) < 1e-9 ? 0 : Math.sign(v)));
   };
 
-  return {
+  const datei = {
     format: 'tragjoch-stabmodell',
     version: 1,
     /*
@@ -4939,6 +4943,8 @@ export function stabmodellJson(m, opt = {}) {
       // Der Pruefstand (Abschnitt 129 e) hat es gefunden. Nur wer eines
       // hat, schreibt eines; die uebrigen Querschnitte bleiben, wie sie waren.
       ...(Number.isFinite(q.Iyz) ? { Iyz: q.Iyz } : {}),
+      // Der Merk-Querschnitt des Gittermasts (wird beim Einsetzen ersetzt).
+      ...(q.gitter ? { gitter: q.gitter } : {}),
     })),
     knoten: [...bau.knoten.values()],
     staebe: bau.staebe.map((s) => ({
@@ -5028,6 +5034,8 @@ export function stabmodellJson(m, opt = {}) {
       .filter((l, k, alle) => alle.findIndex((x) => x.key === l.key) === k),
     lasten: l,
   };
+  // Gittermasten: der Zug auf der Mastachse wird zum Fachwerk (3. Oktober).
+  return gittermastenEinsetzen(datei);
 }
 
 /** Baut das JSON und lädt es herunter. */

@@ -436,6 +436,8 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   // Einzelmast: frei vom Fuss bis zum Kopf, kein Anschluss dazwischen.
   const einzel = istEinzelmast(inp);
   if (einzel) laenge = einzelmastLaenge(inp);
+  // Der Gittermast hat EINE Länge: Gitter + Rohr bzw. Aufsatz (Sortiment).
+  if (p.gitter && p.laenge > 0) laenge = p.laenge;
   const Hfrei = einzel ? laenge : H;
   const ueberstand = Math.max(0, laenge - Hfrei);
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;

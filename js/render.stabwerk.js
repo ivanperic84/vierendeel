@@ -171,6 +171,21 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
   });
   const mastFuss = {};
   Object.entries(masten).forEach(([id, l]) => { mastFuss[id] = Math.min(...l.map((z) => z.z0)); });
+  /*
+   * >>> DER GITTERMAST (3. Oktober). <<<
+   * Seine Stäbe je Mast: Gurte nach Ecke, Bleche nach Seite, Rohr. Die
+   * Flächen des Bildes (render.koerper.js, `gitter`) finden ihre Stäbe über
+   * Ecke bzw. Seite und die Höhe - nicht über die Nummer.
+   */
+  const gitter = {};
+  Object.values(jeStab).forEach((z) => {
+    const m = /(?:^|_)MAST_([^_]+)_(?:G([1-4])_S\d+|BL_([A-Za-z]+)_\d+|(ROHR)_\w+)$/.exec(z.name);
+    if (!m || !Number.isFinite(z.z0)) return;
+    const g = (gitter[m[1]] ??= { gurt: {}, blech: {}, rohr: [], fuss: Infinity });
+    if (m[2]) { (g.gurt[m[2]] ??= []).push(z); g.fuss = Math.min(g.fuss, z.z0); }
+    else if (m[3]) (g.blech[m[3]] ??= []).push(z);
+    else g.rohr.push(z);
+  });
   // Der Fuss je Mast in der Szene.
   const szFuss = {};
   (sz.flaechen ?? []).forEach((f) => {
@@ -208,6 +223,21 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     const l = staebeFuer(teil, f);
     if (l) return l.reduce((a, z) => groesser(a, plotWerte(z)), null);
     const m = /^MAST_(A|B)$/.exec(teil ?? '');
+    if (m && f.gitter) {
+      const g = gitter[mastNamen[m[1]] ?? m[1]];
+      if (!g || !Number.isFinite(szFuss[m[1]]) || !f.punkte?.length) return null;
+      const zs = f.punkte.map((p) => p[2]);
+      const lo = Math.min(...zs) - szFuss[m[1]] + g.fuss;
+      const hi = Math.max(...zs) - szFuss[m[1]] + g.fuss;
+      const ueber = (z) => z.z1 > lo + 1e-6 && z.z0 < hi - 1e-6;
+      const ls = f.gitter.art === 'gurt' ? (g.gurt[f.gitter.k] ?? []).filter(ueber)
+        : f.gitter.art === 'blech'
+          ? (g.blech[f.gitter.seite] ?? []).filter((z) => Math.abs(z.zm - (lo + hi) / 2) < 0.08)
+          : g.rohr.filter(ueber);
+      if (!ls.length) return null;
+      f._gitterStaebe = ls;
+      return ls.reduce((a, z) => groesser(a, plotWerte(z)), null);
+    }
     if (m) {
       const id = mastNamen[m[1]] ?? m[1];
       const l = masten[id];
@@ -257,7 +287,8 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
   (sz.flaechen ?? []).forEach((f) => {
     const w = werteFuer(f.teil, f);
     if (!w) return;
-    const staebe = staebeFuer(f.teil, f);
+    const staebe = f._gitterStaebe ?? staebeFuer(f.teil, f);
+    delete f._gitterStaebe;
     const ww = wFuer(f, staebe ?? (f._mastStab ? [{ name: f._mastStab }] : []));
     f.werte = { ...(f.werte ?? {}), ...(mitHuelle ? w : {}),
                 ...(Number.isFinite(ww) ? { w: ww } : {}) };

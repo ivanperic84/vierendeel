@@ -332,6 +332,13 @@ export const ABSCHNITTE = [
         zahl('frei', 'freie Länge über dem Kopf', 'm'),
         zahl('innen', 'Länge im Oberteil (Einspannung)', 'm'),
       ]),
+      satz('aufsatz', 'Mastaufsatz (Quadratrohr auf dem Kopf)', [
+        mm('a', 'Kantenlänge'), mm('t', 'Wanddicke'),
+        zahl('laenge', 'Länge über dem Kopf', 'm'),
+      ]),
+      satz('windDruck', 'Wind auf die Hüllfläche', [
+        zahl('EK1', 'EK1', 'kN/m²'), zahl('EK2', 'EK2', 'kN/m²'), zahl('EK3', 'EK3', 'kN/m²'),
+      ]),
       zahl('gewicht', 'Gewicht', 'kg', { von: 50, bis: 5000 }),
       liste('blechLaengenA', 'Blechlängen a (Stückliste)', 'mm',
         { notiz: 'Zur Gegenprobe: Aussenbreite − 2 · Schenkel.' }),

@@ -41,7 +41,7 @@
  */
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
-import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { getMastprofil, getStegrichtung, istGittermast } from './data.masten.js';
 import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
@@ -218,6 +218,16 @@ export function reiheOhneStabmodell(werteRoh) {
     const grund = ohneStabmodell(t.tragwerksart ?? 'joch');
     if (grund) {
       return alle.length > 1 ? `${t.id}: ${grund}` : grund;
+    }
+    // Der Gittermast ist als Einzelmast und als Jochmast gebaut (Entscheid
+    // 3. Oktober) - an Abfangjoch und Tragausleger noch nicht.
+    const art = t.tragwerksart ?? 'joch';
+    if (art === 'abfangjoch' || art === 'tragausleger') {
+      const gm = (mastenFuer(werte, t) ?? []).find((m) => m && istGittermast(m.profil));
+      if (gm) {
+        return `${alle.length > 1 ? `${t.id}: ` : ''}Der Gittermast ist als Einzelmast und am `
+          + 'Tragjoch gebaut, am Abfangjoch und am Tragausleger noch nicht.';
+      }
     }
   }
   return null;
@@ -421,7 +431,9 @@ export function rechneStabwerk(app) {
     const beta = Number(satz.knickBeiwert);
     mastenVon(werte).forEach((m) => {
       const id = mastName(app.werte, m);
-      if (!mastZug(dat, id)) return;
+      // Der Gittermast: kein Knicken als Vollstab, kein Standardfundament.
+      const zugM = mastZug(dat, id);
+      if (!zugM || zugM.gitter) return;
       let basis;
       try {
         basis = { profil: getMastprofil(m.profil ?? satz.mastProfil),

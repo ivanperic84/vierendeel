@@ -48,8 +48,8 @@ import { APP_NAME, verortung, fangeAufMasskette,
          mastenVon, mastName, mastNameAmEnde, tragwerkName, tragwerkPos, aufRaster,
          TRAGWERKSARTEN,
          mastZeichenplan,
-         gewaehlterMast }
-  from './core.constants.js';
+         gewaehlterMast,
+         gitterLaengenFest } from './core.constants.js';
 import { passeTraegerAn, hatTraeger, achsfolge } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -1220,6 +1220,8 @@ function rechneTragwerk(werte, joch) {
 }
 
 function neuRechnen(neuZeichnen = true) {
+  // Ein Gittermast trägt die Länge seines Typs (Gitter + Rohr), 3. Oktober.
+  werte = gitterLaengenFest(werte);
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
   if (hist.melde(werte)) baueKopf();
   // Erklaertexte ein oder aus (U4) - eine Klasse, die Stilregel tut den Rest.

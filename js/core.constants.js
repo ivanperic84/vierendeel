@@ -12,6 +12,7 @@
 // haengt allein an den Datentabellen, ein Kreis entsteht nicht.
 import { einzelmastLaenge, mastLaengeFuer } from './core.auflager.js';
 import { abfangMasse } from './data.abfangjoche.js';
+import { istGittermast, getMastprofil } from './data.masten.js';
 
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
 export const U = {
@@ -1738,6 +1739,30 @@ export function mastenProjizieren(satz, w, t) {
  * @param {object} w      Satz
  * @param {string} ziel   Mast-Id ('M2') oder das Ende am aktiven Tragwerk ('A'/'B')
  */
+/**
+ * >>> DER GITTERMAST HAT EINE LÄNGE (3. Oktober). <<<
+ *
+ * Gitter und Rohr (bzw. Aufsatz) sind ein Bauteil des Sortiments; eine
+ * andere Länge gibt es nicht. Wer einen Gittermast wählt, bekommt sie
+ * eingetragen - so zeigen Maske, Bild und Rechnung dieselbe Zahl, statt
+ * dass jede Stelle für sich nachsieht. Ohne Gittermast bleibt der Stand,
+ * wie er ist (dasselbe Objekt).
+ */
+export function gitterLaengenFest(w) {
+  let aus = w;
+  let liste;
+  try { liste = mastenVon(w); } catch { return w; }
+  liste.forEach((m) => {
+    if (!istGittermast(m.profil)) return;
+    let L = 0;
+    try { L = getMastprofil(m.profil).laenge; } catch { return; }
+    if (L > 0 && Math.abs((Number(m.laenge) || 0) - L) > 1e-6) {
+      aus = setzeMastAngabe(aus, m.id, 'mastLaenge', L);
+    }
+  });
+  return aus;
+}
+
 export function setzeMastAngabe(w, ziel, flachKey, wert) {
   const feld = MASTFELDER.find((f) => f.flach === flachKey || f.flachB === flachKey);
   if (!feld) return w;

@@ -27,7 +27,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { randspannung, winkelwerteFuer } from './core.winkel.js';
+import { randspannung, winkelwerteFuer, winkelGetauscht } from './core.winkel.js';
 import { getProfil, getGurtprofil } from './data.profiles.js';
 import { woelbtorsion } from './core.mast.js';
 
@@ -38,6 +38,17 @@ export function stabRolle(name, art = 'stab') {
   if (art === 'starr') return 'starr';
   if (/(^|_)(OG|UG)(L|R)_S\d+$/.test(n)) return 'gurt';
   if (/(^|_)B(V|H)_/.test(n)) return 'blech';
+  /*
+   * >>> DER GITTERMAST (3. Oktober). <<<
+   * Seine Stäbe tragen den Masten im Namen (export.axisvm.gitter.js):
+   * vier Gurtwinkel `MAST_<Mast>_G<Ecke>_S<n>`, Bindebleche
+   * `MAST_<Mast>_BL_<Seite>_<Station>`, das Rohr bzw. der Aufsatz
+   * `MAST_<Mast>_ROHR_…`. Gurt und Blech werden wie am Joch nachgewiesen
+   * (Entscheid «Stabwerk + Diagramm als Kontrolle»), das Rohr über sein W.
+   */
+  if (/(^|_)MAST_[^_]+_G[1-4]_S\d+$/.test(n)) return 'gurt';
+  if (/(^|_)MAST_[^_]+_BL_/.test(n)) return 'blech';
+  if (/(^|_)MAST_[^_]+_ROHR_/.test(n)) return 'rohr';
   if (/(^|_)MAST_/.test(n)) return 'mast';
   /*
    * >>> DER TRAGAUSLEGER (28. September, Etappe 4). <<<
@@ -147,6 +158,12 @@ function widerstand(qs) {
       return { A: 2 * p.A / 1e4, Wy: 2 * p.Wy / 1e6, Wz: qs.Iz / rand };
     }
   }
+  // Rohr und Quadratrohr des Gittermasts: A und I aus der Datei, der Rand
+  // beim halben Aussenmass (parameter[0] = d bzw. a, in mm).
+  if ((qs.form === 'Pipe' || qs.form === 'Box') && qs.A > 0 && qs.Iy > 0) {
+    const rand = qs.parameter[0] / 2000;
+    return { A: qs.A, Wy: qs.Iy / rand, Wz: qs.Iz / rand };
+  }
   if (qs.form === 'Rectangle') {
     // parameter [b, h] in mm: b in lokaler y-, h in lokaler z-Richtung.
     const b = qs.parameter[0] / 1000, h = qs.parameter[1] / 1000;
@@ -206,6 +223,8 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
     let p = null;
     try { p = getProfil(qs.profil); } catch { p = null; }
     if (!p) return null;
+    // Ungleichschenklig im Spiegelbild (Gittermast): langer Schenkel in lokal z.
+    if (qs.tausch) p = winkelGetauscht(p);
     const w = winkelwerteFuer(p);
     let best = null;
     enden.forEach((e) => {
@@ -720,9 +739,12 @@ export function stabTeil(name, rolle = null) {
   const n = String(name);
   const r = rolle ?? stabRolle(n);
   if (r === 'gurt') {
+    // Die vier Gurtwinkel des Gittermasts sind EIN Teil seines Masten.
+    if (/(?:^|_)MAST_[^_]+_G[1-4]_S\d+$/.test(n)) return 'gurt';
     const g = /(?:^|_)(OG|UG)(?:L|R)_S\d+$/.exec(n);
     return g ? g[1] : null;
   }
+  if (r === 'rohr') return 'rohr';
   if (r === 'blech') return 'blech';
   if (r === 'mast') return 'mast';
   // Die beiden UPE des Tragauslegers sind EIN Teil - «Gurt UPE».

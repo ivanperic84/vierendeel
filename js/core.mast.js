@@ -116,6 +116,13 @@ export function plastischeWiderstaende(p) {
  */
 export function mastKlasse(p, fy, nEd = 0) {
   const eps = Math.sqrt(235 / fy);
+  // Der Gittermast hat keinen Flansch und keinen Steg: elastisch, je Stab
+  // im Stabwerk nachgewiesen (3. Oktober).
+  if (p?.gitter) {
+    return { klasse: 3, gitter: true, eps,
+             flansch: { ct: 0, klasse: 3, grenze: 9 * eps },
+             steg: { ct: 0, klasse: 3, alpha: 0.5, grenze: 72 * eps } };
+  }
   // Flansch, einseitig gestützt (EN 1993-1-1, Tab. 5.2, Blatt 2)
   const cF = (p.b - p.tw) / 2;
   const ctF = cF / p.tf;
@@ -932,6 +939,9 @@ function chiVon(lambdaQuer, alpha) {
 export function mastStabilitaet(s, m, o = {}) {
   const p = s?.profil;
   if (!p) return null;
+  // Kein Knicknachweis des Gittermasts als Vollstab (3. Oktober): seine
+  // Gurte werden je Stab im Stabwerk nachgewiesen.
+  if (p.gitter) return null;
   const fy = m.stahl?.fy ?? 235;
   // 1.05 als letzter Rueckfall - SIA 263 fuer Stabilitaet, wie in der Maske.
   const gammaM1 = o.gammaM1 ?? m.gammaM1 ?? m.gammaM0 ?? 1.05;
