@@ -340,8 +340,77 @@ export function gittermastGeometrie(typ) {
   return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),
            hoehe, laenge: r6(hoehe + (oben?.laenge ?? 0)),
            gurtUnten: g.gurtUnten, gurtOben: g.gurtOben, winkelUnten: wU, winkelOben: wO,
-           stationen, rohr, aufsatz, oben, windDruck: g.windDruck ?? null, fehler };
+           stationen, rohr, aufsatz, oben, windStaudruck: g.windStaudruck ?? null, fehler };
 }
+
+/* ===========================================================================
+ * >>> WIND AUF DEN GITTERMAST: NACH DER NORM FÜR GITTERTRAGWERKE. <<<
+ * =========================================================================
+ *
+ * Weisung 3. Oktober: «für den gittermasten die herleitung verwenden für die
+ * bestimmung der windeinwirkung. beachte noch das wir oben einen
+ * rohrquerschnitt haben beim aufsatz.»
+ *
+ * Räumliches Gittertragwerk mit quadratischem Grundriss und kantigen Stäben
+ * (EN 1993-3-1, Anhang B; derselbe Aufbau wie EN 1991-1-4, 7.11):
+ *
+ *     A_s   Ansichtsfläche der Stäbe EINER Seite je Meter Höhe [m²/m]:
+ *           die beiden Gurtschenkel in dieser Seite + ihre Bindebleche
+ *     φ     A_s / Seitenbreite (Völligkeit)
+ *     c_f   3.96 · (1 − 1.5 φ + 1.8 φ²)   - für den ganzen Mast, die
+ *           abgeschattete Rückseite ist darin
+ *     w     q · c_f · A_s                  [kN/m]
+ *
+ * Wo die Seite fast zu ist (am Knick: zwei Schenkel füllen die Breite),
+ * gilt höchstens der geschlossene Körper: c = 2.1 auf die Breite
+ * (Rechteckquerschnitt, scharfkantig). Darüber: das ROHR als Kreiszylinder
+ * mit c = 1.2 auf den Durchmesser (unterkritisch, sichere Seite), der
+ * Mastaufsatz als Quadratrohr mit c = 2.1.
+ *
+ * Schlankheitsabminderung und Strukturbeiwert stehen auf 1 (sichere Seite).
+ * q je Einwirkungsklasse steht im Sortiment (`windStaudruck`) - dieselben
+ * Stufen, unter denen die Windlast der Tragjoche tabelliert ist.
+ * ========================================================================= */
+export const GITTER_CF = (phi) => 3.96 * (1 - 1.5 * phi + 1.8 * phi * phi);
+export const CF_GESCHLOSSEN = 2.1;
+export const CF_ROHR = 1.2;
+
+/**
+ * Wirksame Windfläche c_f · A je Meter [m²/m] auf der Höhe z, für Wind in
+ * Richtung `richtung` ('a' oder 'b'): er trifft die Seite, die quer dazu liegt.
+ * @returns {{cA:number, As:number, phi:number, cf:number, breite:number, gedeckelt:boolean}}
+ */
+export function gitterWindflaeche(G, z, richtung = 'a') {
+  const st = G.stationen;
+  const oben = z > G.hUnten + 1e-9;
+  const w = oben ? G.winkelOben : G.winkelUnten;
+  // Seite quer zum Wind: bei Wind in a läuft sie in b.
+  const quer = richtung === 'a' ? 'b' : 'a';
+  let s = st[st.length - 1];
+  for (let i = 1; i < st.length; i += 1) {
+    if (z <= st[i].z + 1e-9) {
+      const t = (z - st[i - 1].z) / ((st[i].z - st[i - 1].z) || 1);
+      s = { a: st[i - 1].a + (st[i].a - st[i - 1].a) * t, b: st[i - 1].b + (st[i].b - st[i - 1].b) * t };
+      break;
+    }
+  }
+  const breite = s[quer];
+  const schenkel = ((quer === 'a' ? w?.aH : w?.aV) ?? 0) / 1000;
+  // Bindebleche dieser Seite, über die Höhe ihres Mastteils verteilt.
+  const teil = st.filter((x) => x.blech && (x.teil === 'oben') === oben);
+  const hTeil = oben ? G.hOben : G.hUnten;
+  const bleche = hTeil > 0 ? teil.reduce((a, x) =>
+    a + x.blech.b * Math.max(0, quer === 'a' ? x.blech.la : x.blech.lb), 0) / hTeil : 0;
+  const As = Math.min(breite, 2 * schenkel + bleche);
+  const phi = breite > 0 ? As / breite : 1;
+  const cf = GITTER_CF(phi);
+  const gitter = cf * As, voll = CF_GESCHLOSSEN * breite;
+  return { cA: Math.min(gitter, voll), As, phi, cf, breite, gedeckelt: gitter > voll };
+}
+
+/** Wirksame Windfläche c · d des Rohrs bzw. Aufsatzes über dem Kopf [m²/m]. */
+export const obenWindflaeche = (G) => (!G.oben ? 0
+  : (G.oben.art === 'rohr' ? CF_ROHR * G.oben.d : CF_GESCHLOSSEN * G.oben.a));
 
 /** Kreisrohr d × t [m]: A [m²], I [m⁴], W [m³], I_t [m⁴]. */
 export function rohrWerte(d, t) {
@@ -375,8 +444,9 @@ export function kastenWerte(a, t) {
  *   A         vier Gurtwinkel des Oberteils
  *   Iy, Iz    Steiner der vier Gurte am KOPF (die schmalste Stelle, sichere
  *             Seite - am Fuss ist der Mast fast doppelt so breit)
- *   wind      Druck auf die Hüllfläche × Kopfbreite [kN/m]; das Stabwerk
- *             setzt ihn je Abschnitt mit der Breite an seiner Höhe an
+ *   wind      Windlast am Kopf des Gitters [kN/m] nach der Norm für
+ *             Gittertragwerke (`gitterWindflaeche`); das Stabwerk setzt je
+ *             Abschnitt die Fläche seiner Höhe an, am Rohr die des Rohrs
  *   laenge    feste Gesamtlänge: Gitter + Rohr bzw. Aufsatz
  *
  * Ohne Tabelle `gittermasten` im Sortiment gibt es keinen Gittermast.
@@ -397,9 +467,12 @@ export function gittermastProfil(g) {
   const Iz = 4 * (Iw_b + w.A * (kopf.achseB * 50) ** 2);
   const h = kopf.a * 1000, b = kopf.b * 1000;              // mm
   const A = 4 * w.A;
-  const druck = g.windDruck ?? null;
-  const je = (breite) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3']
-    .map((ek) => [ek, Math.round((Number(druck[ek]) || 0) * breite * 100) / 100])) : null);
+  // Wind am KOPF des Gitters [kN/m]: q · c_f · A_s (siehe gitterWindflaeche);
+  // das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
+  const druck = g.windStaudruck ?? null;
+  const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3']
+    .map((ek) => [ek, Math.round((Number(druck[ek]) || 0)
+      * gitterWindflaeche(G, G.hoehe, richtung).cA * 1000) / 1000])) : null);
   const p = {
     name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,
     A, Iy, Iz, Wy: Iy / (h / 20), Wz: Iz / (b / 20),
@@ -409,7 +482,8 @@ export function gittermastProfil(g) {
     g: Number(g.gewicht) > 0 ? Math.round(g.gewicht / G.hoehe * 10) / 10 : Math.round(4 * w.g * 1.25 * 10) / 10,
     laenge: G.laenge, hoehe: G.hoehe,
     // «quer» = Wind in der Jochachse bei a in der Jochachse: er trifft die Seite b.
-    wind: druck ? { quer: je(kopf.b), laengs: je(kopf.a) } : null,
+    // «quer» = Wind in der Jochachse bei a in der Jochachse: Wind in Richtung a.
+    wind: druck ? { quer: je('a'), laengs: je('b') } : null,
   };
   gitterSpeicher.set(g, p);
   return p;

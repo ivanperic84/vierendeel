@@ -43,16 +43,17 @@
  * Reaktionstabelle liest wie bei jedem Masten eine Resultierende.
  *
  * >>> DIE LASTEN WANDERN MIT. <<<
- * Wind (Streckenlast auf den Achsstäben, kN/m für die KOPFBREITE): je
- * Gurtabschnitt ein Viertel, vergrössert im Verhältnis der Breite an seiner
- * Höhe zur Kopfbreite (Wind auf die Hüllfläche, sichere Seite); über dem
- * Kopf im Verhältnis Rohr- bzw. Aufsatzbreite zur Kopfbreite. Eigengewicht:
+ * Wind (Streckenlast auf den Achsstäben, kN/m am KOPF des Gitters): je
+ * Gurtabschnitt ein Viertel, im Verhältnis der wirksamen Windfläche
+ * c_f · A_s seiner Höhe zu der am Kopf (Norm für Gittertragwerke,
+ * `gitterWindflaeche` in data.masten.js); über dem Kopf das Rohr als
+ * Kreiszylinder bzw. der Aufsatz als Quadratrohr. Eigengewicht:
  * je echtem Stab aus A · ρ · g, wenn die Datei es als Last führt (Stabwerk
  * der Anwendung); AxisVM rechnet es selbst.
  * ---------------------------------------------------------------------------
  */
 
-import { gittermastGeometrie, gittermasten } from './data.masten.js';
+import { gittermastGeometrie, gittermasten, gitterWindflaeche, obenWindflaeche } from './data.masten.js';
 import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -312,13 +313,13 @@ export function gittermastenEinsetzen(dat) {
     }
 
     // --- Lasten der Achsstäbe umsetzen --------------------------------------
-    const kopf = G.stationen[G.stationen.length - 1];
-    // Breite, die der Wind in dieser Richtung trifft: quer zur Windrichtung.
-    const breite = (richtung, s) => {
+    // Die wirksame Windfläche c_f · A_s auf der Höhe z (data.masten.js):
+    // Wind in X ist Wind in Richtung a, wenn a in x liegt.
+    const cA = (richtung, z) => {
       const inA = (richtung === 'X' && Math.abs(dirA[0]) > 0.5) || (richtung === 'Y' && Math.abs(dirA[1]) > 0.5);
-      return inA ? s.b : s.a;
+      return gitterWindflaeche(G, z, inA ? 'a' : 'b').cA;
     };
-    const obenBreite = G.oben ? (G.oben.d ?? G.oben.a) : 0;
+    const obenCA = obenWindflaeche(G);
     let egFall = null;
     zug.staebe.forEach((st) => {
       const z0 = Math.min(kn.get(st.von).z, kn.get(st.bis).z) - fuss.z;
@@ -326,18 +327,18 @@ export function gittermastenEinsetzen(dat) {
       (alteLast.get(st.name) ?? []).forEach((l) => {
         if (/^EG_/.test(l.name)) { egFall = l.lastfall; return; }
         const wind = /^Wind/.test(String(l.lastfall)) && (l.richtung === 'X' || l.richtung === 'Y');
-        const bezug = wind ? breite(l.richtung, kopf) : 1;
+        const bezug = wind ? cA(l.richtung, G.hoehe) : 1;
         gurtStaebe.forEach((g) => {
           const zm = (g.z0 + g.z1) / 2;
           if (zm < z0 || zm > z1) return;
-          const f = wind ? breite(l.richtung, gitterSchnitt(G, zm)) / bezug : 1;
+          const f = wind ? cA(l.richtung, zm) / bezug : 1;
           lasten.strecke.push({ ...l, name: `${l.name.replace(st.name, g.name)}`, stab: g.name,
                                 wert: r6(l.wert * f / 4) });
         });
         obenStaebe.filter((o) => !o.innen).forEach((o) => {
           const zm = (o.z0 + o.z1) / 2;
           if (zm < z0 || zm > z1 || !qOben) return;
-          const f = wind ? obenBreite / bezug : 1;
+          const f = wind ? obenCA / bezug : 1;
           lasten.strecke.push({ ...l, name: `${l.name.replace(st.name, o.name)}`, stab: o.name,
                                 wert: r6(l.wert * f) });
         });
