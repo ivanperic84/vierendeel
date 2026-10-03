@@ -44,7 +44,7 @@ export const STABWERK_FUSSNOTE = {
   N: 'Aus dem Stabwerk: |N| an den Stabenden, Hülle je Stab — Gurte und Bleche.',
   T: 'Aus dem Stabwerk: |T| je Stab, Hülle — die Torsion des einzelnen Stabes, nicht die des Querschnitts.',
   // 3. Oktober: mit dem Joch, aus den Knotenwegen des Stabwerks.
-  w: 'Aus dem Stabwerk: Betrag des Wegs an Joch und Masten, im Fall der verformten Figur (umhüllend: massgebend Gebrauchstauglichkeit).',
+  w: 'Aus dem Stabwerk: Betrag des Wegs, angeschrieben an der verformten Figur (umhüllend: massgebender Fall der Gebrauchstauglichkeit).',
 };
 
 /** Die Werte eines Stabes für den Plot - dieselben Felder wie im Kern. */

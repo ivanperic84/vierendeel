@@ -203,9 +203,7 @@ const app = {
   get anzeigeKombi() { return anzeigeKombi; }, set anzeigeKombi(v) { anzeigeKombi = v; },
   get nachweisart() { return nachweisart; }, set nachweisart(v) { nachweisart = v; },
   // Die verformte Figur im 3D (30. September).
-  get verformtAn() { return verformtAn; },
   get ohneBalken() { return ohneBalken(); },
-  verformtUmschalten: () => verformtUmschalten(),
   dialogBauteildaten: (...a) => dialogBauteildaten(...a),
   dialogTasten: (...a) => dialogTasten(...a),
   themaWechseln: (...a) => themaWechseln(...a),
@@ -2154,7 +2152,18 @@ function blattSzene(erg) {
  * Masten - an allen gleich (bis auf die Luft der Endbleche in einer Reihe,
  * ein Zentimeterbetrag).
  * ========================================================================= */
-let verformtAn = false;
+/*
+ * >>> DIE FIGUR GEHÖRT ZUM PLOT «w» (3. Oktober). <<<
+ * Mit Bild (Abfangjoch, Wind quer: am Masten 98.4 mm angeschrieben, daneben
+ * «grösster Weg 6.8 mm»), im Wortlaut: «die verformung einblenden wenn der
+ * verfrmung w und nachweis button aktiviert wird. die werte an die verformte
+ * figur anschreiben. der button verformte figur kann dann wieder weg.»
+ * Der Schalter δ ist weg: die Figur wird gerechnet, sobald das Stabwerk gilt,
+ * und gezeichnet, wenn «w» oder «η w» gewählt ist (render.3d.js). Die Werte
+ * stehen an der Figur; die Flächen tragen im Plot «w» denselben Weg
+ * (`wegeAusFigur`) - vorher kam die Mastfarbe am Abfangjoch und am
+ * Walzprofil-Einzelmasten aus dem Ersatzbalken und widersprach der Figur.
+ */
 let verformtMerk = null;
 /**
  * Rechnet das Stabwerk (Verfahren «Stabwerk» und ein Stabmodell vorhanden)?
@@ -2185,7 +2194,7 @@ function wegeFall(g) {
 
 function verformtSetzen() {
   if (!ansicht) return;
-  const g = verformtAn ? stabwerkGilt() : null;
+  const g = stabwerkGilt();
   const roh = g?.h?.roh;
   if (!roh) { ansicht.verformt = null; verformtMerk = null; return; }
   const umh = anzeigeKombi === 'umhuellend';
@@ -2221,19 +2230,37 @@ function verformtSetzen() {
   verformtMerk = { merk, wert };
   ansicht.verformt = wert;
 }
-function verformtUmschalten() {
-  verformtAn = !verformtAn;
-  verformtSetzen();
-  if (verformtAn && !ansicht.verformt) {
-    // Im Stabwerk rechnet es eine Sekunde nach der Eingabe von selbst - dann
-    // erscheint die Figur ohne weiteren Klick.
-    meldeImBalken(verfahrenVon(werte) === 'stabwerk'
-      ? 'Die verformte Figur erscheint, sobald das Stabwerk gerechnet ist.'
-      : 'Die verformte Figur kommt aus dem Stabwerk - das Rechenverfahren steht auf Ersatzbalken.',
-    { dauer: 5000 });
-  }
-  ansicht.zeichne();
-  zeichneModellWerkzeuge(app);
+/**
+ * Die Flächen des gerechneten Tragwerks tragen im Plot «w» den Weg der
+ * Figur: je Fläche der nächste Punkt der Figur (unverformte Lage), Betrag
+ * in mm. Ein Raster von 0.5 m hält die Suche kurz; wo im Umkreis kein Punkt
+ * liegt (Anbauteile weit ab vom Stab), bleibt der Wert, der dasteht.
+ */
+function wegeAusFigur(szene, fig) {
+  if (!szene?.flaechen?.length || !fig?.linien?.length) return;
+  const Z = 0.5;
+  const key = (x, y, z) => `${Math.floor(x / Z)}|${Math.floor(y / Z)}|${Math.floor(z / Z)}`;
+  const raster = new Map();
+  fig.linien.forEach((l) => l.punkte.forEach((q, i) => {
+    const w = l.wege[i];
+    const k = key(q[0], q[1], q[2]);
+    const e = { q, mm: Math.hypot(w[0], w[1], w[2]) * 1000 };
+    const da = raster.get(k);
+    if (da) da.push(e); else raster.set(k, [e]);
+  }));
+  szene.flaechen.forEach((f) => {
+    if (f.passiv || !f.werte || !f.punkte?.length) return;
+    const n = f.punkte.length;
+    const m = f.punkte.reduce((a, q) => [a[0] + q[0] / n, a[1] + q[1] / n, a[2] + q[2] / n], [0, 0, 0]);
+    let best = null, d2 = Infinity;
+    for (let i = -1; i <= 1; i += 1) for (let j = -1; j <= 1; j += 1) for (let k = -1; k <= 1; k += 1) {
+      (raster.get(key(m[0] + i * Z, m[1] + j * Z, m[2] + k * Z)) ?? []).forEach((e) => {
+        const d = (e.q[0] - m[0]) ** 2 + (e.q[1] - m[1]) ** 2 + (e.q[2] - m[2]) ** 2;
+        if (d < d2) { d2 = d; best = e; }
+      });
+    }
+    if (best) { f.werte = { ...f.werte, w: best.mm }; f.wegeStabwerk = true; }
+  });
 }
 
 function aktualisiereModell(erg) {
@@ -2242,6 +2269,7 @@ function aktualisiereModell(erg) {
   ansicht.station = station;
   ansicht.ohneBalken = ohneBalken();
   verformtSetzen();
+  wegeAusFigur(szene, ansicht.verformt);
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die

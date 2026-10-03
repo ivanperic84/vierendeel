@@ -34422,9 +34422,10 @@ titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
     + `${fig.linien.length} Stäbe, ${ms} ms`);
   wahr('… und das kostet wenig (unter 2 s am Prüfrechner)', ms < 2000, `${ms} ms`);
   const app = APP_QUELLE();
-  wahr('Schalter «δ» in der unteren Leiste, Lastfall oder massgebender GZG-Fall',
-       app.includes('id="v-verformt"') && app.includes('function verformtSetzen()')
-       && app.includes("mg?.lastfall ?? 'wyk'"));
+  // Der Schalter «δ» ist seit dem 3. Oktober weg (Abschnitt 215): die Figur
+  // erscheint mit dem Plot «w» bzw. «η w».
+  wahr('Die Figur im gewählten Lastfall oder im massgebenden GZG-Fall',
+       app.includes('function verformtSetzen()') && app.includes("mg?.lastfall ?? 'wyk'"));
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Das 3D zeichnet Punkt + Faktor · Weg und schreibt die Überhöhung an',
        r3.includes('_verformtMalen(c, proj, t)') && r3.includes('p[0] + v.faktor * w[0]'));
@@ -34448,9 +34449,11 @@ titel('174  Resultatleiste im Stabwerk: ohne Nachweisschnitt, δ bei den Plots')
        && lay.includes('if (!ohneBalken) {'));
   // Zweiter Anlauf, 30. September: «dieser soll unten zu den andern buttons
   // und der schnitt botten soll weg und die info zum schnitt auch».
-  wahr('δ steht in der unteren Leiste und tauscht dort mit dem Schnitt-Knopf',
-       !lay.includes("'wz-r-verformt'") && lay.includes('id="v-verformt"')
-       && lay.includes('s.hidden = stab;') && lay.includes('v.hidden = !stab;'));
+  // Seit dem 3. Oktober ohne Knopf δ (Abschnitt 215); der Schnitt-Knopf
+  // bleibt im Stabwerk verborgen.
+  wahr('Kein Knopf δ mehr; der Schnitt-Knopf fehlt im Stabwerk',
+       !lay.includes("'wz-r-verformt'") && !lay.includes('id="v-verformt"')
+       && lay.includes('s.hidden = app.ohneBalken;'));
   wahr('Die Anzeige des Nachweisschnitts bleibt im Stabwerk leer',
        app.includes('if (erg.schnitt && !ohneBalken()) {'));
   const SCH174 = await import(J('ui.schema.js'));
@@ -37322,6 +37325,34 @@ if (AJ.abfangDbDa()) {
           || Math.abs(r.Iz - q.Iz) / r.Iz > 1e-6; });
   wahr('Kein Rechteckquerschnitt der Datei führt Zahlen, die seinen Abmessungen widersprechen',
        schief.length === 0, schief.map((q) => q.name).join(', '));
+}
+
+
+/* =========================================================================
+ * 215  DIE VERFORMTE FIGUR GEHÖRT ZUM PLOT «w» (3. Oktober)
+ * =========================================================================
+ * «die verformung einblenden wenn der verfrmung w und nachweis button
+ * aktiviert wird. die werte an die verformte figur anschreiben. der button
+ * verformte figur kann dann wieder weg.»
+ * ========================================================================= */
+{
+  const R215 = await import(J('render.3d.js'));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const app = APP_QUELLE();
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Die Figur erscheint mit «w» und «η w» - und nur dort',
+       JSON.stringify(R215.FIGUR_MODI) === JSON.stringify(['w', 'etaGzg'])
+       && r3.includes('this.verformt && FIGUR_MODI.includes(this.modus)'));
+  wahr('Kein Schalter mehr: gerechnet, sobald das Stabwerk gilt',
+       !app.includes('verformtAn') && !app.includes('verformtUmschalten')
+       && !lay.includes('v-verformt') && app.includes('const g = stabwerkGilt();'));
+  wahr('Die Werte stehen an der verformten Lage, im Plot «w» auch ohne «Werte anschreiben»',
+       r3.includes("marken.push({ v: mm, x: q[0] + 5 * s, y: q[1] - 3 * s, betrag: mm, teil: l.name });")
+       && r3.includes("this.modus === 'w' && this._figurWerte?.length")
+       && r3.includes("const anFigur = p.key === 'w' && this._figurWerte?.length > 0;"));
+  wahr('Die Flächen tragen im Plot «w» den Weg der Figur (eine Quelle für Farbe und Zahl)',
+       app.includes('function wegeAusFigur(szene, fig)') && app.includes('wegeAusFigur(szene, ansicht.verformt);')
+       && app.includes('f.wegeStabwerk = true;'));
 }
 
 console.log('\n' + '='.repeat(104));

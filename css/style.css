@@ -162,7 +162,6 @@ body {
 /* Ein Knopf, der gerade nicht gilt, steht nicht da (untere Leiste: Schnitt
    beim Ersatzbalken, verformte Figur im Stabwerk, 30. September). */
 .btn-icon[hidden] { display: none; }
-#v-verformt { font-size: 15px; font-weight: 600; line-height: 1; }
 /* Ein Symbolknopf, der seinen Namen tragen darf: der Weg nach AxisVM ist
    der meist begangene und war als eines von sieben gleichen Symbolen
    nicht zu finden. */

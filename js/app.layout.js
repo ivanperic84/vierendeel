@@ -96,13 +96,11 @@ const WZ_LASTEN = (app) => [
  * zum Nachweisschnitt, im Stabwerk die verformte Figur (30. September).
  */
 function untereLeiste(app) {
-  const s = ui.el('v-schnitt'), v = ui.el('v-verformt');
-  if (!s || !v) return;
-  const stab = app.ohneBalken;
-  s.hidden = stab;
-  v.hidden = !stab;
-  v.classList.toggle('on', Boolean(app.verformtAn));
-  v.setAttribute('aria-pressed', String(Boolean(app.verformtAn)));
+  // Der Knopf δ ist weg (3. Oktober): die verformte Figur erscheint mit
+  // dem Plot «w» bzw. «η w».
+  const s = ui.el('v-schnitt');
+  if (!s) return;
+  s.hidden = app.ohneBalken;
 }
 
 export function baueModellWerkzeuge(app) {
@@ -149,16 +147,7 @@ export function baueModellWerkzeuge(app) {
               'Ganzes Querprofil — alle Tragwerke einblenden')
     + iconKnopf('v-teil', 'querprofilEines',
                 'Nur das gerechnete Tragwerk — die übrigen beiseitelegen')
-    + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren')
-    /*
-     * DIE VERFORMTE FIGUR STEHT HIER (30. September): «dieser soll unten zu
-     * den andern buttons und der schnitt botten soll weg». Im Stabwerk gibt
-     * es keinen Nachweisschnitt, dafür die Figur - die beiden tauschen
-     * (`untereLeiste`).
-     */
-    + `<button class="btn-icon" id="v-verformt" type="button"
-         title="Verformte Figur (aus dem Stabwerk, überhöht)"
-         aria-label="Verformte Figur">δ</button>`;
+    + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -248,7 +237,6 @@ export function baueModellWerkzeuge(app) {
   };
   // Der Nachweisschnitt: die Stelle, an der die Auswertung gerade rechnet.
   ui.el('v-schnitt').onclick = () => app.ansicht.zeigeSchnitt(2.5);
-  ui.el('v-verformt').onclick = () => app.verformtUmschalten();
   zeichneModellWerkzeuge(app);
   zeichneLegende(app);
 }

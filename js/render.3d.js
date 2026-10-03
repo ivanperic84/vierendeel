@@ -2058,6 +2058,9 @@ export function wertTon(text, farbe, a = 0.4) {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
+
+/** Die Plots, mit denen die verformte Figur erscheint (3. Oktober). */
+export const FIGUR_MODI = ['w', 'etaGzg'];
 /**
  * IN WELCHER REIHENFOLGE DIE KENNZAHLEN GESETZT WERDEN.
  *
@@ -2612,6 +2615,9 @@ export class Modellansicht {
   _verformtMalen(c, proj, t) {
     const v = this.verformt;
     const s = this._s;
+    // Die Werte an der Figur (3. Oktober): je Punkt der Betrag des Wegs in
+    // mm, an der VERFORMTEN Lage - `_werte` schreibt sie im Plot «w» an.
+    const marken = [];
     c.save();
     c.strokeStyle = t.warn ?? '#e0a030';
     c.lineWidth = 1.6 * s;
@@ -2624,11 +2630,14 @@ export class Modellansicht {
         const w = l.wege[i];
         const q = proj([p[0] + v.faktor * w[0], p[1] + v.faktor * w[1], p[2] + v.faktor * w[2]]);
         if (!q) { offen = false; return; }
+        const mm = Math.hypot(w[0], w[1], w[2]) * 1000;
+        marken.push({ v: mm, x: q[0] + 5 * s, y: q[1] - 3 * s, betrag: mm, teil: l.name });
         if (offen) c.lineTo(q[0], q[1]); else { c.moveTo(q[0], q[1]); offen = true; }
       });
       c.stroke();
     });
     c.restore();
+    this._figurWerte = marken;
     if (v.text && !this.sparsam) {
       c.font = this._wertFont();
       // Über der unteren Werkzeugleiste, nicht hinter ihr - und in kurzen
@@ -4468,7 +4477,11 @@ export class Modellansicht {
     if (this._ebeneAn('schnitt')) this._schnittebene(c, proj, t);
     // Die verformte Figur über dem Modell (30. September), auch während
     // der Fahrt - sie ist das, was man dabei ansehen will.
-    if (this.gruppen.resultate && this.verformt) this._verformtMalen(c, proj, t);
+    // Seit dem 3. Oktober mit dem Plot «w» bzw. «η w», ohne eigenen Knopf.
+    this._figurWerte = null;
+    if (this.gruppen.resultate && this.verformt && FIGUR_MODI.includes(this.modus)) {
+      this._verformtMalen(c, proj, t);
+    }
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
@@ -4559,7 +4572,10 @@ export class Modellansicht {
     // strengeres Mass: der erste Eckpunkt eines Gurtstuecks liegt bis zu einer
     // halben Feldweite neben seiner Mitte, und am Rand des Ausschnitts fielen
     // dadurch Zahlen von Bauteilen weg, die sehr wohl im Bild stehen.
-    (this._letzteFlaechen ?? []).forEach((f) => {
+    // Plot «w» mit Figur: die Werte der Figur, an ihr; nicht die der Flächen.
+    const anFigur = p.key === 'w' && this._figurWerte?.length > 0;
+    if (anFigur) kandidaten.push(...this._figurWerte.filter((k) => k.v >= 0.05));
+    (anFigur ? [] : (this._letzteFlaechen ?? [])).forEach((f) => {
       const v = f.werte?.[p.feld];
       if (!Number.isFinite(v) || !f._2d?.length) return;
       const mx = f._2d.reduce((s, q) => s + q[0], 0) / f._2d.length;
@@ -5126,7 +5142,10 @@ export class Modellansicht {
         this._belegt.push({ x, y, w, h });
         this._beschriftung(c, t, p.text, p.x, p.y, p.farbe);
       });
-    if (this.gruppen.resultate && this.werteAnschreiben) this._werte(c, t);
+    // Im Plot «w» stehen die Werte an der verformten Figur - auch ohne den
+    // Schalter «Werte anschreiben» (3. Oktober).
+    if (this.gruppen.resultate && (this.werteAnschreiben
+        || (this.modus === 'w' && this._figurWerte?.length))) this._werte(c, t);
   }
 
   /** Text mit Unterlage, damit er auf jedem Untergrund lesbar bleibt. */
