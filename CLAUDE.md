@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Tragausleger am Jochmasten im Stabwerk; M1 ziehen; Arm in der Höhe; Schwenk (3. Oktober) | Mit drei Bildern: «wenn ich hier den linken masten ziehe dann entzwei ich das modell (joch / tragausleger) - warum wird der ausleger als balken angegeben? den ausleger in der höhe anpassen können per drag and drop, das drahtwerk mitziehen.» Auf Rückfrage **«M2 bleibt, Joch passt sich an»**: trägt ein anderes Tragwerk den Masten am Ende B, bleibt er beim Ziehen von Ende A stehen; das Joch beginnt an der neuen Stelle, L folgt (danach Standardlänge), Teile auf dem Joch und Nachweisstelle behalten ihre Lage auf dem Blatt (`mastStelleSetzen`, ui.js; gilt auch am Endmasten einer Jochreihe). Gemessen: M1 0 → 1.00, Joch x 1 / L 19, M2 bei 20 mit Joch und Ausleger. **«Ja, jetzt anschliessen»**: die Sperre «Tragausleger in einer Reihe» ist weg (`reiheOhneStabmodell`); das Blattmodell baut ihn mit, der geteilte Mast ist ein Zug (8 Abschnitte bis zum Seilpunkt), Aufhängung und Längsanker je Ausleger über den Namen mit Präfix, V_zul aus dem Sortiment, Knicken und Fundament vom Masten. Gemessen J90/20 m (HEB 240 des Prüfstands, Hängestütze) + Ausleger 13 m an M2 (14.00 m): Aufhängung η 0.5908 = allein 0.5909, Mast allein 0.947 → mit Joch **1.375**, Fundament M2 0.599; im Browser (HEB 260, ohne Teile) M2 1.178, Seil 0.49, UPE 0.27 - vorher Ersatzbalken 1.330. **Arm in der Höhe:** ein Punkt, dessen Glied waagrecht an einem senkrechten Träger hängt (Ausleger an der Hängestütze), zieht in z; die folgenden Module auf derselben Höhe weiter aussen wandern mit (`armAmTraeger`, `punktZiehen`); der Leiterpunkt bleibt in x, der NT-Ausleger am Mast auch. Dazu **«wenn button ganzes querprofil, kamera schwenken, nicht springen»**: `schwenkeAufsGanze` (render.3d.js) fährt Ziel, Verschiebung, Abstand und Blickwinkel gemeinsam; Knopf, Taste g, Kontextmenü. Prüfstand 203 |
 | Anbauteil-Katalog bereinigt (3. Oktober) | Mit Bild der Kacheln, im Wortlaut: «Hängestütze mit Fahrdrahtabzug nicht Fahrleitung - Jochaufsatz einfach genügt, ohne Zusatzleiter, da dies immer der Fall ist. Jochaufsatz doppelt mein dass es zwei traversen mit ZL hat in der höhe verteilt. - den Jochaufsatz alt kann man auch gleich versehen wie den Jochaufsatz einfach. - Anstatt Leiter Kettenwerk N-FL bzw. R-FL - die leitertraverse kommt meist nur an vertikale bauteile / tragwerke zu liegen. - lampe led mit rohr ist an rohr auf dem masten befestigt, also ein vertikale ausrichtung. - unter übrige kann man ein freies bauteil aufführen - was noch fehlt sind die trafos dies sind an den masten befestigt. man kann hier einen 50 kVA Typ aufführen - die lampe LED kann man wegnehmen, diese ist meist gar nicht relevant.» Auf Rückfrage: **Fahrdraht ohne Gewicht** (`hs-fahrdraht` trägt `drahtwerk-n-fl-cu-107`, `wirktG: false`, wie «Fahrdrahtabzug am Mast»; G 1.500 → 0.500 kN); **doppelt «1 wobei man hier die masse aus den beispielen … herausnehmen kann»** - Kursaufgaben S. 2: H 630, unten Traverse 2.50 m (357 über Joch-OK → z 3.68) mit zwei Bündeln 2× Cu 95 bei ±1.20, oben 1.12 m (503 → z 5.14) mit 1× Cu 95, Leiter 0.77 m unter der Traverse (wie Beispiel 1); **alt «1 wobei man hier eine recherche machen kann …»** - A-15.2 S. 3, Typ 1/362: 3.62 m, Traverse 0.87 m am Kopf, Bündel 2× Cu 95 bei x 0.80; **Lampen «1 lampen sind meist an rohren auf masten oder an jochen»** - beide LED-Vorlagen weg, «Lampe mit Rohr am Mast» und neu «… am Joch», Rohr lotrecht (z 0.5, Lampe z 1.0). Trafo 50 kVA unter «Am Masten», die Vorlage 100 kVA weg (Baustein bleibt), Leiter-Traverse nur am Masten, «Freies Bauteil» als Kachel unter «Übrige». Skizze: ein Stiel beim doppelten (Regel «zwei Stiele» weg), Leiter unter einer Traverse an ihr, Rohr auf der Achse senkrecht, freies Bauteil als Kasten. Sicherung `data/sicherung/anbauteile_vor_vorlagen_bereinigt_2026-10-03.json`, Datenpaket neu. **Der Prüfstand führt die bisherigen `hs-fahrdraht`, LED-Lampen und Trafo 100 als Prüfvorlagen weiter** (`PRUEFVORLAGEN` in pruefung.mjs) - seine Messwerte stehen darauf; der Katalog wird in Abschnitt 202 geprüft. Das Startdokument trägt keine Anbauteile (Zahlen unverändert). ⚠ siehe *Offene Punkte* (Seil gedrückt, Lastgenerator, Höhen des einfachen Aufsatzes) |
 | 3D-Plot: Mast in Abschnitten, Verformung mit dem Joch (3. Oktober) | Frage mit zwei Bildern: «ist es möglich den masten in mehrere teile zu plotten, anstatt nur in der massgebenden farbe über die ganze länge. das joch auch bei der verformung mitnehmen.» (1) Im Stabwerksweg trug jede Mastfläche den Wert ihres ganzen Stabes - der unterste reicht vom Fuss bis unter den Anschluss. Jetzt das Grösste des 0.5-m-Verlaufs (`verlaufWerte`, render.stabwerk.js) in der Höhe der Fläche, Ränder linear eingeschaltet; T bleibt der Stabwert, σ aus N anteilig. Gemessen J90/20 m, HEB 240: Mast M1 20 verschiedene η statt eines je Stab, grösstes 0.7862 = Nachweis, am Fuss 0.786 gegen 0.382 in halber Höhe. (2) **Ändert den Entscheid vom 24. September** («das Joch bleibt grau»): im Stabwerksweg trägt jede Fläche - Gurte, Bleche, Mastabschnitte - `w` aus den Knotenwegen des Stabwerks (`wegImStab`, Betrag in mm), im Fall der verformten Figur δ (`wegeFall` in app.js: gewählter Fall, bei «umhüllend» der massgebende der Gebrauchstauglichkeit), auch bei einem Einzellastfall. Gemessen: grösstes w im Bild 124.69 mm = grösster Weg der Figur 124.89 mm, Mastfuss 0.00 mm. Im Browser: σ_v am Masten von Rot am Fuss nach Blau, w mit rotem Joch (bis 106.8 mm, HEB 260), Legende «Aus dem Stabwerk: Betrag des Wegs an Joch und Masten …». Prüfstand 199 |
 | Anbauteile schneller finden: was gebaut wird (3. Oktober) | Rückfrage mit vier Hilfen und der Bauteilkarte. Gewählt: **«Suchfeld + Filter»** (über den Vorlagen, sofort gefiltert, Vorlagen und Lasttabelle zusammen, nach Tragwerksart), **«Symbolkacheln»** (Strichskizze je Vorlage, Name einzeilig, ohne Farbpunkt und Legende) und in der Karte **«Bausteinwahl mit Suche»** (Auswahlfenster mit Suchfeld und Gruppen statt der Liste mit 27 Einträgen, nach Ort vorgefiltert, Erklärsätze eingeklappt). Zur Auswahl im 3D an der Stelle im Wortlaut: «die auswahl nur verwenden wenn bauteil setzen aktiv ist, sonst könnte es zu klicky werden, da wir schon ein kontextmenue haben im üblichen 3d. da kann man dann auch zuletzt verwendet aufführen.» - also nur im Modus «Bauteil setzen», dort mit «zuletzt verwendet»; das gewöhnliche Kontextmenü bleibt |
@@ -328,12 +329,19 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6300 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6319 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **3. Okt., Ausleger am Jochmasten im Stabwerk, M1 ziehen, Arm in der
+  Höhe, Schwenk aufs Ganze** (Prüfstand 203, siehe *Entschieden*). Im
+  Browser (Prüfseite, gelöscht): Ausleger an M2 gesetzt, Schiene UPE 0.27 /
+  Bl 0.14 / Se 0.49 / M2 1.18 aus dem Stabwerk, kein «Ersatzbalken»; der
+  Schwenk mit Zwischenbildern. Das Ziehen von M1 und des Arms im 3D selbst
+  nur am Prüfstand, nicht mit der Maus geprüft. Nicht gepusht (Befund des
+  Durchgangs offen, siehe *Offene Punkte*).
 - **3. Okt., Anbauteil-Katalog bereinigt** (Prüfstand 202, siehe
   *Entschieden*). Im Browser die Skizzen aller 20 Vorlagen angesehen
   (Probeseite, gelöscht). Der Durchgang meldet seither einen Befund
@@ -2371,7 +2379,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   ständig/veränderlich, Zeile der Standardlasten; Koordinaten X quer, Y
   längs, Z nach unten). Auf Rückfrage: **Havarie als eigene Zeile**,
   **im Reiter Auflager und als Blatt im Export**.
-- ⚠ **Tragausleger am Masten eines Jochs wird im Stabwerk nicht gerechnet**
+- ~~Tragausleger am Masten eines Jochs wird im Stabwerk nicht gerechnet~~
+  (erledigt 3. Oktober, siehe *Entschieden*). Bisheriger Wortlaut:
+  **Tragausleger am Masten eines Jochs wird im Stabwerk nicht gerechnet**
   (Sperre in `reiheOhneStabmodell`: Aufhängung, Knicken und Fundament des
   Auslegers rechnet `rechneStabwerk` nur für den Ausleger allein). Setzen
   lässt er sich seit dem 30. Sept. per Kachel/Mastwahl, nach aussen
@@ -2652,7 +2662,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6300 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6319 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

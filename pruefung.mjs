@@ -30568,13 +30568,17 @@ titel('126  Die Jochreihe als gekoppeltes Tragwerk (Etappe 3)');
     // 29. September zählt nur die zusammenhängende Gruppe, ein frei
     // stehender Ausleger wird allein gerechnet (Abschnitt 148).
     const mitTa = C126.tragwerkHinzu(C126.tragwerkHinzu(w126, 'joch', {}),
-                                     'tragausleger', { xLage: 0 });
+                                     'tragausleger', { xLage: 0, L: 13 });
     const r = rechne(mitTa);
-    wahr('>>> Reihe mit Tragausleger: KEINE Zahl, sondern der Grund <<<',
-         Boolean(r && r.ohneModell) && r.etaGesamt === undefined,
-         r?.ohneModell ? r.ohneModell.slice(0, 44) : `eta ${r?.etaGesamt}`);
-    wahr('... und er nennt das Tragwerk beim Namen',
-         /^T\d+: /.test(r.ohneModell ?? ''), (r.ohneModell ?? '').slice(0, 12));
+    // Bis zum 3. Oktober: KEINE Zahl, sondern der Grund («T3: Ein
+    // Tragausleger in einer Reihe …»). Seither baut das Blattmodell den
+    // Ausleger als das, was er ist (zwei UPE, Seile), und die Reihe rechnet.
+    wahr('>>> Reihe mit Tragausleger: gerechnet, der Ausleger mit seinen UPE-Gurten <<<',
+         Boolean(r) && !r.ohneModell && !r.fehler
+         && r.tragwerke === 3 && Object.keys(r.jeStab ?? {}).some((n) => /^T3_[VH]_S\d+$/.test(n)),
+         r?.ohneModell ?? r?.fehler ?? `${r?.staebe} Stäbe, ${r?.tragwerke} Tragwerke`);
+    wahr('... und kein Tragjoch an seiner Stelle (keine Winkelgurte mit seinem Präfix)',
+         !Object.keys(r.jeStab ?? {}).some((n) => /^T3_(OG|UG)[LR]_S\d+$/.test(n)));
   }
 
   // --- f) Der Leiterriss erreicht den Nachweis ---------------------------
@@ -31994,9 +31998,11 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
   // er seit dem 29. September allein (Abschnitt 148).
   const reihe136 = C136.tragwerkHinzu({ ...standardwerte(), twId: 'T1', pos: 0 }, 'tragausleger',
                                       { xLage: 20 });
-  wahr('… in einer Reihe noch nicht - mit Namen und Grund',
-       /Tragausleger in einer Reihe/.test(AS136.reiheOhneStabmodell(reihe136) ?? ''),
-       AS136.reiheOhneStabmodell(reihe136) ?? '(nichts)');
+  // Bis zum 3. Oktober gesperrt («Tragausleger in einer Reihe»); seither
+  // angeschlossen (Abschnitt 203).
+  wahr('… und seit dem 3. Oktober auch am Masten eines Jochs',
+       AS136.reiheOhneStabmodell(reihe136) === null,
+       AS136.reiheOhneStabmodell(reihe136) ?? '(keine Sperre)');
 }
 
 // ===========================================================================
@@ -33036,8 +33042,10 @@ titel('148  Tragausleger neben anderen Tragwerken: gerechnet wird, was zusammenh
   const frei = C148.tragwerkHinzu(joch, 'tragausleger', { xLage: 40, L: 13 });
   const geteilt = C148.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 13 });
   wahr('Frei stehend (eigener Mast bei 40 m): keine Sperre', AS148.reiheOhneStabmodell(frei) === null);
-  wahr('Am Jochmasten (geteilter Mast bei 20 m): gesperrt, mit Namen',
-       /^T2: Ein Tragausleger in einer Reihe/.test(AS148.reiheOhneStabmodell(geteilt) ?? ''));
+  // Seit dem 3. Oktober angeschlossen (bis dahin: gesperrt, «T2: Ein
+  // Tragausleger in einer Reihe …»); gerechnet wird es in Abschnitt 203.
+  wahr('Am Jochmasten (geteilter Mast bei 20 m): keine Sperre mehr',
+       AS148.reiheOhneStabmodell(geteilt) === null);
   const gr = AS148.verbundeneTragwerke(frei, frei.twId);
   wahr('Die Gruppe des freien Auslegers ist er allein', gr.size === 1 && gr.has(frei.twId));
   wahr('… die des geteilten Masten beide', AS148.verbundeneTragwerke(geteilt, geteilt.twId).size === 2);
@@ -33680,9 +33688,11 @@ titel('162  Kacheln mit Symbol; Schieber mit hellerem Balken; Ausleger am Jochma
        ['kragA', 'kragB', 'auflagerKonsoleM', 'flSpannweite'].every((k) => S162.feld(k).typ === 'schieber'));
   // Ausleger am Masten eines Jochs: nach aussen, und ehrlich zur Sperre.
   const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
-  wahr('Ausleger am Jochmasten zeigt nach aussen und nennt die Sperre des Stabwerks',
+  // Bis zum 3. Oktober nannte der Dialog hier die Sperre des Stabwerks.
+  wahr('Ausleger am Jochmasten zeigt nach aussen; das Stabwerk rechnet ihn mit',
        /e\.seite = links \? 'rechts' : 'links';/.test(dq)
-       && /Am Masten eines anderen Tragwerks rechnet das Stabwerk den/.test(dq));
+       && /Das Stabwerk rechnet Joch, Mast und Ausleger zusammen\./.test(dq)
+       && !/rechnet das Stabwerk den'\s*\+ ' Ausleger noch nicht/.test(dq));
   wahr('… und fängt beim Ablegen auf 2 m',
        /const nah = naechsterMast\(app, wo, 2\);/.test(readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8')));
 }
@@ -36165,6 +36175,108 @@ titel('202  Anbauteile: Katalog bereinigt (Namen, Aufsätze, Lampen, Trafo, frei
   const ui202 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Kachelliste nimmt das freie Bauteil auf (nicht mehr ausgefiltert)',
        !ui202.includes("vorlagen().filter((v) => v.id !== 'frei'"));
+}
+
+// ===========================================================================
+titel('203  Ausleger am Jochmasten im Stabwerk; M1 ziehen; Arm in der Höhe; Schwenk');
+/*
+ * 3. Oktober, mit drei Bildern: «wenn ich hier den linken masten ziehe dann
+ * entzwei ich das modell (joch / tragausleger) - warum wird der ausleger
+ * als balken angegeben? den ausleger in der höhe anpassen können per drag
+ * and drop, das drahtwerk mitziehen.» Auf Rückfrage «M2 bleibt, Joch passt
+ * sich an» und «Ja, jetzt anschliessen». Dazu: «wenn button ganzes
+ * querprofil, kamera schwenken, nicht springen.»
+ */
+{
+  const C203 = await import(J('core.constants.js'));
+  const U203 = await import(J('ui.js'));
+  const AS203 = await import(J('app.stabwerk.js'));
+  const N203 = await import(J('core.nachbarn.js'));
+  const CA203 = await import(J('core.anbauteile.js'));
+  const R203 = await import(J('render.3d.js'));
+  const w0 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  const joch = { ...w0, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0,
+    anbauteile: [{ ...A.neuesAnbauteil('hs-nur', 10), name: 'HS' }] };
+  let blatt = C203.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 13 });
+  const taId = C203.tragwerkeVon(blatt).find((t) => C203.tragwerksart(t).key === 'tragausleger').id;
+  const tw = (w, id) => C203.tragwerkeVon(w).find((t) => t.id === id);
+  const mast = (w, x) => C203.mastenVon(w).find((m) => Math.abs(m.x - x) < 1e-6);
+
+  // --- M1 ziehen: der gehaltene Mast am Ende B bleibt ------------------------
+  const m1 = C203.mastenFuer(blatt, tw(blatt, 'T1'))[0];
+  const gezogen = U203.mastStelleSetzen(blatt, U203.mastRollen(blatt, m1.id), 1.0);
+  wahr('M1 von 0 auf 1.00 m: M2 bleibt bei 20 und trägt weiter Joch und Ausleger',
+       mast(gezogen, 20)?.traegt?.length === 2 && Boolean(mast(gezogen, 1)),
+       C203.mastenVon(gezogen).map((m) => `${m.id}@${m.x}`).join(' '));
+  pruef('… das Joch beginnt bei 1.00 m', Number(tw(gezogen, 'T1').xLage), 1.0, 1e-9, 'm');
+  pruef('… und ist 19.00 m lang (Gurtende bleibt)', Number(tw(gezogen, 'T1').L), 19.0, 1e-9, 'm');
+  pruef('… die Hängestütze bleibt auf dem Blatt bei 10 m (lokal 9)',
+        Number(tw(gezogen, 'T1').anbauteile[0].x), 9.0, 1e-9, 'm');
+  pruef('… der Ausleger bleibt an seiner Stelle', Number(tw(gezogen, taId).xLage), 20, 1e-9, 'm');
+  const rJ = U203.mastRollen(joch, C203.mastenFuer(joch, C203.tragwerkeVon(joch)[0])[0].id);
+  const frei = U203.mastStelleSetzen(joch, rJ, 1.0);
+  wahr('Ohne anderes Tragwerk an M2 wandert das Joch wie bisher (L bleibt 20)',
+       Number(C203.tragwerkeVon(frei)[0].L) === 20 && Boolean(mast(frei, 21)));
+
+  // --- Der Arm an der Hängestütze geht in der Höhe ---------------------------
+  const arm = (id, am) => {
+    const teile = A.expandiereAnbauteile([{ ...A.neuesAnbauteil(id, 10), id: 'X' }],
+      { ek: 1, R: 600, spannweite: 50 });
+    const kette = CA203.anbauKette(teile, { amMast: am });
+    return kette.belegung.map(({ teil: t }) => R203.ziehAngabe(kette, t));
+  };
+  const nt = arm('hs-nt-ausleger', false);
+  wahr('Hängestütze mit NT-Ausleger: der Auslegerpunkt zieht in z und nimmt mit, der Leiter in x',
+       nt[1]?.achse === 'z' && nt[1]?.arm === true && nt[2]?.achse === 'x' && !nt[2]?.arm,
+       JSON.stringify(nt));
+  wahr('NT-Ausleger am Mast (kein senkrechter Träger): weiter in x',
+       arm('mast-nt-ausleger', true)[0]?.achse === 'x');
+  const q203 = APP_QUELLE();
+  wahr('Die App führt mit, was am Arm hängt (gleiche Höhe, weiter aussen)',
+       q203.includes('const mit = arm && achse === \'z\' && !kopie')
+       && q203.includes('m[k] = { ...m[k], z: r((Number(m[k].z) || 0) + (neu - alt)) };'));
+
+  // --- Der Ausleger am Jochmasten im Stabwerk --------------------------------
+  blatt = C203.setzeMastAngabe(blatt, mast(blatt, 20).id, 'mastLaenge', 14);
+  wahr('Keine Sperre mehr für den Ausleger am Jochmasten', AS203.reiheOhneStabmodell(blatt) === null);
+  const stab = (w) => {
+    const s = N203.rechensatzMitNachbarn(w);
+    const erg = berechne(s, ...N203.kernArgumente(s));
+    return AS203.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const hT = stab(C203.tauscheAktives(blatt, taId));
+  const hJ = stab(C203.tauscheAktives(blatt, 'T1'));
+  const allein = stab(C203.tragwerkWeg(C203.tauscheAktives(blatt, taId), 'T1'));
+  wahr('Ein Stabwerk für Joch und Ausleger (zwei Tragwerke)',
+       !hT.ohneModell && !hT.fehler && hT.tragwerke === 2, hT.ohneModell ?? hT.fehler ?? `${hT.staebe} Stäbe`);
+  const m2 = Object.values(hT.jeStab).filter((z) => /(^|_)MAST_M2_S\d+$/.test(z.name));
+  wahr('Der geteilte Mast M2 steht einmal da, als ein Zug bis zum Seilpunkt',
+       m2.length >= 6 && new Set(m2.map((z) => z.name)).size === m2.length
+       && Math.max(...m2.map((z) => z.z1)) - Math.min(...m2.map((z) => z.z0)) > 13.5,
+       `${m2.length} Abschnitte`);
+  pruef('Aufhängung im Blatt = Aufhängung des Auslegers allein (η)',
+        hT.ausleger?.aufhaengung?.eta, allein.ausleger?.aufhaengung?.eta, 0.02, '');
+  wahr('… kein Seil gedrückt, Längsanker mit Kraft',
+       !hT.ausleger?.aufhaengung?.druck && Math.abs(hT.ausleger?.laengsanker?.charakteristisch?.F ?? 0) > 0.5,
+       `LV ${hT.ausleger?.laengsanker?.charakteristisch?.F?.toFixed(2)} kN`);
+  wahr('Das Fundament des Auslegers ist das seines Masten M2',
+       Number.isFinite(hT.ausleger?.fundament?.A?.eta)
+       && hT.ausleger.fundament.A.eta === hT.fundamentJe?.M2?.eta, `${hT.ausleger?.fundament?.A?.eta?.toFixed(3)}`);
+  wahr('Gleiche Zahlen, ob Joch oder Ausleger gewählt ist',
+       Math.abs(hT.bauteile['mast:M2'].eta - hJ.bauteile['mast:M2'].eta) < 1e-9);
+  wahr('Der Mast M2 trägt mehr als unter dem Ausleger allein (Joch dazu)',
+       hT.bauteile['mast:M2'].eta > allein.bauteile['mast:MT1'].eta,
+       `${allein.bauteile['mast:MT1'].eta.toFixed(3)} → ${hT.bauteile['mast:M2'].eta.toFixed(3)}`);
+
+  // --- Ganzes Querprofil: schwenken ------------------------------------------
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Der Schwenk führt Ziel, Verschiebung, Abstand und Blickwinkel gemeinsam',
+       r3.includes('schwenkeAufsGanze(key = \'iso\', ms = 480)')
+       && /k\.ziel = von\.ziel\.map[\s\S]{0,200}k\.dist = von\.dist \+[\s\S]{0,120}k\.az = von\.az \+ dAz \* e;/.test(r3));
+  wahr('Knopf, Taste g und Kontextmenü schwenken (kein hartes Zurücksetzen mehr)',
+       readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes("app.ansicht.schwenkeAufsGanze('iso'); app.zeichneAuswertung();")
+       && q203.includes("ansicht.schwenkeAufsGanze('iso'); zeichneAuswertung(); } },")
+       && readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8').includes("app.ansicht.schwenkeAufsGanze('iso')"));
 }
 
 // ===========================================================================

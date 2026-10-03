@@ -632,7 +632,7 @@ export function kontextGrund(app, k) {
   const p = [
     { text: 'Ganzes Querprofil zeigen',
       tun: () => { app.station = null; app.ansicht.station = null;
-                   app.ansicht.ansichtZuruecksetzen(); app.zeichneAuswertung(); } },
+                   app.ansicht.schwenkeAufsGanze('iso'); app.zeichneAuswertung(); } },
     { text: 'Nur das gerechnete Tragwerk',
       tun: () => app.zoomAufTragwerk(app.werte.twId ?? 'T1') },
   ];

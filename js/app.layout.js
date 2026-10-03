@@ -215,7 +215,13 @@ export function baueModellWerkzeuge(app) {
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
     // Klick auf «ganzes Querprofil» einen Schritt in den Verlauf.
     if (tragwerkeSortiert(app.werte).some((t) => versteckt(t))) alleZeigen(app);
-    app.ansicht.ansichtZuruecksetzen(); app.zeichneAuswertung();
+    /*
+     * SCHWENKEN, NICHT SPRINGEN (3. Oktober: «wenn button ganzes
+     * querprofil, kamera schwenken, nicht springen»). `ansichtZuruecksetzen`
+     * setzte Ziel, Abstand und Blick hart; `schwenkeAufsGanze` fährt
+     * Ziel, Verschiebung, Abstand und Blickwinkel gemeinsam dorthin.
+     */
+    app.ansicht.schwenkeAufsGanze('iso'); app.zeichneAuswertung();
   };
   /*
    * NUR DAS GERECHNETE TRAGWERK.

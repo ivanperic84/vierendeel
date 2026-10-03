@@ -1377,6 +1377,43 @@ export function mastStelleSetzen(werte, r, xZiel) {
    */
   const kB = r.alsB ? kragarme(r.alsB.t)[1] : 0;
   const kA = r.alsA ? kragarme(r.alsA.t)[0] : 0;
+  /*
+   * >>> DER GEHALTENE MAST AM ANDEREN ENDE BLEIBT STEHEN (3. Oktober). <<<
+   *
+   * Gemeldet: «wenn ich hier den linken masten ziehe dann entzwei ich das
+   * modell (joch / tragausleger)» - M1 gezogen schob das ganze Joch samt
+   * M2, der Ausleger an M2 blieb an der alten Stelle. Auf Rückfrage «M2
+   * bleibt, Joch passt sich an»: trägt ein ANDERES Tragwerk den Masten am
+   * Ende B, bleibt er stehen; das Joch beginnt an der neuen Stelle und
+   * ändert seine Stützweite (die Standardlänge führt app.js danach nach).
+   * Teile auf dem Joch und die Nachweisstelle behalten ihre Lage auf dem
+   * Blatt (wie beim Kragarm, 30. September).
+   */
+  if (r.alsA && !r.alsB && tragwerksart(r.alsA.t).key !== 'tragausleger') {
+    const t = r.alsA.t;
+    const mB = mastenFuer(werte, t)[1];
+    const gehalten = mB && (mastenVon(werte).find((q) => q.id === mB.id)?.traegt ?? [])
+      .some((id) => id !== t.id);
+    if (gehalten) {
+      const kBt = kragarme(t)[1];
+      const ende = Number(mB.x) + kBt;               // Gurtende bleibt
+      const b = bereichVonTyp(t);
+      const r6 = (v) => Math.round(v * 1e6) / 1e6;
+      let lage = xZiel - kA;
+      let L = ende - lage;
+      if (L < b.min) L = b.min;
+      if (L > b.max) L = b.max;
+      lage = r6(ende - L);
+      const dx = r6(lage - (Number(t.xLage) || 0));
+      return tragwerkAendern(werte, t.id, (q) => {
+        const f = { xLage: lage, L: r6(L) };
+        f.anbauteile = (q.anbauteile ?? []).map((a) => (a && !amMast(a)
+          && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) - dx) } : a));
+        if (Number.isFinite(Number(q.xNachweis))) f.xNachweis = r6(Number(q.xNachweis) - dx);
+        return f;
+      });
+    }
+  }
   let x = xZiel;
   if (r.alsA && r.alsB) {
     /*

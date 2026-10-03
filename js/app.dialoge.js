@@ -628,8 +628,9 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
           } else {
             mastNotiz += ' Der Mast liegt zwischen zwei Tragwerken - die Seite bitte prüfen.';
           }
-          mastNotiz += ' ⚠ Am Masten eines anderen Tragwerks rechnet das Stabwerk den'
-            + ' Ausleger noch nicht (Sperre); gerechnet wird dann nur der Ersatzbalken.';
+          // Seit dem 3. Oktober rechnet das Stabwerk den Ausleger am
+          // Masten eines anderen Tragwerks mit (die Sperre ist weg).
+          mastNotiz += ' Das Stabwerk rechnet Joch, Mast und Ausleger zusammen.';
         }
       }
       return;

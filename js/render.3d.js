@@ -1937,9 +1937,34 @@ export function achseZumPunkt(kette, t) {
   return d[i] > 1e-6 ? 'xyz'[i] : null;
 }
 
+/**
+ * >>> EIN ARM AN EINEM SENKRECHTEN TRÄGER GEHT IN DER HÖHE (3. Oktober). <<<
+ *
+ * «den ausleger in der höhe anpassen können per drag and drop, das
+ * drahtwerk mitziehen.» Führt das Glied zum Punkt waagrecht weg (der Arm:
+ * Ausleger, Konsole) und hängt es am Ende eines senkrechten Glieds (der
+ * Hängestütze), zieht man den Punkt auf DESSEN Achse - in z; was am Arm
+ * hängt, wandert mit (`arm`, app.js). Der Punkt am Ende des Arms (das
+ * Drahtwerk) bleibt in x ziehbar, wie seit dem 1. Oktober.
+ */
+function armAmTraeger(kette, t) {
+  const p = (kette?.belegung ?? []).find((b) => b.teil === t)?.punkt;
+  const gl = p && (kette.glieder ?? []).find((g) => g.bis === p);
+  if (!gl) return false;
+  const waag = Math.abs(gl.bis.z - gl.von.z) < 1e-6
+    && Math.hypot(gl.bis.x - gl.von.x, gl.bis.y - gl.von.y) > 1e-6;
+  const vor = (kette.glieder ?? []).find((g) => g.bis === gl.von);
+  const senk = vor && Math.abs(vor.bis.z - vor.von.z) > 1e-6
+    && Math.hypot(vor.bis.x - vor.von.x, vor.bis.y - vor.von.y) < 1e-6;
+  return Boolean(waag && senk);
+}
+
 /** Was ein Angriffspunkt zum Ziehen mitbringt - Modul oder Lastblock. */
-function ziehAngabe(kette, t) {
+export function ziehAngabe(kette, t) {
   if (t?.art !== 'modul' && t?.art !== 'last') return null;
+  if (t.art === 'modul' && armAmTraeger(kette, t)) {
+    return { achse: 'z', arm: true, modul: t.modulIndex ?? null, last: null };
+  }
   const achse = achseZumPunkt(kette, t);
   if (!achse) return null;
   return { achse, modul: t.modulIndex ?? null, last: t.lastIndex ?? null };
@@ -2727,6 +2752,48 @@ export class Modellansicht {
     this.zeichne();
   }
 
+  /**
+   * >>> AUFS GANZE SCHWENKEN, NICHT SPRINGEN (3. Oktober). <<<
+   * «wenn button ganzes querprofil, kamera schwenken, nicht springen.»
+   * Ziel, Verschiebung, Abstand und Blickwinkel fahren GEMEINSAM vom
+   * jetzigen Stand in die Isometrie aufs ganze Modell. `ansichtZuruecksetzen`
+   * setzt alles hart, `blickrichtung` führt nur den Winkel und setzt Ziel
+   * und Abstand im ersten Bild.
+   */
+  schwenkeAufsGanze(key = 'iso', ms = 480) {
+    const g = this.szene?.grenzen;
+    if (!g) return;
+    const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
+    const k = this.kamera;
+    this.markierung = null; this.fokus = null; this.detail = null; this.station = null;
+    this.ansichtKey = key;
+    const von = { ziel: [...k.ziel], pan: [...(k.pan ?? [0, 0, 0])], dist: k.dist, az: k.az, el: k.el };
+    const ziel = [(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2];
+    // Der nötige Abstand am ZIEL: einmal dort messen, dann zurück.
+    k.ziel = ziel; k.pan = [0, 0, 0]; k.az = a.az; k.el = a.el;
+    const dist = this._noetigerAbstand() ?? von.dist;
+    Object.assign(k, { ziel: von.ziel, pan: von.pan, az: von.az, el: von.el });
+    // Der kürzere Weg um die Hochachse.
+    let dAz = (a.az - von.az) % (2 * Math.PI);
+    if (dAz > Math.PI) dAz -= 2 * Math.PI;
+    if (dAz < -Math.PI) dAz += 2 * Math.PI;
+    const t0 = performance.now();
+    const lauf = (this._schwenk = (this._schwenk ?? 0) + 1);
+    const schritt = (t) => {
+      if (lauf !== this._schwenk) return;          // ein neuer Schwenk löst ab
+      const f = Math.min(1, (t - t0) / ms);
+      const e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;
+      k.ziel = von.ziel.map((v, i) => v + (ziel[i] - v) * e);
+      k.pan = von.pan.map((v) => v * (1 - e));
+      k.dist = von.dist + (dist - von.dist) * e;
+      k.az = von.az + dAz * e;
+      k.el = von.el + (a.el - von.el) * e;
+      this.zeichne();
+      if (f < 1) requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+  }
+
   ganzesJoch() {
     const g = this.szene?.grenzen;
     if (!g) return;
@@ -3128,7 +3195,7 @@ export class Modellansicht {
           const w0 = b ? this.weltTreffer(px, py) : null;
           if (b && w0) {
             griff = { art: 'punkt', bewegt: false, start: [e.clientX, e.clientY],
-                      teil: b.teil, index: b.index, w0, achse: pt.achse,
+                      teil: b.teil, index: b.index, w0, achse: pt.achse, arm: pt.arm === true,
                       modul: pt.modul, last: pt.last, welt: pt.welt,
                       kopie: e.ctrlKey || e.metaKey };
           }
@@ -3332,7 +3399,7 @@ export class Modellansicht {
         this._ziehPunkt = null;
         if (griff.bewegt && z && z.d) {
           this.opt.beiPunktZiehen(griff.index, { modul: griff.modul, last: griff.last,
-                                                 achse: griff.achse, d: z.d,
+                                                 achse: griff.achse, arm: griff.arm, d: z.d,
                                                  kopie: z.kopie || e.ctrlKey || e.metaKey });
         } else if (griff.bewegt) {
           this.zeichne();

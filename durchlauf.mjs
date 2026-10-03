@@ -432,9 +432,27 @@ if (!AJ.tragauslegerDa()) {
     console.log(`  ${'… COM-Datei des Blattes'.padEnd(28)}${d.knoten.length} Knoten, `
       + `${d.staebe.length} Stäbe, 2 Seile «nur Zug», Kopf «${d.tragwerk.bezeichnung}»`);
   });
-  const geteilt = AS.reiheOhneStabmodell(nebenJoch(20));
-  console.log(`  ${'am Jochmasten (x 20 m)'.padEnd(28)}${geteilt ? 'gesperrt, mit Grund' : 'NICHT gesperrt'}`);
-  if (!geteilt) befunde.push({ fall: 'Tragausleger am Jochmasten', weg: 'Sperre', text: 'nicht gesperrt' });
+  /*
+   * AM JOCHMASTEN (3. Oktober): seit «Ja, jetzt anschliessen» rechnet das
+   * Stabwerk Joch, Mast und Ausleger in einem Modell (bis dahin gesperrt).
+   * Geprüft: gerechnet, der geteilte Mast ein Zug, die Aufhängung da.
+   */
+  const geteilt = nebenJoch(20);
+  const wG = NACH.rechensatzMitNachbarn(geteilt);
+  const ergG = versuch('Tragausleger am Jochmasten', 'berechne', () => V.berechne(wG, ...NACH.kernArgumente(wG)));
+  if (ergG.ok) {
+    const s = versuch('Tragausleger am Jochmasten', 'Stabwerk', () =>
+      AS.rechneStabwerk({ werte: geteilt, letzte: { erg: ergG.r }, stabwerk: null }));
+    if (s.ok && (s.r.ohneModell || s.r.fehler)) {
+      befunde.push({ fall: 'Tragausleger am Jochmasten', weg: 'Stabwerk', text: s.r.ohneModell ?? s.r.fehler });
+    } else if (s.ok) {
+      if (!Number.isFinite(s.r.ausleger?.aufhaengung?.eta)) {
+        befunde.push({ fall: 'Tragausleger am Jochmasten', weg: 'Stabwerk', text: 'Aufhängung fehlt' });
+      }
+      console.log(`  ${'am Jochmasten (x 20 m)'.padEnd(28)}gerechnet, ${s.r.staebe} Stäbe, `
+        + `${s.r.tragwerke} Tragwerke, Seil ${s.r.ausleger?.aufhaengung?.eta?.toFixed(3)}`);
+    }
+  }
 }
 
 /* ===========================================================================

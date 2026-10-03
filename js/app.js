@@ -2940,8 +2940,11 @@ function aendern(key, wert) {
     // Die Regel steht in ui.js (`mastStelleSetzen`), damit der Prüfstand sie
     // ohne Oberfläche fährt (1. Oktober).
     werte = ui.mastStelleSetzen(werte, r, wert.x);
-    // Das Joch, dessen Länge der Mast gerade verstellt hat (2. Oktober).
+    // Das Joch, dessen Länge der Mast gerade verstellt hat (2. Oktober) -
+    // seit dem 3. Oktober auch am Ende A, wenn Ende B gehalten stehen blieb
+    // (bei unveränderter Länge tut die Nachführung nichts).
     if (r.alsB) standardlaengeNachfuehren(r.alsB.t.id);
+    else if (r.alsA) standardlaengeNachfuehren(r.alsA.t.id);
     mastNachfuehren();
     neuRechnen();
     return;
@@ -3464,7 +3467,7 @@ function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {
  * auf dieser Achse wandert um den Weg, das Ergebnis auf 0.10 m. Geschrieben
  * wird mit der Reihenfolge der Achsen (`achsfolge`), wie die Karte es tut.
  */
-function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false }) {
+function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false, arm = false }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a || !['x', 'z'].includes(achse) || !d) return;
@@ -3480,6 +3483,17 @@ function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false }) 
     neu = r(alt + richtung * d);
     const folge = achsfolge(m[modul].folge, achse, neu);
     const gezogen = { ...m[modul], [achse]: neu, ...(folge ? { folge } : { folge: undefined }) };
+    /*
+     * DER ARM ZIEHT MIT, WAS AN IHM HÄNGT (3. Oktober, «den ausleger in der
+     * höhe anpassen können per drag and drop, das drahtwerk mitziehen»):
+     * die folgenden Module auf derselben Höhe und weiter aussen als der
+     * Anschluss des Arms - das Drahtwerk am Ausleger - wandern um dasselbe dz.
+     */
+    const mit = arm && achse === 'z' && !kopie
+      ? m.map((x, k) => k > modul && Math.abs((Number(x.z) || 0) - alt) < 1e-6
+          && Math.abs(Number(x.x) || 0) > 1e-6 ? k : -1).filter((k) => k >= 0) : [];
+    mit.forEach((k) => { m[k] = { ...m[k], z: r((Number(m[k].z) || 0) + (neu - alt)) }; });
+    if (mit.length) name = `${name} (mit ${mit.length} Teil${mit.length > 1 ? 'en' : ''} daran)`;
     // Mit Strg: das Modul bleibt, eine Kopie kommt an die neue Stelle.
     if (kopie) m.splice(modul + 1, 0, gezogen); else m[modul] = gezogen;
     liste[i] = { ...a, module: m };
@@ -4797,7 +4811,7 @@ const TASTEN = [
     tun: () => { ansicht.passeEin(); ansicht.zeichne(); } },
   { id: 'ganz', taste: 'g', text: 'Ganzes Querprofil zeigen',
     tun: () => { station = null; ansicht.station = null;
-                 ansicht.ansichtZuruecksetzen(); zeichneAuswertung(); } },
+                 ansicht.schwenkeAufsGanze('iso'); zeichneAuswertung(); } },
   { id: 'teil', taste: 't', text: 'Nur das gerechnete Tragwerk',
     tun: () => zoomAufTragwerk(werte.twId ?? 'T1') },
 

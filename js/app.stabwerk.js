@@ -58,6 +58,7 @@ import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { blattWennMehrere, lasten, stabmodell, stabmodellJson } from './export.axisvm.js';
+import { getTragausleger } from './data.abfangjoche.js';
 
 /*
  * RECHENVERFAHREN und `verfahrenVon` stehen im KERN (core.stabnachweis.js).
@@ -204,14 +205,15 @@ export function rechenWerte(werte) {
 export function reiheOhneStabmodell(werteRoh) {
   const werte = rechenWerte(werteRoh);
   const alle = sichtbareTragwerke(werte) ?? [];
-  if (alle.length > 1) {
-    const ta = alle.find((t) => (t.tragwerksart ?? 'joch') === 'tragausleger');
-    if (ta) {
-      return `${ta.id}: Ein Tragausleger in einer Reihe ist noch nicht an das `
-           + 'Stabwerk angeschlossen (Aufhängung, Knicken und Fundament rechnet '
-           + 'es bisher nur für den Ausleger allein).';
-    }
-  }
+  /*
+   * >>> DER AUSLEGER AM JOCHMASTEN IST ANGESCHLOSSEN (3. Oktober). <<<
+   * Hier stand die Sperre «Ein Tragausleger in einer Reihe ist noch nicht
+   * an das Stabwerk angeschlossen». Frage «warum wird der ausleger als
+   * balken angegeben?», auf Rückfrage «Ja, jetzt anschliessen»: das
+   * Blattmodell baut ihn mit (geteilter Mast verschmolzen), Aufhängung und
+   * Längsanker rechnet `rechneStabwerk` je Ausleger, Knicken und Fundament
+   * kommen wie an jedem Masten des Blattes aus dem Stabwerk.
+   */
   for (const t of alle) {
     const grund = ohneStabmodell(t.tragwerksart ?? 'joch');
     if (grund) {
@@ -435,6 +437,37 @@ export function rechneStabwerk(app) {
         if (f?.A) fundamentJe[id] = { ...f.A, quelle: 'stabwerk' };
       }
     });
+  }
+
+  /*
+   * >>> DER AUSLEGER IM BLATT (3. Oktober). <<<
+   * Steht der Tragausleger mit anderen Tragwerken in EINEM Stabwerk (am
+   * Jochmasten), trägt das Blattmodell keinen eigenen `bau.tragausleger`.
+   * Aufhängung und Längsanker finden ihre Stäbe über den Namen mit dem
+   * Präfix des Tragwerks; V_zul kommt aus seinem Sortiment. Knicken und
+   * Fundament stehen schon je Mast da (oben) - der Ausleger zeigt die
+   * seines Masten. Gilt für den gewählten Ausleger; ein nicht gewählter
+   * zählt im Urteil der Reihe über seinen Masten.
+   */
+  if (!ausleger && (sichtbareTragwerke(werte) ?? []).length > 1
+      && tragwerksart(satz).key === 'tragausleger') {
+    const t = tragwerkeVon(werte).find((q) => q.id === satz.twId) ?? tragwerkeVon(werte)[0];
+    const m = mastenFuer(werte, t)?.[0];
+    const id = m ? mastName(app.werte, m) : null;
+    let Vzul = 5;
+    try { Vzul = getTragausleger(Number(satz.L))?.Vzul ?? 5; } catch { /* Vorgabe */ }
+    const pre = `${satz.twId}_`;
+    const lvX = satz.laengsverankerung !== false;
+    ausleger = {
+      name: `Mast ${id ?? ''}`.trim(),
+      Vzul,
+      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, Vzul, `${pre}AUFHAENGUNG`),
+      laengsanker: lvX ? laengsankerKraft(dat, lsg, alleFaelle, faelle, `${pre}LV_M`) : null,
+      laengsankerX: lvX ? Number(satz.laengsverankerungX) || null : null,
+      knick: id ? knick?.[id] ?? null : null,
+      fundament: id && fundamentJe[id] ? { A: fundamentJe[id] } : null,
+      imBlatt: true,
+    };
   }
 
   /*
