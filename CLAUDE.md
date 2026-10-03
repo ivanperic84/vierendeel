@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Abfangjoch: Bild und Verläufe aus dem Stabwerk; AxisVM-Prüfung des berichtigten Blattes (3./4. Oktober) | Im Wortlaut: «Bild und Verläufe nachziehen und dan axis prüfung». **Bild:** bei «umhüllend» tragen Gurte, Gabel, Bindebleche und Masten des Abfangjochs die Hülle je Stab aus dem Stabwerk (`stabwerkFaerben` mit `abfangStaebe`, render.stabwerk.js; die Szene nennt GURT_V / GURT_H / GABEL / BL_O<k> / BL_U<k>, die Stäbe V_S… / H_S… / GABEL_… / BL_…); ein gewählter Einzellastfall zeigt weiter den Kern. **Verläufe:** Gurte vorn / hinten, Bleche je Station, Gurtkraft und je Mast aus dem Stabwerk, der Ersatzbalken eingeklappt darunter. Gemessen zwei A160/12.5 m mit Druckstützen: grösstes η im Bild Gurt 0.8610 = Kachel, Blech 0.5024 = Kachel, Mast 0.1748 (Kachel 0.1747 / 0.1748). Im Browser (Prüfseite, gelöscht): Legende «aus dem Stabwerk», Reiter Verläufe mit den vier Stabwerksblöcken. **AxisVM** (Anweisung gegeben; `com/AxisVM_Beispiel_A.json` neu gebaut, linear gerechnet, ausgelesen, geschlossen, rund 12 Minuten; 470 Knoten, 582 Stäbe): das Blatt mit allen Berichtigungen des Tages (Mast je Anschlusshöhe geteilt, Mastwind, halbe Spannweite, starre Blechenden, Bindebleche der Druckstütze). Löser ohne Schub gegen AxisVM, je Lastfall die grösste Abweichung bezogen auf den grössten Wert: **Leiterzug** Gurt N 0.04 %, Gurt M_z 0.02 %, Blech V / M 0.02 %, Mast N / V_y / M_z 0.00 %, Mast M_y 3.6 % (von 2.24 kNm), Mast T 0.4 %; **Wind längs** Gurt N 0.03 %, Blech 0.02-0.03 %, Mast M_y 2.7 % (von 0.61 kNm); **Wind quer** Mast M_y 0.00 % (11.57 kNm), V 0.00 %; **Eigengewicht** Gurt M_y 0.03 %, Mast N 0.02 %, M_y 0.23 %; **Havarie** Gurt N 0.06 %, Mast M_y 5.3 % (von 0.24 kNm). Über 5 % nur Grössen, die praktisch null sind (Torsion der Gabel 0.09 kNm, Normalkraft eines Endblechs 0.10 kN mit umgekehrtem Vorzeichen, Nebenmomente unter 0.02 kNm). **Das Abfangjoch gilt damit als gegen AxisVM bestätigt.** Prüfstand 218 |
 | Schiene am Abfangjoch aus dem Stabwerk; Stand zur Abgabe (3. Oktober) | Im Wortlaut: «ist die app jetzt in einem produktiven stand? datenbankdatei com? Schiene am Abfangjoch auch auf das Stabwerk umstellen.» Die rechte Schiene zeigt am Abfangjoch Gurt und Bindeblech aus dem Stabwerk, wenn es gilt (app.layout.js, Gruppe «Abfangjoch · Stabwerk»), sonst wie bisher den Kern. Im Browser (Prüfseite, gelöscht): Schiene «G 0.86 · Bl 0.50 · M1 0.17 · M2 0.17 · Ank 0.31» = Kacheln 0.861 / 0.502 / 0.175. Datenpaket, COM-Skripte und die gebündelte Einzeldatei liegen neu in `Versand/` (Sortimente seit dem letzten Paket unverändert; Brücke unverändert). Zur Frage «produktiv» dem Auftraggeber gemeldet: Rechenwege geprüft und grün, aber das Blatt mit zwei Abfangjochen ist seit den Berichtigungen vom Tag nicht in AxisVM nachgerechnet, und die Liste unter *Offene Punkte* gilt. Prüfstand 217 |
 | Einseitig abgefangener Leiter: halbe Spannweite (3. Oktober) | Auf die Frage, ob dort die ganze oder die halbe Spannweite gilt, im Wortlaut: «halbe Spannweite gilt beim einseitig abgefangenen leiter». Gewicht, Wind, Schnee und Ablenkung eines Drahtwerks kommen bei «einseitig» aus der halben Spannweite (eine Stelle: `expandiereAnbauteile`, data.anbauteile.js; die Art je Leiter aus `havarie` bzw. `artWahl`, ohne Eintrag die Vorgabe der Tragwerksart `artVorgabe` - am Abfangjoch «einseitig»). Gilt an allen Tragwerksarten und in Kern, Stabwerk, Ausleitung, Bild und Anzeige (Karte und Liste rechnen mit, `trasseVon`; die Modulzeile mit ihrem Index `artIndex`). **Meine Lesart:** auch eine am Leiter eingetragene eigene Spannweite wird halbiert; «beidseitig abgefangen» bleibt bei der ganzen. Gemessen Beispiel A (zwei A160/12.5 m, Druckstützen, Spannweite 40 m), ganze → halbe: EK1 Joch unten 0.880 → **0.861**, oben 0.733 → **0.714**, Mast 0.186 → **0.175**; EK3 0.907 / 0.761 / 0.215 → 0.889 / 0.742 / 0.199; Einheitswind 0.857 / 0.710 / 0.179 → 0.838 / 0.692 / 0.166. Tragseil N-FL abgefangen, 40 m, R 600: G 0.400 → 0.200 kN, Wind quer 0.340 → 0.170, Ablenkung 0.427 → 0.213 kN. Im Browser (Prüfseite, gelöscht): Liste «Fahrdraht Gleis 1 · F_x 0.17 · F_z −0.20 kN». Prüfstand 216 |
 | Verformte Figur mit dem Plot «w», Werte an der Figur, Knopf δ weg (3. Oktober) | Mit Bild (Abfangjoch, Wind quer: am Masten 98.4 mm angeschrieben, daneben «grösster Weg 6.8 mm»), im Wortlaut: «die verformung einblenden wenn der verfrmung w und nachweis button aktiviert wird. die werte an die verformte figur anschreiben. der button verformte figur kann dann wieder weg.» Die Figur wird gerechnet, sobald das Stabwerk gilt, und gezeichnet bei «w» und «η w» (`FIGUR_MODI`, render.3d.js); der Knopf δ der unteren Leiste und sein Zustand sind weg (ändert die Weisung vom 30. September «δ zu den unteren Symbolen»). Im Plot «w» stehen die Werte an der verformten Lage (Betrag in mm je Figurpunkt, ausgedünnt wie bisher), auch ohne «Werte anschreiben»; die Zahlen an den Flächen entfallen dort. **Befund im Bild:** die 98.4 mm am Masten kamen aus dem Ersatzbalken (Mastfarbe am Abfangjoch und am Walzprofil-Einzelmasten), die Figur aus dem Stabwerk. Jetzt tragen die Flächen des gerechneten Tragwerks im Plot «w» den Weg des nächsten Figurpunkts (`wegeAusFigur`, app.js) - eine Quelle für Farbe, Zahl und Legende, bei allen Tragwerksarten. Im Browser (Prüfseite, gelöscht; zwei A160 mit Druckstützen, umhüllend): «w» zeigt Figur und Werte 1.3 … 7.0 mm, Legende 0-6.1 «Aus dem Stabwerk …», «η» ohne Figur, «η w» mit Figur, kein Knopf δ. Gesehen, nicht geändert: die rechte Schiene zeigt am Abfangjoch «G 1.14» (Ersatzbalken), die Kachel Gurt 0.880 (Stabwerk). Prüfstand 215 |
@@ -349,7 +350,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**3. Oktober 2026** · Prüfstand 6545 Kontrollen grün · `durchlauf.mjs`
+**3. Oktober 2026** · Prüfstand 6553 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2379,9 +2380,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 **Fachlich**
 - ⚠ **Einheitlichkeit der Tragwerksarten** (Durchsicht 3. Oktober; Stabwerk, Nachweiskacheln, Bericht, Excel, Reaktionsblatt,
   verformte Figur, Anker und COM-Datei des Blattes haben alle vier): (0) ~~rechte Schiene am Abfangjoch~~ (seit dem 3. Oktober aus dem
-  Stabwerk); der Plot «w» kommt seit dem 3. Oktober überall aus dem Stabwerk; (a) **3D-Färbung** aus dem Stabwerk am Tragjoch (Hülle), Gittermast
-  und Tragausleger; am Abfangjoch und am Walzprofil-Einzelmasten aus dem Kern - am Abfangjoch stehen damit Bild (einfacher Balken)
-  und Kacheln (Stabwerk) auf verschiedenen Rechnungen; (b) **Verläufe und Schnitt** aus dem Stabwerk nur am Tragjoch;
+  Stabwerk); der Plot «w» kommt seit dem 3. Oktober überall aus dem Stabwerk; (a) **3D-Färbung** aus dem Stabwerk am Tragjoch (Hülle), Gittermast,
+  Tragausleger und seit dem 3. Oktober am Abfangjoch; am Walzprofil-Einzelmasten aus dem Kern; (b) **Verläufe** aus dem Stabwerk am
+  Tragjoch und Abfangjoch, der **Schnitt** nur am Tragjoch;
   (c) **Einzellastfall** im Bild überall aus dem Kern (ausser Gittermast); (d) **SAF, DXF, PyNite** nicht für Abfangjoch und
   Gittermast; (e) **Knicken** aus dem Stabwerk am Tragjoch und Tragausleger, am Einzelmasten und Abfangjoch aus dem Kern;
   (f) nur das gewählte Tragwerk ist gefärbt, die Nachbarn grau - obwohl das Stabwerk sie mitrechnet (Frage «beide Abfangjoche
@@ -2398,8 +2399,8 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Anzeige, Rechenverfahren «Ersatzbalken») rechnet ihn als Vollstab mit dem Kopfquerschnitt;
   (h) weitere Typen des Katalogs nicht erfasst (auch II 30 UL, III 30 UL); Wanddicke des UL-Rohrs einheitlich 6 mm statt der zwei gezeichneten.
 - ~~Abfangjoch gegen AxisVM, Rest 6-20 %~~ - geklärt am 3. Oktober (starre Blechenden, siehe *Entschieden*); die
-  Mastabweichung 11-14 % ebenfalls (Bindebleche der Druckstütze), Rest 2.9 %. ⚠ Das Blatt mit zwei Abfangjochen ist seither
-  anders gebaut (Mast geteilt, Mastwind) und in AxisVM nicht neu gerechnet. Einseitig abgefangener Leiter: halbe
+  Mastabweichung 11-14 % ebenfalls (Bindebleche der Druckstütze), Rest 2.9 %. Das berichtigte Blatt mit zwei Abfangjochen ist am
+  4. Oktober in AxisVM nachgerechnet (Gurt, Blech ≤ 0.1 %, Mast M_y 2.7-5 % bei kleinen Werten). Einseitig abgefangener Leiter: halbe
   Spannweite (entschieden 3. Oktober). ⚠ `kalibrieren_abfang.mjs` (PyNite) liest dasselbe Modell und ist seither nicht neu
   gelaufen. Und **Klemmzonen der Anbauteile am Tragjoch**: örtlich grosse Unterschiede zu AxisVM
   (Starrkörper gegen steife Stäbe; im Beispiel zwei Teile an derselben Stelle) - nicht untersucht.
@@ -2758,7 +2759,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6545 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6553 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

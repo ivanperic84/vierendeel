@@ -2416,8 +2416,9 @@ Verfahren führt, stellt man unter <i>Optionen → Nachweise</i> ein.</p>
 (<code>vergleich_axisvm.mjs</code>): Masten und Gurte des Tragjochs auf
 Bruchteile eines Prozents bis wenige Prozent. Örtlich weichen die
 Klemmzonen der Anbauteile ab - dort trägt AxisVM mit echten Starrkörpern,
-der Löser mit steifen Stäben. Am Abfangjoch stimmen Gurte und Bleche des liegenden
-Trägers auf unter 1 %.</p>
+der Löser mit steifen Stäben. Am Abfangjoch (zwei Träger übereinander mit
+Druckstützen) stimmen Gurte und Bleche auf 0.1 %, die Masten auf wenige
+Prozent bei kleinen Momenten.</p>
 `,
 },
 {
