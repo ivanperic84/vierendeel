@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6434 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6445 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,10 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Abfangjoch:** ein Mast, ein Körper auch bei zwei Abfangträgern
+  an denselben Masten (Zeichenplan in `abfangSzene`); vier Vorlagen «Tragseil /
+  Fahrdraht N-FL / R-FL abgefangen» (Spalte `abfangung`, setzt die Abfangart
+  je Leiter beim Absetzen).
 - **3. Oktober, Gittermast (kombinierter Mast):** wählbar als Einzelmast und
   Jochmast; im Stabwerk ein Fachwerk (vier Gurtwinkel, Bindebleche, Schotte,
   Rohr bzw. Mastaufsatz; `export.axisvm.gitter.js`), Nachweis je Stab, das

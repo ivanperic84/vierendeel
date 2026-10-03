@@ -762,6 +762,9 @@ export const ABSCHNITTE = [
       // Weisung vom 19. September: «nach ort trennen».
       f('ort', 'Ort', 'wahl', { wahl: ['joch', 'mast', 'beide'],
         notiz: 'Wo die Vorlage angeboten wird. Leer: mit Träger am Joch, sonst an beiden.' }),
+      // 3. Oktober: «tragseile / fahrdraht einseitig abgefangen für das abfangjoch».
+      f('abfangung', 'Abfangung', 'wahl', { wahl: ['durchgehend', 'beidseitig', 'einseitig'],
+        notiz: 'Abfangart, mit der die Leiter der Vorlage gesetzt werden. Leer: Vorgabe der Tragwerksart.' }),
       zahl('eigengewicht', 'Eigengewicht', 'kN', { von: 0, bis: 50 }),
       bool('windAufTraeger', 'Wind auf Träger',
         { notiz: 'Kragarm: nur ein Teil der Windlast erreicht das Joch.' }),

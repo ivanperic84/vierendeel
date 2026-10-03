@@ -249,6 +249,12 @@ export function vorlagePasstAn(v, ort) {
   return o === 'beide' || o === (ort === 'joch' ? 'joch' : 'mast');
 }
 
+/** Die Abfangart, die eine Baugruppe von ihrer Vorlage mitbekommt (oder null). */
+export function vorlageAbfangung(a) {
+  const v = vorlagen().find((x) => x.id === a?.vorlage);
+  return ['durchgehend', 'beidseitig', 'einseitig'].includes(v?.abfangung) ? v.abfangung : null;
+}
+
 export function getVorlage(id) {
   const v = vorlagen().find((x) => x.id === id);
   if (!v) throw new Error(`Unbekannte Anbauteil-Vorlage: ${id}`);

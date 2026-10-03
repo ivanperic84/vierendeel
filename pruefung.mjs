@@ -36763,6 +36763,70 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
   }
 }
 
+/* =========================================================================
+ * 208  ABFANGJOCH: EIN MAST EIN KÖRPER; VORLAGEN «ABGEFANGEN» (3. Oktober)
+ * =========================================================================
+ * Mit Bild (zweiter Abfangträger an denselben Masten): «hier werden
+ * immernoch zwei masten angezeigt zur auswahl im 3d. was noch fehlt bei den
+ * anbauteilen sind die tragseile / fahrdraht einseitig abgefangen für das
+ * abfangjoch.»
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const RA208 = await import(J('render.abfang.js'));
+  const C208 = await import(J('core.constants.js'));
+  const DA208 = await import(J('data.anbauteile.js'));
+  const AB208 = await import(J('core.abfangjoch.js'));
+  const FL208 = await import(J('data.fl.js'));
+  const mast208 = { profil: 'HEB 260', hoehe: 7.5, ueberstand: 1.0, stegrichtung: 'jochachse' };
+  const mit = RA208.abfangSzene('A160', 12.5, { mast: mast208 });
+  const ohne = RA208.abfangSzene('A160', 12.5, { mast: mast208, mastZeichnen: { A: false, B: false } });
+  const nurB = RA208.abfangSzene('A160', 12.5, { mast: mast208, mastZeichnen: { A: false, B: true } });
+  const titel = (sz) => sz.bauteiltitel.filter((t) => t.mastEnde).length;
+  wahr('Abfangjoch-Szene: ohne Plan zwei Mastkörper mit Titel', titel(mit) === 2);
+  wahr('… sagt der Zeichenplan nein, baut sie keinen Masten (kein Titel, weniger Flächen, keine Lagermarke)',
+       titel(ohne) === 0 && ohne.flaechen.length < mit.flaechen.length
+       && !ohne.marken.some((m) => m.gruppe === 'auflager'),
+       `${mit.flaechen.length} → ${ohne.flaechen.length} Flächen`);
+  wahr('… je Ende für sich', titel(nurB) === 1 && nurB.bauteiltitel.find((t) => t.mastEnde).mastEnde === 'B');
+  wahr('… der Bezug der Masten (Einmessen) bleibt', Boolean(ohne.bezug.masten.A && ohne.bezug.masten.B));
+  // Der Plan: zwei Abfangträger an denselben Masten - nur einer zeichnet sie.
+  const typ208 = 'A160';
+  let b208 = C208.tragwerkHinzu({ ...standardwerte(), twId: 'T1' }, 'abfangjoch', { xLage: 60, L: 12.5, abfangTyp: typ208 });
+  b208 = C208.tragwerkWeg(b208, 'T1');
+  const a1 = C208.tragwerkeVon(b208)[0];
+  b208 = C208.tragwerkHinzu(b208, 'abfangjoch', { xLage: 60, L: 12.5, abfangTyp: typ208 });
+  const a2 = C208.tragwerkeVon(b208).find((t) => t.id !== a1.id);
+  const plan = C208.mastZeichenplan(b208, a2.id);
+  wahr('Zeichenplan: zwei Abfangträger an denselben Masten - das gerechnete zeichnet, das andere nicht',
+       C208.mastenVon(b208).length === 2 && plan[a2.id].A && plan[a2.id].B && !plan[a1.id].A && !plan[a1.id].B,
+       JSON.stringify(plan));
+  const q208 = APP_QUELLE();
+  wahr('Die App reicht den Plan an beide Abfangjoch-Szenen (gewählt, nebenan)',
+       q208.includes('mastZeichnen: plan[aktivId],\n                    ...abfangLastAngaben')
+       && q208.includes('mastZeichnen: zeichnen,\n                           ...abfangLastAngaben'));
+
+  // Vorlagen «abgefangen»
+  const ids = ['leiter-ts-nfl-abf', 'leiter-fd-nfl-abf', 'leiter-ts-rfl-abf', 'leiter-fd-rfl-abf'];
+  const vv = ids.map((id) => DA208.vorlagen().find((v) => v.id === id));
+  wahr('Vier Vorlagen «Tragseil / Fahrdraht abgefangen» (N-FL, R-FL), am Träger, einseitig',
+       vv.every((v) => v && v.abfangung === 'einseitig' && v.ort === 'joch' && v.gruppe === 'leiter'
+         && v.module.length === 1 && FL208.getFlBauteil(v.module[0].bauteil).rolle === 'drahtwerk'));
+  const t208 = { ...DA208.neuesAnbauteil('leiter-ts-nfl-abf', 4), ort: 'joch' };
+  wahr('… die Baugruppe kennt die Abfangart ihrer Vorlage', DA208.vorlageAbfangung(t208) === 'einseitig'
+       && DA208.vorlageAbfangung({ vorlage: 'leiter-nfl' }) === null);
+  wahr('… am Abfangjoch in der Trägermittelebene angebunden', AB208.abfangAnbindung(t208).art === 'mitte');
+  const r208 = AB208.abfangAuswertung({ typ: 'A160', jt: 12.5, gk: 0.4, wk: 0.3, sk: 0, anbauteile: [t208],
+    gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK1', L_FL: 0 });
+  const zS = (key) => ['A', 'B'].reduce((s, e) => s + (r208.auflager[e].faelle.find((f) => f.key === key)?.anteile.Z ?? NaN), 0);
+  const fall0 = r208.auflager.A.faelle[0].key;
+  pruef('… das Tragseil N-FL zieht ständig mit seinem vollen Zug Z(+5 °C)', Math.abs(zS(fall0)),
+        FL208.abfangkraft('drahtwerk-n-fl-stcu-50', { tempFall: 'tragsicherheit' }).Z, 1e-9, 'kN');
+  const s208 = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  wahr('Beim Absetzen schreibt die App die Abfangart je Leiter, wo sie von der Vorgabe abweicht',
+       s208.includes('const artV = vorlageAbfangung(t);')
+       && s208.includes("artV !== abfangVorgabeFuer(tragwerksart(app.werte).key)"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -13,7 +13,8 @@ import { baueModellWerkzeuge } from './app.layout.js';
 import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
-import { getVorlage, neuesAnbauteil, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { abfangVorgabeFuer } from './core.lasten.js';
+import { getVorlage, leiterKennung, neuesAnbauteil, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -311,6 +312,26 @@ function setzeBaugruppeAnStelle(app, roh) {
    */
   (app.werte.anbauteile ?? []).forEach((x) => ui.setzeKlapp(`at-${x.id}`, false));
   ui.setzeKlapp(`at-${t.id}`, true);
+  /*
+   * >>> DIE VORLAGE BRINGT IHRE ABFANGART MIT (3. Oktober). <<<
+   * «was noch fehlt bei den anbauteilen sind die tragseile / fahrdraht
+   * einseitig abgefangen für das abfangjoch.» Die Art steht je Leiter am
+   * Tragwerk (`havarie[leiterKennung]`); eine Vorlage «… abgefangen» setzt
+   * sie beim Absetzen - auch an einem Tragjoch, wo die Vorgabe sonst
+   * «durchgehend» wäre. Wo sie der Vorgabe gleicht, bleibt der Eintrag
+   * leer (wie in der Karte).
+   */
+  const artV = vorlageAbfangung(t);
+  if (artV && artV !== abfangVorgabeFuer(tragwerksart(app.werte).key)) {
+    const hav = { ...(app.werte.havarie ?? {}) };
+    (t.module ?? []).forEach((m, i) => {
+      let b; try { b = getFlBauteil(m.bauteil); } catch { return; }
+      if (b.rolle !== 'drahtwerk') return;
+      const k = leiterKennung(t, m, i);
+      hav[k] = { ...(hav[k] ?? {}), art: artV, name: hav[k]?.name ?? `${t.name} · ${b.name}` };
+    });
+    app.werte.havarie = hav;
+  }
   app.setzeAnbauteile([...(app.werte.anbauteile ?? []), t]);
   /*
    * >>> DIE SEITENLEISTE FÄHRT AUF DIE EINGABE (1. Oktober). <<<

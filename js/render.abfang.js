@@ -668,6 +668,23 @@ export function abfangSzene(typ, jt, opt = {}) {
       const fb = farbeFuer(`mast|${mp.name}`, `Mast · ${mp.name}`, 'mast');
       const stegText = achse === 'y'
         ? 'Steg quer zum Gleis' : 'Steg längs zum Gleis';
+      /*
+       * >>> EIN MAST, EIN KÖRPER - AUCH AM ABFANGJOCH (3. Oktober). <<<
+       * Gemeldet mit Bild (zweiter Abfangträger an denselben Masten): «hier
+       * werden immernoch zwei masten angezeigt zur auswahl im 3d.» Der
+       * Zeichenplan (`mastZeichenplan`) erreichte diese Szene nicht - jedes
+       * Abfangjoch baute seine Masten selbst, das nicht gewählte grau über
+       * dem gerechneten, mit eigenem Titel. Sagt der Plan nein, bleibt nur
+       * der Bezug (Einmessen, Lagermarke); Körper, Titel und Anker kommen
+       * vom Tragwerk, das den Masten zeichnet.
+       */
+      if (opt.mastZeichnen?.[name] === false) {
+        mastBezug[name] = { x, zF: -md.hoehe, zAn: 0, zAchse: 0,
+                            zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
+                            laenge: (md.ueberstand ?? 0) > 0
+                              ? md.hoehe + md.ueberstand : null };
+        continue;
+      }
       const mk = mastKoerper({
         profil: mp, achse, x, zFuss: -md.hoehe, zAnschluss: 0,
         /*
@@ -859,6 +876,8 @@ export function abfangSzene(typ, jt, opt = {}) {
   for (const [name, x] of [['A', ue], ['B', jt - ue]]) {
     const md = opt.masten?.[name] ?? opt.mast;
     const mastDa = Boolean(md?.profil && md.hoehe > 0);
+    // Zeichnet ein anderes Tragwerk den Masten, setzt es auch dessen Marken.
+    if (mastDa && opt.mastZeichnen?.[name] === false) continue;
     /*
      * >>> DAS LAGER SITZT AM MASTFUSS, NICHT AN DER JOCHACHSE. <<<
      *

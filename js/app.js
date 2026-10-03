@@ -1927,6 +1927,7 @@ function szeneVonNebenan(t, zeichnen) {
       return abfangSzene(satz.abfangTyp, Number(satz.L),
                          { anbauteile: satz.anbauteile ?? [],
                            mast: abfangMastAngabe(satz), lager: satz,
+                           mastZeichnen: zeichnen,
                            ...abfangLastAngaben(satz) });
     }
     if (tragwerksart(satz).key === 'einzelmast') {
@@ -2055,6 +2056,7 @@ function blattSzene(erg) {
                     ergVerf: erg.verformung ?? null,
                     ergAnker: erg.anker ?? null,
                     lager: tragwerkSatz(werte),
+                    mastZeichnen: plan[aktivId],
                     ...abfangLastAngaben(tragwerkSatz(werte)),
                     /*
                      * DAS ERGEBNIS FAERBT DAS BILD (Weisung, 9. September:
