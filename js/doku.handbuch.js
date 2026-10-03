@@ -2365,6 +2365,172 @@ Masten und Ausnutzung. Jedes wird dafür <b>neu gerechnet</b>; lässt sich
 eines nicht rechnen, steht der vermerkte Wert mit einem Stern da.</p>
 `,
 },
+{
+  id: 'stabwerk',
+  titel: '17 · Das Stabwerk als Rechenverfahren',
+  html: `
+${q(`Weisung vom 25. September: «ersatzbalken als optionales rechenverfahren
+in den optionen auswählbar machen, primär den löser nutzen» - und vom
+28. September: «wollen wir nach der berechnung nur auf die stabwerk
+ausnutzung setzen?»`)}
+
+<p>Die Anwendung rechnet jedes Tragwerk auf zwei Wegen. Der
+<b>Ersatzbalken</b> (Kapitel 4-6) läuft bei jeder Eingabe mit und liefert
+die vorläufige Anzeige. Das <b>Stabwerk</b> rechnet das ganze Blatt als
+räumliches Stabmodell: jeder Gurt, jedes Bindeblech, jeder Mastabschnitt
+und jedes Anbauteil ein eigener Stab, geteilte Masten einmal. Es ist
+dieselbe Datei, die nach AxisVM hinausgeht - es gibt keinen zweiten
+Modellbauer.</p>
+
+<h4>17.1 Wann es rechnet und was es führt</h4>
+<p>Rund eine Sekunde nach der letzten Eingabe von selbst; der Knopf
+«Nochmals rechnen» löst sofort aus. Gilt das Stabwerk, führt es
+Hauptkachel, Nachweiskacheln, Fussleiste, 3D-Plot, Verläufe, Bericht und
+Excel. Ohne gültiges Stabwerk steht «Ersatzbalken · vorläufig» da. Welches
+Verfahren führt, stellt man unter <i>Optionen → Nachweise</i> ein.</p>
+
+<table class="dt">
+<tr><th>Nachweis</th><th>Quelle im Stabwerksweg</th></tr>
+<tr><td>Gurte, Bindebleche</td><td>Endkräfte je Stab, Hülle über alle Kombinationen; der Gurtwinkel vorzeichenrichtig mit Deviationsmoment, das Blech mit Schub (σ_v)</td></tr>
+<tr><td>Mast</td><td>alle 0.5 m aus Endkräften und Streckenlast des Stabes, mit Wölbspannung</td></tr>
+<tr><td>Knicken des Masts</td><td>Regel nach SIA 263 mit den Kräften des Stabwerks</td></tr>
+<tr><td>Fundament, Anker</td><td>charakteristische Auflager- und Stabkräfte gegen die zulässigen Werte</td></tr>
+<tr><td>Gebrauchstauglichkeit</td><td>Knotenwege unter Betriebswind (ψ 0.70)</td></tr>
+</table>
+
+<h4>17.2 Was das Modell festlegt</h4>
+<ul>
+<li>Starrelemente als steife Ersatzstäbe, gelenkige Anschlüsse als
+  Linkelemente, gekoppelt in der Linkmitte; die Freiheitsgrade des Links
+  gelten in globalen Achsen.</li>
+<li>Seile (Seilanker, Aufhängung des Tragauslegers) tragen nur Zug: ein
+  Seil, das drücken müsste, fällt in dieser Kombination aus.</li>
+<li>Ein Anker steht je Mast einmal im Modell - auch am geteilten Masten
+  einer Jochreihe oder zweier Abfangjoche übereinander.</li>
+<li>Der Löser rechnet mit Schubverformung; AxisVM in den gebauten Modellen
+  ohne. Am Tragjoch macht das Bruchteile eines Prozents aus.</li>
+</ul>
+
+<h4>17.3 Gegenproben</h4>
+<p>Gegen PyNite und gegen AxisVM, Stab für Stab
+(<code>vergleich_axisvm.mjs</code>): Masten und Gurte des Tragjochs auf
+Bruchteile eines Prozents bis wenige Prozent. Örtlich weichen die
+Klemmzonen der Anbauteile ab - dort trägt AxisVM mit echten Starrkörpern,
+der Löser mit steifen Stäben. Am Abfangjoch bleibt im liegenden Träger ein
+Rest von 6 bis 20 % (der Löser ist dort weicher und liegt mit Gurt und
+Blech darüber).</p>
+`,
+},
+{
+  id: 'gittermast',
+  titel: '18 · Der Gittermast (kombinierter Mast)',
+  html: `
+${q(`Weisung vom 3. Oktober: «Es ist ein Gittermast, struktur wie die Joche,
+mit unterschied das Winkel nach innen und der untere teil konisch
+ausgebildet ist. … im oberen teil ist ein rohr der in den oberen teil des
+gittermasten eingespannt ist.»`)}
+
+<p>Vier Gurtwinkel in den Ecken (Schenkel nach innen), Bindebleche auf
+allen vier Seiten, unten konisch bis zum Knick, darüber gerade. Über dem
+Kopf steht ein Rohr bzw. ein Mastaufsatz. Der Typ ist unter <i>Profile</i>
+wählbar, wo sonst ein Walzprofil steht; die Länge ist je Typ fest.</p>
+
+<h4>18.1 Modell</h4>
+<p>Der Mast wird im Stabwerk zum Fachwerk: die vier Gurte auf ihren
+Schwerachsen, die Bleche über ihre lichte Länge mit starren Enden. An
+jedem Achsknoten sitzt ein <b>Schott</b> - starre Stäbe von der Mastachse
+zu den vier Gurten. An diesen Achsknoten hängt alles, was am Masten
+anschliesst: die Konsolen des Jochs, die Anbauteile, der Anker und das
+eine, voll eingespannte Auflager am Fuss. Das Rohr ist an Knick und Kopf
+gehalten und läuft frei darüber; Teile über dem Kopf hängen am Rohr.</p>
+
+<h4>18.2 Nachweise</h4>
+<table class="dt">
+<tr><th>Teil</th><th>Nachweis</th></tr>
+<tr><td>Gurt</td><td>Winkel, vorzeichenrichtig, je Stab</td></tr>
+<tr><td>Bindeblech</td><td>Rechteck mit Schub, je Stab</td></tr>
+<tr><td>Rohr / Aufsatz</td><td>Biegung und Normalkraft</td></tr>
+<tr><td>Diagramm</td><td>Kontrolle nach dem Bemessungsdiagramm des Typs:
+  η = M_a/zul_a + M_b/zul_b am Fuss, charakteristisch; zählt nicht zum Urteil</td></tr>
+</table>
+<p><b>Nicht geführt:</b> Knicken (Gurt zwischen den Blechen, Mast als
+Ganzes) und Fundament (kein Standardtyp zugeordnet). Die örtliche
+Einleitung eines Anbauteils in einen einzelnen Gurtwinkel ist nicht
+abgebildet. Am Abfangjoch und am Tragausleger ist der Gittermast nicht
+gebaut.</p>
+
+<h4>18.3 Wind</h4>
+<p>w(z) = Wert je m² Angriffsfläche × A_s(z). A_s ist die Ansichtsfläche
+der Stäbe der Seite quer zum Wind je Meter Höhe (zwei Gurtschenkel und
+Bindebleche). Der Wert ist die Windlast der Tragjoche bezogen auf ihre
+Angriffsfläche, gemittelt über die Typen. Das Rohr: w = 1.2 · q · d. Die
+Herleitung steht im Profilblatt des Typs.</p>
+`,
+},
+{
+  id: 'einheitswind',
+  titel: '19 · Einheitswind der alten Norm, Bestandesschutz',
+  html: `
+${q(`Weisung vom 3. Oktober: «früher wurde nur der winddruck 1.0 kN/m2
+angewendet, ohne die 1.4 formbeiwerte und bei den jochen wurde der wind nur
+auf die jeweilige angriffsfläche angesetzt. sow wie auch bei den masten. …
+dieser sollte auch auf die anbauteile gelten.»`)}
+
+<p>Unter <i>Lasten → Windbelastung</i> steht neben EK1-EK3 die Stufe
+<b>Einheitswind 1.0 kN/m²</b>. Sie dient dem Vergleich mit der damaligen
+Bemessung: bleibt die Lastzunahme innerhalb der Regel des
+Bestandesschutzes, kann der vertiefte Nachweis entfallen. Angesetzt wird
+überall <b>Angriffsfläche × 1.0 kN/m²</b>, ohne Formbeiwert und nur auf
+eine Ebene.</p>
+
+<table class="dt">
+<tr><th>Teil</th><th>Angriffsfläche</th></tr>
+<tr><td>Tragjoch</td><td>stehende Gurtschenkel und Vertikalbleche einer Seite, aus der Geometrie</td></tr>
+<tr><td>Abfangjoch, Tragausleger</td><td>Höhe des vorderen Profils</td></tr>
+<tr><td>Mast (Walzprofil)</td><td>Profilbreite (Tabellenwert / (q · 1.4))</td></tr>
+<tr><td>Gittermast</td><td>Stabfläche A_s(z); Rohr und Aufsatz mit Durchmesser bzw. Kante</td></tr>
+<tr><td>Anbauteile der Lasttabelle</td><td>Tabellenwert / (q · c), über EK1-EK3 gemittelt; c = 1.4, bei Drähten 1.0</td></tr>
+<tr><td>freie Fläche, Signal</td><td>eingegebene Fläche</td></tr>
+</table>
+<p>Von Hand eingegebene Windkräfte bleiben, wie sie sind. Lastbeiwerte,
+Kombinationen und Nachweise sind dieselben. Ist der Einheitswind gewählt,
+steht unter <i>Verläufe</i> je Gittermast das alte Bemessungsdiagramm mit
+dem massgebenden Zustand.</p>
+`,
+},
+{
+  id: 'abgefangen',
+  titel: '20 · Abgefangene Leiter und Anker am Abfangjoch',
+  html: `
+${q(`Weisung vom 24. September: «Die leiter könen als durchgehend / beidseiig
+abgefangen / einseitig abgefangen definiert werden.» - und vom 3. Oktober:
+«was noch fehlt bei den anbauteilen sind die tragseile / fahrdraht einseitig
+abgefangen für das abfangjoch.»`)}
+
+<table class="dt">
+<tr><th>Abfangung</th><th>ständig</th><th>beim Leiterriss (−20 °C)</th></tr>
+<tr><td>durchgehend</td><td>kein Längszug</td><td>10 % des Leiterzugs</td></tr>
+<tr><td>beidseitig abgefangen</td><td>die Züge heben sich auf</td><td>voller Zug einseitig</td></tr>
+<tr><td>einseitig abgefangen</td><td>voller Zug bei +5 °C in seine Richtung</td><td>der gerissene fällt weg, die übrigen mit dem Zug bei −20 °C</td></tr>
+</table>
+<p>Die Abfangung steht in der Karte des Bauteils. Am Abfangjoch ist
+«einseitig» die Vorgabe, sonst «durchgehend». Die Vorlagen «Tragseil /
+Fahrdraht N-FL / R-FL abgefangen» setzen einseitig von selbst; eine Kopie
+und eine Tragwerk-Vorlage nehmen die Wahl mit. Der Leiterzug kommt aus der
+Lasttabelle; wo eine Reglagezeile hinterlegt ist, temperaturabhängig.</p>
+
+<h4>20.1 Anker</h4>
+<p>Zuganker und Druckstützen stehen auch am Masten eines Abfangjochs im
+Stabwerk: der Mast wird am Ankerpunkt geteilt, und liegt der Punkt über dem
+Trägeranschluss, läuft der Mast bis dorthin weiter. Für den Leiterzug
+gehört der Anker in die Gleisrichtung, auf die Seite, zu der er zieht.</p>
+
+<h4>20.2 Im Bild</h4>
+<p>Ein Anbauteil am Abfangjoch trägt eine Klemme quer über dem Träger. An
+ihr lässt es sich längs verschieben (Strg = Kopie); ein Klick in der Liste
+fährt das Bild heran.</p>
+`,
+},
 ];
 
 /** Das ganze Handbuch als HTML, mit Inhaltsverzeichnis. */

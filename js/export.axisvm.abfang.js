@@ -286,8 +286,21 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     name, form: 'Rectangle', parameter: [m.b, m.t],
     profil: `Flachstahl ${m.b}/${m.t}`,
     A: (m.b * m.t) / 1e6,
-    Iy: (m.t * m.b ** 3) / 12 / 1e12,
-    Iz: (m.b * m.t ** 3) / 12 / 1e12,
+    /*
+     * >>> I_y UND I_z STANDEN VERTAUSCHT (3. Oktober, gemessen gegen AxisVM). <<<
+     * Das Blech liegt flach: die Breite b misst in der lokalen y (Träger-
+     * richtung), die Dicke in der lokalen z (lotrecht). Stark ist damit die
+     * Biegung um die LOKALE z (in der Trägerebene, I_z = t·b³/12), schwach
+     * die um y. Hier stand es umgekehrt. AxisVM baut das Rechteck aus den
+     * Abmessungen und lag richtig; der eigene Löser liest diese Zahlen und
+     * rechnete das Blech hochkant - der liegende Vierendeel war bei ihm in
+     * Gleisrichtung fünfmal zu weich (zwei A160/12.5 m, vier abgefangene
+     * Leiter: 126 statt 25 mm), die Gurte trugen den Leiterzug fast allein.
+     * Dieselbe Regel wie beim Tragjoch, dessen Bleche ohne Zahlen hinausgehen
+     * (`qsWerte` rechnet sie aus [b, h]).
+     */
+    Iy: (m.b * m.t ** 3) / 12 / 1e12,
+    Iz: (m.t * m.b ** 3) / 12 / 1e12,
     It: (m.b * m.t ** 3) / 3 / 1e12,
   });
   /*
@@ -1540,7 +1553,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    *
    * Beide teilen sich auf die zwei Gurte, wie das Eigengewicht.
    */
-  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[ekAn] ?? '1.1';
+  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3', EK0: '1.0' }[ekAn] ?? '1.1';
   const wJoch = abfangWind(a, ekAn);
   const sKl = String(opt.schneeKlasse ?? '1.25');
   const sJoch = (opt.schneeAktiv === false ? 0 : (a?.schnee?.[sKl] ?? 0));

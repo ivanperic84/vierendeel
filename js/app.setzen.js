@@ -14,7 +14,7 @@ import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangVorgabeFuer } from './core.lasten.js';
-import { getVorlage, leiterKennung, neuesAnbauteil, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { getVorlage, havarieKopieren, leiterKennung, neuesAnbauteil, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -328,6 +328,7 @@ function setzeBaugruppeAnStelle(app, roh) {
       let b; try { b = getFlBauteil(m.bauteil); } catch { return; }
       if (b.rolle !== 'drahtwerk') return;
       const k = leiterKennung(t, m, i);
+      if (hav[k]?.art) return;                       // eine Kopie bringt ihre Wahl mit
       hav[k] = { ...(hav[k] ?? {}), art: artV, name: hav[k]?.name ?? `${t.name} · ${b.name}` };
     });
     app.werte.havarie = hav;
@@ -563,6 +564,8 @@ export function setzeKopieAnStelle(app, id) {
   const kopie = JSON.parse(JSON.stringify(quelle));
   kopie.id = `AT-${Math.random().toString(36).slice(2, 8)}`;
   kopie.aktiv = true;
+  // Abfangart und Zugrichtung der Leiter gehen mit (siehe `havarieKopieren`).
+  app.werte.havarie = havarieKopieren(app.werte.havarie, quelle, kopie);
   setzeBaugruppeAnStelle(app, kopie);
 }
 

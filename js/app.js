@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { standAnheben, amMast } from './data.anbauteile.js';
+import { standAnheben, amMast, havarieKopieren } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -3519,6 +3519,8 @@ function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {
   }
   if (kopie) liste.splice(i + 1, 0, neu);
   else liste[i] = neu;
+  // Abfangart und Zugrichtung der Leiter gehen mit der Kopie (`havarieKopieren`).
+  if (kopie) werte.havarie = havarieKopieren(werte.havarie, a, neu);
   setzeAnbauteile(liste);
   meldeImBalken(`${a.name ?? 'Anbauteil'} ${kopie ? 'kopiert' : 'verschoben'}: ${text}`
     + ' · Strg+Z nimmt es zurück', { dauer: 5000 });

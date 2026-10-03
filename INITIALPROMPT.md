@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **3. Oktober 2026**; Prüfstand 6498 Kontrollen grün,
+Stand: **3. Oktober 2026**; Prüfstand 6510 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht.
@@ -23,6 +23,12 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **3. Oktober, Quervergleich AxisVM:** zwei Beispielblätter gebaut und
+  gerechnet (`modell_beispiele.mjs`). Fehler gefunden und behoben: das liegende
+  Bindeblech des Abfangjochs stand im Löser hochkant (I_y/I_z vertauscht),
+  Abfangjoch-η des Stabwerks lagen zu hoch. ⚠ Offen: Rest 6-20 % am Abfangjoch,
+  Klemmzonen der Anbauteile. Handbuch 20 Kapitel; Kopie und Tragwerk-Vorlage
+  nehmen die Abfangart der Leiter mit.
 - **3. Oktober, Anker:** das Stabmodell des Abfangjochs baut den Anker jetzt
   (fehlte ganz); am geteilten Masten steht er einmal statt je Tragwerk
   (vorher halbe Ankerkraft, unsichere Seite). Anbauteile am Abfangjoch im 3D

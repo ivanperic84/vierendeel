@@ -771,6 +771,29 @@ export function leiterKennung(a, m, i) {
   return kw ? `kw:${kw}` : `${a?.id}#${i}`;
 }
 
+/**
+ * >>> DIE WAHL JE LEITER GEHT MIT DER KOPIE (3. Oktober). <<<
+ * Abfangart, Zugrichtung und «kann reissen» hängen an der Kennung der
+ * Baugruppe (`<id>#<Modul>`). Eine Kopie bekommt eine neue Kennung - ohne
+ * diesen Schritt fiel ihr Leiter auf die Vorgabe zurück: ein kopierter
+ * «einseitig abgefangener» Leiter war am Tragjoch wieder «durchgehend»,
+ * ohne ständigen Zug (unsichere Seite, an nichts zu sehen als am η).
+ * Kettenwerke (`kw:…`) teilen ihre Kennung ohnehin.
+ *
+ * @returns {object} neue Auswahl; dieselbe, wenn nichts zu kopieren ist
+ */
+export function havarieKopieren(havarie, quelle, kopie) {
+  if (!havarie || !quelle?.id || !kopie?.id || quelle.id === kopie.id) return havarie ?? {};
+  let neu = null;
+  (quelle.module ?? []).forEach((m, i) => {
+    const e = havarie[`${quelle.id}#${i}`];
+    if (!e) return;
+    neu = neu ?? { ...havarie };
+    neu[`${kopie.id}#${i}`] = { ...e };
+  });
+  return neu ?? havarie;
+}
+
 /** Die Havarie-Kandidaten eines Satzes: die angehakten Leiter. */
 export function havarieKandidaten(havarie) {
   return Object.entries(havarie ?? {})

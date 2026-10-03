@@ -290,6 +290,10 @@ const VORLAGE_AUS = [
   'lastHerkunft', 'windKlasse', 'schneeAktiv', 'schneeKlasse', 'gZusatz',
   'normensatz', 'gammaG', 'gammaQ', 'psi0', 'gammaM0',
   'lastfallAnpassung', 'lastfaelleEigen',
+  // Die Wahl je Leiter (Abfangart, Zugrichtung, «kann reissen») hängt an den
+  // Kennungen der Anbauteile und reist deshalb mit ihnen (3. Oktober) - ohne
+  // sie fiel jeder abgefangene Leiter der Vorlage auf die Vorgabe zurück.
+  'havarie', 'havarieAus',
   // Der Merker reist mit: eine Vorlage von heute trägt F_z nach oben, eine
   // von früher nicht (1. Oktober, `fzNachObenAnheben`).
   'fzNachOben',

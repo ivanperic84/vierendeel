@@ -2237,7 +2237,7 @@ titel('29  Handbuch');
    *
    * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
    */
-  wahr('Handbuch hat alle sechzehn Abschnitte', HB.HANDBUCH.length === 16,
+  wahr('Handbuch hat alle zwanzig Abschnitte', HB.HANDBUCH.length === 20,
        `${HB.HANDBUCH.length} Abschnitte`);
   /*
    * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
@@ -37064,6 +37064,85 @@ if (AJ.abfangDbDa()) {
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Reihenmarken leiser: die Ampel trägt nur die Zahl', css.includes('.sw-bauteil.ok b   { color: var(--ok); }')
        && !css.includes('.sw-bauteil.ok   { border-color: var(--ok);'));
+}
+
+/* =========================================================================
+ * 211  EXPORT UND IMPORT MIT DEN NEUEN ANGABEN; LIEGENDES BLECH DES
+ *      ABFANGJOCHS; QUERVERGLEICH MIT AxisVM (3. Oktober)
+ * =========================================================================
+ * «den export und import auf datenvertäglichkeit und funktionalität
+ * chekcen» - «checke den bau im axisvm mit den getesteten tragweken und
+ * mach einen qervergleich mit der app bezüglich der auswertung der
+ * resultate.»
+ * ========================================================================= */
+{
+  const P211 = await import(J('data.paket.js'));
+  const DA211 = await import(J('data.anbauteile.js'));
+  const M211 = await import(J('data.masten.js'));
+  const ST211 = await import(J('store.js'));
+  const TB211 = await import(J('data.tabellen.js'));
+  const SW211 = await import(J('core.stabwerk.js'));
+
+  // --- Datenpaket: hin und zurück, mit den neuen Spalten und Typen ----------
+  const paket = JSON.parse(JSON.stringify(P211.paketAus('Rundlauf 211')));
+  wahr('Datenpaket besteht seine Prüfung', P211.pruefePaket(paket).ok);
+  const vorVorl = JSON.stringify(DA211.vorlagen().filter((v) => !v.eigen));
+  const vorGitter = JSON.stringify(M211.gittermasten());
+  P211.paketAnwenden(paket, false);
+  wahr('… die Anbauteil-Vorlagen kommen unverändert zurück (mit der Spalte «abfangung»)',
+       JSON.stringify(DA211.vorlagen().filter((v) => !v.eigen)) === vorVorl
+       && DA211.vorlagen().filter((v) => v.abfangung === 'einseitig').length === 4);
+  wahr('… die Gittermasten ebenso (mit dem Typ I 30 UL)',
+       JSON.stringify(M211.gittermasten()) === vorGitter && M211.gittermasten().some((g) => g.typ === 'I 30 UL'));
+  pruef('… der Einheitswind folgt auch nach dem Laden aus der Tabelle', M211.mastWind('HEB 260', 'EK0'), 0.26, 0.005, 'kN/m');
+  // Über Excel: die Tabellenform führt die neue Spalte im Katalog.
+  const tabA = TB211.zerlege('anbauteile', DA211.anbauteilDB());
+  wahr('Tabellenform der Anbauteile führt «abfangung» und kommt gleich zurück',
+       JSON.stringify(tabA).includes('"abfangung":"einseitig"')
+       && JSON.stringify(TB211.ausTabellen(JSON.parse(TB211.alsDateitext(tabA)), 'anbauteile').vorlagen)
+          === JSON.stringify(DA211.anbauteilDB().vorlagen));
+
+  // --- Stand: Einheitswind, Gittermast und Abfangart überstehen das Laden ---
+  const C211 = await import(J('core.constants.js'));
+  let w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', windKlasse: '1.0' };
+  const at = { ...DA211.neuesAnbauteil('leiter-ts-nfl-abf', 8), ort: 'joch' };
+  w.anbauteile = [at];
+  w.havarie = { [DA211.leiterKennung(at, at.module[0], 0)]: { art: 'einseitig', richtung: '-y', name: 'Tragseil' } };
+  w = C211.setzeMastAngabe(w, C211.mastenVon(w)[0].id, 'mastProfil', M211.GITTER_PRAEFIX + 'I 30 UL');
+  const zurueck = DA211.standAnheben(JSON.parse(JSON.stringify(w)));
+  wahr('Gespeicherter Stand: Windstufe «Einheitswind», Abfangart je Leiter und Gittermast bleiben',
+       zurueck.windKlasse === '1.0' && Object.values(zurueck.havarie)[0].art === 'einseitig'
+       && Object.values(zurueck.havarie)[0].richtung === '-y'
+       && C211.mastenVon(zurueck)[0].profil === M211.GITTER_PRAEFIX + 'I 30 UL');
+  // Tragwerk-Vorlage: die Wahl je Leiter reist mit den Anbauteilen.
+  const vl = ST211.vorlageAusWerten(w);
+  wahr('Tragwerk-Vorlage nimmt die Wahl je Leiter mit (Abfangart, Zugrichtung)',
+       vl.havarie && Object.values(vl.havarie)[0].art === 'einseitig' && vl.windKlasse === '1.0');
+  // Kopie eines Anbauteils: die Wahl geht mit.
+  const kopie = { ...JSON.parse(JSON.stringify(at)), id: 'AT-kopie' };
+  const hk = DA211.havarieKopieren(w.havarie, at, kopie);
+  wahr('Kopie eines Anbauteils: Abfangart und Zugrichtung gehen mit, die Quelle bleibt',
+       hk['AT-kopie#0']?.art === 'einseitig' && hk['AT-kopie#0']?.richtung === '-y'
+       && hk[`${at.id}#0`]?.art === 'einseitig' && hk !== w.havarie && !w.havarie['AT-kopie#0']);
+  wahr('… ohne Eintrag an der Quelle bleibt die Auswahl dieselbe', DA211.havarieKopieren(w.havarie, { id: 'x', module: [{}] }, kopie) === w.havarie);
+
+  // --- Das liegende Blech des Abfangjochs ---------------------------------
+  if (AJ.abfangDbDa()) {
+    const AXA = await import(J('export.axisvm.abfang.js'));
+    const d = AXA.abfangAxisvmModell('A160', 12.5, { anbauteile: [] });
+    const qb = d.querschnitte.find((q) => q.name === 'BLECH');
+    wahr('Abfangjoch: das liegende Bindeblech ist um die lokale z stark (I_z = t·b³/12), nicht um y',
+         qb && qb.Iz > 50 * qb.Iy && Math.abs(qb.Iz - qb.parameter[1] * qb.parameter[0] ** 3 / 12 / 1e12) < 1e-15,
+         `I_y ${(qb.Iy * 1e8).toFixed(2)} · I_z ${(qb.Iz * 1e8).toFixed(1)} cm⁴`);
+    const ohne = { ...qb }; delete ohne.A; delete ohne.Iy; delete ohne.Iz;
+    const ww = SW211.qsWerte(ohne);
+    wahr('… dieselben Werte, die der Löser aus den Abmessungen rechnet (wie beim Tragjoch)',
+         Math.abs(ww.Iy - qb.Iy) < 1e-15 && Math.abs(ww.Iz - qb.Iz) < 1e-15);
+  }
+  const vq = readFileSync(join(HIER, 'vergleich_axisvm.mjs'), 'utf8');
+  wahr('vergleich_axisvm.mjs: Rechnung ohne Schubverformung und Ortsfilter für die Klemmzonen',
+       vq.includes("process.argv.includes('--ohne-schub')") && vq.includes("process.argv.indexOf('--ausser-x')"));
 }
 
 console.log('\n' + '='.repeat(104));

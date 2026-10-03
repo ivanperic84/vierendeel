@@ -130,7 +130,30 @@ if (nachgetragen.length) {
   console.log(`HINWEIS: I_yz nachgetragen (Datei vor dem 26. September): `
     + nachgetragen.join(', '));
 }
-const lsg = SW.loese(dat, { eigengewicht: true });
+// `--ohne-schub`: der Loeser ohne Schubverformung, wie AxisVM die Staebe rechnet
+// (3. Oktober: am Abfangjoch macht sie in den Endfeldern bis 45 % aus).
+const OHNE_SCHUB = process.argv.includes('--ohne-schub');
+/*
+ * `--ausser-x 6,12,18:0.5`: Staebe, deren Mitte naeher als 0.5 m an einer
+ * dieser Stellen x liegt, bleiben draussen - die Klemmzonen der Anbauteile,
+ * wo Starrkoerper (AxisVM) und steife Staebe (Loeser) oertlich anders tragen.
+ */
+const iAus = process.argv.indexOf('--ausser-x');
+let AUSSER = null;
+if (iAus > 0) {
+  const [xs, r] = String(process.argv[iAus + 1]).split(':');
+  const stellen = xs.split(',').map(Number), rad = Number(r) || 0.5;
+  const knA = new Map(), stA = new Map();
+  AUSSER = (stab) => {
+    if (!knA.size) { dat.knoten.forEach((k) => knA.set(k.name, k)); dat.staebe.forEach((q) => stA.set(q.name, q)); }
+    const q = stA.get(stab); if (!q || /^MAST_/.test(stab)) return false;
+    const xm = (knA.get(q.von).x + knA.get(q.bis).x) / 2;
+    return stellen.some((x) => Math.abs(xm - x) < rad);
+  };
+  console.log(`Ohne die Staebe um x = ${stellen.join(', ')} (+- ${rad} m).`);
+}
+if (OHNE_SCHUB) console.log('Loeser OHNE Schubverformung (wie AxisVM).');
+const lsg = SW.loese(dat, { eigengewicht: true, ...(OHNE_SCHUB ? { schubweich: false } : {}) });
 console.log(`\nLoeser: ${lsg.n} Freiheitsgrade, Bandbreite ${lsg.bw}, `
   + `Eigengewicht ${lsg.eigengewicht.toFixed(3)} kN ueber ${lsg.eigenLasten} Staebe, `
   + `${lsg.zeit.gesamt} ms`);
@@ -192,6 +215,7 @@ Object.keys(jeFall).sort().forEach((fall) => {
   const stat = new Map();
   jeFall[fall].forEach((schnitte, stab) => {
     if ((art.get(stab) ?? 'stab') !== 'stab') return;
+    if (AUSSER && AUSSER(stab)) return;
     const r = rolle(stab);
     if (r === 'starr' || r === 'link' || r === 'sonst') return;
     const f = K.get(stab);

@@ -1102,7 +1102,7 @@ export const RECHENVERFAHREN = [
   { key: 'ersatzbalken', titel: 'Ersatzbalken (schnell)',
     was: 'Balken mit Drehfedern, Schnittgrössen auf Gurte und Bleche aufgeteilt. Rechnet bei jeder Eingabe mit, rund 5 ms.' },
   { key: 'stabwerk', titel: 'Stabwerk (genau)',
-    was: 'Jeder Gurt und jedes Blech ein eigener Stab. Läuft auf Knopfdruck, rund 0.4 s — dafür sieht er auch die Biegung der Bleche aus ihrer Ebene heraus, die ein Balken nicht führen kann.' },
+    was: 'Das ganze Blatt als räumliches Stabmodell: jeder Gurt, jedes Blech, jeder Mast und Anker ein eigener Stab, geteilte Masten einmal. Rechnet rund 1 s nach der letzten Eingabe von selbst (0.4 bis 1.5 s) und führt dann Kacheln, Plot, Verläufe, Bericht und Excel. Nötig für Abfangjoch, Tragausleger, Jochreihe und Gittermast.' },
 ];
 
 export const RECHENVERFAHREN_VORGABE = 'stabwerk';
