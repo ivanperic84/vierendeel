@@ -2679,6 +2679,7 @@ function anbauteileHtml(g, werte) {
   const einzelmast = tragwerksart(werte).key === 'einzelmast';
   const liste = (werte.anbauteile ?? []).map(normalisiereAnbauteil)
     .map((a) => (einzelmast && ortVon(a) === 'joch' ? { ...a, ort: 'mastA' } : a));
+  const bestandAn = nachweiseAuswahl(werte.nachweise).bestandesschutz === true;
   /*
    * >>> VIERZEHN GLEICHE KACHELN SIND EINE LISTE, KEINE AUSWAHL. <<<
    *
@@ -3151,17 +3152,25 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
      * Eingaben bleiben. Steht noch eines an, schaltet er alle aus; sonst
      * alle ein. Rückgängig mit Strg+Z.
      */
-    (liste.length ? `<div class="at-leiste">
-      ${(() => {
+    /*
+     * >>> DER BESTANDESSCHUTZ GESPIEGELT (4. Oktober). <<< Hier markiert man
+     * die Teile als «neu» - also gehört der Schalter auch hierher, nicht nur
+     * in die Optionen («ich bin mir nicht sicher ob dies nicht zu versteckt
+     * ist»). Derselbe Wert wie unter Lasten, geschrieben über `aendern`.
+     */
+    `<div class="at-leiste">
+      <label class="schalter at-bestand" title="Bestand gegen Bestand + neue Bauteile vergleichen (Δη ≤ 0.05); eingeschaltet zeigt jede Karte das Kennzeichen «neu»">
+        <input type="checkbox" data-at-bestand${bestandAn ? ' checked' : ''}><span>Bestandesschutz</span></label>
+      ${liste.length ? (() => {
         const an = liste.filter((a) => a.aktiv !== false).length;
         return `<button class="btn btn-mini${an ? '' : ' btn-acc'}" data-at-alle-aktiv="${an ? 'aus' : 'ein'}" type="button"
               title="${an ? 'Alle Anbauteile ausschalten - nicht gerechnet, nicht gezeichnet, Eingaben bleiben'
                           : 'Alle Anbauteile wieder einschalten'} (Rückgängig mit Strg+Z)"
               >${an ? `Alle aus (${an} an)` : `Alle ein (${liste.length})`}</button>`;
-      })()}
+      })() : ''}
       ${liste.length > 1 ? `<button class="btn btn-mini" data-at-alle-weg type="button"
               title="Alle Anbauteile dieses Tragwerks entfernen (fragt nach, Rückgängig mit Strg+Z)"
-              >Alle entfernen (${liste.length})</button>` : ''}</div>` : '') +
+              >Alle entfernen (${liste.length})</button>` : ''}</div>` +
     `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`;
 }
 
@@ -4892,6 +4901,10 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   container.querySelector('[data-at-alle-weg]')?.addEventListener('click',
     () => beiAnbauAlleWeg?.());
+  // Der gespiegelte Schalter «Bestandesschutz» (4. Oktober): über `aendern`
+  // in die Nachweisauswahl, wie das Feld unter Lasten.
+  container.querySelector('[data-at-bestand]')?.addEventListener('change', (e) =>
+    leisteAendern?.('bestandesschutz', e.currentTarget.checked));
   // Alle aus / alle ein (2. Oktober) - derselbe Weg wie das Häkchen je Teil.
   container.querySelector('[data-at-alle-aktiv]')?.addEventListener('click', (e) => {
     const an = e.currentTarget.dataset.atAlleAktiv === 'ein';

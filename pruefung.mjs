@@ -38255,6 +38255,48 @@ titel('229  Gittermast: Rippen halten nur seitlich; zwei Wanddicken');
   }
 }
 
+/* =========================================================================
+ * 230  BESTANDESSCHUTZ: SCHALTER UNTER LASTEN UND ÜBER DER ANBAUTEILLISTE (4. Oktober)
+ * =========================================================================
+ * Weisung: «ich bin mir nicht sicher ob dies nicht zu versteckt ist. was
+ * wäre eine alternative? unter lasten, da ist schon der einheitswind
+ * aufgefürht?» Auf Rückfrage «Lasten + Anbauteile» und «Ja, eine Zeile».
+ * ========================================================================= */
+titel('230  Bestandesschutz: Schalter unter Lasten und über der Anbauteilliste');
+{
+  const SCH230 = await import(J('ui.schema.js'));
+  const U230 = await import(J('ui.js'));
+  const i = SCH230.FELDER.findIndex((f) => f.key === 'bestandesschutz');
+  const f = SCH230.FELDER[i];
+  wahr('Ein Schalter «Bestandesschutz» in der Gruppe Lasten, direkt unter der Windbelastung',
+       f && f.gruppe === 'ein' && f.typ === 'schalter' && SCH230.FELDER[i - 1]?.key === 'windKlasse');
+  const w0 = { ...standardwerteApp(), lastHerkunft: 'tabelle' };
+  wahr('Er steht bei jeder Tragwerksart da (auch am Einzelmasten)',
+       SCH230.sichtbareFelder('ein', w0).some((x) => x.key === 'bestandesschutz')
+       && SCH230.sichtbareFelder('ein', { ...w0, tragwerksart: 'einzelmast' }).some((x) => x.key === 'bestandesschutz'));
+  wahr('Er zeigt die Nachweisauswahl - kein eigener Wert im Stand',
+       f.wertAus(w0) === false && f.wertAus({ ...w0, nachweise: { bestandesschutz: true } }) === true
+       && standardwerteApp().bestandesschutz === undefined);
+  const an = { bestandesschutz: true };
+  wahr('Die Zeile «Bestand nach alter Norm?» nur mit Einheitswind und ausgeschaltetem Bestandesschutz',
+       /alter Norm/.test(f.notiz({ ...w0, windKlasse: '1.0' }) ?? '')
+       && f.notiz({ ...w0, windKlasse: '1.0', nachweise: an }) === null
+       && f.notiz({ ...w0, windKlasse: '0.9' }) === null);
+  const h0 = U230.feldHtml(f, f.wertAus(w0), w0);
+  const h1 = U230.feldHtml(f, true, { ...w0, nachweise: an });
+  wahr('Das Feld zeichnet sich als Kästchen, angekreuzt nach der Auswahl',
+       /type="checkbox"[^>]*data-feld="bestandesschutz"/.test(h0) && !/checked/.test(h0) && /checked/.test(h1));
+  const q = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const qa = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Gespiegelt über der Anbauteilliste, auch ohne Teile, und über `aendern` geschrieben',
+       /data-at-bestand\$\{bestandAn \? ' checked' : ''\}/.test(q)
+       && /leisteAendern\?\.\('bestandesschutz', e\.currentTarget\.checked\)/.test(q));
+  wahr('`aendern` schreibt den Schalter in die Nachweisauswahl, wie die Optionen',
+       /if \(key === 'bestandesschutz'\) \{\s*return aendern\('nachweise', \{ \.\.\.\(werte\.nachweise \?\? \{\}\), bestandesschutz: wert === true \}\);/.test(qa));
+  const CH230 = await import(J('core.checks.js'));
+  wahr('Die Optionen behalten den Eintrag', CH230.NACHWEISGRUPPEN.some((g) => g.key === 'bestandesschutz'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

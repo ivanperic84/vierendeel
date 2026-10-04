@@ -3126,6 +3126,9 @@ body.datei-ueber::after {
 #bericht-ebene .bericht-leiste b { margin-right: auto; }
 #bericht-ebene iframe { flex: 1; border: 0; background: #fff; width: 100%; }
 .at-leiste { display: flex; justify-content: flex-end; gap: 6px; margin: 4px 0 6px; }
+/* Der gespiegelte Schalter «Bestandesschutz» (4. Oktober) links, die Knöpfe
+   rechts - er gehört zum Kennzeichen «neu» der Karten darunter. */
+.at-leiste .at-bestand { margin-right: auto; font-size: 11.5px; }
 
 /* ===========================================================================
    BAUM MIT LAGEBAND (Weisung vom 19. September, «A mit dem Band»)

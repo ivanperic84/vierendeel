@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6636 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung
+Stand: **4. Oktober 2026**; Prüfstand 6644 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung
 mit dem Datenpaket vom 3. Oktober + Halterippen), `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 Weisung 2. Oktober: «pushen wenn es eine funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Am 4. Oktober auf Weisung («danach stand auf main stellen») nach `main`
@@ -20,8 +20,8 @@ Gebaut am 4. Oktober (Prüfstand 221-229): direkte Starrglieder der Anbauteile, 
 Stabwerk gefärbt, Masten am Abfangjoch ziehen, GZG am Fahrdraht mit Mastspitzen an der Figur,
 Einzelmast vereinheitlicht, Figur mit ψ und Grundlage, Rohr an den Halterippen (nur seitlich,
 am Kopf verschraubt; UL-Rohr mit zwei Wanddicken), **gewählter Lastfall
-aus dem Stabwerk** (Kacheln, Bild, Schiene), **Bestandesschutz** (Optionen → Nachweise, Kennzeichen «neu»
-je Anbauteil, Δη ≤ 0.05 je Bauteil).
+aus dem Stabwerk** (Kacheln, Bild, Schiene), **Bestandesschutz** (Schalter unter Lasten bei der Windbelastung, über der Anbauteilliste und in
+den Optionen; Kennzeichen «neu» je Anbauteil, Δη ≤ 0.05 je Bauteil).
 
 **Nächster Schritt (wartet auf den Auftraggeber):**
 1. Gittermast: Rippen halten seit dem 4. Oktober nur seitlich, das UL-Rohr hat zwei Wanddicken
@@ -224,7 +224,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6636 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6644 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

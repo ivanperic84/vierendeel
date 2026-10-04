@@ -38,6 +38,7 @@ import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          getAnkerTyp } from './data.anker.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
+import { nachweiseAuswahl } from './core.checks.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
          SPANNUNGSMODELLE, KNOTENBEREICHE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
@@ -1815,6 +1816,30 @@ export const FELDER = [
       + 'Formbeiwert — Joch (stehende Gurtschenkel + Vertikalbleche), Masten '
       + '(Profilbreite), Anbauteile (Fläche aus dem Tabellenwert); für den '
       + 'Vergleich im Bestandesschutz. Von Hand eingegebene Windkräfte bleiben.'},
+  /*
+   * >>> DER BESTANDESSCHUTZ STEHT AUCH UNTER LASTEN (4. Oktober). <<<
+   *
+   * Weisung: «ich bin mir nicht sicher ob dies nicht zu versteckt ist. was
+   * wäre eine alternative? unter lasten, da ist schon der einheitswind
+   * aufgefürht?» Auf Rückfrage «Lasten + Anbauteile»: ein Schalter, direkt
+   * unter der Windbelastung (dort wählt man für die alte Norm den
+   * Einheitswind) und gespiegelt über der Anbauteilliste; die Optionen
+   * behalten ihn. Und «Ja, eine Zeile»: steht der Einheitswind und ist der
+   * Bestandesschutz aus, fragt die Notiz am Schalter nach - kein Dialog,
+   * nichts schaltet sich von selbst ein.
+   *
+   * GESPEICHERT WIRD NICHT HIER. Das Feld zeigt `nachweise.bestandesschutz`
+   * (`wertAus`), `aendern` in app.js schreibt dorthin zurück - ein zweiter
+   * Ort für dieselbe Wahl wäre einer, der sich irgendwann widerspricht.
+   */
+  { key: 'bestandesschutz', gruppe: 'ein', typ: 'schalter', label: 'Bestandesschutz',
+    wertAus: (w) => nachweiseAuswahl(w.nachweise).bestandesschutz === true,
+    notiz: (w) => (w.windKlasse === '1.0' && !nachweiseAuswahl(w.nachweise).bestandesschutz
+      ? 'Bestand nach alter Norm? Bestandesschutz prüfen' : null),
+    hinweis: 'Vergleich Bestand gegen Bestand + neue Bauteile: je Bauteil '
+      + 'Δη ≤ 0.05, beide Zustände mit der gewählten Windstufe. Eingeschaltet '
+      + 'zeigt jede Bauteilkarte das Kennzeichen «neu». Derselbe Schalter wie '
+      + 'unter Optionen → Nachweise und über der Anbauteilliste.' },
   { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'

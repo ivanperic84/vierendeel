@@ -2848,6 +2848,14 @@ function aendern(key, wert) {
    * sie hier auf die naechste ein: die Geste bleibt frei, das Ergebnis
    * gefuehrt.
    */
+  /*
+   * DER SCHALTER «BESTANDESSCHUTZ» UNTER LASTEN UND ÜBER DER ANBAUTEILLISTE
+   * (4. Oktober) schreibt in die Nachweisauswahl - dieselbe Stelle wie die
+   * Optionen. Kein eigenes Feld `bestandesschutz` im Stand.
+   */
+  if (key === 'bestandesschutz') {
+    return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });
+  }
   if (key === 'L' && tragwerksart(werte).key === 'abfangjoch') {
     const nah = abfangNaechsteLaenge(werte.abfangTyp, wert);
     if (nah !== null) wert = nah;
