@@ -89,7 +89,21 @@ export function dreibein(dx, dy, dz, lcsZ) {
     zr = [zr[0] - s * ex[0], zr[1] - s * ex[1], zr[2] - s * ex[2]];
     if (Math.hypot(zr[0], zr[1], zr[2]) < 1e-8) zr = null;
   }
-  if (!zr) zr = Math.abs(ex[2]) > 0.999 ? [1, 0, 0] : [0, 0, 1];
+  if (!zr) {
+    /*
+     * >>> AUCH DIE VORGABE GEHÖRT RECHTWINKLIG ZUR STABACHSE (4. Oktober). <<<
+     * Gefunden an einer Probe ohne lcsZ: ein schräger Starrstab in der x-z-
+     * Ebene bekam ez = (0, 0, 1) ungeprüft - nicht rechtwinklig zu ex, das
+     * Dreibein nicht orthonormal, und eine Verdrehung um x kam am anderen
+     * Ende nicht als Verschiebung an (gemessen 0 statt 401 mm). Die Dateien
+     * der Ausleitung führen lcsZ an jedem Stab (gezählt: Beispiel A/B,
+     * Tragausleger, Tragjoch mit NT-Ausleger - kein schräger Stab ohne);
+     * für sie und für jeden achsparallelen Stab ist das bitgleich.
+     */
+    zr = Math.abs(ex[2]) > 0.999 ? [1, 0, 0] : [0, 0, 1];
+    const s = zr[0] * ex[0] + zr[1] * ex[1] + zr[2] * ex[2];
+    zr = [zr[0] - s * ex[0], zr[1] - s * ex[1], zr[2] - s * ex[2]];
+  }
   const n = Math.hypot(zr[0], zr[1], zr[2]);
   const ez = [zr[0] / n, zr[1] / n, zr[2] / n];
   const ey = [ez[1] * ex[2] - ez[2] * ex[1],

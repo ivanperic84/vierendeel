@@ -38392,6 +38392,43 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
   }
 }
 
+/* =========================================================================
+ * 232  LÖSER: DREIBEIN EINES SCHRÄGEN STABES OHNE lcsZ (4. Oktober)
+ * =========================================================================
+ * Gefunden beim Nachmessen der Kette am Tragausleger: ohne vorgegebene
+ * lokale z-Achse nahm `dreibein` die globale z-Achse ungeprüft - bei einem
+ * schrägen Stab in der x-z-Ebene nicht rechtwinklig zur Stabachse. Ein
+ * Starrstab gab dann eine Verdrehung nicht als Verschiebung weiter (0 statt
+ * 401 mm). Die Dateien der Ausleitung führen lcsZ an jedem Stab.
+ * ========================================================================= */
+titel('232  Löser: Dreibein eines schrägen Stabes ohne lcsZ');
+{
+  const SW232 = await import(J('core.stabwerk.js'));
+  const ortho = (R) => Math.max(...[0, 1, 2].flatMap((i) => [0, 1, 2].map((j) =>
+    Math.abs(R[i][0] * R[j][0] + R[i][1] * R[j][1] + R[i][2] * R[j][2] - (i === j ? 1 : 0)))));
+  const db = SW232.dreibein(2.5, 0, -2.6, null);
+  pruef('Schräger Stab in der x-z-Ebene ohne lcsZ: Dreibein orthonormal', ortho(db.R), 0, 1e-12, '–');
+  const ach = SW232.dreibein(5, 0, 0, null), sen = SW232.dreibein(0, 0, -2, null);
+  wahr('Achsparallele Stäbe unverändert (ez = global z bzw. x)',
+       JSON.stringify(ach.R[2]) === JSON.stringify([0, 0, 1]) && JSON.stringify(sen.R[2]) === JSON.stringify([1, 0, 0]));
+  const mit = SW232.dreibein(2.5, 0, -2.6, [0, 1, 0]);
+  wahr('Mit lcsZ wie vorher', JSON.stringify(mit.R[2]) === JSON.stringify([0, 1, 0]));
+  // Kragarm 5 m, an seinem Ende ein schräger Starrstab; Moment um x am Kragarmende.
+  const fix = { ux: 'Rigid', uy: 'Rigid', uz: 'Rigid', fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' };
+  const dat = { material: { E: 210000, G: 81000, rho: 7850 }, materialSteif: { E: 2100000, G: 810000, rho: 0 },
+    querschnitte: [{ name: 'Q', form: 'Rectangle', parameter: [100, 60], A: 0.006, Iy: 1.8e-6, Iz: 5e-6, It: 4e-7 },
+                   { name: 'STARR', form: 'Rectangle', parameter: [500, 500], A: null, Iy: null, Iz: null, It: null }],
+    knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 5, y: 0, z: 0 }, { name: 'P', x: 7.5, y: 0, z: -2.6 }],
+    staebe: [{ name: 'AB', von: 'A', bis: 'B', querschnitt: 'Q', art: 'stab' },
+             { name: 'BP', von: 'B', bis: 'P', querschnitt: 'STARR', art: 'starr' }],
+    auflager: [{ knoten: 'A', ...fix }], lastfaelle: [{ key: 'T' }], kombinationen: [],
+    lasten: { punkt: [], moment: [{ name: 'm', knoten: 'B', richtung: 'Mx', wert: 1, lastfall: 'T' }], strecke: [] } };
+  const l = SW232.loese(dat, { eigengewicht: false, schubweich: false });
+  const g = (n) => { const i = l.knotenIdx.get(n); return [...l.u.get('T').slice(i * 6, i * 6 + 6)]; };
+  const b = g('B'), pP = g('P');
+  pruef('>>> Der Starrstab nimmt den Punkt mit: u_y(P) − u_y(B) = −θx · r_z <<<', pP[1] - b[1], -b[3] * -2.6, 1e-6, 'm');
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

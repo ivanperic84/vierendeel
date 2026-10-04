@@ -5,37 +5,53 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6656 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung
-mit dem Datenpaket vom 3. Oktober + Halterippen), `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
-Weisung 2. Oktober: «pushen wenn es eine funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
-Durchgang) wird gepusht. Am 4. Oktober auf Weisung («danach stand auf main stellen») nach `main`
-übernommen. Letzter Commit: siehe `git log --oneline -1`; der Arbeitsbaum ist sauber, alles ist gepusht.
+Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6660**
+Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung), `durchlauf.mjs` ohne Bruch (Betreiber- und
+Testdaten). Gearbeitet wurde in einer **Cloud-Sitzung** auf dem Zweig `claude/dreamy-cannon-9m6xxb`; jeder
+grüne Stand ist dorthin **und nach `main`** gepusht (Weisungen «danach stand auf main stellen», «pushen wenn
+es eine funktionierenden stand erlaubt»). Der Arbeitsbaum ist sauber. Am Arbeitsrechner zuerst
+`git pull origin main`.
 
-⚠ **Zuerst am Arbeitsrechner:** das Datenpaket `Vierendeel_Datenpaket_2026-10-04.json` (dem Auftraggeber
-übergeben, nicht in der Ablage) unter *Bauteildaten → Daten laden* einlesen - es trägt die Halterippen der
-Gittermasten (`rohr.halter`); die Grundlagen dazu sind vertraulich, keine Zahl daraus in verfolgte Dateien.
-Dann `node pruefung.mjs` und `node durchlauf.mjs`.
+⚠ **Zuerst am Arbeitsrechner:**
+1. Das Datenpaket `Vierendeel_Datenpaket_2026-10-04.json` (dem Auftraggeber als Datei übergeben, nicht in der
+   Ablage) unter *Bauteildaten → Daten laden* einlesen und nach `data/` übernehmen - es trägt die
+   Halterippen der Gittermasten (`rohr.halter`) und das UL-Rohr mit zwei Wanddicken (`rohr.tOben`,
+   `rohr.wechsel`). Die Grundlagen dazu sind **vertraulich** («diese daten nicht öffentlich stellen»):
+   keine Zahl, kein Positions- oder Zeichnungsbezug daraus in verfolgte Dateien.
+2. `node pruefung.mjs` (6660) und `node durchlauf.mjs`.
+3. Die COM-Brücke ist seit dem 4. Oktober unverändert in der Ablage (`com/`); die App legt die Skripte
+   beim Ausleiten mit «Skriptdateien mitliefern» neben die Modelldatei.
 
-Gebaut am 4. Oktober (Prüfstand 221-229): direkte Starrglieder der Anbauteile, alle Tragwerke aus dem
-Stabwerk gefärbt, Masten am Abfangjoch ziehen, GZG am Fahrdraht mit Mastspitzen an der Figur,
-Einzelmast vereinheitlicht, Figur mit ψ und Grundlage, Rohr an den Halterippen (nur seitlich,
-am Kopf verschraubt; UL-Rohr mit zwei Wanddicken), **gewählter Lastfall
-aus dem Stabwerk** (Kacheln, Bild, Schiene), **Bestandesschutz** (Schalter unter Lasten bei der Windbelastung, über der Anbauteilliste und in
-den Optionen; Kennzeichen «neu» je Anbauteil, Δη ≤ 0.05 je Bauteil).
+**Verteilen auf die Arbeitsrechner (Empfehlung vom 4. Oktober):** Code über GitHub Pages (aktualisiert sich
+selbst, App installierbar), das Datenpaket über einen betriebsinternen Ablageort - nicht über Gmail
+(vertrauliche Daten; Gmail warnt bei HTML-Anhängen mit Skript). Die Einzeldatei mit Daten nur für Rechner
+ohne Internet. ⚠ Ob Pages den neuesten Stand ausliefert, liess sich aus der Cloud nicht prüfen (Fussleiste
+sollte «04.10.2026» zeigen).
+
+**Gebaut am 4. Oktober** (Einzelheiten in CLAUDE.md, *Entschieden*, Prüfstand 221-232): direkte
+Starrglieder der Anbauteile; alle Tragwerke aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen;
+GZG-Nachweis am Fahrdraht (auch am Tragausleger, als Starrkörper der Station), Mastspitzen an der Figur;
+Figur mit ψ und Grundlage; gewählter Lastfall aus dem Stabwerk; **Bestandesschutz** (Kennzeichen «neu» je
+Anbauteil, Δη ≤ 0.05 je Bauteil; Schalter unter Lasten bei der Windbelastung, über der Anbauteilliste und
+in den Optionen; Notiz bei Einheitswind); Gittermast: Rohr an den Halterippen, Rippen halten **nur
+seitlich** (Linkelement, ohne Momente; Spiel nicht abgebildet - entschieden), am Kopf verschraubt;
+UL-Rohr mit zwei Wanddicken; **Löser:** Dreibein schräger Stäbe ohne lcsZ berichtigt (traf nur
+Probestäbe, keine Zahl der App geändert).
 
 **Nächster Schritt (wartet auf den Auftraggeber):**
-1. Gittermast: Rippen halten seit dem 4. Oktober nur seitlich, das UL-Rohr hat zwei Wanddicken
-   (der Wechsel ist aus der Übersicht abgegriffen - bei Gelegenheit gegen eine
-   vermasste Zeichnung prüfen). Offen bleibt, ob das Spiel der Rippen abgebildet werden soll.
-2. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
-3. Uneinheitlich bleibt: SAF/DXF/PyNite für Abfangjoch und Gittermast; Verläufe am Tragausleger
-   ungeprüft (Testdaten ohne Tragausleger).
-4. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch, Ablage-Paket (ZIP) hin und
-   zurück. `kalibrieren_abfang.mjs` (PyNite) seit den Berichtigungen am Abfangjoch nicht neu gelaufen.
+1. ⚠ Tragausleger verdreht sich unter Wind längs um rund 0.17 rad (L 10 m, Hängestütze mit NT-Ausleger),
+   der Fahrdraht wandert 0.45 m längs - nachgewiesen wird nur quer. Grenzwert nötig?
+2. Kette der Anbauteile am Tragausleger: geklärt, ändert nichts, **nicht ins Modell gebaut** (sonst
+   ändert sich die COM-Datei). Auf Weisung einbauen.
+3. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
+4. Uneinheitlich: SAF/DXF/PyNite für Abfangjoch und Gittermast; PyNite-Gegenprobe des seitlichen
+   Rohrhalts unzuverlässig (PyNite 3.0.0 nötig, 3.2.0 bricht ab). Ein AxisVM-Lauf eines Gittermasts mit
+   Rohr nur auf Anweisung.
+5. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch, Ablage-Paket (ZIP) hin und zurück.
 
-**In `Versand/` (nicht in der Ablage) bereit:** Datenpaket vom Tag,
-`COM_Bruecke/` (vier Skripte, Brücke vom 4. Oktober mit der Knotenwache),
-`vierendeel_tool_2026-10-04.html` (gebündelte Einzeldatei).
+**Dateien der Cloud-Sitzung** (`Versand/`, nicht in der Ablage; dem Auftraggeber als Dateikarten im Chat
+geschickt - die Cloud-Sitzung hat keinen Ordner auf dem Arbeitsrechner, und ihr Rechner wird nach einer
+Weile abgeräumt): Datenpaket vom 4. Oktober, `COM_Bruecke.zip`, `Vierendeel_mit_Daten_2026-10-04.html`.
 
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
@@ -224,7 +240,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6656 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6660 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/
