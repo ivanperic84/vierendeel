@@ -47,7 +47,7 @@ import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
 import { flLastwerte } from './data.fl.js';
-import { istFahrdraht } from './core.anbauteile.js';
+import { anbauKette, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
 
 /** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
 export const TA_WIND_BAUSTEIN = 'anbauteil-tragausleger-uebergreifend-fix';
@@ -208,6 +208,7 @@ export function tragauslegerModell(satz, opt = {}) {
   const knoten = [];
   const staebe = [];
   const fahrdrahtStarr = [];
+  const kettenStarr = [];
   xs.forEach((x, i) => {
     knoten.push({ name: nm('V', i), x, y: r6(e / 2), z: 0 });
     knoten.push({ name: nm('H', i), x, y: r6(-e / 2), z: 0 });
@@ -459,6 +460,22 @@ export function tragauslegerModell(satz, opt = {}) {
     if (xA < x0 - 1e-9 || xA > xE + 1e-9) return;
     const i = idx(xA);
     const summen = {};
+    /*
+     * >>> DIE KETTE FÜR DIE VERFORMTE FIGUR (4. Oktober). <<< Gemeldet mit
+     * Bild (Plot «w»): «beim tragausleger bei der darstellung verformung,
+     * wird die hängestütze und ausleger nicht korrekt dargestellt
+     * (diagonale). berichtigen, so dass es wie beim Tragjoch dargestellt
+     * wird». Die Figur zog einen Strich von der Station zum Fahrdraht. Jetzt
+     * die Glieder wie am Tragjoch (`direkteGlieder`: Wurzel und echte
+     * Punkte), je Punkt der Hebel von der Mitte der Station; bewegt wird der
+     * Zug als Starrkörper der Station (`starrPunkt`). Am Modell nichts.
+     */
+    const kette = anbauKette(s.teile ?? [], { x0: xA, zAn: 0 });
+    const hebel = (q) => [r6(q.x - xs[i]), r6(q.y ?? 0), r6(q.z ?? 0)];
+    const glieder = direkteGlieder(kette).map((g) => [hebel(g.von), hebel(g.bis)]);
+    if (glieder.length) {
+      kettenStarr.push({ name: a.name ?? '', knoten: [nm('V', i), nm('H', i)], glieder });
+    }
     (s.teile ?? []).forEach((tp) => {
       const r = [(Number.isFinite(Number(tp.x)) ? Number(tp.x) : xA) - xA,
                  Number(tp.y) || 0, Number(tp.z) || 0];
@@ -568,6 +585,7 @@ export function tragauslegerModell(satz, opt = {}) {
     hinweise,
     // Die Fahrdrähte als Starrkörper an ihrer Station (4. Oktober).
     fahrdrahtStarr,
+    kettenStarr,
     tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil, alpha: aufh.alpha,
                     profil: t.profil,
                     spreizung: spreiz, seile: spreiz > 0 ? 2 : 1, c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
@@ -612,6 +630,8 @@ function spiegeln(d) {
     auflager: d.auflager.map((a) => ({ ...a, x: r6(-(a.x ?? 0)) })),
     // Der Hebel zum Fahrdraht wechselt mit der Seite (x -> −x).
     fahrdrahtStarr: (d.fahrdrahtStarr ?? []).map((f) => ({ ...f, r: [r6(-f.r[0]), f.r[1], f.r[2]] })),
+    kettenStarr: (d.kettenStarr ?? []).map((k) => ({
+      ...k, glieder: k.glieder.map((g) => g.map((r) => [r6(-r[0]), r[1], r[2]])) })),
     lasten: {
       punkt: d.lasten.punkt.map((l) => (l.richtung === 'X' ? { ...l, wert: r6(-l.wert) } : l)),
       moment: d.lasten.moment.map((l) => (l.richtung === 'My' || l.richtung === 'Mz'

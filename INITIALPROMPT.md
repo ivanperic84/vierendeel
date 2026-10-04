@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6669**
+Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6674**
 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung), `durchlauf.mjs` ohne Bruch (Betreiber- und
 Testdaten). Gearbeitet wurde in einer **Cloud-Sitzung** auf dem Zweig `claude/dreamy-cannon-9m6xxb`; jeder
 grüne Stand ist dorthin **und nach `main`** gepusht (Weisungen «danach stand auf main stellen», «pushen wenn
@@ -18,7 +18,7 @@ es eine funktionierenden stand erlaubt»). Der Arbeitsbaum ist sauber. Am Arbeit
    Halterippen der Gittermasten (`rohr.halter`) und das UL-Rohr mit zwei Wanddicken (`rohr.tOben`,
    `rohr.wechsel`). Die Grundlagen dazu sind **vertraulich** («diese daten nicht öffentlich stellen»):
    keine Zahl, kein Positions- oder Zeichnungsbezug daraus in verfolgte Dateien.
-2. `node pruefung.mjs` (6669) und `node durchlauf.mjs`.
+2. `node pruefung.mjs` (6674) und `node durchlauf.mjs`.
 3. Die COM-Brücke ist seit dem 4. Oktober unverändert in der Ablage (`com/`); die App legt die Skripte
    beim Ausleiten mit «Skriptdateien mitliefern» neben die Modelldatei.
 
@@ -240,7 +240,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6669 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6674 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

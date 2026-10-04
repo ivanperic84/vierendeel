@@ -38364,6 +38364,22 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     pruef('… und längs', u3[1], u2[1], 1e-3, 'm');
     const p = SV231.starrPunkt(dat, lsg, [], fd.starr).p;
     pruef('Der Fahrdraht liegt 2.70 m unter dem Ausleger', p[2] - ka.z, -2.7, 1e-9, 'm');
+    // Die Kette für die Figur (4. Oktober): wie am Tragjoch Wurzel und
+    // echte Punkte - die Stütze lotrecht, dann der Ausleger, am Ende der
+    // Fahrdraht. Kein Strich von der Station schräg zum Fahrdraht.
+    const ks = (dat.kettenStarr ?? [])[0];
+    const gl = ks?.glieder ?? [];
+    const gleich = (r, q) => r.every((c, k) => Math.abs(c - q[k]) < 1e-6);
+    wahr('Die Kette des Anbauteils steht in der Datei, an derselben Station wie der Fahrdraht',
+         ks && JSON.stringify(ks.knoten) === JSON.stringify(fd.starr.knoten) && gl.length >= 2,
+         `${gl.length} Glieder`);
+    wahr('… das erste Glied ist die Stütze: lotrecht von der Auslegerachse nach unten',
+         gl[0] && Math.abs(gl[0][0][2]) < 1e-9 && gl[0][1][2] < -0.5
+         && Math.abs(gl[0][1][0] - gl[0][0][0]) < 1e-9 && Math.abs(gl[0][1][1] - gl[0][0][1]) < 1e-9,
+         JSON.stringify(gl[0]));
+    wahr('… die Glieder hängen aneinander, und eines endet am Fahrdraht',
+         gl.every((g, k) => k === 0 || gl.slice(0, k).some((h) => gleich(h[1], g[0])))
+         && gl.some((g) => gleich(g[1], fd.starr.r)), JSON.stringify(gl));
     const v = h.verformung?.fahrdraht;
     wahr('>>> Die Seitenlage wird am Fahrdraht nachgewiesen, nicht mehr an der Referenzhöhe <<<',
          v?.fahrdraht === true && v.massgebend?.was?.startsWith('Fahrdraht'),
@@ -38376,6 +38392,9 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     const L231 = rechne(ausleger('links')).h;
     const fdL = L231.roh.dat.fahrdraehte.find((f) => f.starr);
     pruef('Links: der Hebel wechselt die Seite (x -> −x)', fdL.starr.r[0], -fd.starr.r[0], 1e-9, 'm');
+    const kL = L231.roh.dat.kettenStarr?.[0]?.glieder ?? [];
+    wahr('Links: die Kette ist das Spiegelbild (x -> −x)', kL.length === gl.length
+         && kL.every((g, k) => g.every((r, m) => gleich(r, [-gl[k][m][0], gl[k][m][1], gl[k][m][2]]))));
     pruef('… und der Nachweis ist derselbe', L231.verformung?.fahrdraht?.massgebend?.wert, v?.massgebend?.wert, 1e-6, 'm');
     // Im Blatt am Jochmasten (ein Stabwerk): Knoten mit dem Präfix des Tragwerks.
     const blatt = { ...C231.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 10 }) };
@@ -38387,8 +38406,14 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
            && hb.roh.dat.knoten.some((k) => k.name === n)),
          JSON.stringify(fdB.map((f) => f.starr.knoten)));
     const q = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
-    wahr('Die Figur zeichnet das Glied zum Fahrdraht (orange, daran findet die Marke ihren Punkt)',
-         /\(roh\.dat\.fahrdraehte \?\? \[\]\)\.filter\(\(f\) => f\.starr\)/.test(q) && /name: `FD_STARR_\$\{i\}`, anbau: true/.test(q));
+    // Seit dem 4. Oktober (Weisung «wird die hängestütze und ausleger nicht
+    // korrekt dargestellt (diagonale)») die ganze Kette statt eines Strichs.
+    wahr('Die Figur zeichnet die Kette (orange, daran findet die Marke ihren Punkt)',
+         /\(roh\.dat\.kettenStarr \?\? \[\]\)\.forEach/.test(q) && /name: `KETTE_STARR_\$\{i\}_\$\{j\}`, anbau: true/.test(q)
+         && !/FD_STARR_/.test(q));
+    const kB = hb.roh?.dat?.kettenStarr ?? [];
+    wahr('Im Blatt: die Kette nennt dieselben Knoten der Station wie der Fahrdraht',
+         kB.length === 1 && JSON.stringify(kB[0].knoten) === JSON.stringify(fdB[0]?.starr.knoten));
   }
 }
 

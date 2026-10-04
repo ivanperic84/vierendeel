@@ -1952,6 +1952,7 @@ export function bausteinAusModell(d, opt = {}, gruppe = (g) => g) {
     // Fahrdrähte als Starrkörper an einer Station (Tragausleger, 4. Oktober):
     // die Knoten tragen den Namen des Blattes, der Hebel bleibt.
     fahrdrahtStarr: (d.fahrdrahtStarr ?? []).map((f) => ({ ...f, knoten: f.knoten.map(voll) })),
+    kettenStarr: (d.kettenStarr ?? []).map((k) => ({ ...k, knoten: k.knoten.map(voll) })),
     knotenmodell: opt.knotenmodell ?? 'anschnitt',
     zOben: Math.max(0, ...[...knoten.values()].map((k) => k.z ?? 0)),
     mastNamen,

@@ -2379,6 +2379,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
       .filter((a, i, alle) => alle.findIndex((b) => b.knoten === a.knoten) === i),
     arme: teile.flatMap((x) => x.bau.arme ?? []),
     fahrdrahtStarr: teile.flatMap((x) => x.bau.fahrdrahtStarr ?? []),
+    kettenStarr: teile.flatMap((x) => x.bau.kettenStarr ?? []),
     ausKnotenVermerk: teile.flatMap((x) => x.bau.ausKnotenVermerk ?? []),
     anbauMastAus: teile.flatMap((x) => x.bau.anbauMastAus ?? []),
     ankerAus: teile.flatMap((x) => x.bau.ankerAus ?? []),
@@ -5086,6 +5087,9 @@ export function stabmodellJson(m, opt = {}) {
      * Bruecke liest das Feld nicht.
      */
     fahrdraehte: fahrdrahtKnoten(bau),
+    // Die Ketten der Anbauteile am Tragausleger als Starrkörper an ihrer
+    // Station (nur für die verformte Figur; die Bruecke liest es nicht).
+    kettenStarr: bau.kettenStarr ?? [],
     querschnitte: [...bau.querschnitte.values()].map((q) => ({
       name: q.name, form: q.form, parameter: q.parameter,
       profil: q.profil ?? null,

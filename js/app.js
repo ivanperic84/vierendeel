@@ -2386,14 +2386,21 @@ function verformtSetzen(szene = null) {
    */
   let figMax = fig.max;
   const anteileFig = wegeAnteile(g, lf);
-  (roh.dat.fahrdraehte ?? []).filter((f) => f.starr).forEach((f, i) => {
-    const sp = starrPunkt(roh.dat, roh.lsg, anteileFig, f.starr);
-    if (!sp) return;
-    linien.push({ name: `FD_STARR_${i}`, anbau: true,
-                  punkte: [[sp.mitte[0] + dx, sp.mitte[1], sp.mitte[2] + dz],
-                           [sp.p[0] + dx, sp.p[1], sp.p[2] + dz]],
-                  wege: [sp.uMitte, sp.u] });
-    figMax = Math.max(figMax, Math.hypot(...sp.u));
+  /*
+   * Die Kette am Tragausleger (4. Oktober): «wird die hängestütze und
+   * ausleger nicht korrekt dargestellt (diagonale) … wie beim Tragjoch» -
+   * je Glied der Kette ein Strich, jeder Punkt als Starrkörper der Station
+   * bewegt. Vorher ein Strich von der Station zum Fahrdraht.
+   */
+  (roh.dat.kettenStarr ?? []).forEach((k, i) => {
+    k.glieder.forEach((g, j) => {
+      const sp = g.map((r) => starrPunkt(roh.dat, roh.lsg, anteileFig, { knoten: k.knoten, r }));
+      if (sp.some((x) => !x)) return;
+      linien.push({ name: `KETTE_STARR_${i}_${j}`, anbau: true,
+                    punkte: sp.map((x) => [x.p[0] + dx, x.p[1], x.p[2] + dz]),
+                    wege: sp.map((x) => x.u) });
+      sp.forEach((x) => { figMax = Math.max(figMax, Math.hypot(...x.u)); });
+    });
   });
   /*
    * >>> DIE FAHRDRÄHTE (4. Oktober). <<<
