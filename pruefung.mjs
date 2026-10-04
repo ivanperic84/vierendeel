@@ -38672,6 +38672,8 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',
        set.includes("setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl })")
        && set.includes('if (signalVorlageId(vorlageId)') && set.includes("v.art === 'signal'"));
+  wahr('Eine eigene Signal-Vorlage öffnet den Bauer mit ihrer Zusammenstellung',
+       set.includes('app.signalbauer(mitgebracht,'));
   const ui235 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Der Knopf «Signal zusammenstellen» steht neben «Bauteil zuweisen»',
        ui235.includes('data-signal-direkt') && ui235.includes('Signal zusammenstellen'));

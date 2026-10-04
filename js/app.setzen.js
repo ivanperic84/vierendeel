@@ -14,7 +14,7 @@ import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangVorgabeFuer } from './core.lasten.js';
-import { getVorlage, havarieKopieren, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { getVorlage, havarieKopieren, istSignalModul, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -439,7 +439,10 @@ export function setzeVorlageAnStelle(app, vorlageId) {
   // Die Stelle bleibt gemerkt, solange der Dialog offen ist.
   if (signalVorlageId(vorlageId) && typeof app.signalbauer === 'function') {
     setzWahlWeg();
-    app.signalbauer([], (auswahl) => {
+    // Eine eigene Vorlage bringt ihre Zusammenstellung mit - der Bauer
+    // öffnet mit ihr, statt sie zu verwerfen.
+    const mitgebracht = (getVorlage(vorlageId).module ?? []).find(istSignalModul)?.signal ?? [];
+    app.signalbauer(mitgebracht, (auswahl) => {
       if (!auswahl?.length) return;
       setzeBaugruppeAnStelle(app, mitSignalAuswahl(neuesAnbauteil(vorlageId, 0), auswahl));
     });
