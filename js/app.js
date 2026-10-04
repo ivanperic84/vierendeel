@@ -127,7 +127,7 @@ import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwe
 import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer,
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenGewaehlt } from './core.reaktionen.js';
-import { verformteFigur, wegImStab } from './core.stabverformung.js';
+import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
@@ -2377,6 +2377,25 @@ function verformtSetzen(szene = null) {
   const dz = fuss ? (Number(fuss.mast.fuss) || 0) - fuss.k.z : (Number(werte.mastH) || 0);
   const linien = fig.linien.map((l) => ({ ...l, punkte: l.punkte.map((p) => [p[0] + dx, p[1], p[2] + dz]) }));
   /*
+   * >>> AM TRAGAUSLEGER STEHT DIE KETTE NICHT IM MODELL (4. Oktober). <<<
+   * Gemeldet: «beim tragausleger wird der fahrdraht nicht bei der verformung
+   * abgebildet». Der Fahrdraht hängt dort starr an seiner Station
+   * (`starrPunkt`); die Figur bekommt ein Glied von der Mitte der Station
+   * zum Fahrdraht, orange wie die Ketten am Joch - daran findet die Marke
+   * unten ihren Punkt.
+   */
+  let figMax = fig.max;
+  const anteileFig = wegeAnteile(g, lf);
+  (roh.dat.fahrdraehte ?? []).filter((f) => f.starr).forEach((f, i) => {
+    const sp = starrPunkt(roh.dat, roh.lsg, anteileFig, f.starr);
+    if (!sp) return;
+    linien.push({ name: `FD_STARR_${i}`, anbau: true,
+                  punkte: [[sp.mitte[0] + dx, sp.mitte[1], sp.mitte[2] + dz],
+                           [sp.p[0] + dx, sp.p[1], sp.p[2] + dz]],
+                  wege: [sp.uMitte, sp.u] });
+    figMax = Math.max(figMax, Math.hypot(...sp.u));
+  });
+  /*
    * >>> DIE FAHRDRÄHTE (4. Oktober). <<<
    * Mit Bild (Plot «w», J120-alt), im Wortlaut: «hier die fahrdrähte auch in
    * orange aufführen und deren auslenkung angeben, dies ist der wert der für
@@ -2422,15 +2441,15 @@ function verformtSetzen(szene = null) {
   const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
   const groesse = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
   let faktor = 0;
-  if (fig.max > 1e-9) {
-    const roh6 = (0.08 * groesse) / fig.max;
+  if (figMax > 1e-9) {
+    const roh6 = (0.08 * groesse) / figMax;
     const p10 = 10 ** Math.floor(Math.log10(roh6));
     faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
   }
   const wert = faktor > 0 ? {
     linien, faktor, fahrdraehte, spitzen,
     text: [`Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht`,
-      `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`
+      `grösster Weg ${(figMax * 1000).toFixed(1)} mm`
         + (fahrdraehte.length ? ` · Fahrdraht quer ${(fdMax * 1000).toFixed(1)} mm` : ''),
       `${lf.bez}${umh ? ' (massgebend GZG)' : ''}`,
       ...figurGrundlage(lf, fFig)],

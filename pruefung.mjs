@@ -38297,6 +38297,101 @@ titel('230  Bestandesschutz: Schalter unter Lasten und über der Anbauteilliste'
   wahr('Die Optionen behalten den Eintrag', CH230.NACHWEISGRUPPEN.some((g) => g.key === 'bestandesschutz'));
 }
 
+/* =========================================================================
+ * 231  TRAGAUSLEGER: DER FAHRDRAHT IN FIGUR UND NACHWEIS (4. Oktober)
+ * =========================================================================
+ * Gemeldet mit Bild (Plot «w», Tragausleger mit NT-Ausleger und R-FL):
+ * «beim tragausleger wird der fahrdraht nicht bei der verformung
+ * abgebildet». Das Modell des Auslegers führt die Kette nicht (die Teile
+ * sind Kräfte an den Gurtknoten ihrer Station) - es gab keinen Knoten am
+ * Fahrdraht, und der Nachweis der Seitenlage fiel still auf die
+ * Referenzhöhe am Masten zurück. Jetzt Starrkörper an der Station.
+ * ========================================================================= */
+titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
+{
+  const C231 = await import(J('core.constants.js'));
+  const N231 = await import(J('core.nachbarn.js'));
+  const AS231 = await import(J('app.stabwerk.js'));
+  const SV231 = await import(J('core.stabverformung.js'));
+  const SW231 = await import(J('core.stabwerk.js'));
+  const SN231 = await import(J('core.stabnachweis.js'));
+  const VF231 = await import(J('core.verformung.js'));
+  const VZ231 = await import(J('core.vierendeel.js'));
+  const A231 = await import(J('data.anbauteile.js'));
+  const da = (() => { try { return A231.neuesAnbauteil('hs-nt-ausleger', 8); } catch { return null; } })();
+  if (!da) {
+    console.log('  (Vorlage «hs-nt-ausleger» fehlt in diesem Datenordner - übersprungen)');
+  } else {
+    const joch = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                   L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+    const rechne = (w) => {
+      const satz = N231.rechensatzMitNachbarn(w);
+      const args = N231.kernArgumente(satz);
+      const erg = berechne(satz, ...args);
+      erg.verformung = VF231.verformungsNachweis(VZ231.vergleichKombinationen(satz, ...args),
+        { gruppen: { fahrdraht: true, spitze: true } });
+      return { erg, h: AS231.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+    };
+    const ausleger = (seite) => ({ ...C231.tragwerkWeg(C231.tragwerkHinzu(joch, 'tragausleger',
+      { xLage: 0, L: 10, auslegerSeite: seite }), 'T1'), anbauteile: [A231.neuesAnbauteil('hs-nt-ausleger', 8)] });
+    const { erg, h } = rechne(ausleger('rechts'));
+    const dat = h.roh.dat, lsg = h.roh.lsg;
+    const fd = (dat.fahrdraehte ?? []).find((f) => f.starr);
+    wahr('Das Modell nennt den Fahrdraht: die beiden Gurtknoten der Station und den Hebel',
+         fd && fd.starr.knoten.length === 2 && fd.starr.r.length === 3,
+         JSON.stringify(fd?.starr));
+    wahr('… ohne Knoten, Stab oder Last dazu (das Modell bleibt, wie es war)',
+         !dat.knoten.some((k) => /FD/.test(k.name)) && !dat.staebe.some((s) => /FD/.test(s.name)));
+    // Gegenprobe: derselbe Punkt als echter Knoten, starr an beiden Gurtknoten.
+    const [na, nb] = fd.starr.knoten;
+    const ka = dat.knoten.find((k) => k.name === na), kb = dat.knoten.find((k) => k.name === nb);
+    const P = { name: 'FDP', x: (ka.x + kb.x) / 2 + fd.starr.r[0], y: (ka.y + kb.y) / 2 + fd.starr.r[1],
+                z: (ka.z + kb.z) / 2 + fd.starr.r[2] };
+    const qs = dat.staebe.find((x) => x.art === 'starr').querschnitt;
+    const dat2 = { ...dat, knoten: [...dat.knoten, P], staebe: [...dat.staebe,
+      { name: 'FDA', von: na, bis: 'FDP', art: 'starr', querschnitt: qs },
+      { name: 'FDB', von: nb, bis: 'FDP', art: 'starr', querschnitt: qs }] };
+    const lsg2 = SW231.loese(dat2, { eigengewicht: false });
+    const lf = h.roh.faelle.find((l) => l.key === 'wykm') ?? h.roh.faelle.find((l) => l.beiwerte?.WindY);
+    const an = SN231.anteileFuer(lf, dat);
+    const i2 = lsg2.knotenIdx.get('FDP');
+    const u2 = [0, 1, 2].map((c) => an.reduce((a, { lastfall, faktor }) =>
+      a + faktor * (lsg2.u.get(lastfall)?.[i2 * 6 + c] ?? 0), 0));
+    const u3 = SV231.starrPunkt(dat2, lsg2, an, fd.starr).u;
+    // Die Starrglieder des Lösers sind steife Stäbe (STARR_FAKTOR), keine
+    // Zwangsbedingung: rund 3e-4 bis 7e-4 Rest (pruef vergleicht relativ).
+    pruef('Starrkörper der Station = Weg des echten Knotens im selben Modell (quer)', u3[0], u2[0], 1e-3, 'm');
+    pruef('… und längs', u3[1], u2[1], 1e-3, 'm');
+    const p = SV231.starrPunkt(dat, lsg, [], fd.starr).p;
+    pruef('Der Fahrdraht liegt 2.70 m unter dem Ausleger', p[2] - ka.z, -2.7, 1e-9, 'm');
+    const v = h.verformung?.fahrdraht;
+    wahr('>>> Die Seitenlage wird am Fahrdraht nachgewiesen, nicht mehr an der Referenzhöhe <<<',
+         v?.fahrdraht === true && v.massgebend?.was?.startsWith('Fahrdraht'),
+         v?.massgebend ? `${(v.massgebend.wert * 1000).toFixed(1)} mm auf ${v.massgebend.z?.toFixed(2)} m` : '(kein Nachweis)');
+    pruef('… auf der Höhe des Fahrdrahts über dem Mastfuss (H − 2.70)', v?.massgebend?.z, (Number(erg.modell?.mastH ?? 7.5) || 7.5) - 2.7, 0.05, 'm');
+    pruef('… quer = Weg quer × ψ 0.70 aus dem Starrkörper',
+          v?.massgebend?.wert, Math.abs(SV231.starrPunkt(dat, lsg,
+            SN231.anteileFuer(h.roh.faelle.find((l) => l.key === v.massgebend.lastfall), dat), fd.starr).u[0]) * 0.7, 1e-9, 'm');
+    // Die andere Seite ist das Spiegelbild.
+    const L231 = rechne(ausleger('links')).h;
+    const fdL = L231.roh.dat.fahrdraehte.find((f) => f.starr);
+    pruef('Links: der Hebel wechselt die Seite (x -> −x)', fdL.starr.r[0], -fd.starr.r[0], 1e-9, 'm');
+    pruef('… und der Nachweis ist derselbe', L231.verformung?.fahrdraht?.massgebend?.wert, v?.massgebend?.wert, 1e-6, 'm');
+    // Im Blatt am Jochmasten (ein Stabwerk): Knoten mit dem Präfix des Tragwerks.
+    const blatt = { ...C231.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 10 }) };
+    const aktiv = { ...blatt, anbauteile: [A231.neuesAnbauteil('hs-nt-ausleger', 8)] };
+    const hb = rechne(aktiv).h;
+    const fdB = (hb.roh?.dat?.fahrdraehte ?? []).filter((f) => f.starr);
+    wahr('Im Blatt: Knoten mit dem Präfix des Tragwerks, und sie stehen im Modell',
+         fdB.length === 1 && fdB[0].starr.knoten.every((n) => n.startsWith(`${aktiv.twId}_`)
+           && hb.roh.dat.knoten.some((k) => k.name === n)),
+         JSON.stringify(fdB.map((f) => f.starr.knoten)));
+    const q = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    wahr('Die Figur zeichnet das Glied zum Fahrdraht (orange, daran findet die Marke ihren Punkt)',
+         /\(roh\.dat\.fahrdraehte \?\? \[\]\)\.filter\(\(f\) => f\.starr\)/.test(q) && /name: `FD_STARR_\$\{i\}`, anbau: true/.test(q));
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

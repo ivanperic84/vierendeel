@@ -2378,6 +2378,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
       a.x === undefined ? a : { ...a, x: r6(a.x + (t.x0 ?? 0)) })))
       .filter((a, i, alle) => alle.findIndex((b) => b.knoten === a.knoten) === i),
     arme: teile.flatMap((x) => x.bau.arme ?? []),
+    fahrdrahtStarr: teile.flatMap((x) => x.bau.fahrdrahtStarr ?? []),
     ausKnotenVermerk: teile.flatMap((x) => x.bau.ausKnotenVermerk ?? []),
     anbauMastAus: teile.flatMap((x) => x.bau.anbauMastAus ?? []),
     ankerAus: teile.flatMap((x) => x.bau.ankerAus ?? []),
@@ -4752,10 +4753,18 @@ function starrArt(s, starrModell) {
 /** Die Knoten der Fahrdrähte (`istFahrdraht`), je Knoten einmal. */
 function fahrdrahtKnoten(bau) {
   const gesehen = new Set();
-  return (bau?.arme ?? [])
+  return [...(bau?.arme ?? [])
     .filter((a) => a?.knoten && istFahrdraht(a.teil) && !gesehen.has(a.knoten)
       && gesehen.add(a.knoten))
-    .map((a) => ({ knoten: a.knoten, name: a.teil.name ?? a.teil.bauteilName ?? '' }));
+    .map((a) => ({ knoten: a.knoten, name: a.teil.name ?? a.teil.bauteilName ?? '' })),
+    /*
+     * Am Tragausleger hängt der Fahrdraht an keinem eigenen Knoten (die
+     * Kette steht dort nicht im Modell, 4. Oktober): er nennt die beiden
+     * Gurtknoten seiner Station und den Hebel. `knoten` ist der erste davon
+     * - er trägt das Präfix des Tragwerks, nach dem der Nachweis filtert.
+     */
+    ...(bau?.fahrdrahtStarr ?? []).map((f) => ({
+      knoten: f.knoten[0], name: f.name, starr: { knoten: f.knoten, r: f.r } }))];
 }
 
 export function stabmodellJson(m, opt = {}) {

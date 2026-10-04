@@ -263,16 +263,64 @@ export function mastVerdrehung(dat, lsg, anteile, zug, h) {
  * @param {object} namen    Mastname je Ende ({A: 'M1', B: 'M2'})
  */
 /** Der Weg eines Knotens [m, global] unter einer Kombination. */
-function knotenWeg(lsg, anteile, name) {
+function knotenWeg(lsg, anteile, name, n = 3) {
   const i = lsg.knotenIdx?.get(name);
   if (i === undefined) return null;
-  const u = [0, 0, 0];
+  const u = new Array(n).fill(0);
   (anteile ?? []).forEach(({ lastfall, faktor }) => {
     const uv = lsg.u.get(lastfall);
     if (!faktor || !uv) return;
-    for (let c = 0; c < 3; c += 1) u[c] += faktor * uv[i * 6 + c];
+    for (let c = 0; c < n; c += 1) u[c] += faktor * uv[i * 6 + c];
   });
   return u;
+}
+
+/**
+ * >>> EIN PUNKT, DER STARR AN ZWEI KNOTEN HÄNGT (4. Oktober). <<<
+ *
+ * Der Fahrdraht am Tragausleger hat keinen eigenen Knoten: das Modell trägt
+ * die Kräfte des Anbauteils als Kräfte und Momente an die beiden
+ * Gurtknoten seiner Station ein («das Teil ist ein Starrkörper an EINER
+ * Station», export.axisvm.tragausleger.js). Sein Weg folgt derselben
+ * Vereinfachung als Starrkörperbewegung der Station:
+ *
+ *   u(P) = (u_A + u_B)/2 + θ × r,   r = P − (A + B)/2
+ *
+ * θ quer zur Verbindung A–B aus dem gegenläufigen Weg der beiden Knoten
+ * (d × Δu / |d|², so wie das Modell das Moment um die Auslegerachse als
+ * Kräftepaar einträgt), θ längs der Verbindung als Mittel der beiden
+ * Knotenverdrehungen.
+ *
+ * @param {{knoten: string[], r: number[]}} starr
+ * @returns {{p: number[], u: number[], mitte: number[], uMitte: number[]}|null}
+ */
+export function starrPunkt(dat, lsg, anteile, starr) {
+  const [na, nb] = starr?.knoten ?? [];
+  const ka = dat?.knoten?.find((k) => k.name === na);
+  const kb = dat?.knoten?.find((k) => k.name === nb);
+  const ua = knotenWeg(lsg, anteile, na, 6), ub = knotenWeg(lsg, anteile, nb, 6);
+  if (!ka || !kb || !ua || !ub) return null;
+  const mitte = [(ka.x + kb.x) / 2, (ka.y + kb.y) / 2, (ka.z + kb.z) / 2];
+  const d = [kb.x - ka.x, kb.y - ka.y, kb.z - ka.z];
+  const dd = d[0] ** 2 + d[1] ** 2 + d[2] ** 2;
+  if (!(dd > 0)) return null;
+  const kreuz = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
+  const du = [0, 1, 2].map((c) => ub[c] - ua[c]);
+  const quer = kreuz(d, du).map((v) => v / dd);
+  const thM = [3, 4, 5].map((c) => (ua[c] + ub[c]) / 2);
+  const laengs = (thM[0] * d[0] + thM[1] * d[1] + thM[2] * d[2]) / dd;
+  const th = [0, 1, 2].map((c) => quer[c] + laengs * d[c]);
+  const r = starr.r ?? [0, 0, 0];
+  const uMitte = [0, 1, 2].map((c) => (ua[c] + ub[c]) / 2);
+  const tr = kreuz(th, r);
+  return { p: [0, 1, 2].map((c) => mitte[c] + r[c]), u: [0, 1, 2].map((c) => uMitte[c] + tr[c]),
+           mitte, uMitte };
+}
+
+/** Der Weg am Fahrdraht: am eigenen Knoten oder als Starrkörper (Tragausleger). */
+function fahrdrahtWeg(dat, lsg, anteile, f) {
+  return f.starr ? starrPunkt(dat, lsg, anteile, f.starr)?.u ?? null
+                 : knotenWeg(lsg, anteile, f.knoten);
 }
 
 /* ===========================================================================
@@ -298,15 +346,17 @@ function fahrdrahtNachweis(dat, lsg, nurW, grenz, opt = {}) {
   const nw = liste.map((f) => {
     let best = null;
     nurW.forEach((l) => {
-      const u = knotenWeg(lsg, anteileFuer(l, dat), f.knoten);
+      const u = fahrdrahtWeg(dat, lsg, anteileFuer(l, dat), f);
       if (!u) return;
       const wert = Math.abs(u[0] * BETRIEBSWIND);
       if (!best || wert > best.wert) best = { wert, achse: 'x', lastfall: l.key, bez: l.bez, faktor: BETRIEBSWIND };
     });
     if (!best) return null;
     const kn = dat.knoten.find((k) => k.name === f.knoten);
+    // Am Tragausleger liegt der Fahrdraht unter seiner Station (Hebel r).
+    const zKn = f.starr ? starrPunkt(dat, lsg, [], f.starr)?.p?.[2] ?? null : kn?.z ?? null;
     return { ...best, grenz, eta: best.wert / grenz, ok: best.wert <= grenz + 1e-12,
-             z: kn ? kn.z - zBezug : null, knoten: f.knoten, fahrdraht: true,
+             z: zKn !== null ? zKn - zBezug : null, knoten: f.knoten, fahrdraht: true,
              was: `Fahrdraht ${kurz(f.name)} quer zum Gleis, nur Wind` };
   }).filter(Boolean);
   if (!nw.length) return null;

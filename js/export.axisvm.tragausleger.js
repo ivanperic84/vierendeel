@@ -47,6 +47,7 @@ import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
 import { flLastwerte } from './data.fl.js';
+import { istFahrdraht } from './core.anbauteile.js';
 
 /** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
 export const TA_WIND_BAUSTEIN = 'anbauteil-tragausleger-uebergreifend-fix';
@@ -206,6 +207,7 @@ export function tragauslegerModell(satz, opt = {}) {
 
   const knoten = [];
   const staebe = [];
+  const fahrdrahtStarr = [];
   xs.forEach((x, i) => {
     knoten.push({ name: nm('V', i), x, y: r6(e / 2), z: 0 });
     knoten.push({ name: nm('H', i), x, y: r6(-e / 2), z: 0 });
@@ -460,6 +462,24 @@ export function tragauslegerModell(satz, opt = {}) {
     (s.teile ?? []).forEach((tp) => {
       const r = [(Number.isFinite(Number(tp.x)) ? Number(tp.x) : xA) - xA,
                  Number(tp.y) || 0, Number(tp.z) || 0];
+      /*
+       * >>> WO DER FAHRDRAHT HÄNGT (4. Oktober). <<<
+       * Gemeldet mit Bild (Plot «w», Tragausleger mit NT-Ausleger und R-FL):
+       * «beim tragausleger wird der fahrdraht nicht bei der verformung
+       * abgebildet». Die Kette steht hier nicht im Modell (siehe oben), es
+       * gab also keinen Knoten am Fahrdraht - weder für die Figur noch für
+       * den Nachweis der Seitenlage, der damit still auf die Referenzhöhe
+       * am Masten zurückfiel. Jetzt nennt das Modell die beiden Gurtknoten
+       * der Station und den Hebel von ihrer Mitte zum Fahrdraht; der Weg
+       * folgt daraus als Starrkörper (`starrPunkt`, core.stabverformung.js) -
+       * dieselbe Vereinfachung wie beim Lasteintrag. Am Modell ändert das
+       * nichts: kein Knoten, kein Stab, keine Last.
+       */
+      if (istFahrdraht(tp)) {
+        fahrdrahtStarr.push({ name: tp.name ?? tp.bauteilName ?? '',
+                              knoten: [nm('V', i), nm('H', i)],
+                              r: [r6(r[0] + xA - xs[i]), r6(r[1]), r6(r[2])] });
+      }
       EINWIRKUNGEN.forEach((ew) => {
         /*
          * DIE HAVARIE NOCH NICHT (28. September). Das Blatt führt sie je
@@ -546,6 +566,8 @@ export function tragauslegerModell(satz, opt = {}) {
     knoten, staebe, querschnitte, auflager,
     lasten: { punkt, moment, strecke },
     hinweise,
+    // Die Fahrdrähte als Starrkörper an ihrer Station (4. Oktober).
+    fahrdrahtStarr,
     tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil, alpha: aufh.alpha,
                     profil: t.profil,
                     spreizung: spreiz, seile: spreiz > 0 ? 2 : 1, c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
@@ -588,6 +610,8 @@ function spiegeln(d) {
     knoten: d.knoten.map((k) => ({ ...k, x: r6(-k.x) })),
     staebe,
     auflager: d.auflager.map((a) => ({ ...a, x: r6(-(a.x ?? 0)) })),
+    // Der Hebel zum Fahrdraht wechselt mit der Seite (x -> −x).
+    fahrdrahtStarr: (d.fahrdrahtStarr ?? []).map((f) => ({ ...f, r: [r6(-f.r[0]), f.r[1], f.r[2]] })),
     lasten: {
       punkt: d.lasten.punkt.map((l) => (l.richtung === 'X' ? { ...l, wert: r6(-l.wert) } : l)),
       moment: d.lasten.moment.map((l) => (l.richtung === 'My' || l.richtung === 'Mz'

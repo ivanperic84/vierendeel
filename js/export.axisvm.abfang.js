@@ -1949,6 +1949,9 @@ export function bausteinAusModell(d, opt = {}, gruppe = (g) => g) {
     // Vereinen im Blatt nicht auf halbem Weg abbricht.
     arme: [], ausKnotenVermerk: [], anbauMastAus: [], ankerAus: [],
     verschoben: [], zweiPunktAnschluss: [],
+    // Fahrdrähte als Starrkörper an einer Station (Tragausleger, 4. Oktober):
+    // die Knoten tragen den Namen des Blattes, der Hebel bleibt.
+    fahrdrahtStarr: (d.fahrdrahtStarr ?? []).map((f) => ({ ...f, knoten: f.knoten.map(voll) })),
     knotenmodell: opt.knotenmodell ?? 'anschnitt',
     zOben: Math.max(0, ...[...knoten.values()].map((k) => k.z ?? 0)),
     mastNamen,
