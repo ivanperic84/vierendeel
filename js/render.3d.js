@@ -36,7 +36,7 @@
  */
 
 import { querschnitt } from './geometry.js';
-import { STABWERK_FUSSNOTE } from './render.stabwerk.js';
+import { STABWERK_FUSSNOTE, stabwerkFussnoteFall } from './render.stabwerk.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette, istFahrdraht } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
@@ -4890,8 +4890,10 @@ export class Modellansicht {
     const max = p.fest ?? this._bereichSichtbar(p.feld);
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
     const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));
+    const fall = p.key === 'w' ? null
+      : (this.szene?.flaechen ?? []).find((f) => f.stabwerkFall)?.stabwerkFall ?? null;
     return { ...p, max, ...(sw && STABWERK_FUSSNOTE[p.key]
-      ? { fussnote: STABWERK_FUSSNOTE[p.key] } : {}) };
+      ? { fussnote: stabwerkFussnoteFall(STABWERK_FUSSNOTE[p.key], fall) } : {}) };
   }
 
   _schattiere(farbe, k) {

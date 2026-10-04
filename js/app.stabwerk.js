@@ -53,6 +53,9 @@ import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell } from './core.
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
+import { ohneNeueTeile, bestandVergleich } from './core.bestand.js';
+import { rechensatzMitNachbarn, kernArgumente } from './core.nachbarn.js';
+import { berechne } from './core.vierendeel.js';
 import { loese } from './core.stabwerk.js';
 import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
@@ -332,7 +335,7 @@ export function stabwerkDatei(werte, erg, opt = {}) {
   return dat;
 }
 
-export function rechneStabwerk(app) {
+export function rechneStabwerk(app, aufruf = {}) {
   const erg = app.letzte?.erg;
   if (!erg?.modell) return null;
 
@@ -463,6 +466,9 @@ export function rechneStabwerk(app) {
    */
   let knick = null;
   const fundamentJe = {};
+  // Was das Knicken je Mast braucht - für die Auswertung im gewählten Fall
+  // (`imFall`, 4. Oktober) noch einmal mit nur einer Kombination.
+  const knickBasis = [];
   const nwK = nachweiseAuswahl(satz.nachweise);
   if (!bau?.tragausleger) {
     if (nwK.knickenMast) knick = {};
@@ -481,6 +487,7 @@ export function rechneStabwerk(app) {
         const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
                                      { beta: beta > 0 ? beta : undefined });
         if (k && Number.isFinite(k.eta)) knick[id] = k;
+        knickBasis.push({ id, basis, beta: beta > 0 ? beta : undefined });
       }
       if (nwK.fundament) {
         const f = fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis,
@@ -600,6 +607,73 @@ export function rechneStabwerk(app) {
    */
   Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo },
                                           enumerable: false });
+  /*
+   * >>> DIE AUSWERTUNG IM GEWÄHLTEN LASTFALL (4. Oktober). <<<
+   * Weisung: «wenn möglich konsequent auf stabmodell die nachweise führen.
+   * ausser man stellt es unter optionen auf balken methode um.» Bis dahin
+   * zeigten Kacheln und Bild beim gewählten Einzellastfall (Feld «Lastfall»
+   * oben statt «umhüllend») den Ersatzbalken, weil das Stabwerk nur die
+   * Hülle führte. Dieselbe Lösung, dieselben Funktionen, nur EINE
+   * Kombination: Spannungen je Stab (`stabwerkHuelle` mit einem Fall) und
+   * das Knicken der Masten mit den Kräften dieses Falls. Anker, Fundament,
+   * Aufhängung, Gebrauchstauglichkeit und Reaktionen haben ihre eigenen
+   * Lastniveaus und bleiben, wie sie sind. Ein Urteil gibt es im
+   * Einzellastfall ohnehin nicht (Entscheid 16. September).
+   */
+  /*
+   * >>> DER BESTANDESSCHUTZ (4. Oktober, core.bestand.js). <<<
+   * Eingeschaltet und mit mindestens einem als «neu» gekennzeichneten Teil:
+   * dasselbe Blatt noch einmal, die neuen Teile ausgeschaltet, Kern und
+   * Stabwerk wie hier - dann je Bauteil Δη. Dieselbe Windstufe für beide
+   * (Rückfrage «Beide mit der gewählten Stufe»).
+   */
+  if (!aufruf.ohneBestand && nachweiseAuswahl(satz.nachweise).bestandesschutz) {
+    const { werte: wB, anzahl } = ohneNeueTeile(app.werte);
+    if (anzahl === 0) {
+      ergebnis.bestand = { anzahl: 0 };
+    } else {
+      try {
+        const sB = rechensatzMitNachbarn(wB);
+        const ergB = berechne(sB, ...kernArgumente(sB));
+        const hB = rechneStabwerk({ ...app, werte: wB, letzte: { ...app.letzte, erg: ergB } },
+                                  { ohneBestand: true });
+        ergebnis.bestand = hB?.teile
+          ? { anzahl, ...bestandVergleich(ergebnis, hB) }
+          : { anzahl, fehler: hB?.fehler ?? hB?.ohneModell ?? 'Bestand ohne Stabwerk' };
+      } catch (e) {
+        ergebnis.bestand = { anzahl, fehler: String(e?.message ?? e) };
+      }
+    }
+  }
+  const torsion = nachweiseAuswahl(satz.nachweise).torsionMast;
+  Object.defineProperty(ergebnis, 'imFall', { enumerable: false, value: (key) => {
+    const lf = alleFaelleS.find((l) => l.key === key);
+    if (!lf) return null;
+    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion });
+    let kn = null;
+    if (knick) {
+      kn = {};
+      knickBasis.forEach(({ id, basis, beta }) => {
+        const k = knickenAusStabwerk(dat, lsg, [lf], id, basis, erg.modell, { beta });
+        if (k && Number.isFinite(k.eta)) kn[id] = k;
+      });
+    }
+    let au = ausleger;
+    if (ausleger?.knick && bau?.tragausleger) {
+      const id = bau.mastNamen?.A ?? 'A';
+      const basis = { profil: erg.mast?.A?.profil, stegrichtung: erg.mast?.A?.stegrichtung };
+      const beta = Number(satz.knickBeiwert);
+      au = { ...ausleger, knick: knickenAusStabwerk(dat, lsg, [lf], id, basis, erg.modell,
+                                                    { beta: beta > 0 ? beta : undefined }) };
+    } else if (ausleger?.imBlatt && kn) {
+      const id = ausleger.name.replace(/^Mast\s*/, '');
+      au = { ...ausleger, knick: kn[id] ?? null };
+    }
+    const r = { ...ergebnis, ...hu, knick: kn ?? knick, ausleger: au,
+                fall: { key: lf.key, bez: lf.bez, nachweis: lf.nachweis !== false } };
+    Object.defineProperty(r, 'roh', { value: ergebnis.roh, enumerable: false });
+    return r;
+  } });
   return ergebnis;
 }
 

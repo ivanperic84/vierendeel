@@ -577,6 +577,15 @@ input[type=range].rng {
   margin: 4px 0 8px;
 }
 .at-karte.aus { opacity: .5; }
+/* Das Kennzeichen «neu» für den Bestandesschutz (4. Oktober) - nur sichtbar,
+   wenn der Nachweis eingeschaltet ist; gesetzt in der Akzentfarbe. */
+.at-neu {
+  display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
+  font: 600 9.5px var(--f-mono); color: var(--dim); text-transform: uppercase;
+  border: 1px solid var(--ol); border-radius: 3px; padding: 1px 4px;
+}
+.at-neu input { margin: 0; width: 11px; height: 11px; }
+.at-neu.an { color: var(--acc); border-color: var(--acc); background: var(--acc-s); }
 /* DER NAME GEWINNT.
    Vorher: 1fr für den Namen, `auto` für Station und Kräfte. `auto` gibt nicht
    nach, also schrumpfte der Name - bei 386 px Schubladenbreite auf rund vier

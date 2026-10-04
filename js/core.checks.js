@@ -271,6 +271,27 @@ export const NACHWEISGRUPPEN = [
    * Grenzwerts, das die Optionen neben dem Schalter zeigen. Ausgeschaltet
    * bleibt der Wert als Auskunft stehen.
    */
+  /* =======================================================================
+   * >>> BESTANDESSCHUTZ (4. Oktober). <<<
+   * =====================================================================
+   * Weisung vom 3. Oktober: «wir haben eine Bestandesschutz regelung. diese
+   * besagt wenn die lastzunahme nicht höher als 5% bezogen auf die
+   * grenzausnutzung überschreitet, kann von einem vertieftem nachweis
+   * abgesehen werden, solange man davon ausgehen kann, dass dazumal nach
+   * den gültigen normen gerechnet wurde.» Am 4. Oktober: «Kennzeichen «neu»
+   * je Anbauteil, diese option sollte aber erst aufgeführt sein, wenn man
+   * die auswahl betätigt, bestandesschutz nachweis, da man diesen nachweis
+   * nicht so oft führt.» Auf Rückfrage: «Δη ≤ 0.05 absolut» je Bauteil und
+   * «beide mit der gewählten Stufe». Vorgabe AUS; erst eingeschaltet zeigt
+   * die Bauteilkarte das Kennzeichen. Ein Vergleich, kein Tragsicherheits-
+   * nachweis: er färbt das Urteil nicht (core.bestand.js).
+   */
+  { key: 'bestandesschutz', titel: 'Bestandesschutz', vorhanden: true, standard: false, vergleich: true,
+    was: 'Vergleich Bestand gegen Bestand + neue Bauteile (Kennzeichen «neu» '
+       + 'in der Bauteilkarte): je Bauteil Δη ≤ 0.05 bezogen auf die '
+       + 'Grenzausnutzung 1.00, dann kein vertiefter Nachweis. Beide '
+       + 'Zustände mit derselben Windstufe (für die alte Norm: Einheitswind). '
+       + 'Aus dem Stabwerk; färbt das Urteil nicht' },
   { key: 'gebrauch', titel: 'Gebrauchstauglichkeit', vorhanden: true, standard: true,
     was: 'Verformung des Masten unter Betriebswind ψ 0.70 (nur Wind, '
        + 'charakteristisch × 0.70). Aus: keine der drei Prüfungen wird '
@@ -1762,7 +1783,9 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
    */
   const gibtEs = (g) => art !== 'einzelmast'
     || !['jochtragwerk', 'auflagerJoch', 'knickenJoch'].includes(g.key);
-  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && !nw[g.key])
+  // Ein Vergleich (`vergleich`, der Bestandesschutz) ist kein Nachweis des
+  // Tragwerks - ausgeschaltet zählt er nicht unter «nicht geführt» (4. Oktober).
+  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && !nw[g.key] && !g.vergleich)
     .map((g) => ({ key: g.key, titel: g.titel,
                    // `was` darf von der Tragwerksart abhaengen - siehe
                    // `knickenJoch` in NACHWEISGRUPPEN.

@@ -911,8 +911,9 @@ export function zeichneSchienen(app) {
   const r = ui.el('schiene-rechts');
   if (!r) return;
   const e = app.letzte?.anzeige;
-  // Führt das Stabwerk (28. September), zeigt die Schiene seine Zahlen.
-  const swG = app.stabwerkGilt?.() ?? null;
+  // Führt das Stabwerk (28. September), zeigt die Schiene seine Zahlen -
+  // seit dem 4. Oktober auch im gewählten Fall (dieselben wie die Kacheln).
+  const swG = app.stabwerkAnsicht?.() ?? null;
   /*
    * OHNE ZAHL KEINE AMPEL. Ueber der groessten lieferbaren Laenge gibt es
    * fuer den Anker kein eta - dort steht ein Strich, und der ist ein Befund:

@@ -236,6 +236,8 @@ const app = {
   aendern: (...a) => aendern(...a),
   neuRechnen: (...a) => neuRechnen(...a),
   stabwerkGilt: () => stabwerkGilt(),
+  // Hülle oder gewählter Fall aus dem Stabwerk (4. Oktober) - für die Schiene.
+  stabwerkAnsicht: () => stabwerkAnsicht(),
   // Für den Bericht über das ganze Blatt (1. Oktober).
   stabwerkRechnen: () => stabwerkRechnen(),
   reaktionsDaten: () => reaktionsDaten(),
@@ -638,6 +640,28 @@ function stabwerkGilt() {
   // In einer Reihe tragen die Stäbe des aktiven Tragwerks sein Präfix.
   return { h: stabwerk,
            jochKey: (stabwerk.tragwerke ?? 1) > 1 ? `tragwerk:${werte.twId}` : 'tragwerk' };
+}
+
+/*
+ * >>> HÜLLE ODER GEWÄHLTER FALL - AUS DEM STABWERK (4. Oktober). <<<
+ * Weisung: «wenn möglich konsequent auf stabmodell die nachweise führen.
+ * ausser man stellt es unter optionen auf balken methode um.» Bei
+ * «umhüllend» die Hülle (`stabwerkGilt`), sonst die Auswertung des
+ * gewählten Falls aus derselben Lösung (`imFall`, app.stabwerk.js) - eine
+ * Stelle für Kacheln, Bild, Nachbarn und Verläufe. Einmal je Ergebnis und
+ * Fall gerechnet. Ohne gültiges Stabwerk null: dann der Kern («vorläufig»).
+ */
+let stabwerkFallMerk = null;
+function stabwerkAnsicht() {
+  const g = stabwerkGilt();
+  if (!g) return null;
+  if (anzeigeKombi === 'umhuellend') return g;
+  if (stabwerkFallMerk?.quelle !== g.h || stabwerkFallMerk.key !== anzeigeKombi) {
+    let h = null;
+    try { h = g.h.imFall?.(anzeigeKombi) ?? null; } catch { h = null; }
+    stabwerkFallMerk = { quelle: g.h, key: anzeigeKombi, h };
+  }
+  return stabwerkFallMerk.h ? { ...g, h: stabwerkFallMerk.h, einzel: true } : null;
 }
 
 /**
@@ -1515,7 +1539,8 @@ function stabwerkVerlaeufe(breite) {
   // seit dem 4. Oktober an allen vier Arten («so weit wie sinnvoll
   // vereinheitlichen»): der Tragausleger mit seinen zwei UPE wie das
   // Abfangjoch (Gurt vorn / hinten), der Einzelmast mit seinem Masten.
-  const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;
+  // Seit dem 4. Oktober auch im gewählten Fall (`stabwerkAnsicht`).
+  const g = stabwerkAnsicht();
   return g ? stabwerkDiagramme(g.h.jeStab, g.jochKey, linienDiagramm, breite) : null;
 }
 
@@ -1732,6 +1757,8 @@ function zeichneAuswertung() {
          */
         stabwerk: { verfahren: verfahrenVon(werte), stand: stabwerkStand(app),
                     grund: reiheOhneStabmodell(werte), ergebnis: stabwerk,
+                    // Der gewählte Fall aus dem Stabwerk (4. Oktober).
+                    ergebnisFall: anzeigeKombi === 'umhuellend' ? null : stabwerkAnsicht()?.h ?? null,
                     name: reiheName },
         beiStabwerk: stabwerkRechnen,
         beiStab: zeigeStab,
@@ -1797,7 +1824,10 @@ function zeichneAuswertung() {
                                        // nicht nur dem aktiven Tragwerk
                                        // (Etappe 3, 25. September).
                                        grund: reiheOhneStabmodell(werte),
-                                       ergebnis: stabwerk, name: reiheName },
+                                       ergebnis: stabwerk, name: reiheName,
+                                       // Der gewählte Fall aus dem Stabwerk (4. Oktober).
+                                       ergebnisFall: anzeigeKombi === 'umhuellend'
+                                         ? null : stabwerkAnsicht()?.h ?? null },
                            /*
                             * >>> WIE EINE KOMBINATION HEISST (25. Sept.). <<<
                             *
@@ -1931,15 +1961,17 @@ function szeneVonNebenan(t, zeichnen) {
  * zusammenhängenden Tragwerke des Blattes in EINEM Modell (Etappe 3) - die
  * Nachbarn stehen also gerechnet da, und grau zu bleiben verschwieg ihr
  * Ergebnis. Bei «umhüllend» trägt jeder Nachbar die Hülle seiner Stäbe,
- * im Plot «w» die Wege des Falls der verformten Figur; ein gewählter
- * Einzellastfall färbt ihn nicht (der Kern rechnet nur das aktive
- * Tragwerk, und je Stab führt das Stabwerk nur die Hülle).
+ * im Plot «w» die Wege des Falls der verformten Figur. Seit dem 4. Oktober
+ * färbt auch ein gewählter Einzellastfall: das Stabwerk wertet ihn aus
+ * derselben Lösung aus (`stabwerkAnsicht`).
  * Was nicht im Stabwerk steht, bleibt grau (render.3d.js, `_grundfarbe`).
  */
 function nachbarFaerben(sz, t) {
   const g = sz ? stabwerkGilt() : null;
   if (!g?.h?.jeStab) return sz;
-  const umh = anzeigeKombi === 'umhuellend';
+  // Seit dem 4. Oktober auch im gewählten Fall (`stabwerkAnsicht`).
+  const ga = stabwerkAnsicht();
+  const umh = Boolean(ga);
   // Der Tragausleger setzt seine Werte selbst (`auslegerSzene` mit jeStab);
   // hier nur das Kennzeichen, dass sie aus dem Stabwerk stammen.
   if (tragwerksart(tragwerkSatz(werte, t.id)).key === 'tragausleger') {
@@ -1950,7 +1982,8 @@ function nachbarFaerben(sz, t) {
   const lf = roh ? wegeFall(g) : null;
   const an = lf ? wegeAnteile(g, lf) : null;
   const mastNamen = { A: mastNameAmEnde(werte, t, 'A'), B: mastNameAmEnde(werte, t, 'B') };
-  stabwerkFaerben(sz, g.h.jeStab, {
+  stabwerkFaerben(sz, (ga ?? g).h.jeStab, {
+    fall: ga?.einzel ? ga.h.fall?.bez : null,
     jochKey: (g.h.tragwerke ?? 1) > 1 ? `tragwerk:${t.id}` : 'tragwerk',
     mastNamen, nurWege: !umh, mastenOhneJoch: true,
     weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
@@ -1988,15 +2021,25 @@ function szeneVonNebenanRoh(t, zeichnen) {
     // Der Tragausleger zeichnet sich aus seinem Stabmodell (28. September).
     if (tragwerksart(satz).key === 'tragausleger') {
       // Gefärbt aus dem Stabwerk wie das aktive (4. Oktober, «alle stäbe färben»).
-      const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;
+      const g = stabwerkAnsicht();
       return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
                                    mastZeichnen: zeichnen,
                                    jeStab: g?.h?.jeStab ?? null, praefix: `${t.id}_` });
     }
     const j = getTragjoch(satz.typ);
-    return erzeugeSzene(mit(modell(satz, getProfil(satz.profOG),
-                                   getProfil(satz.profUG),
-                                   getStahl(satz.stahl), j)), null);
+    /*
+     * Die Gurte an den Stabgrenzen des Stabwerks teilen wie beim aktiven
+     * Joch (`gurtTeilung`) - sonst hat ein kurzer Gurtstab (Klemme eines
+     * Anbauteils, 4 cm) keine Fläche, und das grösste η des Nachbarn fehlt
+     * im Bild (gemessen 4. Oktober, Reihe J90 20 + 15 m: Bild 0.4787 gegen
+     * Stabwerk 0.4828, der Stab UGR_S48 bei 10.70-10.74 m).
+     */
+    const g = stabwerkAnsicht();
+    const js = g?.h?.jeStab ? jochStaebe(g.h.jeStab, (g.h.tragwerke ?? 1) > 1 ? `tragwerk:${t.id}` : 'tragwerk') : null;
+    return erzeugeSzene(mit({ ...modell(satz, getProfil(satz.profOG),
+                                        getProfil(satz.profUG),
+                                        getStahl(satz.stahl), j),
+                              ...(js ? { gurtTeilung: gurtTeilung(js) } : {}) }), null);
   } catch (e) {
     return null;
   }
@@ -2009,8 +2052,9 @@ function szeneVonNebenanRoh(t, zeichnen) {
  * (render.stabwerk.js). Sonst der Kern wie bisher.
  */
 function jochSzeneMitStabwerk(erg, zeichnen) {
-  // Nur die HÜLLE kommt aus dem Stabwerk; ein gewählter Einzellastfall
-  // zeigt weiter den Kern (das Stabwerk führt je Stab nur die Hülle).
+  // Die Hülle aus dem Stabwerk - und seit dem 4. Oktober auch ein gewählter
+  // Einzellastfall («wenn möglich konsequent auf stabmodell die nachweise
+  // führen», `stabwerkAnsicht`).
   /*
    * Die Hülle nur bei «umhüllend»; die Verformung aus dem Stabwerk in
    * jedem Fall, sobald es gilt (3. Oktober, «das joch auch bei der
@@ -2025,9 +2069,11 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
   // Nachbar wurde er schon aus dem Stabwerk gefärbt (`mastenOhneJoch`).
   const hatGitter = Boolean(g) && Object.keys(g.h.jeStab ?? {}).some(istGitterStab);
   const walzEinzel = Boolean(g) && artS === 'einzelmast' && !hatGitter;
-  const js = g ? jochStaebe(g.h.jeStab, g.jochKey) : null;
+  // Die Werte: Hülle oder gewählter Fall aus dem Stabwerk (4. Oktober).
+  const ga = g ? stabwerkAnsicht() : null;
+  const js = g ? jochStaebe((ga ?? g).h.jeStab, g.jochKey) : null;
   const sz = erzeugeSzene({ ...erg.modell, mastZeichnen: zeichnen,
-                            ...(js && umh ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
+                            ...(js && ga ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
   if ((js || hatGitter || walzEinzel) && sz) {
     const roh = g.h.roh;
     const lf = roh ? wegeFall(g) : null;
@@ -2042,7 +2088,7 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
      * (dieselben Funktionen wie die Hülle, eine Kombination).
      */
     let gitterWerte = null;
-    if (!umh && hatGitter && roh && an) {
+    if (!ga && !umh && hatGitter && roh && an) {
       const kr = kraefteAusAnteilen(roh.lsg, an);
       const nw = stabNachweise(roh.dat, kr, g.h.fyd, {});
       const A = new Map(roh.dat.querschnitte.map((q) => [q.name, Number(q.A) || 0]));
@@ -2058,9 +2104,9 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
                  T: b(f, 3, 9) };
       };
     }
-    stabwerkFaerben(sz, g.h.jeStab, {
-      gitterWerte, mastenOhneJoch: walzEinzel,
-      jochKey: g.jochKey, mastNamen: erg.modell?.federn?.namen ?? {}, nurWege: !umh,
+    stabwerkFaerben(sz, (ga ?? g).h.jeStab, {
+      gitterWerte, mastenOhneJoch: walzEinzel, fall: ga?.einzel ? ga.h.fall?.bez : null,
+      jochKey: g.jochKey, mastNamen: erg.modell?.federn?.namen ?? {}, nurWege: !ga,
       weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
   }
   return sz;
@@ -2089,7 +2135,8 @@ function blattSzene(erg) {
   const taSzene = () => {
     try {
       const satz = rechensatz(werte);
-      const g = stabwerkGilt();
+      // Hülle oder gewählter Fall (4. Oktober).
+      const g = stabwerkAnsicht();
       return auslegerSzene(satz, {
         mast: abfangMastenAngabe(satz, erg.modell.federn?.namen)?.A,
         ergMast: erg.mast ?? null, ergVerf: erg.verformung ?? null,
@@ -2139,9 +2186,10 @@ function blattSzene(erg) {
    * die Szene kommt in örtlichen Koordinaten, also vor dem Verschieben.
    * Ein gewählter Einzellastfall zeigt weiter den Kern.
    */
-  if (!ta && tragwerksart(werte).key === 'abfangjoch' && eigen && anzeigeKombi === 'umhuellend') {
-    const g = stabwerkGilt();
-    if (g) stabwerkFaerben(eigen, g.h.jeStab, { jochKey: g.jochKey,
+  // Seit dem 4. Oktober auch im gewählten Fall (`stabwerkAnsicht`).
+  if (!ta && tragwerksart(werte).key === 'abfangjoch' && eigen) {
+    const g = stabwerkAnsicht();
+    if (g) stabwerkFaerben(eigen, g.h.jeStab, { jochKey: g.jochKey, fall: g.einzel ? g.h.fall?.bez : null,
                                                mastNamen: erg.modell?.federn?.namen ?? {} });
   }
   /*

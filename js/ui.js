@@ -350,8 +350,9 @@ export function maskenSignatur(werte, tab) {
        * Element nicht. Ohne sie in der Signatur blieb die Karte stehen:
        * «Mitte Träger» war gewaehlt, das Seitenfeld erschien nie.
        */
-      ? (werte.anbauteile ?? []).map(
-          (a) => `${a.id}:${a.aktiv !== false}:${befestigungsArt(a)}:` +
+      ? [nachweiseAuswahl(werte.nachweise).bestandesschutz, ...(werte.anbauteile ?? []).map(
+          // Das Kennzeichen «neu» (4. Oktober) ändert die Zeile.
+          (a) => `${a.id}:${a.aktiv !== false}:${a.neu === true}:${befestigungsArt(a)}:` +
                  `${ortVon(a)}:${abfangAnbindung(a).art}:` +
                  `${abfangAnbindung(a).verlauf ?? ''}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
@@ -371,7 +372,7 @@ export function maskenSignatur(werte, tab) {
                  (a.module ?? []).map((m, k) => {
                    const e = werte.havarie?.[leiterKennung(a, m, k)];
                    return e ? `${e.art ?? ''}${e.richtung ?? ''}` : '';
-                 }).join(','))
+                 }).join(','))]
       /*
        * DIE AUFLAGERBEDINGUNG GEHOERT DAZU. Ihr Diagramm ist gezeichnet,
        * kein Eingabefeld - `aktualisiereMaske` gleicht nur Feldwerte ab und
@@ -2820,6 +2821,13 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                 title="Duplizieren - danach ins Modell klicken, wo die Kopie hin soll; Esc bricht ab (auch per Rechtsklick auf die Zeile)">${icon('kopie', 12)}</button>
         <button class="btn btn-mini" data-at-vorlage="${i}"
                 title="Als eigene Vorlage speichern">${icon('speichern', 12)}</button>
+        ${/*
+           * Das Kennzeichen «neu» nur mit eingeschaltetem Bestandesschutz
+           * (4. Oktober: «diese option sollte aber erst aufgeführt sein, wenn
+           * man die auswahl betätigt»).
+           */ nachweiseAuswahl(werte.nachweise).bestandesschutz
+          ? `<label class="at-neu${a.neu === true ? ' an' : ''}" title="Neues Bauteil - für den Bestandesschutz: der Bestand rechnet ohne dieses Teil"><input class="at" data-k="neu"
+          type="checkbox" ${a.neu === true ? 'checked' : ''}>neu</label>` : ''}
         <label class="schalter" title="Teil mitrechnen"><input class="at" data-k="aktiv"
           type="checkbox" ${a.aktiv === false ? '' : 'checked'}></label>
         <button class="loeschen" data-loesch="${i}" title="Entfernen">×</button>
@@ -5526,8 +5534,10 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ? bauteileMitStabwerk(urteil?.bauteile, swH, { knick: knickJe(bem) })
     : (urteil?.bauteile ?? null);
   const eBem = bt?.eta ?? (bem?.mast?.A?.etaMitStabilitaet ?? 0);
-  const eKopf = einzelLastfall ? (mn?.etaMitStabilitaet ?? mn?.eta ?? 0) : eBem;
-  const werKopf = !einzelLastfall && bt?.massgebend ? bt.massgebend.name : null;
+  // Im Einzellastfall die Zahl des Falls - aus dem Stabwerk, wenn es gilt.
+  const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
+  const eKopf = einzelLastfall ? (imFall?.eta ?? (mn?.etaMitStabilitaet ?? mn?.eta ?? 0)) : eBem;
+  const werKopf = imFall ? imFall.name : (!einzelLastfall && bt?.massgebend ? bt.massgebend.name : null);
   const zustand = (bt?.ueber || eBem > 1) ? 'nok' : 'ok';
   const offeneNw = urteil?.nichtGefuehrt?.length ?? 0;
   const ohneKnicken = mn?.knickenGefuehrt === false;
@@ -5633,7 +5643,8 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
       ${nachweisGruppenHtml(nwGruppenMast)}
-      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle, opt.gzg ?? null) : ''}`
+      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle, opt.gzg ?? null) : ''}${
+      zeigtTrag ? bestandBlockHtml(stabwerkFuehrt(opt, false)) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
     ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
@@ -6101,8 +6112,15 @@ export function stabwerkLeiste(opt = {}) {
  */
 export function stabwerkFuehrt(opt = {}, einzelLastfall = false) {
   const sw = opt.stabwerk;
-  if (einzelLastfall || !sw || sw.verfahren !== 'stabwerk'
-      || sw.stand !== 'gueltig') return null;
+  if (!sw || sw.verfahren !== 'stabwerk' || sw.stand !== 'gueltig') return null;
+  /*
+   * >>> AUCH IM GEWÄHLTEN LASTFALL (4. Oktober). <<<
+   * «wenn möglich konsequent auf stabmodell die nachweise führen. ausser
+   * man stellt es unter optionen auf balken methode um.» app.js reicht die
+   * Auswertung des gewählten Falls aus derselben Lösung (`ergebnisFall`);
+   * bis dahin zeigte der Einzellastfall hier den Ersatzbalken.
+   */
+  if (einzelLastfall) return sw.ergebnisFall?.teile ? sw.ergebnisFall : null;
   return sw.ergebnis?.teile ? sw.ergebnis : null;
 }
 
@@ -6127,9 +6145,26 @@ export function urteilMitStabwerk(urteil, swH) {
 }
 
 /** Steht das Stabwerk zur Wahl, ist aber (noch) nicht gültig? */
+/*
+ * Die Zahl des gewählten Falls aus dem Stabwerk (4. Oktober): nur, was
+ * dieser Fall beansprucht - Joch, Masten, Knicken. Anker, Fundament und
+ * Aufhängung stehen auf ihren eigenen, charakteristischen Lastniveaus und
+ * gehören nicht in die Kopfzahl eines Falls (gemessen im Browser: sonst
+ * «η 0.434 Fundament M2» bei Wind +x, das Joch dort 0.336).
+ */
+const NICHT_IM_FALL = new Set(['fundament', 'anker', 'aufhaengung', 'gebrauch']);
+export function etaImFall(bt) {
+  const l = (bt?.liste ?? []).filter((b) => !NICHT_IM_FALL.has(b.key) && Number.isFinite(b.eta));
+  if (!l.length) return null;
+  const m = l.reduce((a, b) => (b.eta > a.eta ? b : a));
+  return { eta: m.eta, name: m.name };
+}
+
 export function stabwerkVorlaeufig(opt = {}, einzelLastfall = false) {
   const sw = opt.stabwerk;
-  return !einzelLastfall && sw?.verfahren === 'stabwerk'
+  // Seit dem 4. Oktober auch im Einzellastfall: dort zeigt der Kern nur, bis
+  // das Stabwerk gilt.
+  return sw?.verfahren === 'stabwerk'
     && sw.stand !== 'gueltig' && sw.stand !== 'ohneModell';
 }
 
@@ -6298,6 +6333,35 @@ export function verdrahteNachweisart(node, opt) {
  * zweideutig - «nicht gerechnet» und «nichts gefunden» sehen dann gleich
  * aus, und das erste wäre ein Mangel.
  */
+/* ===========================================================================
+ * >>> DER BLOCK BESTANDESSCHUTZ (4. Oktober, core.bestand.js). <<<
+ * Nur mit eingeschaltetem Nachweis (Optionen → Nachweise) und gültigem
+ * Stabwerk. Eine Kachel mit dem grössten Δη und dem Bauteil, darunter je
+ * Bauteil Bestand → mit neuen Teilen. Ein Vergleich, kein Urteil: er steht
+ * neben den Nachweisen und färbt die Hauptkachel nicht.
+ * ========================================================================= */
+export function bestandBlockHtml(sw) {
+  const b = sw?.bestand;
+  if (!b) return '';
+  const kopf = abschnitt('Bestandesschutz', `Δη ≤ ${(b.grenze ?? 0.05).toFixed(2)} · Stabwerk`);
+  if (!b.anzahl) {
+    return `${kopf}<p class="leer">Kein Anbauteil als «neu» gekennzeichnet — das Kennzeichen steht in der Bauteilkarte (Reiter Anbauteile).</p>`;
+  }
+  if (b.fehler) return `${kopf}<p class="leer">Bestand nicht gerechnet: ${esc(b.fehler)}</p>`;
+  const k = kachel('Δη Bestandesschutz', b.dMax.toFixed(3),
+    `${b.wer ?? ''} · ${b.ok ? 'kein vertiefter Nachweis' : 'vertiefter Nachweis nötig'}`,
+    b.ok ? 'ok' : 'nok',
+    { titel: `${b.anzahl} Anbauteil(e) als neu gekennzeichnet. Je Bauteil η(Bestand + neue Teile) − η(Bestand), `
+           + `bezogen auf die Grenzausnutzung 1.00; beide Zustände mit derselben Windstufe.` });
+  const zeilen = b.zeilen.map((z) => `<tr class="${z.ok ? '' : 'nok'}"><td>${esc(z.name)}</td>`
+    + `<td class="num">${z.alt.toFixed(3)}</td><td class="num">${z.neu.toFixed(3)}</td>`
+    + `<td class="num">${z.d >= 0 ? '+' : '−'}${Math.abs(z.d).toFixed(3)}</td></tr>`).join('');
+  return `${kopf}<div class="kennzahlen">${k}</div>
+    ${klapp('bestand-tabelle', `Je Bauteil · ${b.anzahl} neue(s) Teil(e)`,
+      `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Bauteil</th><th class="num">Bestand</th>`
+      + `<th class="num">mit neuen</th><th class="num">Δη</th></tr></thead><tbody>${zeilen}</tbody></table></div>`)}`;
+}
+
 export function gzgBlockHtml(erg, quelle = '', gzg = null) {
   const g = gzgKacheln(erg);
   const v = erg?.verformung;
@@ -6977,12 +7041,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const vorlaeufig = stabwerkVorlaeufig(opt, einzelLastfall);
   const jochKey = (swH?.tragwerke ?? 1) > 1 && opt.twId
     ? `tragwerk:${opt.twId}` : 'tragwerk';
-  const bt = einzelLastfall ? null
-    : (swH ? bauteileMitStabwerk(urteil.bauteile, swH,
-                                 { jochKey, knick: knickJe(erg) })
-           : urteil.bauteile);
-  const eKopf = bt ? bt.eta : eAn;
-  const werKopf = bt?.massgebend && bt.liste.length > 1 ? bt.massgebend.name : null;
+  // Im Einzellastfall nur mit dem Stabwerk (die Zahlen des Falls, 4. Oktober).
+  const bt = swH ? bauteileMitStabwerk(urteil.bauteile, swH,
+                                       { jochKey, knick: knickJe(erg) })
+    : (einzelLastfall ? null : urteil.bauteile);
+  const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
+  const eKopf = imFall ? imFall.eta : bt ? bt.eta : eAn;
+  const werKopf = imFall ? imFall.name
+    : (bt?.massgebend && bt.liste.length > 1 ? bt.massgebend.name : null);
   const zustand = !gefuehrt ? 'warn'
     // Mit dem Stabwerk zählt allein das zusammengesetzte Urteil - die
     // Kernzahlen von Joch und Mast färben dann nicht mehr mit.
@@ -7483,6 +7549,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
+    ${zeigtTrag ? bestandBlockHtml(swG) : ''}
     ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und
          keine Stellen des Ersatzjochs. */''}
     ${erg.ausleger?.fehler ? '' : klapp('uebersicht-schnittgroessen', 'Schnittgrössen',

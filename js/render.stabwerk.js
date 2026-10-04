@@ -47,6 +47,17 @@ export const STABWERK_FUSSNOTE = {
   w: 'Aus dem Stabwerk: Betrag des Wegs, angeschrieben an der verformten Figur (umhüllend: massgebender Fall der Gebrauchstauglichkeit).',
 };
 
+/**
+ * Dieselbe Fussnote im gewählten Fall (4. Oktober): die Werte gelten dann
+ * nur diesem Fall, keiner Hülle.
+ */
+export function stabwerkFussnoteFall(text, fall) {
+  if (!text || !fall) return text;
+  return text.replace(/,? ?Hülle über alle Kombinationen\.?/, `, im Fall «${fall}».`)
+    .replace(/,? ?Hülle je Stab/, `, je Stab im Fall «${fall}»`)
+    .replace(/, Hülle —/, ` im Fall «${fall}» —`);
+}
+
 /** Die Werte eines Stabes für den Plot - dieselben Felder wie im Kern. */
 export function plotWerte(z) {
   if (!z) return null;
@@ -359,6 +370,8 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     f.werte = { ...(f.werte ?? {}), ...(mitHuelle ? w : (fallW ?? {})),
                 ...(Number.isFinite(ww) ? { w: ww } : {}) };
     if (mitHuelle || fallW) f.stabwerk = true;  // für die Legende (Fussnote)
+    // Der gewählte Fall statt der Hülle (4. Oktober) - die Legende sagt es.
+    if (mitHuelle && o.fall) f.stabwerkFall = o.fall;
     if (Number.isFinite(ww)) f.wegeStabwerk = true;
     f.staebe = (staebe ?? []).map((z) => z.name);
     if (f._mastStab) { f.staebe = [f._mastStab]; delete f._mastStab; }

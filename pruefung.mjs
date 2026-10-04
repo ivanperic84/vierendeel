@@ -10431,15 +10431,16 @@ titel('41  Welche Nachweise gefuehrt werden');
      */
     // Seit dem 30. September die Gebrauchstauglichkeit: Oberschalter und
     // drei Prüfungen (Fahrdraht quer, Mastspitze, Mastverdrehung).
-    wahr('Elf Gruppen, in der Reihenfolge der Weisungen',
+    // Seit dem 4. Oktober der Bestandesschutz (vor der Gebrauchstauglichkeit).
+    wahr('Zwölf Gruppen, in der Reihenfolge der Weisungen',
          g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,'
-                       + 'knickenMast,fundament,torsionMast,gebrauch,fahrdrahtQuer,'
+                       + 'knickenMast,fundament,torsionMast,bestandesschutz,gebrauch,fahrdrahtQuer,'
                        + 'spitzeMast,verdrehungMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Zehn davon gibt es',
+    wahr('Elf davon gibt es',
          da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
-                        + 'fundament,torsionMast,gebrauch,fahrdrahtQuer,spitzeMast,verdrehungMast',
+                        + 'fundament,torsionMast,bestandesschutz,gebrauch,fahrdrahtQuer,spitzeMast,verdrehungMast',
          da.join(','));
     wahr('Das Fundament ist voreingestellt an - es gehoert zum Tragwerk',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'fundament')?.standard === true);
@@ -10554,8 +10555,11 @@ titel('41  Welche Nachweise gefuehrt werden');
     // Auflager (ausgeschaltet) und das Knicken (nicht enthalten).
     // Seit dem 28. September DREI: dazu das Knicken des Masten, das
     // voreingestellt aus ist («den knicknachweis deaktiviern beim start»).
-    wahr('Voreingestellt sind DREI Nachweise nicht gefuehrt',
+    // Der Bestandesschutz (4. Oktober, Vorgabe aus) zählt nicht mit: er ist
+    // ein Vergleich, kein Nachweis des Tragwerks (`vergleich`).
+    wahr('Voreingestellt sind DREI Nachweise nicht gefuehrt (der Bestandesschutz zählt nicht)',
          std.nichtGefuehrt.length === 3
+         && !std.nichtGefuehrt.some((g) => g.key === 'bestandesschutz')
          && std.nichtGefuehrt.some((g) => g.key === 'knickenMast'),
          std.nichtGefuehrt.map((g) => `${g.titel} (${g.grund})`).join(', '));
     /*
@@ -28364,7 +28368,8 @@ titel('113  Mastverformung im Gebrauchszustand');
     // Seit dem 28. September MIT Ampel («Verformung mit Ampel», auf die
     // Meldung «die kacheln haben keine farbe unter übersicht»).
     wahr('Die Kachel traegt die Ampel (28. September)',
-         /kachel\(`Verformung \$\{name\}`[\s\S]{0,900}?ampel\(mg\.eta\)/.test(ui113));
+         // Seit dem 4. Oktober mit der Kachel «Seitenlage Fahrdraht» im selben Aufruf.
+         /kachel\(ende === 'fahrdraht' \? `Seitenlage \$\{name\}` : `Verformung \$\{name\}`[\s\S]{0,1400}?ampel\(mg\.eta\)/.test(ui113));
   }
 }
 
@@ -32744,7 +32749,8 @@ titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
   const q = APP_QUELLE();
   wahr('Die Anwendung zeichnet den Ausleger aus seiner Szene',
        /tragwerksart\(werte\)\.key === 'tragausleger' \? taSzene\(\) : null/.test(q)
-       && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{\s*return auslegerSzene/.test(q));
+       // Als Nachbar seit dem 4. Oktober mit den Werten des Stabwerks (`g`).
+       && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{[\s\S]{0,300}?return auslegerSzene/.test(q));
 }
 
 // ===========================================================================
@@ -33195,8 +33201,10 @@ titel('150  3D-Resultatplot aus dem Stabwerk: Hülle je Stab');
        // seit dem 3. Oktober acht: dazu w (Verformung mit dem Joch, Abschnitt 199)
        && Object.keys(RS150.STABWERK_FUSSNOTE).length === 8);
   const q = APP_QUELLE();
-  wahr('Nur die Hülle kommt aus dem Stabwerk, ein Einzellastfall zeigt den Kern',
-       /anzeigeKombi === 'umhuellend'\s*\n?\s*\? stabwerkGilt\(\) : null/.test(q));
+  // Seit dem 4. Oktober auch der Einzellastfall aus dem Stabwerk («wenn
+  // möglich konsequent auf stabmodell die nachweise führen», Abschnitt 227).
+  wahr('Hülle oder gewählter Fall aus dem Stabwerk (`stabwerkAnsicht`)',
+       /function stabwerkAnsicht\(\)/.test(q) && q.includes('g.h.imFall?.(anzeigeKombi)'));
 }
 
 // ===========================================================================
@@ -34447,7 +34455,8 @@ titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
   // Der Schalter «δ» ist seit dem 3. Oktober weg (Abschnitt 215): die Figur
   // erscheint mit dem Plot «w» bzw. «η w».
   wahr('Die Figur im gewählten Lastfall oder im massgebenden GZG-Fall',
-       app.includes('function verformtSetzen(szene = null)') && app.includes("mg?.lastfall ?? 'wyk'"));
+       // Seit dem 4. Oktober über `wegeFall` / `gzgMassgebend` (mit dem Faktor des Nachweises).
+       app.includes('function verformtSetzen(szene = null)') && app.includes("(gzgMassgebend(g)?.lastfall ?? 'wyk')"));
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Das 3D zeichnet Punkt + Faktor · Weg und schreibt die Überhöhung an',
        r3.includes('_verformtMalen(c, proj, t)') && r3.includes('p[0] + v.faktor * w[0]'));
@@ -36960,9 +36969,11 @@ if (AJ.abfangDbDa()) {
   if (ul && i30) {
     const GU = M209.gittermastGeometrie(ul.typ);
     pruef('… Gesamthöhe 16.00 m (Gitter 10.40 + Rohr 5.60)', GU.laenge, 16.0, 1e-9, 'm');
-    wahr('… Rohr ø 140 × 6 mm, nur im Oberteil (Knick bis Kopf) gehalten',
+    // Seit dem 4. Oktober an den Halterippen (`halter`, Abschnitt 226): das
+    // Rohr reicht dann bis zur untersten Rippe, sonst wie bisher bis zum Knick.
+    wahr('… Rohr ø 140 × 6 mm, im Gitter bis zur untersten Halterung (ohne Rippen: bis zum Knick)',
          GU.oben.art === 'rohr' && Math.abs(GU.oben.d - 0.14) < 1e-12 && Math.abs(GU.oben.t - 0.006) < 1e-12
-         && Math.abs(GU.oben.innen - ul.hOben) < 1e-9);
+         && Math.abs(GU.oben.innen - (GU.oben.halter ? GU.hoehe - GU.oben.halter[0] : ul.hOben)) < 1e-9);
     wahr('… das Gitter ist das des Typs I 30 (Gurte, Teilung, Breiten, Bleche, Diagramm)',
          ['gurtUnten', 'gurtOben', 'teilungUnten', 'teilungOben', 'breiteA', 'breiteB', 'blech', 'zulMoment']
            .every((k) => JSON.stringify(ul[k]) === JSON.stringify(i30[k])));
@@ -37487,8 +37498,10 @@ if (AJ.abfangDbDa()) {
        && !!d.blech && !!d.kraft && d.masten.map((m) => m.name).join() === 'M1,M2');
   const app = APP_QUELLE();
   wahr('Die Anwendung färbt das Abfangjoch bei «umhüllend» aus dem Stabwerk und zeigt dessen Verläufe',
-       app.includes("tragwerksart(werte).key === 'abfangjoch' && eigen && anzeigeKombi === 'umhuellend'")
-       && app.includes("['joch', 'abfangjoch'].includes(tragwerksart(werte).key) && anzeigeKombi === 'umhuellend'"));
+       // Seit dem 4. Oktober auch im gewählten Fall (`stabwerkAnsicht`, Abschnitt 227);
+       // die Verläufe für alle Arten (`stabwerkVerlaeufe`).
+       app.includes("if (!ta && tragwerksart(werte).key === 'abfangjoch' && eigen) {\n    const g = stabwerkAnsicht();")
+       && app.includes("const g = stabwerkAnsicht();\n  return g ? stabwerkDiagramme(g.h.jeStab, g.jochKey, linienDiagramm, breite) : null;"));
   // Das Tragjoch findet seine Stäbe weiter wie bisher.
   wahr('Das Tragjoch bleibt bei seinen Gurten (kein Abfang-Weg)',
        RS218.jochStaebe({ a: { name: 'OGL_S1', bauteil: 'tragwerk', x0: 0, x1: 1 } }, 'tragwerk')?.abfang !== true);
@@ -37760,8 +37773,12 @@ titel('222  Nachbarn aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen');
   const h = AS222.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
   const tw1 = C222.tragwerkeVon(w).find((t) => t.id === 'T1');
   const s1 = C222.tragwerkSatz(w, 'T1');
-  const sz = R222.erzeugeSzene(modell(s1, getProfil(s1.profOG), getProfil(s1.profUG),
-                                      getStahl(s1.stahl), T.getTragjoch(s1.typ)), null);
+  // Mit den Stabgrenzen des Stabwerks wie in der Anwendung (`szeneVonNebenanRoh`,
+  // seit dem Lauf mit den Betreiberdaten am 4. Oktober: ohne sie fehlte ein
+  // kurzer Gurtstab an der Klemme im Bild, 0.4787 gegen 0.4828).
+  const sz = R222.erzeugeSzene({ ...modell(s1, getProfil(s1.profOG), getProfil(s1.profUG),
+                                           getStahl(s1.stahl), T.getTragjoch(s1.typ)),
+                                 gurtTeilung: RS222.gurtTeilung(RS222.jochStaebe(h.jeStab, 'tragwerk:T1')) }, null);
   RS222.stabwerkFaerben(sz, h.jeStab, { jochKey: 'tragwerk:T1', mastenOhneJoch: true,
     mastNamen: { A: C222.mastNameAmEnde(w, tw1, 'A'), B: C222.mastNameAmEnde(w, tw1, 'B') } });
   const etaBild = Math.max(...sz.flaechen.filter((f) => f.stabwerk && !/^MAST/.test(f.teil ?? ''))
@@ -37901,7 +37918,7 @@ titel('224  Einzelmast im Bild und in den Verläufen aus dem Stabwerk');
        app.includes('gitterWerte, mastenOhneJoch: walzEinzel,'));
   wahr('Die Verläufe des Einzelmasten nehmen das Stabwerk',
        app.includes('weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));')
-       && app.includes("const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;"));
+       && app.includes('function stabwerkVerlaeufe(breite)'));
 }
 
 /* =========================================================================
@@ -38019,6 +38036,141 @@ titel('226  Gittermast: das Rohr an den Halterippen');
   const ga = M226.gittermasten().find((g) => g.aufsatz?.a > 0);
   if (ga) wahr('Der Mastaufsatz steckt nicht im Gitter (auf den Kopf geflanscht)',
                M226.gittermastGeometrie(ga).oben.innen === 0);
+}
+
+/* =========================================================================
+ * 227  DER GEWÄHLTE LASTFALL AUS DEM STABWERK (4. Oktober)
+ * =========================================================================
+ * Weisung: «was ist mit einzellsastfall gemeint? wenn möglich konsequent auf
+ * stabmodell die nachweise führen. ausser man stellt es unter optionen auf
+ * balken methode um.» Bis dahin zeigten Kacheln, Bild und Schiene beim
+ * gewählten Einzellastfall den Ersatzbalken. Jetzt wertet das Stabwerk den
+ * Fall aus derselben Lösung aus (`imFall`, app.stabwerk.js).
+ * ========================================================================= */
+titel('227  Der gewählte Lastfall aus dem Stabwerk');
+{
+  const N227 = await import(J('core.nachbarn.js'));
+  const AS227 = await import(J('app.stabwerk.js'));
+  const SN227 = await import(J('core.stabnachweis.js'));
+  const UI227 = await import(J('ui.js'));
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  const w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
+              nachweise: { ...(standardwerte().nachweise ?? {}), knickenMast: true } };
+  const ws = N227.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N227.kernArgumente(ws));
+  const h = AS227.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  wahr('Das Ergebnis des Stabwerks kennt die Auswertung je Fall (`imFall`)', typeof h.imFall === 'function');
+  const nf = h.roh.faelle.filter((l) => l.nachweis !== false);
+  const je = nf.map((l) => h.imFall(l.key));
+  wahr('… für jeden Nachweisfall ein Ergebnis mit Teilen und dem Namen des Falls',
+       je.every((r, k) => r?.teile && r.fall?.key === nf[k].key), `${nf.length} Fälle`);
+  const teile = Object.keys(h.teile);
+  const maxJe = (k) => Math.max(...je.map((r) => r.teile[k]?.eta ?? 0));
+  wahr('Die Hülle ist das Grösste der Fälle - je Teil, auf die Stelle',
+       teile.every((k) => Math.abs(maxJe(k) - h.teile[k].eta) < 1e-12),
+       teile.map((k) => `${k} ${h.teile[k].eta.toFixed(4)}`).join(' · '));
+  const kn = Object.keys(h.knick ?? {});
+  wahr('Das Knicken im Fall: das Grösste der Fälle ist das Knicken der Hülle',
+       kn.length > 0 && kn.every((id) => Math.abs(Math.max(...je.map((r) => r.knick?.[id]?.eta ?? 0)) - h.knick[id].eta) < 1e-9),
+       kn.map((id) => `${id} ${h.knick[id].eta.toFixed(4)}`).join(' · '));
+  const xp = h.imFall('windXp');
+  const lf = h.roh.faelle.find((l) => l.key === 'windXp');
+  const CH227 = await import(J('core.checks.js'));
+  const direkt = SN227.stabwerkHuelle(h.roh.dat, h.roh.lsg, [lf], h.fyd,
+    { torsion: CH227.nachweiseAuswahl(w.nachweise).torsionMast });
+  wahr('… und im Fall dieselben Zahlen wie die Hülle über diesen einen Fall',
+       Object.keys(direkt.teile).every((k) => Math.abs(direkt.teile[k].eta - xp.teile[k].eta) < 1e-12),
+       Object.entries(xp.teile).map(([k, v]) => `${k} ${v.eta.toFixed(4)}`).join(' · '));
+  wahr('Unbekannter Fall: kein Ergebnis (dann der Kern)', h.imFall('gibtsnicht') === null);
+  // Die Seitenleiste nimmt den Fall, nicht die Hülle.
+  const opt = { stabwerk: { verfahren: 'stabwerk', stand: 'gueltig', ergebnis: h, ergebnisFall: xp } };
+  wahr('Seitenleiste: im Einzellastfall das Stabwerk des Falls, bei «umhüllend» die Hülle',
+       UI227.stabwerkFuehrt(opt, true) === xp && UI227.stabwerkFuehrt(opt, false) === h);
+  wahr('… ohne gültiges Stabwerk der Kern, als «vorläufig» beschriftet - auch im Einzellastfall',
+       UI227.stabwerkFuehrt({ stabwerk: { ...opt.stabwerk, stand: 'veraltet' } }, true) === null
+       && UI227.stabwerkVorlaeufig({ stabwerk: { ...opt.stabwerk, stand: 'veraltet' } }, true) === true);
+  const kopf = UI227.etaImFall({ liste: [{ key: 'joch', name: 'Joch', eta: 0.336 },
+                                         { key: 'fundament', name: 'Fundament M2', eta: 0.434 },
+                                         { key: 'mast', name: 'Mast M1', eta: 0.088 }] });
+  wahr('Die Kopfzahl des Falls ohne Fundament und Anker (eigenes Lastniveau)',
+       kopf?.eta === 0.336 && kopf.name === 'Joch');
+  const app = APP_QUELLE();
+  wahr('Kacheln, Bild, Nachbarn, Abfangjoch, Ausleger, Verläufe und Schiene lesen `stabwerkAnsicht`',
+       (app.match(/stabwerkAnsicht\(\)/g) ?? []).length >= 9
+       && app.includes("ergebnisFall: anzeigeKombi === 'umhuellend' ? null : stabwerkAnsicht()?.h ?? null")
+       && readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes('app.stabwerkAnsicht?.()'));
+  const RS227 = await import(J('render.stabwerk.js'));
+  wahr('Die Legende nennt den Fall statt der Hülle',
+       RS227.stabwerkFussnoteFall(RS227.STABWERK_FUSSNOTE.eta, 'Wind +x').includes('im Fall «Wind +x»')
+       && !RS227.stabwerkFussnoteFall(RS227.STABWERK_FUSSNOTE.eta, 'Wind +x').includes('Hülle'));
+}
+
+/* =========================================================================
+ * 228  BESTANDESSCHUTZ: BESTAND GEGEN BESTAND + NEUE BAUTEILE (4. Oktober)
+ * =========================================================================
+ * Weisung 3. Oktober (5-%-Regel) und 4. Oktober: «Kennzeichen «neu» je
+ * Anbauteil, diese option sollte aber erst aufgeführt sein, wenn man die
+ * auswahl betätigt, bestandesschutz nachweis». Rückfragen: «Δη ≤ 0.05
+ * absolut», «Beide mit der gewählten Stufe».
+ * ========================================================================= */
+titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
+{
+  const CH228 = await import(J('core.checks.js'));
+  const BE228 = await import(J('core.bestand.js'));
+  const N228 = await import(J('core.nachbarn.js'));
+  const AS228 = await import(J('app.stabwerk.js'));
+  const DA228 = await import(J('data.anbauteile.js'));
+  const UI228 = await import(J('ui.js'));
+  const g = CH228.NACHWEISGRUPPEN.find((x) => x.key === 'bestandesschutz');
+  wahr('Nachweisgruppe «Bestandesschutz», Vorgabe aus', g && g.standard === false
+       && CH228.nachweiseAuswahl({}).bestandesschutz === false
+       && CH228.nachweiseAuswahl({ bestandesschutz: true }).bestandesschutz === true);
+  // Das Blatt ohne die neuen Teile: ausgeschaltet, gezählt je Kennung.
+  const mt = { id: 'M_T', neu: true, mastId: 'm1' };
+  const ob = BE228.ohneNeueTeile({ anbauteile: [{ id: 'a' }, { id: 'b', neu: true }, mt],
+                                   mastAnbauteile: [mt], weitere: [{ anbauteile: [{ id: 'c', neu: true }] }] });
+  pruef('Neue Teile je Kennung gezählt (das Mastteil steht in zwei Listen)', ob.anzahl, 3, 1e-12, 'Stk');
+  wahr('… ausgeschaltet, nicht entfernt; die übrigen unverändert',
+       ob.werte.anbauteile.length === 3 && ob.werte.anbauteile[0].aktiv === undefined
+       && ob.werte.anbauteile[1].aktiv === false && ob.werte.mastAnbauteile[0].aktiv === false
+       && ob.werte.weitere[0].anbauteile[0].aktiv === false);
+  // Die Grenze: Δη ≤ 0.05 je Bauteil, absolut.
+  const v = BE228.bestandVergleich(
+    { bauteile: { j: { name: 'Joch', eta: 0.65 }, m: { name: 'Mast M1', eta: 0.7001 } }, knick: { M1: { eta: 0.5 } } },
+    { bauteile: { j: { name: 'Joch', eta: 0.60 }, m: { name: 'Mast M1', eta: 0.65 } }, knick: { M1: { eta: 0.49 } } });
+  wahr('Δη = 0.05 genau gilt noch, 0.0501 nicht; das grösste steht vorn',
+       v.zeilen.find((z) => z.name === 'Joch').ok === true && v.zeilen[0].name === 'Mast M1'
+       && v.zeilen[0].ok === false && v.ok === false && Math.abs(v.dMax - 0.0501) < 1e-9,
+       v.zeilen.map((z) => `${z.name} ${z.d.toFixed(4)}`).join(' · '));
+  // Am Stabwerk: der Bestand ist das Blatt ohne das neue Teil.
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  const basis = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const stab = (w) => {
+    const ws = N228.rechensatzMitNachbarn(w);
+    const erg = berechne(ws, ...N228.kernArgumente(ws));
+    return AS228.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const alt = DA228.neuesAnbauteil('hs-fahrdraht', 10);
+  const neu = { ...DA228.neuesAnbauteil('hs-fahrdraht', 5), neu: true };
+  const nw = { ...(standardwerte().nachweise ?? {}), bestandesschutz: true };
+  const hN = stab({ ...basis, nachweise: nw, anbauteile: [alt, neu] });
+  const hB = stab({ ...basis, nachweise: nw, anbauteile: [alt] });
+  const zj = hN.bestand?.zeilen?.find((z) => z.name === hN.bauteile.tragwerk?.name);
+  pruef('Bestand = dasselbe Blatt ohne das neue Teil (Joch)', zj?.alt, hB.bauteile.tragwerk.eta, 1e-12, '');
+  pruef('… mit dem neuen Teil = das gerechnete Blatt', zj?.neu, hN.bauteile.tragwerk.eta, 1e-12, '');
+  wahr('Gemessen: je Bauteil Bestand → mit neuen, Δη und Urteil', hN.bestand?.anzahl === 1,
+       hN.bestand?.zeilen?.map((z) => `${z.name} ${z.alt.toFixed(3)} → ${z.neu.toFixed(3)} (${z.d >= 0 ? '+' : ''}${z.d.toFixed(3)})`).join(' · '));
+  wahr('Ausgeschaltet: kein Vergleich', stab({ ...basis, anbauteile: [alt, neu] }).bestand === undefined);
+  wahr('Eingeschaltet ohne neues Teil: der Hinweis statt einer Zahl',
+       hB.bestand?.anzahl === 0 && UI228.bestandBlockHtml(hB).includes('Kein Anbauteil als «neu»'));
+  const html = UI228.bestandBlockHtml(hN);
+  wahr('Der Block zeigt Kachel und Tabelle je Bauteil', html.includes('Δη Bestandesschutz')
+       && html.includes('Je Bauteil') && html.includes(hN.bestand.dMax.toFixed(3)));
+  const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Das Kennzeichen «neu» steht nur mit eingeschaltetem Nachweis in der Karte',
+       /nachweiseAuswahl\(werte\.nachweise\)\.bestandesschutz\s*\n?\s*\? `<label class="at-neu/.test(ui));
 }
 
 console.log('\n' + '='.repeat(104));
