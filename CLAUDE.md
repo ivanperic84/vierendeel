@@ -2393,6 +2393,15 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Rückfragen vom 4. Oktober (offen):** (1) **UL-Rohr über die Kopfplatte**: «bei einigen Typen das rohr über die
+  kopfplatte angeschlossen ist und nicht bis zur mastaufweitung nach untern weiter geht» - die Logik steht in
+  `Grundlagen/Kombinierte Masten`; in der Cloud-Sitzung nicht zugänglich, also noch nicht gelesen. Im Modell läuft das Rohr
+  heute bei allen Typen im Oberteil bis zum Knick (gehalten an Knick und Kopf). (2) **«u120»** stammt aus der Weisung vom
+  3. Oktober («einem alten u120 joch mit üblichen anbauteilen», Beispiel mit zwei Gittermasten), gelesen als J120-alt - nicht
+  die Druckstütze U12; Bestätigung erbeten. (3) **Bestandesschutz-Kachel**: gewünscht, «man müsste die neuen bauteile
+  definieren können dafür» - Ausgestaltung offen (Kennzeichen «neu» je Anbauteil? Vergleich Einheitswind alt gegen
+  EK neu, oder Bestand gegen Bestand + neue Teile?). (4) **Einzellastfall im Bild aus dem Stabwerk** nur zusammen mit den
+  Kacheln. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
 - ⚠ **Einheitlichkeit der Tragwerksarten** (Durchsicht 3. Oktober, nachgezogen 4. Oktober auf «so weit wie sinnvoll
   vereinheitlichen»; Stabwerk, Nachweiskacheln, Bericht, Excel, Reaktionsblatt, verformte Figur, Anker und COM-Datei des
   Blattes haben alle vier): ~~(0) rechte Schiene am Abfangjoch~~; der Plot «w» überall aus dem Stabwerk; ~~(a) 3D-Färbung~~

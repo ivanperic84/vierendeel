@@ -5,39 +5,29 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6566 Kontrollen grün,
+Stand: **4. Oktober 2026**; Prüfstand 6566 Kontrollen grün (dazu Abschnitte 221-224 neu, mit den Betreiberdaten nicht gelaufen),
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
 `git log --oneline -1`; der Arbeitsbaum ist sauber, alles ist gepusht.
 
-⚠ **Zuerst (4. Oktober):** die direkten Starrglieder der Anbauteile (Prüfstand 221) sind in einer
-Cloud-Sitzung ohne Betreiberdaten gebaut. Am Arbeitsrechner `node pruefung.mjs` und `node durchlauf.mjs`
-laufen lassen und die verformte Figur im Browser ansehen, bevor der Stand als grün gilt.
+⚠ **Zuerst (4. Oktober, Cloud-Sitzung ohne Betreiberdaten):** gebaut wurden die direkten Starrglieder
+der Anbauteile (Prüfstand 221), die Färbung aller Tragwerke aus dem Stabwerk und das Ziehen der Masten
+am Abfangjoch (222), der GZG-Nachweis am Fahrdraht mit Mastspitzen an der Figur (223) und das
+Vereinheitlichen am Einzelmasten (224). Geprüft nur mit den erfundenen Testdaten (Abschnitte für sich,
+Durchgang, Browser). Am Arbeitsrechner `node pruefung.mjs` und `node durchlauf.mjs` laufen lassen,
+bevor der Stand als grün gilt; der Zweig dieser Sitzung (`claude/dreamy-cannon-9m6xxb`) ist danach
+nach `main` zu übernehmen.
 
-**Nächster Schritt (4. Oktober, wartet auf den Auftraggeber):**
-1. ⚠ **AxisVM-Lauf des Beispiels B** (altes Joch auf zwei Gittermasten) mit
-   der entflochtenen Datei - gefragt, nicht beantwortet. Nur auf Anweisung:
-   `node modell_beispiele.mjs`, dann `com\AxisVM_aufbauen.ps1 -Json <abs>
-   -Rechnen -Auslesen -Stapel` (rund 37 Minuten, im Hintergrund), dann
-   `node vergleich_axisvm.mjs com/AxisVM_Beispiel_B.json --ohne-schub`.
-   Erwartet: Gurt und Blech auf 1-2 % über das ganze Joch, und im Bericht
-   der Brücke KEINE Warnung «zu EINEM gemacht». Das Modell trägt seit dem
-   4. Oktober auch die Riegel am Knick der Ansicht - die alten Ergebnisse
-   passen nicht mehr dazu.
-2. ⚠ Offene Rückfragen: alle Tragwerke des Blattes bei «umhüllend» aus dem
-   Stabwerk färben (heute nur das gewählte; empfohlen: ja); ob eine am Leiter
-   eingetragene eigene Spannweite bei «einseitig» ebenfalls halbiert wird
-   (heute ja, meine Lesart); Tragseil R-FL bei −20 °C; Annahmen zum
-   Einheitswind (c-Werte), UL-Rohr 6 mm, «u120» = J120-alt; Kachel für den
-   5-%-Vergleich im Bestandesschutz.
-3. Uneinheitlichkeiten der Tragwerksarten (CLAUDE.md, *Offene Punkte*, erster
-   Punkt): Einzellastfall im Bild aus der Ersatzrechnung, Schnitt nur am
-   Tragjoch, SAF/DXF/PyNite nicht für Abfangjoch und Gittermast, Knicken am
-   Einzelmasten und Abfangjoch aus dem Kern.
-4. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch,
-   Ablage-Paket (ZIP) hin und zurück. `kalibrieren_abfang.mjs` (PyNite) seit
-   den Berichtigungen am Abfangjoch nicht neu gelaufen.
+**Nächster Schritt (wartet auf den Auftraggeber):**
+1. ⚠ Rückfragen vom 4. Oktober (CLAUDE.md, *Offene Punkte*, erster Punkt): UL-Rohr über die Kopfplatte
+   (Grundlagen lesen - braucht den Arbeitsrechner), «u120» = J120-alt?, Ausgestaltung der
+   Bestandesschutz-Kachel (neue Bauteile kennzeichnen), Einzellastfall im Bild aus dem Stabwerk.
+2. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
+3. Uneinheitlich bleibt: SAF/DXF/PyNite für Abfangjoch und Gittermast; Verläufe am Tragausleger
+   ungeprüft (Testdaten ohne Tragausleger).
+4. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch, Ablage-Paket (ZIP) hin und
+   zurück. `kalibrieren_abfang.mjs` (PyNite) seit den Berichtigungen am Abfangjoch nicht neu gelaufen.
 
 **In `Versand/` (nicht in der Ablage) bereit:** Datenpaket vom Tag,
 `COM_Bruecke/` (vier Skripte, Brücke vom 4. Oktober mit der Knotenwache),
