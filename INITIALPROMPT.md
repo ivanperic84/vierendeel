@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6562 Kontrollen grün,
+Stand: **4. Oktober 2026**; Prüfstand 6566 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
@@ -226,7 +226,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6562 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6566 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

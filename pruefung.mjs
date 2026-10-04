@@ -34447,7 +34447,7 @@ titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
   // Der Schalter «δ» ist seit dem 3. Oktober weg (Abschnitt 215): die Figur
   // erscheint mit dem Plot «w» bzw. «η w».
   wahr('Die Figur im gewählten Lastfall oder im massgebenden GZG-Fall',
-       app.includes('function verformtSetzen()') && app.includes("mg?.lastfall ?? 'wyk'"));
+       app.includes('function verformtSetzen(szene = null)') && app.includes("mg?.lastfall ?? 'wyk'"));
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Das 3D zeichnet Punkt + Faktor · Weg und schreibt die Überhöhung an',
        r3.includes('_verformtMalen(c, proj, t)') && r3.includes('p[0] + v.faktor * w[0]'));
@@ -37568,6 +37568,55 @@ if (AJ.abfangDbDa()) {
     wahr('Die Anwendung reicht den Anker des Stabwerks, sonst den des Kerns',
          APP_QUELLE().includes("g?.h?.ankerJe?.[n[e] ?? e] ?? erg.anker?.[e] ?? null"));
   }
+}
+
+
+/* =========================================================================
+ * 220  DIE FAHRDRÄHTE AN DER VERFORMTEN FIGUR (4. Oktober)
+ * =========================================================================
+ * «hier die fahrdrähte auch in orange aufführen und deren auslenkung angeben,
+ * dies ist der wert der für die nachweise hauptsächlich gilt. so muss man
+ * auch nicht zwingend angeben ob joch oder ausleger relevant sind.»
+ * ========================================================================= */
+{
+  const CA220 = await import(J('core.anbauteile.js'));
+  const SV220 = await import(J('core.stabverformung.js'));
+  const SN220 = await import(J('core.stabnachweis.js'));
+  const AS220 = await import(J('app.stabwerk.js'));
+  const N220 = await import(J('core.nachbarn.js'));
+  const DA220 = await import(J('data.anbauteile.js'));
+  const R220 = await import(J('render.3d.js'));
+  const fd = (bauteil, name = '') => CA220.istFahrdraht({ rolle: 'drahtwerk', bauteil, name });
+  wahr('Fahrdraht: Cu 107 / Cu 150 der Fahrleitung und das Kettenwerk - nicht das Tragseil allein, nicht der Rückleiter',
+       fd('drahtwerk-n-fl-cu-107') && fd('drahtwerk-r-fl-cu-107') && fd('drahtwerk-n-fl-ts-stcu-50-fd-cu-150')
+       && fd('drahtwerk-r-fl-ts-stcu-92-fd-cu-107') && !fd('drahtwerk-n-fl-stcu-50') && !fd('drahtwerk-r-fl-stcu-92')
+       && !fd('drahtwerk-cu-95') && !fd('drahtwerk-cu-95-x2')
+       && !CA220.istFahrdraht({ rolle: 'aufbau', bauteil: 'drahtwerk-n-fl-cu-107' }));
+  const teil = (vid, x) => ({ ...DA220.neuesAnbauteil(vid, x), ort: 'joch' });
+  const w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
+              anbauteile: [teil('hs-fahrdraht', 7), teil('hs-nt-ausleger', 13)] };
+  const ws = N220.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N220.kernArgumente(ws));
+  const h = AS220.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const lf = h.roh.faelle.find((l) => l.key === 'wxk');
+  const fig = SV220.verformteFigur(h.roh.dat, h.roh.lsg, SN220.anteileFuer(lf, h.roh.dat));
+  const ketten = fig.linien.filter((l) => l.anbau);
+  wahr('Die Figur führt die Ketten der Anbauteile (starr, zwei Punkte je Glied) neben den echten Stäben',
+       ketten.length > 4 && ketten.every((l) => l.punkte.length === 2 && /(^|_)(ARM|AT)\d/.test(l.name))
+       && fig.linien.some((l) => !l.anbau && l.punkte.length === 5), `${ketten.length} Glieder`);
+  // Die Szene nennt die Fahrdrähte; je einer findet einen Kettenpunkt in der Nähe.
+  const sz = R220.erzeugeSzene(erg.modell, erg);
+  const marken = sz.marken.filter((m) => m.fahrdraht);
+  const naechster = (m) => Math.min(...ketten.flatMap((l) => l.punkte.map((q) =>
+    Math.hypot(q[0] - m.p[0], q[1] - m.p[1], q[2] - m.p[2]))));
+  wahr('Die Szene kennzeichnet die zwei Fahrdrähte, und jeder liegt an einem Kettenpunkt der Figur (≤ 0.35 m)',
+       marken.length === 2 && marken.every((m) => naechster(m) < 0.35),
+       marken.map((m) => naechster(m).toFixed(3)).join(' / '));
+  const app = APP_QUELLE();
+  wahr('Die Anwendung schreibt die Auslenkung quer zum Gleis je Fahrdraht an die Figur',
+       app.includes('fahrdraehte.push({ ...best, titel: mk.titel })')
+       && readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('mm quer`'));
 }
 
 console.log('\n' + '='.repeat(104));

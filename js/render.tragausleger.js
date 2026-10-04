@@ -36,7 +36,7 @@ import { getTragausleger } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { baugruppeSumme } from './data.anbauteile.js';
-import { anbauKette } from './core.anbauteile.js';
+import { anbauKette, istFahrdraht } from './core.anbauteile.js';
 import { ekVonWindklasse } from './core.lasten.js';
 import { bauteilFarbe } from './design.js';
 import { prisma, platte, stab, schraegerStab, quader, walzProfilPoly,
@@ -215,6 +215,11 @@ export function auslegerSzene(satz, opt = {}) {
       zMin = Math.min(zMin, pAn[2]);
       flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
                               { ...o(`${tp.name ?? ''} · Angriffspunkt`), gruppe: 'last', punkt: true }));
+      // Für die verformte Figur (4. Oktober): wo ein Fahrdraht hängt.
+      if (istFahrdraht(tp)) {
+        marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil, text: '', fahrdraht: true,
+                      titel: `${tp.name ?? ''} · Angriffspunkt` });
+      }
       Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k]) => {
         const art0 = LASTART[gruppe];
         if (!art0 || !k) return;

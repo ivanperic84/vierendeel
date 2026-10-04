@@ -38,7 +38,7 @@
 import { querschnitt } from './geometry.js';
 import { STABWERK_FUSSNOTE } from './render.stabwerk.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
-import { anschlussGurt, anbauKette } from './core.anbauteile.js';
+import { anschlussGurt, anbauKette, istFahrdraht } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
 import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
          ankerBindebleche, ankerBlechVersatz } from './data.anker.js';
@@ -1170,6 +1170,7 @@ export function erzeugeSzene(m, erg) {
           gruppe: 'last', punkt: true }));
       marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
                     text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+                    fahrdraht: istFahrdraht(t),
                     titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
       Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
         [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
@@ -1366,6 +1367,7 @@ export function erzeugeSzene(m, erg) {
       marken.push({
         gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+        fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
       });
 
@@ -2636,7 +2638,28 @@ export class Modellansicht {
       });
       c.stroke();
     });
+    /*
+     * >>> DIE FAHRDRÄHTE AN DER FIGUR (4. Oktober). <<<
+     * «hier die fahrdrähte auch in orange aufführen und deren auslenkung
+     * angeben, dies ist der wert der für die nachweise hauptsächlich gilt.»
+     * Je Fahrdraht ein Ring an seiner verformten Lage und die Auslenkung
+     * QUER zum Gleis (die Grösse des Nachweises) - immer angeschrieben, sie
+     * fällt der Ausdünnung der übrigen Zahlen nicht zum Opfer.
+     */
+    const fd = [];
+    (v.fahrdraehte ?? []).forEach((f) => {
+      const q = proj([f.p[0] + v.faktor * f.w[0], f.p[1] + v.faktor * f.w[1], f.p[2] + v.faktor * f.w[2]]);
+      if (!q) return;
+      c.fillStyle = t.bg ?? '#0b0d12';
+      c.beginPath(); c.arc(q[0], q[1], 4.5 * s, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.beginPath(); c.arc(q[0], q[1], 1.4 * s, 0, Math.PI * 2); c.stroke();
+      fd.push({ q, text: `Fd ${(Math.abs(f.w[0]) * 1000).toFixed(1)} mm quer` });
+    });
     c.restore();
+    if (fd.length && !this.sparsam) {
+      c.font = this._wertFont();
+      fd.forEach((f) => this._beschriftung(c, t, f.text, f.q[0] + 8 * s, f.q[1] + 14 * s, t.warn ?? '#e0a030'));
+    }
     this._figurWerte = marken;
     if (v.text && !this.sparsam) {
       c.font = this._wertFont();

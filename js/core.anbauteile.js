@@ -226,6 +226,21 @@ export function achsenFolge(folge) {
   return g;
 }
 
+/**
+ * >>> IST DAS TEIL EIN FAHRDRAHT? (4. Oktober) <<<
+ * Weisung: «hier die fahrdrähte auch in orange aufführen und deren auslenkung
+ * angeben, dies ist der wert der für die nachweise hauptsächlich gilt.»
+ * Ein Drahtwerk der Fahrleitung (N-FL / R-FL), das den Fahrdraht führt - für
+ * sich (Cu 107 / Cu 150) oder als Kettenwerk mit dem Tragseil. Das Tragseil
+ * allein (StCu) und die Zusatz- und Rückleiter (Cu 95) sind es nicht.
+ */
+export function istFahrdraht(t) {
+  if ((t?.rolle ?? '') !== 'drahtwerk') return false;
+  const id = String(t.bauteil ?? '');
+  if (/^drahtwerk-[nr]-fl/.test(id)) return /(^|-)cu-1\d\d/.test(id);
+  return /fahrdraht|\bfd\b/i.test(`${t.bauteilName ?? ''} ${t.name ?? ''}`);
+}
+
 export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
   const r6 = (v) => Math.round(v * 1e6) / 1e6;
   const gleich = (a, b) => Math.abs(a - b) < 1e-9;

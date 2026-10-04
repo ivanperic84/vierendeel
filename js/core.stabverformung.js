@@ -189,24 +189,34 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
  * @param {Array} anteile [{lastfall, faktor}] aus anteileFuer()
  * @returns {{linien: Array<{punkte:number[][], wege:number[][]}>, max:number}}
  */
+/*
+ * Die Starrglieder der ANBAUTEILE gehören seit dem 4. Oktober zur Figur
+ * («die fahrdrähte auch in orange aufführen»): die Kette vom Tragwerk zum
+ * Leiter (ARM…, am Masten ARMM…) und ihr Anschlusskörper (AT…). Sie sind
+ * starr - zwei Punkte je Glied genügen. In den grössten Weg zählen sie mit.
+ */
+const ANBAU_GLIED = /(?:^|_)(?:ARMM?\d|AT\d)/;
+
 export function verformteFigur(dat, lsg, anteile, { teilung = 4 } = {}) {
   const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
   const linien = [];
   let max = 0;
   (dat?.staebe ?? []).forEach((s) => {
-    if (s.art !== 'stab') return;
+    const anbau = s.art === 'starr' && ANBAU_GLIED.test(s.name);
+    if (s.art !== 'stab' && !anbau) return;
     const a = kn.get(s.von), b = kn.get(s.bis);
     if (!a || !b) return;
     const punkte = [], wege = [];
-    for (let i = 0; i <= teilung; i += 1) {
-      const xi = i / teilung;
+    const n = anbau ? 1 : teilung;
+    for (let i = 0; i <= n; i += 1) {
+      const xi = i / n;
       const u = wegImStab(dat, lsg, anteile, s.name, xi);
       if (!u) return;
       punkte.push([a.x + (b.x - a.x) * xi, a.y + (b.y - a.y) * xi, a.z + (b.z - a.z) * xi]);
       wege.push(u);
       max = Math.max(max, Math.hypot(u[0], u[1], u[2]));
     }
-    linien.push({ name: s.name, punkte, wege });
+    linien.push({ name: s.name, punkte, wege, ...(anbau ? { anbau: true } : {}) });
   });
   return { linien, max };
 }

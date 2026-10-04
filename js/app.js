@@ -2214,7 +2214,7 @@ function wegeFall(g) {
   return roh.faelle.find((l) => l.key === key) ?? null;
 }
 
-function verformtSetzen() {
+function verformtSetzen(szene = null) {
   if (!ansicht) return;
   const g = stabwerkGilt();
   const roh = g?.h?.roh;
@@ -2223,7 +2223,7 @@ function verformtSetzen() {
   const lf = wegeFall(g);
   const key = lf?.key;
   if (!lf) { ansicht.verformt = null; return; }
-  const merk = `${g.h.kennung}|${key}|${werte.twId}`;
+  const merk = `${g.h.kennung}|${key}|${werte.twId}|${(szene?.marken ?? []).filter((mk) => mk.fahrdraht).length}`;
   if (verformtMerk?.merk === merk) { ansicht.verformt = verformtMerk.wert; return; }
   const fig = verformteFigur(roh.dat, roh.lsg, anteileFuer(lf, roh.dat));
   // Der Bezug: ein Mast, der im Modell und im Blatt steht.
@@ -2234,6 +2234,27 @@ function verformtSetzen() {
   const dx = fuss ? fuss.mast.x - fuss.k.x : 0;
   const dz = fuss ? (Number(fuss.mast.fuss) || 0) - fuss.k.z : (Number(werte.mastH) || 0);
   const linien = fig.linien.map((l) => ({ ...l, punkte: l.punkte.map((p) => [p[0] + dx, p[1], p[2] + dz]) }));
+  /*
+   * >>> DIE FAHRDRÄHTE (4. Oktober). <<<
+   * Mit Bild (Plot «w», J120-alt), im Wortlaut: «hier die fahrdrähte auch in
+   * orange aufführen und deren auslenkung angeben, dies ist der wert der für
+   * die nachweise hauptsächlich gilt. so muss man auch nicht zwingend angeben
+   * ob joch oder ausleger relevant sind.» Die Szene nennt die Stellen
+   * (`fahrdraht` an der Marke des Angriffspunkts); der Weg ist der des
+   * Figurpunkts an derselben Stelle - das Ende der starren Kette.
+   */
+  const fahrdraehte = [];
+  (szene?.marken ?? []).filter((mk) => mk.fahrdraht && mk.p).forEach((mk) => {
+    // Der nächste Punkt einer Anbauteil-Kette: das Stabmodell rückt ein Teil
+    // aus einem steifen Knotenbereich (bis rund 0.2 m), die Szene nicht.
+    let best = null, d2 = 0.35 ** 2;
+    linien.filter((l) => l.anbau).forEach((l) => l.punkte.forEach((q, i) => {
+      const d = (q[0] - mk.p[0]) ** 2 + (q[1] - mk.p[1]) ** 2 + (q[2] - mk.p[2]) ** 2;
+      if (d < d2) { d2 = d; best = { p: q, w: l.wege[i] }; }
+    }));
+    if (best && !fahrdraehte.some((f) => f.p === best.p)) fahrdraehte.push({ ...best, titel: mk.titel });
+  });
+  const fdMax = fahrdraehte.reduce((a, f) => Math.max(a, Math.abs(f.w[0])), 0);
   const xs = linien.flatMap((l) => l.punkte.map((p) => p[0]));
   const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
   const groesse = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
@@ -2244,9 +2265,10 @@ function verformtSetzen() {
     faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
   }
   const wert = faktor > 0 ? {
-    linien, faktor,
+    linien, faktor, fahrdraehte,
     text: [`Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht`,
-      `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`,
+      `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`
+        + (fahrdraehte.length ? ` · Fahrdraht quer ${(fdMax * 1000).toFixed(1)} mm` : ''),
       `${lf.bez}${umh ? ' (massgebend GZG)' : ''}`],
   } : null;
   verformtMerk = { merk, wert };
@@ -2290,7 +2312,7 @@ function aktualisiereModell(erg) {
   uebernehmeAnsichtsoptionen();
   ansicht.station = station;
   ansicht.ohneBalken = ohneBalken();
-  verformtSetzen();
+  verformtSetzen(szene);
   wegeAusFigur(szene, ansicht.verformt);
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
