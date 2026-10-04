@@ -3276,7 +3276,21 @@ function bezugsHinweis(a) {
   return amMast(a)
     ? `<span class="sec-r">ab Anschluss am Mast ${
         ortVon(a) === 'mastB' ? 'B' : 'A'}</span>`
-    : '<span class="sec-r">ab Schwerachse des Anschlussgurtes</span>';
+    : abJochachse(a)
+      ? '<span class="sec-r">ab Jochachse (beide Gurte, ohne Träger)</span>'
+      : '<span class="sec-r">ab Schwerachse des Anschlussgurtes</span>';
+}
+
+/**
+ * Zählt z dieser Baugruppe ab der Jochachse? Befestigung «beide» und kein
+ * Träger (4. Oktober, `bezugsEbene` in core.anbauteile.js).
+ */
+function abJochachse(a) {
+  if (befestigungsArt(a) !== 'durchgehend') return false;
+  return !(a.module ?? []).some((m) => {
+    if (m.aktiv === false || !m.bauteil) return false;
+    try { return getFlBauteil(m.bauteil).rolle === 'traeger'; } catch { return false; }
+  });
 }
 
 /** Ist diese Id ein Kettenwerk? Ohne Wurf, auch bei unbekannter Id. */
@@ -4478,9 +4492,13 @@ function anbauteilSkizze(a, werte) {
     .map((y) => `<line class="sk-an" x1="${cx - halb - 4}" y1="${y}"
                        x2="${cx + halb + 4}" y2="${y}"/>`).join('');
 
-  // Lastangriff: unterhalb bei e_v > 0, oberhalb bei e_v < 0
-  const abY = ev >= 0 ? cyU : cyO;
-  const anY = ev >= 0 ? Math.min(150, cyU + 42) : Math.max(12, cyO - 30);
+  // Lastangriff: unterhalb bei e_v > 0, oberhalb bei e_v < 0. Ab der
+  // Jochachse (beide Gurte, ohne Träger, 4. Oktober) liegt z = 0 in der Mitte.
+  const achse = abJochachse(a);
+  const cyM = (cyO + cyU) / 2;
+  const abY = achse ? cyM : ev >= 0 ? cyU : cyO;
+  const anY = achse && !ev ? cyM
+    : ev >= 0 ? Math.min(150, cyU + 42) : Math.max(12, cyO - 30);
   const anX = cx + Math.max(-26, Math.min(26, ex * 34));
 
   const evMass = ev ? `
@@ -4775,7 +4793,9 @@ export function vorlageFormular(v, istKopie) {
       '<p class="notiz">Noch keine Bauteile.</p>'}</div>
     <button class="btn btn-mini" id="vl-neu" type="button">+ Bauteil</button>
     <p class="notiz">z zählt ab der Schwerachse des Anschlussgurtes,
-      positiv nach oben. Ein hängendes Teil hat also z &lt; 0.</p>`;
+      positiv nach oben. Ein hängendes Teil hat also z &lt; 0. Bei
+      Befestigung «beide» ohne Hängestütze oder Jochaufsatz zählt z ab der
+      Jochachse - z = 0 liegt dann in der Mitte.</p>`;
 }
 
 function verdrahteAnbauteile(container, werte, onAnbau) {

@@ -38,7 +38,7 @@
 import { querschnitt } from './geometry.js';
 import { STABWERK_FUSSNOTE, stabwerkFussnoteFall } from './render.stabwerk.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
-import { anschlussGurt, anbauKette, istFahrdraht } from './core.anbauteile.js';
+import { anbauKette, bezugsHoehe, istFahrdraht } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
 import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
          ankerBindebleche, ankerBlechVersatz } from './data.anker.js';
@@ -1288,8 +1288,9 @@ export function erzeugeSzene(m, erg) {
     // am Obergurt gemessen, was hängt, am Untergurt. Dieselbe Regel gilt im
     // Rechenkern (anschlussGurt in core.anbauteile.js), damit Bild und Zahl
     // dasselbe Mass meinen.
-    const zAbVon = (t) => (anschlussGurt({ befestigung: bef, z: t?.z ?? 0 }) === 'OG'
-      ? zOG : zUG);
+    // Ohne Träger und mit «beide» ab der Jochachse (4. Oktober, `bezugsEbene`).
+    const mitTraeger = meine.some((x) => (x.rolle ?? '') === 'traeger');
+    const zAbVon = (t) => bezugsHoehe({ befestigung: bef, z: t?.z ?? 0, mitTraeger }, zOG, zUG);
 
     /*
      * DIE KETTE, GLIED FÜR GLIED.
@@ -1306,8 +1307,8 @@ export function erzeugeSzene(m, erg) {
      * hängt an seinem Ende.
      */
     const traegerTeil = meine.find((x) => (x.rolle ?? '') === 'traeger') ?? meine[0];
-    const anGurt = anschlussGurt({ befestigung: bef, z: traegerTeil?.z ?? 0 });
-    const kette = anbauKette(meine, { x0: a.x, zAn: anGurt === 'OG' ? zOG : zUG });
+    const kette = anbauKette(meine, { x0: a.x,
+      zAn: bezugsHoehe({ befestigung: bef, z: traegerTeil?.z ?? 0, mitTraeger }, zOG, zUG) });
 
     kette.glieder.forEach((g) => {
       const laenge = Math.hypot(g.bis.x - g.von.x, g.bis.y - g.von.y,

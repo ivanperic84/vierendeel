@@ -235,6 +235,8 @@ const app = {
   weitereDiagramme: (...a) => weitereDiagramme(...a),
   aendern: (...a) => aendern(...a),
   neuRechnen: (...a) => neuRechnen(...a),
+  // Ein Sprung der Anwendung in die Seitenleiste ist kein Bedienen (4. Okt.).
+  maskenAnkerLoesen: () => maskenAnkerLoesen(),
   stabwerkGilt: () => stabwerkGilt(),
   // Hülle oder gewählter Fall aus dem Stabwerk (4. Oktober) - für die Schiene.
   stabwerkAnsicht: () => stabwerkAnsicht(),
@@ -4705,7 +4707,10 @@ function zeigeAnbauteil(i) {
   neuRechnen();
   if (zuSeite.links) ausklappen('links');
   zoomAufAnbauteil(i);
-  // Nach dem Neuaufbau der Maske die Karte ins Bild holen.
+  // Nach dem Neuaufbau der Maske die Karte ins Bild holen. Ein alter Anker
+  // aus einer Eingabe davor würde die Leiste beim nächsten Neuaufbau an
+  // seine Stelle zurückrollen (siehe `zeigeFeld`).
+  maskenAnkerLoesen();
   requestAnimationFrame(() => {
     const k = ui.el('maske')?.querySelector(`.at-karte[data-idx="${i}"]`);
     k?.scrollIntoView({ block: 'start', behavior: 'smooth' });

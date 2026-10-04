@@ -204,7 +204,7 @@ function widerstand(qs) {
  * @param {Float64Array} f  12 Endkraefte, wie `stabkraft()` sie gibt
  * @returns {{sig:number, ende:string}|null}  groesste Randspannung [N/mm²]
  */
-export function stabSpannung(qs, f, rolle, torsion = null) {
+export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null) {
   if (!qs || !f) return null;
 
   /*
@@ -213,10 +213,12 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
    * DAZWISCHEN bleibt hier aussen vor - bei einer Streckenlast kann das
    * Feldmoment groesser sein, und das ist ein offener Punkt.
    */
+  // `nurEnde`: am steifen Gurtabschnitt im Knoten zählt nur das Ende am
+  // Anschnitt (4. Oktober, siehe `stabNachweise`).
   const enden = [
     { name: 'i', N: f[0], My: f[4], Mz: f[5] },
     { name: 'j', N: f[6], My: f[10], Mz: f[11] },
-  ];
+  ].filter((e) => !nurEnde || e.name === nurEnde);
 
   if (rolle === 'gurt' && qs.profil) {
     // getProfil wirft bei unbekanntem Namen - hier ist das kein Abbruchgrund.
@@ -274,7 +276,8 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
                         Iz: qs.Iz * 1e8, It: qs.It * 1e8 }, torsion.zO);
   }
   let best = null;
-  enden.forEach((e, k) => {
+  enden.forEach((e) => {
+    const k = e.name === 'i' ? 0 : 1;
     // kN, kNm -> N/mm²: N/A in kN/m² = kPa -> /1000; M/W in kNm/m³ -> /1000.
     const T = k === 0 ? f[3] : f[9];
     const sigW = wt ? wt.sigma(T, k === 0 ? torsion.z_i : torsion.z_j) : 0;
@@ -377,6 +380,38 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
       mastHoehe.set(m[1], h);
     });
   }
+  /*
+   * >>> DER GURT AM ANSCHNITT (4. Oktober). <<<
+   *
+   * Weisung, mit dem Bild der Option «Knotenbereich Gurt/Blech»: «die
+   * nachweise beim stabmodell nehmen die spannungsspitzen bei den gurten als
+   * massgebend an. nimm die einstellung für das stabmodell wie beim balken
+   * auf, dass man die auswertung am rand zu den blechen als auswahl nehmen
+   * kann.» Das Stabmodell führt den Gurt über die Blechbreite als steifen
+   * Abschnitt (gleicher Winkel, E × `STEIF_FAKTOR`, `steifesMaterial`); er
+   * wurde wie jeder Gurtstab an BEIDEN Enden ausgewertet - auch in der
+   * Blechachse, wo das Moment am grössten ist. Gemessen J90/20 m mit
+   * NT-Ausleger bei 10 m: massgebend `OGL_S48` (10.70-10.74 m, Ende i auf
+   * der Blechachse bei 10.70).
+   *
+   * Mit «Anschnitt» (Vorgabe, wie beim Ersatzbalken) zählt am steifen
+   * Abschnitt nur das Ende, an dem der freie Gurt anschliesst - der Rand
+   * des Blechs. Der Abschnitt behält damit seinen Wert (Bild, Verläufe),
+   * nur eben den am Anschnitt. «Schwerachsen» wertet wie bisher beide
+   * Enden aus. Das Modell selbst ändert sich nicht.
+   */
+  const amAnschnitt = (opt.knotenbereich ?? 'anschnitt') !== 'schwerachsen';
+  const knotenEnde = new Map();
+  if (amAnschnitt) {
+    const gurte = dat.staebe.filter((st) => stabRolle(st.name, st.art) === 'gurt');
+    const frei = new Set();
+    gurte.forEach((st) => { if (!st.steifesMaterial) { frei.add(st.von); frei.add(st.bis); } });
+    gurte.forEach((st) => {
+      if (!st.steifesMaterial) return;
+      const i = frei.has(st.von), j = frei.has(st.bis);
+      knotenEnde.set(st.name, i && j ? null : i ? 'i' : j ? 'j' : 'keins');
+    });
+  }
   const je = new Map();
   const gruppen = {};
   // Je Bauteil der Reihe (Joch T1, Mast M2 …) das grösste eta.
@@ -387,6 +422,8 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
 
   dat.staebe.forEach((st) => {
     const rolle = stabRolle(st.name, st.art);
+    // Ein steifer Abschnitt ganz im Knoten (kein Ende am freien Gurt).
+    if (knotenEnde.get(st.name) === 'keins') return;
     /*
      * >>> STARRELEMENTE UND LINKS WERDEN NICHT NACHGEWIESEN. <<<
      * Sie sind Kunstgriffe, keine Bauteile - dieselbe Regel wie beim
@@ -414,7 +451,8 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     const torsion = mh ? { z_i: (knZ.get(st.von) ?? mh.fuss) - mh.fuss,
                            z_j: (knZ.get(st.bis) ?? mh.fuss) - mh.fuss,
                            zO: mh.kopf - mh.fuss } : null;
-    let s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion);
+    let s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion,
+                         knotenEnde.get(st.name) ?? null);
     if (!s) { ohneWert += 1; return; }
     /*
      * Am Masten auch zwischen den Enden (2. Oktober, siehe `schnittImStab`):

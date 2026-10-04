@@ -121,15 +121,43 @@ export function anschlussGurt(a) {
 }
 
 /**
+ * >>> AB WELCHER EBENE z ZÄHLT (4. Oktober). <<<
+ *
+ * Weisung mit Bild (freies Bauteil, Befestigung «beide», z = 0, der Punkt
+ * sass auf Untergurthöhe): «wenn man befestigungsart beide ausgewählt hat,
+ * sollte bei z=0 der angriffspunkt in der mitte sein und nicht an
+ * untergurt höhe.» Auf Rückfrage «Ab Jochachse, nur ohne Träger»: bei
+ * «beide» zählt z ab der JOCHACHSE (Mitte zwischen den Gurtschwerachsen),
+ * wenn die Baugruppe keinen Träger hat (Hängestütze, Jochaufsatz) - ein
+ * freies Bauteil, ein Lastblock. Mit Träger bleibt es beim Gurt, zu dem er
+ * zeigt (`anschlussGurt`): die Vorlagen und Masse der Zeichnungen hängen
+ * daran.
+ *
+ * `mitTraeger` setzt `expandiereAnbauteile` je Teil (die ganze Baugruppe);
+ * fehlt die Angabe, gilt wie bisher der Gurt.
+ * @returns {'OG'|'UG'|'ACHSE'}
+ */
+export function bezugsEbene(a) {
+  if (befestigungsArt(a) === 'durchgehend' && a?.mitTraeger === false) return 'ACHSE';
+  return anschlussGurt(a);
+}
+
+/** Höhe der Bezugsebene aus den Höhen der beiden Gurtschwerachsen. */
+export function bezugsHoehe(a, zOG, zUG) {
+  const e = bezugsEbene(a);
+  return e === 'OG' ? zOG : e === 'UG' ? zUG : (zOG + zUG) / 2;
+}
+
+/**
  * Hebelarm des Angriffspunkts zur JOCHACHSE, positiv nach unten.
  *
- *      e_v = −(z_A + z)      z_A = ±h/2 je nach Anschlussgurt
+ *      e_v = −(z_A + z)      z_A = ±h/2 je nach Anschlussgurt, 0 ab Achse
  *
  * @param {object} a Teil mit z und Befestigung
  * @param {number} h Hebelarm zwischen den Gurtschwerachsen [m]
  */
 export function hebelarmZuAchse(a, h) {
-  const zA = (anschlussGurt(a) === 'OG' ? +1 : -1) * (h ?? 0) / 2;
+  const zA = bezugsHoehe(a, (h ?? 0) / 2, -(h ?? 0) / 2);
   return -(zA + (a?.z ?? 0));
 }
 

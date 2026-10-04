@@ -757,7 +757,8 @@ export const ABSCHNITTE = [
     titel: 'Anbauteil-Vorlagen', herkunft: 'sortiment', schluessel: 'id',
     notiz: 'Eine Vorlage ist eine Baugruppe: sie benennt Bauteile der '
          + 'Lasttabelle und sagt, wo sie sitzen. z zählt NACH OBEN, ab der '
-         + 'Schwerachse des Anschlussgurtes.',
+         + 'Schwerachse des Anschlussgurtes (bei Befestigung «durchgehend» '
+         + 'ohne Träger ab der Jochachse).',
     felder: [
       text('id', 'Kurzzeichen', { pflicht: true }),
       text('name', 'Bezeichnung', { pflicht: true }),

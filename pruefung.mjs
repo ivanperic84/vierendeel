@@ -1162,8 +1162,11 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
   const einseitig = lasten('unten');
   // e_v = z-Mass 1.5 m ab Anschlussebene + h/2 = 0.25 m bis zur Jochachse
   const T = 4 * (1.5 + hArm / 2);                      // F_y · e_v = 7 kNm
+  // Durchgehend OHNE Träger zählt z seit dem 4. Oktober ab der Jochachse
+  // (Rückfrage «Ab Jochachse, nur ohne Träger», `bezugsEbene`): e_v = 1.5.
+  const Tdurch = 4 * 1.5;                              // 6 kNm
 
-  pruef('4 Punkte: ΔF_y = T / h', durch.teile[0].dFy, T / hArm, 1e-12, 'kN');
+  pruef('4 Punkte: ΔF_y = T / h', durch.teile[0].dFy, Tdurch / hArm, 1e-12, 'kN');
   pruef('2 Punkte: ΔF_z = T / b', einseitig.teile[0].dFz, T / 0.300, 1e-12, 'kN');
   pruef('Nicht mehr über das Aussenmass jbb',
         einseitig.teile[0].dFz / (T / 0.400), 400 / 300, 1e-12, '–');
@@ -1238,14 +1241,14 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
   pruef('Fern vom Anbauteil kein örtlicher Anteil', fern.horizontal.anteilLokal,
         0, 1e-12, 'kN');
   pruef('Am Anbauteil trägt die Horizontalebene das ganze Kräftepaar',
-        nah.horizontal.anteilLokal, T / hArm, 1e-12, 'kN');
+        nah.horizontal.anteilLokal, Tdurch / hArm, 1e-12, 'kN');
   pruef('Die Vertikalebene bleibt davon unberührt', nah.vertikal.anteilLokal,
         0, 1e-12, 'kN');
   {
     const QSo = await import(J('core.querschnitt.js'));
     const ab = ebenenQuerkraefte(sg0, { ...mLok, oertlichFaktor: undefined }, 10);
     pruef('Abgemindert: durchgehend befestigt mit dem gemessenen Faktor',
-          ab.horizontal.anteilLokal, QSo.OERTLICH_FAKTOR.durchgehend * T / hArm, 1e-12, 'kN');
+          ab.horizontal.anteilLokal, QSo.OERTLICH_FAKTOR.durchgehend * Tdurch / hArm, 1e-12, 'kN');
   }
 
   // Wirkung im vollständigen Nachweis: die Befestigungsart ändert η
@@ -3453,12 +3456,15 @@ titel('19  AxisVM-Export (SAF)');
              const p = durch.knoten.get(x.von), q = durch.knoten.get(x.bis);
              return Math.abs(q.z - p.z - 0.10) < 1e-9;
            }));
+    // Ohne Träger läuft er seit dem 4. Oktober über einen Knoten in der
+    // Jochachse (ARM…_DO / ARM…_DU, `bezugsEbene`).
     wahr('Durchgehend: ein Stab verbindet Ober- und Untergurt',
-         durch.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
+         durch.staebe.some((x) => /^ARM\d+_D[OU]?$/.test(x.name)));
     wahr('Durchgehend: auch der Stab durch den Kasten ist ein Starrkörper',
-         durch.staebe.find((x) => /^ARM\d+_D$/.test(x.name)).starrRolle === 'anbauteil');
+         durch.staebe.filter((x) => /^ARM\d+_D[OU]?$/.test(x.name))
+           .every((x) => x.starrRolle === 'anbauteil'));
     wahr('Nur bei durchgehend läuft der Stab durch',
-         !vier.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
+         !vier.staebe.some((x) => /^ARM\d+_D[OU]?$/.test(x.name)));
   }
 
   // --- Blechachsen liegen versetzt ------------------------------------------
@@ -34491,7 +34497,9 @@ titel('174  Resultatleiste im Stabwerk: ohne Nachweisschnitt, δ bei den Plots')
   const felder = (v) => SCH174.optionenFelder({ ...standardwerte(), rechenverfahren: v }, 'modell')
     .flatMap((a) => a.felder.map((f) => f.key));
   wahr('Optionen → Rechenmodell: im Stabwerk nur, was dort wirkt (gemessen)',
-       JSON.stringify(felder('stabwerk')) === '["massVariante","blechQuelle","ausrOG","ausrUG"]'
+       // Seit dem 4. Oktober auch der Knotenbereich: er wählt im Stabwerk,
+       // wo der steife Gurtabschnitt ausgewertet wird (Abschnitt 234).
+       JSON.stringify(felder('stabwerk')) === '["massVariante","blechQuelle","ausrOG","ausrUG","knotenbereich"]'
        && felder('ersatzbalken').length === 12, felder('stabwerk').join(','));
   wahr('Das Verfahren entscheidet (nicht das gültige Ergebnis), ohne Stabmodell bleibt der Balken',
        app.includes("verfahrenVon(werte) === 'stabwerk' && stabwerkStand(app) !== 'ohneModell'")
@@ -38512,6 +38520,113 @@ titel('233  Tragausleger: Wind auf Mast und Ausleger im 3D');
   const ui233 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Radioknöpfe der Karte behalten ihren Wert (nur «checked» wird nachgeführt)',
        /inp\.type === 'radio'\) \{[\s\S]{0,700}?inp\.checked = an;/.test(ui233));
+}
+
+titel('234  Gurt am Anschnitt im Stabwerk; «beide» ohne Träger ab Jochachse; Sprung der Leiste');
+/* ===========================================================================
+ * (a) «die nachweise beim stabmodell nehmen die spannungsspitzen bei den
+ *     gurten als massgebend an. nimm die einstellung für das stabmodell wie
+ *     beim balken auf» (4. Oktober) - Option `knotenbereich` auch im Stabwerk.
+ * (b) «wenn man befestigungsart beide ausgewählt hat, sollte bei z=0 der
+ *     angriffspunkt in der mitte sein» - auf Rückfrage nur ohne Träger.
+ * (c) Klick auf den Masttitel: die Leiste rollte zurück (Anker aus `focusin`).
+ * ========================================================================= */
+{
+  const A234 = await import(J('data.anbauteile.js'));
+  const N234 = await import(J('core.nachbarn.js'));
+  const AS234 = await import(J('app.stabwerk.js'));
+  const CA234 = await import(J('core.anbauteile.js'));
+  const typ = T.getTragjoch('J90') ? 'J90' : T.tragjoche()[0].typ;
+  const grund = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const rechneSW = (w) => {
+    const satz = N234.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N234.kernArgumente(satz));
+    return AS234.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const gurtEta = (r) => Math.max(...Object.values(r.teile)
+    .filter((x) => x.teil === 'OG' || x.teil === 'UG').map((x) => x.eta));
+  let nt = null; try { nt = A234.neuesAnbauteil('hs-nt-ausleger', 10); } catch { nt = null; }
+  const teile = nt ? [nt] : [];
+  const rA = rechneSW({ ...grund, anbauteile: teile, knotenbereich: 'anschnitt' });
+  const rS = rechneSW({ ...grund, anbauteile: teile, knotenbereich: 'schwerachsen' });
+  wahr('Am Anschnitt liegt der Gurt nicht höher als in der Blechachse',
+       gurtEta(rA) <= gurtEta(rS) + 1e-12,
+       `${gurtEta(rS).toFixed(4)} -> ${gurtEta(rA).toFixed(4)}`);
+  wahr('… und mit Anbauteil wirklich tiefer (die Spitze sass in der Blechachse)',
+       !nt || gurtEta(rA) < gurtEta(rS) - 1e-4);
+  // Am steifen Abschnitt zählt nur das Ende am freien Gurt.
+  const dat = rA.roh.dat;
+  const gurte = dat.staebe.filter((st) => /^(OG|UG)[LR]_S\d+$/.test(st.name));
+  const frei = new Set();
+  gurte.forEach((st) => { if (!st.steifesMaterial) { frei.add(st.von); frei.add(st.bis); } });
+  const steif = gurte.filter((st) => st.steifesMaterial);
+  wahr('Das Modell führt steife Gurtabschnitte im Knoten', steif.length > 20, `${steif.length}`);
+  const js = rA.jeStab instanceof Map ? Object.fromEntries(rA.jeStab) : rA.jeStab;
+  wahr('Ausgewertet wird dort nur das Ende am Anschnitt',
+       steif.every((st) => {
+         const e = js[st.name]; if (!e) return true;
+         const ende = e.detail?.ende ?? e.ende;
+         return (ende === 'i' ? frei.has(st.von) : frei.has(st.bis));
+       }));
+  const jsS = rS.jeStab instanceof Map ? Object.fromEntries(rS.jeStab) : rS.jeStab;
+  wahr('«Schwerachsen» wertet am steifen Abschnitt auch die Blechachse aus',
+       steif.some((st) => { const e = jsS[st.name]; const ende = e?.detail?.ende ?? e?.ende;
+                            return e && (ende === 'i' ? !frei.has(st.von) : !frei.has(st.bis)); }));
+  const maxBild = Math.max(...Object.values(js).filter((e) => /^(OG|UG)[LR]_S/.test(e.name ?? ''))
+    .map((e) => e.eta ?? 0), 0);
+  pruef('Grösstes η der Gurte im Bild = Kachel', maxBild, gurtEta(rA), 1e-9, '–');
+
+  // (b) beide ohne Träger: z ab der Jochachse.
+  pruef('Hebelarm «beide», ohne Träger, z = 0: in der Achse',
+        CA234.hebelarmZuAchse({ befestigung: 'durchgehend', z: 0, mitTraeger: false }, 0.6), 0, 1e-12, 'm');
+  pruef('… mit Träger weiter ab dem Gurt (z −1 ab UG)',
+        CA234.hebelarmZuAchse({ befestigung: 'durchgehend', z: -1, mitTraeger: true }, 0.6), 1.3, 1e-12, 'm');
+  pruef('… ohne Angabe wie bisher (alter Stand)',
+        CA234.hebelarmZuAchse({ befestigung: 'durchgehend', z: 0 }, 0.6), 0.3, 1e-12, 'm');
+  const frei234 = { ...A234.neuesAnbauteil('frei', 13.2), befestigung: 'durchgehend',
+    lasten: [{ einwirkung: 'WindY', x: 0, y: 0.3, z: 0, Fx: 0, Fy: 2, Fz: 0 }] };
+  const fl = A234.expandiereAnbauteile([frei234], { ek: 'EK1' });
+  wahr('Ein freies Bauteil hat keinen Träger (mitTraeger false)',
+       fl.length > 0 && fl.every((t) => t.mitTraeger === false));
+  if (nt) {
+    wahr('Die Hängestütze mit NT-Ausleger hat einen (mitTraeger true)',
+         A234.expandiereAnbauteile([nt], { ek: 'EK1' }).every((t) => t.mitTraeger === true));
+  }
+  const rF = rechneSW({ ...grund, anbauteile: [frei234] });
+  const kn = new Map(rF.roh.dat.knoten.map((k) => [k.name, k]));
+  const ogZ = Math.max(...rF.roh.dat.knoten.filter((k) => /^AT0_OG/.test(k.name)).map((k) => k.z));
+  const ugZ = Math.min(...rF.roh.dat.knoten.filter((k) => /^AT0_UG/.test(k.name)).map((k) => k.z));
+  const ach = kn.get('AT0_ACHSE');
+  wahr('Im Stabmodell sitzt die Wurzel in der Jochachse (zwischen OG und UG)',
+       ach && Math.abs(ach.z - (ogZ + ugZ) / 2) < 0.02 && Math.abs(ach.z) < 0.02,
+       ach ? `z ${ach.z}` : 'kein Knoten');
+  wahr('… der Lastpunkt bei z = 0 auf derselben Höhe',
+       rF.roh.dat.knoten.some((k) => /^AL0_/.test(k.name) && Math.abs(k.z - ach.z) < 1e-9));
+  wahr('… und der Stab durch den Kasten läuft über diesen Knoten',
+       ['ARM0_DO', 'ARM0_DU'].every((n) => rF.roh.dat.staebe.some((st) => st.name === n))
+       && !rF.roh.dat.staebe.some((st) => st.name === 'ARM0_D'));
+  if (nt) {
+    const zHS = (bef) => {
+      const r = rechneSW({ ...grund, anbauteile: [{ ...nt, befestigung: bef }] });
+      return r.roh.dat.knoten.find((k) => k.name === 'AL0_0')?.z;
+    };
+    pruef('Mit Träger bleibt die Stütze, wo sie war (unten = beide)', zHS('durchgehend'), zHS('unten'), 1e-9, 'm');
+  }
+  const ui234 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Karte und Skizze sagen «ab Jochachse»',
+       ui234.includes('ab Jochachse (beide Gurte, ohne Träger)') && ui234.includes('const achse = abJochachse(a);'));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Das Bild nimmt dieselbe Bezugshöhe (bezugsHoehe)',
+       (r3.match(/bezugsHoehe\(/g) ?? []).length >= 2 && !r3.includes('anschlussGurt('));
+
+  // (c) Sprung der Seitenleiste.
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('zeigeFeld: Fokus, dann Anker lösen, dann weich rollen',
+       /el\.focus\(\{ preventScroll: true \}\);\s*app\.maskenAnkerLoesen\?\.\(\);\s*el\.scrollIntoView/.test(lay));
+  const app234 = APP_QUELLE();
+  wahr('Auch der Sprung auf eine Anbauteilkarte löst den Anker',
+       /zoomAufAnbauteil\(i\);[\s\S]{0,300}maskenAnkerLoesen\(\);/.test(app234));
 }
 
 console.log('\n' + '='.repeat(104));

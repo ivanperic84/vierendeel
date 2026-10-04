@@ -673,11 +673,25 @@ export function zeigeFeld(app, key) {
   const el = document.getElementById(`feld-${key}`) ??
              ui.el('maske').querySelector(`[data-feld="${key}"]`);
   if (el) {
+    /*
+     * >>> DER SPRUNG IST KEIN BEDIENEN (4. Oktober). <<<
+     * Gemeldet: «wenn ich einen masten anklicke über den text im 3d um auf
+     * die stelle in der sidebar zu gelangen, springt diese dann nach obern
+     * wenn ich den masttyp da anpassen will.» Gemessen (Klick auf den
+     * Masttitel aus dem Reiter Anbauteile): die Leiste rollte in 0.4 s auf
+     * 1106 px und stand 1.2 s später wieder auf 0. Der Fokus unten löst
+     * `focusin` aus, und der Anker der Seitenleiste merkte sich das Feld an
+     * seiner Stelle VOR dem weichen Rollen (1631 px tief); der Neuaufbau
+     * eine Sekunde später (Stabwerk) rollte es dorthin zurück. Fokus zuerst,
+     * dann den Anker lösen, dann rollen - der Neuaufbau behält danach die
+     * Rollstellung des Reiters.
+     */
+    if (!el.disabled) el.focus({ preventScroll: true });
+    app.maskenAnkerLoesen?.();
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const rahmen = el.closest('.feld') ?? el;
     rahmen.classList.add('blitz');
     setTimeout(() => rahmen.classList.remove('blitz'), 1400);
-    if (!el.disabled) el.focus({ preventScroll: true });
   }
 }
 

@@ -51,7 +51,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
-import { anbauKette, anschlussGurt, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
+import { anbauKette, bezugsEbene, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
 import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
@@ -3738,8 +3738,11 @@ export function stabmodell(m, opt = {}) {
       });
     });
 
-    // Bei vier Punkten oben UND unten läuft der Stab durch den Kasten.
-    if (ebenen.length === 2) {
+    // Bei vier Punkten oben UND unten läuft der Stab durch den Kasten - ohne
+    // Träger mit einem Knoten in der Achse (unten, `ARM…_DO/_DU`).
+    const ohneTraegerAchse = ebenen.length === 2
+      && !(a.teile ?? [a]).some((x) => (x.rolle ?? '') === 'traeger');
+    if (ebenen.length === 2 && !ohneTraegerAchse) {
       s.stab(`ARM${k}_D`, qsArm, mitte.OG, mitte.UG, { starrRolle: 'anbauteil' });
     }
 
@@ -3788,9 +3791,17 @@ export function stabmodell(m, opt = {}) {
      */
     const traegerTeil = (a.teile ?? [a]).find((x) => (x.rolle ?? '') === 'traeger')
                      ?? (a.teile ?? [a])[0] ?? a;
-    const anGurt = anschlussGurt({ befestigung: a.befestigung, z: traegerTeil.z ?? 0 });
-    const zAn = anGurt === 'OG' ? zOG : zUG;
-    const anker = anGurt === 'OG' ? mitte.OG : mitte.UG;
+    // Ohne Träger und mit «beide» zählt z ab der Jochachse (4. Oktober,
+    // `bezugsEbene`); die Wurzel sitzt dann auf dem Stab durch den Kasten.
+    const anGurt = bezugsEbene({ befestigung: a.befestigung, z: traegerTeil.z ?? 0,
+      mitTraeger: (a.teile ?? [a]).some((x) => (x.rolle ?? '') === 'traeger') });
+    const zAn = anGurt === 'OG' ? zOG : anGurt === 'UG' ? zUG : r6((zOG + zUG) / 2);
+    let anker = anGurt === 'OG' ? mitte.OG : mitte.UG;
+    if (anGurt === 'ACHSE' && mitte.OG && mitte.UG) {
+      anker = s.kn(`AT${k}_ACHSE`, x0, 0, zAn);
+      s.stab(`ARM${k}_DO`, qsArm, mitte.OG, anker, { starrRolle: 'anbauteil' });
+      s.stab(`ARM${k}_DU`, qsArm, anker, mitte.UG, { starrRolle: 'anbauteil' });
+    }
 
     /*
      * DIE KETTE KOMMT AUS DEM RECHENKERN (anbauKette in core.anbauteile.js).

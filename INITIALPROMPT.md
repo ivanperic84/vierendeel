@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6679**
+Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6698**
 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung), `durchlauf.mjs` ohne Bruch (Betreiber- und
 Testdaten). Gearbeitet wurde in einer **Cloud-Sitzung** auf dem Zweig `claude/dreamy-cannon-9m6xxb`; jeder
 grüne Stand ist dorthin **und nach `main`** gepusht (Weisungen «danach stand auf main stellen», «pushen wenn
@@ -18,7 +18,7 @@ es eine funktionierenden stand erlaubt»). Der Arbeitsbaum ist sauber. Am Arbeit
    Halterippen der Gittermasten (`rohr.halter`) und das UL-Rohr mit zwei Wanddicken (`rohr.tOben`,
    `rohr.wechsel`). Die Grundlagen dazu sind **vertraulich** («diese daten nicht öffentlich stellen»):
    keine Zahl, kein Positions- oder Zeichnungsbezug daraus in verfolgte Dateien.
-2. `node pruefung.mjs` (6679) und `node durchlauf.mjs`.
+2. `node pruefung.mjs` (6698) und `node durchlauf.mjs`.
 3. Die COM-Brücke ist seit dem 4. Oktober unverändert in der Ablage (`com/`); die App legt die Skripte
    beim Ausleiten mit «Skriptdateien mitliefern» neben die Modelldatei.
 
@@ -36,7 +36,12 @@ Anbauteil, Δη ≤ 0.05 je Bauteil; Schalter unter Lasten bei der Windbelastung
 in den Optionen; Notiz bei Einheitswind); Gittermast: Rohr an den Halterippen, Rippen halten **nur
 seitlich** (Linkelement, ohne Momente; Spiel nicht abgebildet - entschieden), am Kopf verschraubt;
 UL-Rohr mit zwei Wanddicken; **Löser:** Dreibein schräger Stäbe ohne lcsZ berichtigt (traf nur
-Probestäbe, keine Zahl der App geändert).
+Probestäbe, keine Zahl der App geändert). Danach (Prüfstand 233-234): Wind am Tragausleger im 3D,
+Befestigung am Joch schaltbar, Anbauteile am Tragausleger anklickbar; **Gurt im Stabwerk am Anschnitt**
+(Option «Knotenbereich» gilt jetzt auch dort); Befestigung «beide» ohne Träger: **z ab Jochachse**;
+Sprung der Seitenleiste nach Klick auf den Masttitel behoben.
+**In Arbeit:** Signalbauer mit den Signalbildern der Mappe als Kacheln und Knopf «Signal zusammenstellen»
+(örtlicher `git stash` «signalbauer in arbeit»; Bilder nur in `data/anbauteile.json`, vertraulich).
 
 **Nächster Schritt (wartet auf den Auftraggeber):**
 1. ⚠ Tragausleger verdreht sich unter Wind längs um rund 0.17 rad (L 10 m, Hängestütze mit NT-Ausleger),
@@ -240,7 +245,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6679 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6698 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

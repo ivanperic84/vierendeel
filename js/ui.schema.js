@@ -2037,9 +2037,14 @@ export const FELDER = [
   { key: 'knotenbereich', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Knotenbereich Gurt/Blech',
     standard: 'anschnitt', optionen: opt(KNOTENBEREICHE),
+    // Seit dem 4. Oktober auch im Stabwerk («nimm die einstellung für das
+    // stabmodell wie beim balken auf»): dort wählt sie, wo am steifen
+    // Gurtabschnitt im Knoten ausgewertet wird. Das Modell bleibt gleich.
     hinweis: 'Nachweis am Anschnitt des steifen Knotenbereichs. «Schwerachsen» '
            + 'dient dem Vergleich mit einem Prüfmodell, nicht dem Nachweis. '
-           + 'Unterschied 11 bis 15 % auf η.'},
+           + 'Im Ersatzbalken 11 bis 15 % auf η. Im Stabwerk wählt sie, ob der '
+           + 'Gurt am Rand des Blechs oder in der Blechachse ausgewertet wird '
+           + '(das Modell bleibt dasselbe).'},
   // In den Endfeldern geht die Torsion über die Anschlussebenen in den Mast -
   // eine örtliche Krafteinleitung, die der Ersatzbalken nicht führt.
   { key: 'endfeldZuschlag', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
@@ -2320,7 +2325,7 @@ export const OPTIONEN_ABSCHNITTE = [
  */
 export const OPTIONEN_NUR_ERSATZBALKEN = new Set([
   'torsionModell', 'torsionsverteilung', 'ebenenUeberlagerung', 'gurtaufteilung',
-  'spannungsmodell', 'knotenbereich', 'endfeldZuschlag', 'schiefeBiegung']);
+  'spannungsmodell', 'endfeldZuschlag', 'schiefeBiegung']);
 
 export function optionenFelder(werte, thema = null) {
   return OPTIONEN_ABSCHNITTE

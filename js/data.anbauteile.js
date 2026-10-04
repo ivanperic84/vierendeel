@@ -1470,6 +1470,10 @@ export function expandiereAnbauteile(liste, o = {}) {
     });
 
     windAufTraeger(teile, a);
+    // Ob die Baugruppe einen Träger hat (4. Oktober): ohne ihn zählt z bei
+    // Befestigung «beide» ab der Jochachse (`bezugsEbene`, core.anbauteile.js).
+    const mitTraeger = teile.some((t) => t.rolle === 'traeger');
+    teile.forEach((t) => { t.mitTraeger = mitTraeger; });
     flach.push(...teile);
   });
   return flach;

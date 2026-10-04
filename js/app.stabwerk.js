@@ -398,8 +398,11 @@ export function rechneStabwerk(app, aufruf = {}) {
   const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).
+  // Der Gurt am Anschnitt oder in der Blechachse (4. Oktober) - dieselbe
+  // Option wie beim Ersatzbalken.
+  const knotenbereich = satz.knotenbereich ?? 'anschnitt';
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
-    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast });
+    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich });
   /*
    * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
    * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
@@ -649,7 +652,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   Object.defineProperty(ergebnis, 'imFall', { enumerable: false, value: (key) => {
     const lf = alleFaelleS.find((l) => l.key === key);
     if (!lf) return null;
-    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion });
+    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich });
     let kn = null;
     if (knick) {
       kn = {};
