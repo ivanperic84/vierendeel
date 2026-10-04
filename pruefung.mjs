@@ -37862,6 +37862,44 @@ titel('223  Gebrauchstauglichkeit am Fahrdraht; Mastspitzen an der Figur');
        && readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('(v.spitzen ?? []).forEach((f) => {'));
 }
 
+/* =========================================================================
+ * 224  VEREINHEITLICHT: EINZELMAST IM BILD UND IN DEN VERLÄUFEN AUS DEM
+ *      STABWERK (4. Oktober)
+ * =========================================================================
+ * «so weit wie sinnvoll vereinheitlichen.» Der Walzprofil-Einzelmast wird
+ * bei «umhüllend» aus dem Stabwerk gefärbt, seine Verläufe kommen aus dem
+ * Stabwerk (Kern eingeklappt); die Verläufe des Stabwerks gelten allen vier
+ * Arten. Das Knicken las die Anzeige schon an jedem Masten aus dem
+ * Stabwerk (`h.knick`, Testdaten: Einzelmast M1 0.2384 = Kern; Abfangjoch
+ * M1 0.1523 gegen 0.3578 im Kern).
+ * ========================================================================= */
+titel('224  Einzelmast im Bild und in den Verläufen aus dem Stabwerk');
+{
+  const C224 = await import(J('core.constants.js'));
+  const N224 = await import(J('core.nachbarn.js'));
+  const AS224 = await import(J('app.stabwerk.js'));
+  const RS224 = await import(J('render.stabwerk.js'));
+  const CH224 = await import(J('render.charts.js'));
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  let w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+            L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  w = C224.tragwerkWeg(C224.tragwerkHinzu(w, 'einzelmast', { mastProfil: 'HEB 260', mastH: 8, mastLaenge: 10 }), 'T1');
+  w.nachweise = { ...w.nachweise, knickenMast: true };
+  const ws = N224.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N224.kernArgumente(ws));
+  const h = AS224.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const d = RS224.stabwerkDiagramme(h.jeStab, 'tragwerk', CH224.linienDiagramm, 600);
+  wahr('Verläufe des Stabwerks auch ohne Joch: nur die Masten', d && !d.gurt && !d.kraft && d.masten.length === 1,
+       d ? `${d.masten.length} Mast` : 'null');
+  wahr('Das Stabwerk führt das Knicken des Einzelmasten', Number.isFinite(h.knick?.M1?.eta));
+  const app = APP_QUELLE();
+  wahr('Der Walzprofil-Einzelmast wird aus dem Stabwerk gefärbt (`walzEinzel`)',
+       app.includes('gitterWerte, mastenOhneJoch: walzEinzel,'));
+  wahr('Die Verläufe des Einzelmasten nehmen das Stabwerk',
+       app.includes('weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));')
+       && app.includes("const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

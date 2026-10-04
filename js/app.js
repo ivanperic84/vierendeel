@@ -1511,9 +1511,11 @@ const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
  * die des Ersatzbalkens eingeklappt darunter.
  */
 function stabwerkVerlaeufe(breite) {
-  // Seit dem 3. Oktober auch am Abfangjoch («Bild und Verläufe nachziehen»).
-  const g = ['joch', 'abfangjoch'].includes(tragwerksart(werte).key) && anzeigeKombi === 'umhuellend'
-    ? stabwerkGilt() : null;
+  // Seit dem 3. Oktober auch am Abfangjoch («Bild und Verläufe nachziehen»),
+  // seit dem 4. Oktober an allen vier Arten («so weit wie sinnvoll
+  // vereinheitlichen»): der Tragausleger mit seinen zwei UPE wie das
+  // Abfangjoch (Gurt vorn / hinten), der Einzelmast mit seinem Masten.
+  const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;
   return g ? stabwerkDiagramme(g.h.jeStab, g.jochKey, linienDiagramm, breite) : null;
 }
 
@@ -1693,7 +1695,8 @@ function zeichneAuswertung() {
     const knoten = ui.el('auswertung');
     if (tabAuswertung === 'verlauf') {
       const zeig = anzeigeKombi === 'umhuellend' ? letzte.bemessung : letzte.anzeige;
-      ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860));
+      // Aus dem Stabwerk, wenn es gilt (4. Oktober), der Kern eingeklappt.
+      ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));
     } else if (tabAuswertung === 'auflager') {
       ui.zeichneMastfuss(knoten, letzte.kombi);
       // Auch am Einzelmasten (30. September: «warum kann ich hier nicht den
@@ -2017,13 +2020,15 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
   const artS = tragwerksart(werte).key;
   let g = artS === 'joch' || artS === 'einzelmast' ? stabwerkGilt() : null;
   // Der Gittermast wird immer aus dem Stabwerk gefärbt (3. Oktober) - auch
-  // als Einzelmast; der Walzprofil-Einzelmast zeigt weiter den Kern.
+  // als Einzelmast. Seit dem 4. Oktober auch der Walzprofil-Einzelmast
+  // (bei «umhüllend»; «so weit wie sinnvoll vereinheitlichen») - als
+  // Nachbar wurde er schon aus dem Stabwerk gefärbt (`mastenOhneJoch`).
   const hatGitter = Boolean(g) && Object.keys(g.h.jeStab ?? {}).some(istGitterStab);
-  if (artS === 'einzelmast' && !hatGitter) g = null;
+  const walzEinzel = Boolean(g) && artS === 'einzelmast' && !hatGitter;
   const js = g ? jochStaebe(g.h.jeStab, g.jochKey) : null;
   const sz = erzeugeSzene({ ...erg.modell, mastZeichnen: zeichnen,
                             ...(js && umh ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
-  if ((js || hatGitter) && sz) {
+  if ((js || hatGitter || walzEinzel) && sz) {
     const roh = g.h.roh;
     const lf = roh ? wegeFall(g) : null;
     const an = lf ? anteileFuer(lf, roh.dat) : null;
@@ -2054,7 +2059,7 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
       };
     }
     stabwerkFaerben(sz, g.h.jeStab, {
-      gitterWerte,
+      gitterWerte, mastenOhneJoch: walzEinzel,
       jochKey: g.jochKey, mastNamen: erg.modell?.federn?.namen ?? {}, nurWege: !umh,
       weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
   }

@@ -362,7 +362,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**4. Oktober 2026** · Prüfstand 6566 Kontrollen grün (dazu Abschnitte 221-223 mit 20 Kontrollen, mit den Betreiberdaten noch nicht gelaufen) · `durchlauf.mjs`
+**4. Oktober 2026** · Prüfstand 6566 Kontrollen grün (dazu Abschnitte 221-224 mit 24 Kontrollen, mit den Betreiberdaten noch nicht gelaufen) · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2393,14 +2393,17 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **Einheitlichkeit der Tragwerksarten** (Durchsicht 3. Oktober; Stabwerk, Nachweiskacheln, Bericht, Excel, Reaktionsblatt,
-  verformte Figur, Anker und COM-Datei des Blattes haben alle vier): (0) ~~rechte Schiene am Abfangjoch~~ (seit dem 3. Oktober aus dem
-  Stabwerk); der Plot «w» kommt seit dem 3. Oktober überall aus dem Stabwerk; (a) **3D-Färbung** aus dem Stabwerk am Tragjoch (Hülle), Gittermast,
-  Tragausleger und seit dem 3. Oktober am Abfangjoch; am Walzprofil-Einzelmasten aus dem Kern; (b) **Verläufe** aus dem Stabwerk am
-  Tragjoch und Abfangjoch, der **Schnitt** nur am Tragjoch;
-  (c) **Einzellastfall** im Bild überall aus dem Kern (ausser Gittermast); (d) **SAF, DXF, PyNite** nicht für Abfangjoch und
-  Gittermast; (e) **Knicken** aus dem Stabwerk am Tragjoch und Tragausleger, am Einzelmasten und Abfangjoch aus dem Kern;
-  ~~(f) nur das gewählte Tragwerk ist gefärbt~~ (seit dem 4. Oktober alle aus dem Stabwerk, «umhüllen alle stäbe färben»); (g) Kragarm und Stoss nur am Tragjoch (sachlich so).
+- ⚠ **Einheitlichkeit der Tragwerksarten** (Durchsicht 3. Oktober, nachgezogen 4. Oktober auf «so weit wie sinnvoll
+  vereinheitlichen»; Stabwerk, Nachweiskacheln, Bericht, Excel, Reaktionsblatt, verformte Figur, Anker und COM-Datei des
+  Blattes haben alle vier): ~~(0) rechte Schiene am Abfangjoch~~; der Plot «w» überall aus dem Stabwerk; ~~(a) 3D-Färbung~~
+  bei «umhüllend» jetzt an allen Arten aus dem Stabwerk (der Walzprofil-Einzelmast seit dem 4. Oktober); ~~(b) Verläufe~~ aus
+  dem Stabwerk an allen Arten (Einzelmast nur Masten; ⚠ am Tragausleger ungeprüft, die Testdaten führen keinen); der Reiter
+  **Schnitt** steht seit dem 29. September nur beim Ersatzbalken; ⚠ (c) **Einzellastfall** im Bild und in den Kacheln aus
+  dem Kern (ausser Gittermast) - nur das Bild umzustellen hiesse zwei Quellen in einer Ansicht, beim Auftraggeber erfragt;
+  (d) **SAF, DXF, PyNite** nicht für Abfangjoch und Gittermast (eigene Ausleitungen, nicht angefasst); ~~(e) Knicken~~ liest
+  die Anzeige seit dem 30. September an jedem Masten aus dem Stabwerk (`h.knick`; gemessen 4. Oktober, Testdaten: Abfangjoch
+  M1 0.1523 Stabwerk gegen 0.3578 Kern, Kachel «Knicken M1 · Stabwerk» am Einzelmasten); ~~(f) nur das gewählte Tragwerk ist
+  gefärbt~~ (seit dem 4. Oktober alle aus dem Stabwerk); (g) Kragarm und Stoss nur am Tragjoch (sachlich so).
 - **Wind nach der Norm für Gittertragwerke** (Joche +21-41 % gegen die Tabelle, gerechnet am 3. Oktober):
   verworfen, der Auftraggeber prüft die Normwerte selbst; die Tabelle des Betreibers gilt.
 - ⚠ **Gittermast, offen** (3. Okt.): (a) Wanddicke des Mastaufsatzes am langen Typ nach einem anderen

@@ -437,8 +437,11 @@ function ueber(liste, feld) {
  * @returns {object|null} { gurt, blech, kraft, masten: [{name, eta, schnitt}] }
  */
 export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900) {
-  const js = jochStaebe(jeStab, jochKey);
-  if (!js) return null;
+  /*
+   * Ohne Joch (Einzelmast, 4. Oktober «so weit wie sinnvoll
+   * vereinheitlichen») nur die Masten - die Gurtblöcke bleiben leer.
+   */
+  const js = jochStaebe(jeStab, jochKey) ?? { versatz: 0, gurt: {}, blech: {}, ohneJoch: true };
   // Am Abfangjoch (3. Oktober) die zwei Gurte vorn / hinten statt OG / UG.
   const og = js.abfang ? (js.gurt.GURT_V ?? []) : [...(js.gurt.OG_L ?? []), ...(js.gurt.OG_R ?? [])];
   const ug = js.abfang ? (js.gurt.GURT_H ?? []) : [...(js.gurt.UG_L ?? []), ...(js.gurt.UG_R ?? [])];
@@ -447,13 +450,13 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
   const tEta = treppe(grenzen, [ueber(og, 'eta'), ueber(ug, 'eta')]);
   const tN = treppe(grenzen, [ueber(og, 'N'), ueber(ug, 'N')]);
   const zusatz = ' · Stabwerk, Hülle je Stab über alle Kombinationen';
-  const gurt = linienDiagramm({
+  const gurt = js.ohneJoch ? null : linienDiagramm({
     titel: `Ausnutzung der Gurte${zusatz}`, breite, hoehe: 230,
     xLabel: 'x [m]', yLabel: 'η [–]', punkte: tEta.punkte, grenze: 1.0,
     serien: [{ name: nOG, werte: tEta.werte[0] },
              { name: nUG, werte: tEta.werte[1] }],
   });
-  const kraft = linienDiagramm({
+  const kraft = js.ohneJoch ? null : linienDiagramm({
     titel: `Gurtkraft |N|${zusatz}`, breite, hoehe: 230,
     xLabel: 'x [m]', yLabel: 'N [kN]', punkte: tN.punkte,
     serien: [{ name: nOG, werte: tN.werte[0] },
@@ -507,5 +510,6 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
       }),
     };
   });
+  if (js.ohneJoch && !mastDia.length) return null;
   return { gurt, blech, kraft, masten: mastDia };
 }
