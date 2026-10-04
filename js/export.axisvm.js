@@ -2575,6 +2575,29 @@ export function stabmodell(m, opt = {}) {
     const x2 = zweiteKonsoleX(m, ende);
     if (x2 !== null) fest.add(x2);
   });
+  /*
+   * >>> DIE KNICKE DER VOUTE SIND FESTE SCHNITTE (4. Oktober). <<<
+   * Gemeldet am aufgebauten Modell (J120-alt), mit Bild: «im auflagerbereich
+   * fehlt bei den "jochtypen verjüngt" starrelemente vertikal beim knick» -
+   * «nicht grundriss knick sondern ansicht». Befund: der Knick, an dem das
+   * gerade Endstück in die Schräge übergeht (`gerade`, 0.90 m), war gar kein
+   * Schnitt. Der Untergurt lief als EIN gerader Stab von der Station davor
+   * (0.81 m) zur nächsten (1.44 m) am Knick vorbei, und der Riegel der
+   * Weisung vom 5. September («an den enden und beim uebergang zum knick
+   * hin») fand dort keinen Knoten. Der zweite Knick (Ende der Schräge) fiel
+   * bisher zufällig auf eine Blechstation.
+   */
+  const vouteKnicke = [];
+  if (m.verlauf?.aktiv && m.verlauf.voute) {
+    const v = m.verlauf.voute;
+    const stauchung = Math.min(1, (m.L * 1000) / (2 * v.knick));
+    [v.gerade, v.gerade + v.neigung].forEach((mm) => {
+      const xk = r6(mm * stauchung / 1000);
+      [xk, r6(m.L - xk)].forEach((x) => {
+        if (x > 1e-6 && x < m.L - 1e-6) { vouteKnicke.push(x); fest.add(x); }
+      });
+    });
+  }
   st.forEach((station) => {
     fest.add(r6(station.x));
     const d = steifBis.get(station.x);
@@ -2724,14 +2747,8 @@ export function stabmodell(m, opt = {}) {
    * versteifen, und ein Riegel mitten im Feld wäre eine Erfindung.
    */
   const schottX = new Set([0, r6(m.L)]);
-  if (m.verlauf?.aktiv && m.verlauf.voute) {
-    const v = m.verlauf.voute;
-    const stauchung = Math.min(1, (m.L * 1000) / (2 * v.knick));
-    const knick = (v.gerade + v.neigung) * stauchung / 1000;      // m
-    [knick, r6(m.L - knick)].forEach((xk) => {
-      if (xk > 1e-6 && xk < m.L - 1e-6) schottX.add(r6(xk));
-    });
-  }
+  // Beide Knicke der Voute (4. Oktober): Anfang und Ende der Schräge.
+  vouteKnicke.forEach((xk) => schottX.add(xk));
   /* =========================================================================
    * >>> WO EIN BLECH STEHT, BRAUCHT ES KEINEN RIEGEL. <<<
    * =========================================================================

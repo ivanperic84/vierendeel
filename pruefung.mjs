@@ -8433,10 +8433,25 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   const rAlt = riegel(AX.stabmodellJson(mAlt, { auflagerModell: 'mast' }));
   const stellen = [...new Set(rAlt.map((x) => xVon(x.name)))]
     .sort((a2, b2) => a2 - b2);
-  wahr('Das verjuengte Joch behaelt die beiden Enden',
-       stellen.length === 2, stellen.join(' '));
-  pruef('Enden bei 0 und L', stellen[0] + stellen[1], 20, 1e-6, 'm');
-  wahr('Vier Riegel, zwei je Ende', rAlt.length === 4, `${rAlt.length}`);
+  /*
+   * Seit dem 4. Oktober auch am ERSTEN Knick der Ansicht (Ende des geraden
+   * Endstuecks, 0.900 m): «im auflagerbereich fehlt bei den "jochtypen
+   * verjuengt" starrelemente vertikal beim knick» - «nicht grundriss knick
+   * sondern ansicht». Der Knick war kein Schnitt; der Untergurt lief als ein
+   * gerader Stab daran vorbei. Vorher: zwei Stellen (0 und L), vier Riegel.
+   */
+  wahr('Das verjuengte Joch traegt Riegel an den Enden und am Knick der Ansicht',
+       stellen.join(' ') === '0 0.9 19.1 20', stellen.join(' '));
+  wahr('Acht Riegel, vier je Ende', rAlt.length === 8, `${rAlt.length}`);
+  {
+    const jAlt = AX.stabmodellJson(mAlt, { auflagerModell: 'mast' });
+    const kUG = jAlt.knoten.filter((k) => /^UGL_/.test(k.name)).sort((a2, b2) => a2.x - b2.x);
+    const an = (x) => kUG.find((k) => Math.abs(k.x - x) < 1e-9);
+    wahr('Der Knick ist ein Knoten des Untergurts: bis dorthin waagrecht, danach faellt er',
+         Boolean(an(0.9)) && Math.abs(an(0.9).z - an(0).z) < 1e-9
+         && kUG.find((k) => k.x > 0.9 + 1e-9).z < an(0.9).z - 1e-4,
+         `z(0) ${an(0)?.z} z(0.9) ${an(0.9)?.z}`);
+  }
   wahr('Alle sind Starrkoerper', rAlt.every((x) => x.art === 'starr'));
   wahr('Sie verbinden Ober- und Untergurt',
        rAlt.every((x) => /^OG/.test(x.von) && /^UG/.test(x.bis)));

@@ -18,7 +18,9 @@ Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
    -Rechnen -Auslesen -Stapel` (rund 37 Minuten, im Hintergrund), dann
    `node vergleich_axisvm.mjs com/AxisVM_Beispiel_B.json --ohne-schub`.
    Erwartet: Gurt und Blech auf 1-2 % über das ganze Joch, und im Bericht
-   der Brücke KEINE Warnung «zu EINEM gemacht».
+   der Brücke KEINE Warnung «zu EINEM gemacht». Das Modell trägt seit dem
+   4. Oktober auch die Riegel am Knick der Ansicht - die alten Ergebnisse
+   passen nicht mehr dazu.
 2. ⚠ Offene Rückfragen: alle Tragwerke des Blattes bei «umhüllend» aus dem
    Stabwerk färben (heute nur das gewählte; empfohlen: ja); ob eine am Leiter
    eingetragene eigene Spannweite bei «einseitig» ebenfalls halbiert wird
@@ -50,6 +52,8 @@ nicht begonnen. Danach Abgleichtabelle und gemeinsame Durchsicht
 (CLAUDE.md, *Laufende Arbeit*).
 
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **4. Oktober:** verjüngte (alte) Joche tragen stehende Starrelemente auch am
+  ersten Knick der Ansicht (0.90 m; J120-alt/24 m Blech 0.771 → 0.548).
 - **4. Oktober:** Klemmzonen geklärt (`knotenEntflechten`, Wache in der Brücke);
   Druckstützen am Abfangjoch im 3D in Resultatfarbe. ⚠ Beispiel B entflochten
   in AxisVM nicht neu gebaut (nur auf Anweisung).
