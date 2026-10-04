@@ -38490,6 +38490,28 @@ titel('233  Tragausleger: Wind auf Mast und Ausleger im 3D');
   const ohne = RT233.auslegerSzene(satz, { mast, mastZeichnen: { A: false } });
   wahr('Zeichnet ein Joch den Masten, zeichnet es auch seinen Wind (kein zweiter Satz)',
        !ohne.vektoren.some((v) => v.teil === 'MAST_A') && ohne.vektoren.some((v) => v.teil === 'GURT_H'));
+  // «die anbauteile lassen sich nicht anklicken im 3d beim tragausleger»
+  // (4. Oktober): Klick, Heranfahren und Ziehen hängen an `anbauteile` der
+  // Szene und an `anbauteil` der Flächen.
+  const A233 = await import(J('data.anbauteile.js'));
+  const mitTeil = (() => { try { return A233.neuesAnbauteil('hs-nt-ausleger', 8); } catch { return null; } })();
+  if (mitTeil) {
+    [['rechts', 1], ['links', -1]].forEach(([seite, sp]) => {
+      const sz = RT233.auslegerSzene(N233.rechensatzMitNachbarn({ ...basis, auslegerSeite: seite,
+        anbauteile: [mitTeil] }), { mast });
+      const b0 = sz.anbauteile?.[0];
+      wahr(`${seite}: die Szene führt das Anbauteil mit Index und Bereich`,
+           sz.anbauteile?.length === 1 && b0.index === 0 && b0.teil === 'AT_1'
+           && b0.xMin < sp * 8 && b0.xMax > sp * 8 && b0.zMin < -2.7, JSON.stringify(b0));
+      wahr(`${seite}: seine Flächen sind greifbar (anbauteil, nicht passiv)`,
+           sz.flaechen.filter((f) => f.teil === 'AT_1' && f.anbauteil === mitTeil).length > 5);
+    });
+  }
+  // «die befestigung an joch lässt sich nicht ändern» (4. Oktober): das
+  // Nachführen der Karte schrieb den Wert des Teils in JEDEN Radioknopf.
+  const ui233 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Radioknöpfe der Karte behalten ihren Wert (nur «checked» wird nachgeführt)',
+       /inp\.type === 'radio'\) \{[\s\S]{0,700}?inp\.checked = an;/.test(ui233));
 }
 
 console.log('\n' + '='.repeat(104));

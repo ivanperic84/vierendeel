@@ -869,6 +869,17 @@ export function aktualisiereMaske(container, werte, extras = {}) {
      */
     if (inp.type === 'checkbox') {
       inp.checked = k === 'aktiv' ? a.aktiv !== false : a[k] === true;
+    } else if (inp.type === 'radio') {
+      /*
+       * >>> EIN RADIOKNOPF TRÄGT SEINEN EIGENEN WERT (4. Oktober). <<<
+       * Gemeldet: «die befestigung an joch lässt sich nicht ändern.» Hier
+       * wurde der Wert des Teils in jeden der drei Knöpfe geschrieben - danach
+       * trugen alle drei «durchgehend», und ein Klick auf «Untergurt» schickte
+       * wieder «durchgehend». Nachgeführt wird nur, welcher angewählt ist.
+       */
+      const an = String(inp.value) === String(v);
+      inp.checked = an;
+      inp.closest('.at-knopf')?.classList.toggle('an', an);
     } else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
   });
   // Die aus der Tabelle gerechneten Lasten der Module hängen an Trasse,

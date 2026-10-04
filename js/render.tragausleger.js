@@ -185,6 +185,14 @@ export function auslegerSzene(satz, opt = {}) {
                  // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober).
                  artWahl: satz.havarie ?? null };
   const xG = (x) => sp * x;
+  /*
+   * >>> DIE ANBAUTEILE LASSEN SICH ANKLICKEN (4. Oktober). <<< Gemeldet:
+   * «die anbauteile lassen sich nicht anklicken im 3d beim tragausleger».
+   * Die Szene führte die Liste `anbauteile` nicht und die Flächen kein
+   * `anbauteil` - daran hängen Klick (Karte auf), Heranfahren, Ziehen und
+   * Kontextmenü (render.3d.js). Dasselbe Muster wie Tragjoch und Abfangjoch.
+   */
+  const detailBereiche = [];
   (satz.anbauteile ?? []).forEach((at, j) => {
     if (!at || at.aktiv === false || (at.ort ?? 'joch') !== 'joch') return;
     const xA = Number(at.x) || 0;
@@ -194,7 +202,7 @@ export function auslegerSzene(satz, opt = {}) {
     const teile = s?.teile ?? [];
     const teil = `AT_${j + 1}`;
     const fb = farbeFuer(`anbau|${at.vorlage ?? at.name}`, at.name ?? 'Anbauteil', 'anbau');
-    const o = (label) => ({ gruppe: 'anbau', teil, farbeBauteil: fb, label });
+    const o = (label) => ({ gruppe: 'anbau', teil, farbeBauteil: fb, anbauteil: at, label });
     const kette = anbauKette(teile, { x0: xA, zAn: 0 });
     kette.glieder.forEach((g) => {
       const p0 = [xG(g.von.x), g.von.y, g.von.z], p1 = [xG(g.bis.x), g.bis.y, g.bis.z];
@@ -236,6 +244,10 @@ export function auslegerSzene(satz, opt = {}) {
         });
       });
     });
+    const xs = [xG(xA), ...kette.glieder.flatMap((g) => [xG(g.von.x), xG(g.bis.x)])];
+    detailBereiche.push({ teil, id: at.id, index: j, name: at.name, x: xG(xA), r: 0.3,
+                          xMin: Math.min(...xs) - 0.3, xMax: Math.max(...xs) + 0.3,
+                          zMin: zMin - 0.1, zMax: hG / 2 + 0.1 });
     marken.push({ gruppe: 'anbau', art: 'anbau', teil, p: [xG(xA), 0, zMin - 0.15],
                   text: `A${j + 1}`, textLang: `A${j + 1} · ${at.name ?? ''}`,
                   titel: at.name, farbe: fb });
@@ -399,6 +411,7 @@ export function auslegerSzene(satz, opt = {}) {
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel, vektoren,
     lastflaechen,
+    anbauteile: detailBereiche,
     legende: [...bauteile.values()],
     grenzen: { xMin: gx0, xMax: gx1, yMin: gy0, yMax: gy1, zMin: gz0 - 1.2, zMax: gz1 + 0.8 },
     stationen: [],
