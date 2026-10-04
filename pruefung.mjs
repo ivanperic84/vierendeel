@@ -36605,9 +36605,13 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     wahr('Ein Auflager: der Fussknoten auf der Achse, voll eingespannt',
          dat.auflager.length === 1 && dat.auflager[0].knoten === g.achse[0]
          && ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz'].every((f) => dat.auflager[0][f] === 'Rigid'));
-    const rohrI = dat.staebe.find((s) => s.name === `MAST_${g.id}_ROHR_I`);
-    pruef('Das Rohr steckt im Oberteil: vom Fusspunkt der Einspannung bis zum Kopf',
-          kn.get(rohrI.bis).z - kn.get(rohrI.von).z, G.rohr.innen, 1e-6, 'm');
+    // Seit dem 4. Oktober kann das Rohr an mehr als zwei Stellen gehalten
+    // sein (`halter`): dann mehrere Abschnitte ROHR_I1, ROHR_I2 … - gemessen
+    // wird die ganze Strecke im Gitter.
+    const rohrI = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_I\\d*$`).test(s.name));
+    pruef('Das Rohr steckt im Gitter: von der untersten Halterung bis zum Kopf',
+          Math.max(...rohrI.map((s) => kn.get(s.bis).z)) - Math.min(...rohrI.map((s) => kn.get(s.von).z)),
+          G.rohr.innen, 1e-6, 'm');
     pruef('… und ragt frei darüber bis zur Gesamtlänge',
           Math.max(...g.achse.map((n) => kn.get(n).z)) - g.zFuss, G.laenge, 1e-6, 'm');
     // Wind: Hüllfläche, am Fuss breiter als am Kopf.
@@ -36618,7 +36622,7 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
           wFuss, quad.windJeFlaeche.EK1 * M207.gitterWindflaeche(G, (G.stationen[0].z + G.stationen[1].z) / 2, 'a').As, 0.002, 'kN/m');
     const wRohr = dat.lasten.strecke.find((l) => l.lastfall === 'WindX' && /_ROHR_S1$/.test(l.stab));
     pruef('… am freien Rohr 1.2 · q · d', wRohr?.wert, 1.2 * quad.windStaudruck.EK1 * G.rohr.d, 0.002, 'kN/m');
-    wahr('… das Rohr im Gitter trägt keinen Wind', !dat.lasten.strecke.some((l) => /^Wind/.test(l.lastfall) && /_ROHR_I$/.test(l.stab)));
+    wahr('… das Rohr im Gitter trägt keinen Wind', !dat.lasten.strecke.some((l) => /^Wind/.test(l.lastfall) && /_ROHR_I\d*$/.test(l.stab)));
     const eg = dat.lasten.strecke.filter((l) => /^EG_MAST_/.test(l.name));
     wahr('Eigengewicht je echtem Stab (Gurte, Bleche, Rohr)', eg.length === g.gurte.length + g.bleche.length + g.oben.length);
 
@@ -37935,6 +37939,86 @@ titel('225  Verformte Figur mit dem Faktor des Nachweises; Grundlage angeschrieb
   const ui225 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Der Block Gebrauchstauglichkeit nimmt das Stabwerk auch im Einzellastfall (beide Seitenleisten)',
        (ui225.match(/const swG = stabwerkFuehrt\(opt, false\);/g) ?? []).length === 2);
+}
+
+/* =========================================================================
+ * 226  GITTERMAST: DAS ROHR AN DEN HALTERIPPEN (4. Oktober)
+ * =========================================================================
+ * Weisung: «bechte aber, das bei einigen Typen das rohr über die kopfplatte
+ * angeschlossen ist und nicht bis zur mastaufweitung nach untern weiter
+ * geht. gehe hierfür in die grundlagen und versuche die logik zu verstehen».
+ * Aus den Grundlagen: bei den Typen mit Rohr läuft es bis ins Unterteil und
+ * ist an Rippen mit Rohrdurchführung gehalten; auf Rückfrage «Vier Stellen».
+ * Der Mastaufsatz ist auf den Kopf geflanscht. Das Sortiment führt die
+ * Höhen der Rippen (`rohr.halter`); die Zahlen stehen dort, nicht hier.
+ * ========================================================================= */
+titel('226  Gittermast: das Rohr an den Halterippen');
+{
+  const M226 = await import(J('data.masten.js'));
+  const C226 = await import(J('core.constants.js'));
+  const N226 = await import(J('core.nachbarn.js'));
+  const AS226 = await import(J('app.stabwerk.js'));
+  const gh = M226.gittermasten().find((g) => Array.isArray(g.rohr?.halter) && g.rohr.halter.length > 1);
+  if (!gh) {
+    console.log('  (kein Gittermast mit Halterippen in diesem Datenordner - übersprungen)');
+  } else {
+    const G = M226.gittermastGeometrie(gh);
+    wahr('Die Halterungen stehen aufsteigend und enden am Kopf des Gitters',
+         G.oben.halter.every((z, i, a) => i === 0 || z > a[i - 1]) && Math.abs(G.oben.halter.at(-1) - G.hoehe) < 1e-9,
+         G.oben.halter.join(' / '));
+    pruef('Das Rohr reicht von der untersten Halterung bis zum Kopf', G.oben.innen, G.hoehe - G.oben.halter[0], 1e-9, 'm');
+    const kaputt = M226.gittermastGeometrie({ ...gh, rohr: { ...gh.rohr, halter: [-1, G.hoehe + 2, ...gh.rohr.halter] } });
+    wahr('Eine Halterung ausserhalb des Gitters wird gemeldet, nicht still verworfen',
+         kaputt.fehler.filter((f) => /Halterippe/.test(f)).length === 2, kaputt.fehler.join(' | '));
+    const alt = M226.gittermastGeometrie({ ...gh, rohr: { ...gh.rohr, halter: undefined, innen: 1.5 } });
+    wahr('Ohne Halterippen gilt wie bisher «innen» (zwei Halte)', alt.oben.halter === null && alt.oben.innen === 1.5);
+
+    // --- Im Modell: je Halterung ein Achsknoten mit Schott ---------------------
+    const jochW = (o = {}) => ({ ...typUebernehmen({ ...standardwerte(), typ: T.tragjoche()[0].typ },
+      T.getTragjoch(T.tragjoche()[0].typ)), L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', ...o });
+    const einzel = () => C226.gitterLaengenFest(C226.tragwerkWeg(C226.tragwerkHinzu(jochW(), 'einzelmast',
+      { mastProfil: M226.GITTER_PRAEFIX + gh.typ, mastH: 8, mastLaenge: 0 }), 'T1'));
+    const stab = (w0) => {
+      const w = N226.rechensatzMitNachbarn(w0);
+      const erg = berechne(w, ...N226.kernArgumente(w));
+      return AS226.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+    };
+    const h = stab(einzel());
+    wahr('Einzelmast mit Halterippen rechnet im Stabwerk', h && !h.fehler && !h.ohneModell, h?.fehler ?? h?.ohneModell ?? '');
+    const dat = h.roh.dat, g = dat.gittermasten[0];
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const rohr = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_I\\d+$`).test(s.name))
+      .sort((p, q) => kn.get(p.von).z - kn.get(q.von).z);
+    pruef('Je Feld zwischen zwei Halterungen ein Rohrabschnitt', rohr.length, G.oben.halter.length - 1, 1e-12, 'Stk');
+    const zs = [...rohr.map((s) => kn.get(s.von).z - g.zFuss), kn.get(rohr.at(-1).bis).z - g.zFuss];
+    wahr('… seine Enden liegen genau auf den Halterungen',
+         zs.length === G.oben.halter.length && zs.every((z, i) => Math.abs(z - G.oben.halter[i]) < 1e-6),
+         zs.map((z) => z.toFixed(3)).join(' / '));
+    const enden = [...new Set(rohr.flatMap((s) => [s.von, s.bis]))];
+    wahr('… und jede Halterung ist über ein Schott an die vier Gurte gebunden',
+         enden.every((n) => dat.staebe.filter((s) => s.art === 'starr' && s.von === n && /_SCH\d+_[1-4]$/.test(s.name)).length === 4));
+    wahr('Das Rohr hängt an keinem Achsknoten zwischen den Halterungen',
+         g.achse.filter((n) => !enden.includes(n)).every((n) => !rohr.some((s) => s.von === n || s.bis === n)));
+
+    // --- Vorher (zwei Halte, Knick und Kopf) gegen nachher --------------------
+    const teil = (hh, k) => hh.teile[`mast:${hh.roh.dat.gittermasten[0].id}|${k}`]?.eta;
+    const db = M226.mastenDB();
+    const zwei = { ...gh, rohr: { ...gh.rohr, halter: undefined, innen: Number(gh.hOben) } };
+    M226.setzeMastenDB({ ...db, gittermasten: db.gittermasten.map((x) => (x === gh ? zwei : x)) });
+    let hv;
+    try { hv = stab(einzel()); } finally { M226.setzeMastenDB(db); }
+    wahr('Gemessen: Rohr, Gurt und Blech mit zwei Halten (bis zum Knick) gegen alle Halterungen',
+         Number.isFinite(teil(hv, 'rohr')) && Number.isFinite(teil(h, 'rohr')),
+         `${gh.typ}: Rohr ${teil(hv, 'rohr')?.toFixed(4)} -> ${teil(h, 'rohr')?.toFixed(4)} · `
+         + `Gurt ${teil(hv, 'gurt')?.toFixed(4)} -> ${teil(h, 'gurt')?.toFixed(4)} · `
+         + `Blech ${teil(hv, 'blech')?.toFixed(4)} -> ${teil(h, 'blech')?.toFixed(4)}`);
+    const PB226 = await import(J('ui.profilblatt.js'));
+    const blatt = PB226.profilBlattHtml({ art: 'mast', name: 'x', p: M226.getMastprofil(M226.GITTER_PRAEFIX + gh.typ), rolle: 'Mast' });
+    wahr('Das Profilblatt nennt die Halterungen', blatt.includes('gehalten auf'));
+  }
+  const ga = M226.gittermasten().find((g) => g.aufsatz?.a > 0);
+  if (ga) wahr('Der Mastaufsatz steckt nicht im Gitter (auf den Kopf geflanscht)',
+               M226.gittermastGeometrie(ga).oben.innen === 0);
 }
 
 console.log('\n' + '='.repeat(104));

@@ -77,6 +77,28 @@ schreibe('masten.json', {
   _beschreibung: HINWEIS,
   typen: [{ profil: 'HEB 240', wind: mastwind(0.3) },
           { profil: 'HEB 260', wind: mastwind(0.32) }],
+  /*
+   * Ein erfundener Gittermast (4. Oktober), damit das Fachwerk und die
+   * Halterippen des Rohrs auch ohne Betreiberdaten durchlaufen: runde
+   * Masse, Winkel aus der Normtabelle, keine Zahl aus den Unterlagen.
+   * Unten 6 m konisch von 600 auf 300 mm, oben 4 m gerade, Rohr an vier
+   * Stellen gehalten (1.50 / 6.00 / 8.00 / Kopf).
+   */
+  gittermasten: [{
+    typ: 'TEST-G10', quelle: 'abgeleitet',
+    gurtUnten: 'L 70x70x7', gurtOben: 'L 60x60x6', hUnten: 6, hOben: 4,
+    fuss: { a: 600, b: 600 }, kopf: { a: 300, b: 300 },
+    teilungUnten: [1000, 1000, 1000, 1000, 1000, 1000],
+    teilungOben: [500, 500, 500, 500, 500, 500, 500, 500],
+    breiteA: [550, 500, 450, 400, 350, 300],
+    breiteB: [550, 500, 450, 400, 350, 300],
+    blech: { fuss: { b: 80, t: 8 }, unten: { b: 60, t: 6 }, knick: { b: 80, t: 8 },
+             oben: { b: 60, t: 6 } },
+    rohr: { d: 140, t: 5, frei: 3, halter: [1.5, 6, 8, 10] },
+    zulMoment: { a: 40, b: 40 },
+    windJeFlaeche: { EK1: 2.0, EK2: 2.4, EK3: 2.8 },
+    windStaudruck: { EK1: 0.9, EK2: 1.1, EK3: 1.3 },
+  }],
 });
 
 /* --- Fahrleitungsteile ----------------------------------------------------- */

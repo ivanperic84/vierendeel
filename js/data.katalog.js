@@ -330,7 +330,12 @@ export const ABSCHNITTE = [
       satz('rohr', 'Rohr oben', [
         mm('d', 'Aussendurchmesser'), mm('t', 'Wanddicke'),
         zahl('frei', 'freie Länge über dem Kopf', 'm'),
-        zahl('innen', 'Länge im Oberteil (Einspannung)', 'm'),
+        zahl('innen', 'Länge im Oberteil (Einspannung)', 'm',
+          { notiz: 'Nur ohne Halterippen: das Rohr an Kopf und Kopf − innen gehalten.' }),
+        liste('halter', 'Halterippen (Höhe über dem Mastfuss)', 'm',
+          { notiz: 'Wo das Rohr im Gitter gehalten ist (Rippen mit Rohrdurchführung, '
+                 + 'der Kopf eingeschlossen). Das Rohr läuft von der untersten Rippe '
+                 + 'bis zum Kopf; gilt vor «innen».' }),
       ]),
       satz('aufsatz', 'Mastaufsatz (Quadratrohr auf dem Kopf)', [
         mm('a', 'Kantenlänge'), mm('t', 'Wanddicke'),

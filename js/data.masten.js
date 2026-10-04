@@ -329,13 +329,38 @@ export function gittermastGeometrie(typ) {
       fehler.push(`Station ${s.z.toFixed(2)} m: Blechlänge negativ`);
     }
   });
+  /*
+   * >>> WO DAS ROHR IM GITTER GEHALTEN IST (4. Oktober). <<<
+   * Weisung: «bechte aber, das bei einigen Typen das rohr über die
+   * kopfplatte angeschlossen ist und nicht bis zur mastaufweitung nach
+   * untern weiter geht. gehe hierfür in die grundlagen und versuche die
+   * logik zu verstehen». Nach den Detailzeichnungen läuft das Rohr bei den
+   * Typen mit Rohr bis weit ins Unterteil hinunter und ist an Rippen mit
+   * Rohrdurchführung gehalten (ein Schnitt unten, zwei im Oberteil, einer
+   * am Kopf); auf Rückfrage «Vier Stellen». Der Mastaufsatz dagegen ist
+   * auf die Kopfplatte geflanscht und steckt gar nicht im Gitter.
+   * `halter` führt die Höhen dieser Rippen ab Mastfuss; das Rohr läuft von
+   * der untersten bis zum Kopf. Ohne Liste gilt wie bisher `innen` (zwei
+   * Halte: Kopf und Kopf − innen). Was über dem Kopf oder unter null liegt,
+   * ist ein Datenfehler und wird gemeldet, nicht still verworfen.
+   */
+  const hKopf = r6((Number(g.hUnten) || 0) + (Number(g.hOben) || 0));
+  const halterRoh = Array.isArray(g.rohr?.halter) ? g.rohr.halter.map(Number).filter(Number.isFinite) : [];
+  halterRoh.forEach((h) => {
+    if (h <= 0 || h > hKopf + 1e-6) fehler.push(`Halterippe des Rohrs bei ${h} m liegt nicht im Gitter (0 … ${hKopf} m)`);
+  });
+  const halter = [...new Set(halterRoh.filter((h) => h > 0 && h <= hKopf + 1e-6).map(r6))].sort((p, q) => p - q);
+  if (halter.length && Math.abs(halter[halter.length - 1] - hKopf) > 1e-6) halter.push(hKopf);
   const rohr = g.rohr?.d > 0 ? { d: mm(g.rohr.d), t: mm(g.rohr.t),
-    frei: Number(g.rohr.frei) || 0, innen: Number(g.rohr.innen) || 0 } : null;
+    frei: Number(g.rohr.frei) || 0,
+    innen: halter.length > 1 ? r6(hKopf - halter[0]) : Number(g.rohr.innen) || 0,
+    halter: halter.length > 1 ? halter : null } : null;
   // Der Mastaufsatz (Quadratrohr auf dem Kopf verschraubt) - statt des Rohrs.
   const aufsatz = g.aufsatz?.a > 0 ? { a: mm(g.aufsatz.a), t: mm(g.aufsatz.t),
     laenge: Number(g.aufsatz.laenge) || 0 } : null;
   // Was über dem Kopf des Gitters steht: Rohr oder Aufsatz, mit Querschnitt.
-  const oben = rohr ? { art: 'rohr', ...rohrWerte(rohr.d, rohr.t), laenge: rohr.frei, innen: rohr.innen }
+  const oben = rohr ? { art: 'rohr', ...rohrWerte(rohr.d, rohr.t), laenge: rohr.frei, innen: rohr.innen,
+                        halter: rohr.halter }
     : aufsatz ? { art: 'aufsatz', ...kastenWerte(aufsatz.a, aufsatz.t), laenge: aufsatz.laenge, innen: 0 }
     : null;
   return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),

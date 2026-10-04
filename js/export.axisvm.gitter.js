@@ -31,9 +31,10 @@
  *                   seiner Höhe gebunden - so kommen Joch, Anbauteile, Anker
  *                   und das Fundament an den Masten (Annahme, dem
  *                   Auftraggeber am 3. Oktober vorgelegt)
- *   ROHR            echter Stab auf der Achse: im Oberteil vom Fusspunkt der
- *                   Einspannung bis zum Kopf, an beiden Enden über ein
- *                   Schott gehalten (wie im AxisVM-Beispiel), darüber frei;
+ *   ROHR            echter Stab auf der Achse: von der untersten Halterippe
+ *                   bis zum Kopf, an jeder Rippe über ein Schott gehalten
+ *                   (Sortiment `halter`, seit 4. Oktober; ohne Liste zwei
+ *                   Halte im Oberteil wie im AxisVM-Beispiel), darüber frei;
  *                   beim Typ mit Mastaufsatz das Quadratrohr ab dem Kopf
  *
  * Die Achsstäbe im Gitter fallen weg; die Achsknoten bleiben, und mit ihnen
@@ -215,8 +216,17 @@ export function gittermastenEinsetzen(dat) {
       return k;
     };
     const kKopf = achsKn(zKopf, 'GKOPF');
-    const zRohrFuss = G.oben?.innen > 0 ? r6(zKopf - G.oben.innen) : null;
-    const kRohrFuss = zRohrFuss !== null ? achsKn(zRohrFuss, 'GROHR') : null;
+    /*
+     * Die Halte des Rohrs im Gitter, von unten nach oben bis zum Kopf: die
+     * Halterippen des Sortiments (`halter`), sonst wie bisher Kopf − innen
+     * und Kopf. Jeder Halt ist ein Achsknoten und bekommt damit sein Schott
+     * an die vier Gurte. Zwischen zwei Halten läuft das Rohr frei - an einem
+     * Achsknoten dazwischen (Joch, Anbauteil) hängt es nicht.
+     */
+    const halteZ = G.oben?.halter?.length > 1 ? G.oben.halter.map(r6)
+      : G.oben?.innen > 0 ? [r6(zKopf - G.oben.innen), zKopf] : [];
+    const halteKn = halteZ.map((z, i) => (Math.abs(z - zKopf) < 1e-6 ? kKopf
+      : achsKn(z, i === 0 ? 'GROHR' : `GROHR${i + 1}`)));
 
     // --- Höhen der Gurtknoten: Stationen und Achsknoten im Gitter ----------
     const hoehen = G.stationen.map((s) => ({ z: s.z, station: s, achs: [] }));
@@ -299,9 +309,12 @@ export function gittermastenEinsetzen(dat) {
     let qOben = null;
     if (G.oben) {
       qOben = nimmQs(obenQs(G.oben));
-      if (kRohrFuss) {
-        stab(`MAST_${id}_ROHR_I`, qOben, kRohrFuss.name, kKopf.name, lcsOben);
-        obenStaebe.push({ name: `MAST_${id}_ROHR_I`, z0: zRohrFuss, z1: zKopf, innen: true });
+      // Ein Abschnitt zwischen zwei Halten; mit zwei Halten heisst er wie
+      // bisher ROHR_I, mit mehr ROHR_I1, ROHR_I2 … von unten.
+      for (let i = 0; i < halteKn.length - 1; i += 1) {
+        const name = halteKn.length === 2 ? `MAST_${id}_ROHR_I` : `MAST_${id}_ROHR_I${i + 1}`;
+        stab(name, qOben, halteKn[i].name, halteKn[i + 1].name, lcsOben);
+        obenStaebe.push({ name, z0: halteZ[i], z1: halteZ[i + 1], innen: true });
       }
     }
     const ueber = achse.filter((k) => k.z - fuss.z >= zKopf - 1e-6);

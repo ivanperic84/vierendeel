@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6566 Kontrollen grün (dazu Abschnitte 221-225 neu, mit den Betreiberdaten nicht gelaufen),
+Stand: **4. Oktober 2026**; Prüfstand 6566 Kontrollen grün (dazu Abschnitte 221-226 neu, mit den Betreiberdaten nicht gelaufen),
 `durchlauf.mjs` ohne Bruch. Weisung 2. Oktober: «pushen wenn es eine
 funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
@@ -15,14 +15,16 @@ Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
 der Anbauteile (Prüfstand 221), die Färbung aller Tragwerke aus dem Stabwerk und das Ziehen der Masten
 am Abfangjoch (222), der GZG-Nachweis am Fahrdraht mit Mastspitzen an der Figur (223) und das
 Vereinheitlichen am Einzelmasten (224), die verformte Figur mit ψ und der Grundlage in der
-Anschrift (225). Geprüft nur mit den erfundenen Testdaten (Abschnitte für sich,
+Anschrift (225), das Rohr des Gittermasts an seinen Halterippen (226; Feld `rohr.halter`, die
+Höhen der Betreibertypen sind noch in `data/masten.json` einzutragen - die Grundlagen dazu sind
+vertraulich, keine Zahl daraus in verfolgte Dateien). Geprüft nur mit den erfundenen Testdaten (Abschnitte für sich,
 Durchgang, Browser). Am Arbeitsrechner `node pruefung.mjs` und `node durchlauf.mjs` laufen lassen,
 bevor der Stand als grün gilt; der Zweig dieser Sitzung (`claude/dreamy-cannon-9m6xxb`) ist danach
 nach `main` zu übernehmen.
 
 **Nächster Schritt (wartet auf den Auftraggeber):**
-1. ⚠ Rückfragen vom 4. Oktober (CLAUDE.md, *Offene Punkte*, erster Punkt): UL-Rohr über die Kopfplatte
-   (Grundlagen lesen - braucht den Arbeitsrechner), «u120» = J120-alt?, Ausgestaltung der
+1. ⚠ Rückfragen vom 4. Oktober (CLAUDE.md, *Offene Punkte*, erster Punkt): Höhen der Halterippen
+   ins Sortiment (Datenpaket), hält eine Rippe das Rohr nur seitlich?, «u120» = J120-alt?, Ausgestaltung der
    Bestandesschutz-Kachel (neue Bauteile kennzeichnen), Einzellastfall im Bild aus dem Stabwerk.
 2. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
 3. Uneinheitlich bleibt: SAF/DXF/PyNite für Abfangjoch und Gittermast; Verläufe am Tragausleger
