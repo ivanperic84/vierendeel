@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**; Prüfstand 6627 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung
+Stand: **4. Oktober 2026**; Prüfstand 6636 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung
 mit dem Datenpaket vom 3. Oktober + Halterippen), `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 Weisung 2. Oktober: «pushen wenn es eine funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Am 4. Oktober auf Weisung («danach stand auf main stellen») nach `main`
@@ -16,15 +16,17 @@ Durchgang) wird gepusht. Am 4. Oktober auf Weisung («danach stand auf main stel
 Gittermasten (`rohr.halter`); die Grundlagen dazu sind vertraulich, keine Zahl daraus in verfolgte Dateien.
 Dann `node pruefung.mjs` und `node durchlauf.mjs`.
 
-Gebaut am 4. Oktober (Prüfstand 221-228): direkte Starrglieder der Anbauteile, alle Tragwerke aus dem
+Gebaut am 4. Oktober (Prüfstand 221-229): direkte Starrglieder der Anbauteile, alle Tragwerke aus dem
 Stabwerk gefärbt, Masten am Abfangjoch ziehen, GZG am Fahrdraht mit Mastspitzen an der Figur,
-Einzelmast vereinheitlicht, Figur mit ψ und Grundlage, Rohr an den Halterippen, **gewählter Lastfall
+Einzelmast vereinheitlicht, Figur mit ψ und Grundlage, Rohr an den Halterippen (nur seitlich,
+am Kopf verschraubt; UL-Rohr mit zwei Wanddicken), **gewählter Lastfall
 aus dem Stabwerk** (Kacheln, Bild, Schiene), **Bestandesschutz** (Optionen → Nachweise, Kennzeichen «neu»
 je Anbauteil, Δη ≤ 0.05 je Bauteil).
 
 **Nächster Schritt (wartet auf den Auftraggeber):**
-1. ⚠ Hält eine Halterippe das Rohr nur seitlich? Heute starr in allen Richtungen; am Joch steigt der
-   Gurt des Gittermasts damit am Fuss um 2-3 % (I 30 UL 0.985 → 1.016).
+1. Gittermast: Rippen halten seit dem 4. Oktober nur seitlich, das UL-Rohr hat zwei Wanddicken
+   (der Wechsel ist aus der Übersicht abgegriffen - bei Gelegenheit gegen eine
+   vermasste Zeichnung prüfen). Offen bleibt, ob das Spiel der Rippen abgebildet werden soll.
 2. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
 3. Uneinheitlich bleibt: SAF/DXF/PyNite für Abfangjoch und Gittermast; Verläufe am Tragausleger
    ungeprüft (Testdaten ohne Tragausleger).
@@ -222,7 +224,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6627 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6636 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

@@ -351,16 +351,28 @@ export function gittermastGeometrie(typ) {
   });
   const halter = [...new Set(halterRoh.filter((h) => h > 0 && h <= hKopf + 1e-6).map(r6))].sort((p, q) => p - q);
   if (halter.length && Math.abs(halter[halter.length - 1] - hKopf) > 1e-6) halter.push(hKopf);
+  /*
+   * >>> ZWEI WANDDICKEN (4. Oktober). <<<
+   * «verwende diese blechstärken beim rohr. der untere teil ist nicht so
+   * stark wie der obere.» (Rohrkonstruktion der UL-Ausführung: unten
+   * dünnwandig, oben dickwandig.) `tOben` gilt ab `wechsel` (Höhe über dem
+   * Mastfuss) bis zum Rohrende; ohne Angabe durchgehend `t`.
+   */
+  const tOben = mm(g.rohr?.tOben);
+  const wechsel = Number(g.rohr?.wechsel) || 0;
   const rohr = g.rohr?.d > 0 ? { d: mm(g.rohr.d), t: mm(g.rohr.t),
     frei: Number(g.rohr.frei) || 0,
     innen: halter.length > 1 ? r6(hKopf - halter[0]) : Number(g.rohr.innen) || 0,
-    halter: halter.length > 1 ? halter : null } : null;
+    halter: halter.length > 1 ? halter : null,
+    tOben: tOben > 0 && wechsel > 0 ? tOben : null, wechsel: tOben > 0 && wechsel > 0 ? wechsel : null } : null;
+  if (rohr && tOben > 0 && !(wechsel > 0)) fehler.push('Rohr: Wanddicke oben ohne Höhe des Wechsels');
   // Der Mastaufsatz (Quadratrohr auf dem Kopf verschraubt) - statt des Rohrs.
   const aufsatz = g.aufsatz?.a > 0 ? { a: mm(g.aufsatz.a), t: mm(g.aufsatz.t),
     laenge: Number(g.aufsatz.laenge) || 0 } : null;
   // Was über dem Kopf des Gitters steht: Rohr oder Aufsatz, mit Querschnitt.
   const oben = rohr ? { art: 'rohr', ...rohrWerte(rohr.d, rohr.t), laenge: rohr.frei, innen: rohr.innen,
-                        halter: rohr.halter }
+                        halter: rohr.halter,
+                        oberer: rohr.tOben ? rohrWerte(rohr.d, rohr.tOben) : null, wechsel: rohr.wechsel }
     : aufsatz ? { art: 'aufsatz', ...kastenWerte(aufsatz.a, aufsatz.t), laenge: aufsatz.laenge, innen: 0 }
     : null;
   return { typ: g.typ, quelle: g.quelle ?? null, hUnten: Number(g.hUnten), hOben: Number(g.hOben),

@@ -94,7 +94,8 @@ schreibe('masten.json', {
     breiteB: [550, 500, 450, 400, 350, 300],
     blech: { fuss: { b: 80, t: 8 }, unten: { b: 60, t: 6 }, knick: { b: 80, t: 8 },
              oben: { b: 60, t: 6 } },
-    rohr: { d: 140, t: 5, frei: 3, halter: [1.5, 6, 8, 10] },
+    // Unten 5 mm, ab 9.00 m 8 mm (zwei Wanddicken wie das UL-Rohr).
+    rohr: { d: 140, t: 5, frei: 3, halter: [1.5, 6, 8, 10], tOben: 8, wechsel: 9 },
     zulMoment: { a: 40, b: 40 },
     windJeFlaeche: { EK1: 2.0, EK2: 2.4, EK3: 2.8 },
     windStaudruck: { EK1: 0.9, EK2: 1.1, EK3: 1.3 },

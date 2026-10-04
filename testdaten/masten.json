@@ -109,7 +109,9 @@
      6,
      8,
      10
-    ]
+    ],
+    "tOben": 8,
+    "wechsel": 9
    },
    "zulMoment": {
     "a": 40,

@@ -36618,9 +36618,12 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     // sein (`halter`): dann mehrere Abschnitte ROHR_I1, ROHR_I2 … - gemessen
     // wird die ganze Strecke im Gitter.
     const rohrI = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_I\\d*$`).test(s.name));
-    pruef('Das Rohr steckt im Gitter: von der untersten Halterung bis zum Kopf',
+    // Seit dem 4. Oktober («rippe hält nur seitlich») beginnt das Rohr am
+    // Rohrknoten 50 mm über der untersten Rippe (Linkelement darunter).
+    const GI207b = await import(J('export.axisvm.gitter.js'));
+    pruef('Das Rohr steckt im Gitter: von der untersten Halterung (Rohrknoten 50 mm darüber) bis zum Kopf',
           Math.max(...rohrI.map((s) => kn.get(s.bis).z)) - Math.min(...rohrI.map((s) => kn.get(s.von).z)),
-          G.rohr.innen, 1e-6, 'm');
+          G.rohr.innen - GI207b.RIPPE_VERSATZ, 1e-6, 'm');
     pruef('… und ragt frei darüber bis zur Gesamtlänge',
           Math.max(...g.achse.map((n) => kn.get(n).z)) - g.zFuss, G.laenge, 1e-6, 'm');
     // Wind: Hüllfläche, am Fuss breiter als am Kopf.
@@ -36971,9 +36974,13 @@ if (AJ.abfangDbDa()) {
     pruef('… Gesamthöhe 16.00 m (Gitter 10.40 + Rohr 5.60)', GU.laenge, 16.0, 1e-9, 'm');
     // Seit dem 4. Oktober an den Halterippen (`halter`, Abschnitt 226): das
     // Rohr reicht dann bis zur untersten Rippe, sonst wie bisher bis zum Knick.
-    wahr('… Rohr ø 140 × 6 mm, im Gitter bis zur untersten Halterung (ohne Rippen: bis zum Knick)',
-         GU.oben.art === 'rohr' && Math.abs(GU.oben.d - 0.14) < 1e-12 && Math.abs(GU.oben.t - 0.006) < 1e-12
-         && Math.abs(GU.oben.innen - (GU.oben.halter ? GU.hoehe - GU.oben.halter[0] : ul.hOben)) < 1e-9);
+    // Seit dem 4. Oktober zwei Wanddicken («verwende diese blechstärken beim
+    // rohr. der untere teil ist nicht so stark wie der obere.»), Zahlen im Sortiment.
+    wahr('… Rohr ø 140, oben dickwandiger als unten, im Gitter bis zur untersten Halterung',
+         GU.oben.art === 'rohr' && Math.abs(GU.oben.d - 0.14) < 1e-12
+         && (!GU.oben.oberer || GU.oben.oberer.t > GU.oben.t)
+         && Math.abs(GU.oben.innen - (GU.oben.halter ? GU.hoehe - GU.oben.halter[0] : ul.hOben)) < 1e-9,
+         `${(GU.oben.t * 1000).toFixed(1)}${GU.oben.oberer ? ` / ${(GU.oben.oberer.t * 1000).toFixed(1)}` : ''} mm`);
     wahr('… das Gitter ist das des Typs I 30 (Gurte, Teilung, Breiten, Bleche, Diagramm)',
          ['gurtUnten', 'gurtOben', 'teilungUnten', 'teilungOben', 'breiteA', 'breiteB', 'blech', 'zulMoment']
            .every((k) => JSON.stringify(ul[k]) === JSON.stringify(i30[k])));
@@ -38004,18 +38011,30 @@ titel('226  Gittermast: das Rohr an den Halterippen');
     wahr('Einzelmast mit Halterippen rechnet im Stabwerk', h && !h.fehler && !h.ohneModell, h?.fehler ?? h?.ohneModell ?? '');
     const dat = h.roh.dat, g = dat.gittermasten[0];
     const kn = new Map(dat.knoten.map((k) => [k.name, k]));
-    const rohr = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_I\\d+$`).test(s.name))
+    /*
+     * Seit dem 4. Oktober («rippe hält nur seitlich») hängt das Rohr nur am
+     * Kopf starr; an den tieferen Rippen hat es einen eigenen Knoten 50 mm
+     * darüber und ein Linkelement, das nur waagrecht hält (Abschnitt 229).
+     */
+    const GI226 = await import(J('export.axisvm.gitter.js'));
+    const rohr = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_I\\d*$`).test(s.name))
       .sort((p, q) => kn.get(p.von).z - kn.get(q.von).z);
-    pruef('Je Feld zwischen zwei Halterungen ein Rohrabschnitt', rohr.length, G.oben.halter.length - 1, 1e-12, 'Stk');
-    const zs = [...rohr.map((s) => kn.get(s.von).z - g.zFuss), kn.get(rohr.at(-1).bis).z - g.zFuss];
-    wahr('… seine Enden liegen genau auf den Halterungen',
-         zs.length === G.oben.halter.length && zs.every((z, i) => Math.abs(z - G.oben.halter[i]) < 1e-6),
-         zs.map((z) => z.toFixed(3)).join(' / '));
-    const enden = [...new Set(rohr.flatMap((s) => [s.von, s.bis]))];
-    wahr('… und jede Halterung ist über ein Schott an die vier Gurte gebunden',
-         enden.every((n) => dat.staebe.filter((s) => s.art === 'starr' && s.von === n && /_SCH\d+_[1-4]$/.test(s.name)).length === 4));
-    wahr('Das Rohr hängt an keinem Achsknoten zwischen den Halterungen',
-         g.achse.filter((n) => !enden.includes(n)).every((n) => !rohr.some((s) => s.von === n || s.bis === n)));
+    const links = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_RL\\d+$`).test(s.name));
+    pruef('Je Rippe unter dem Kopf ein Linkelement', links.length, G.oben.halter.length - 1, 1e-12, 'Stk');
+    wahr('… von der Rippe (Achsknoten mit Schott) zum Rohrknoten 50 mm darüber',
+         links.every((l) => Math.abs(kn.get(l.bis).z - kn.get(l.von).z - GI226.RIPPE_VERSATZ) < 1e-9
+           && dat.staebe.filter((s) => s.art === 'starr' && s.von === l.von && /_SCH\d+_[1-4]$/.test(s.name)).length === 4),
+         links.map((l) => (kn.get(l.von).z - g.zFuss).toFixed(2)).join(' / '));
+    wahr('… auf den Höhen der Halterippen',
+         links.map((l) => kn.get(l.von).z - g.zFuss).sort((p, q) => p - q)
+           .every((z, i) => Math.abs(z - G.oben.halter[i]) < 1e-6));
+    const kopfKn = rohr.at(-1)?.bis;
+    wahr('Am Kopf hängt das Rohr am Achsknoten (verschraubt, mit Schott)',
+         Math.abs(kn.get(kopfKn).z - g.zFuss - G.hoehe) < 1e-6
+         && dat.staebe.filter((s) => s.art === 'starr' && s.von === kopfKn && /_SCH\d+_[1-4]$/.test(s.name)).length === 4);
+    const enden = new Set(rohr.flatMap((s) => [s.von, s.bis]));
+    wahr('Das Rohr hängt an keinem Achsknoten unter dem Kopf',
+         g.achse.filter((n) => n !== kopfKn).every((n) => !enden.has(n)));
 
     // --- Vorher (zwei Halte, Knick und Kopf) gegen nachher --------------------
     const teil = (hh, k) => hh.teile[`mast:${hh.roh.dat.gittermasten[0].id}|${k}`]?.eta;
@@ -38171,6 +38190,69 @@ titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
   const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Das Kennzeichen «neu» steht nur mit eingeschaltetem Nachweis in der Karte',
        /nachweiseAuswahl\(werte\.nachweise\)\.bestandesschutz\s*\n?\s*\? `<label class="at-neu/.test(ui));
+}
+
+/* =========================================================================
+ * 229  GITTERMAST: RIPPEN HALTEN NUR SEITLICH; ZWEI WANDDICKEN (4. Oktober)
+ * =========================================================================
+ * Weisung: «rippe hält nur seitlich, ist sicher auch mit etwas spiel
+ * versehen. das gleiche muster anwenden bei den gittermasten, was ändert
+ * sind die profile. verwende diese blechstärken beim rohr. der untere teil
+ * ist nicht so stark wie der obere.» Die Zahlen stehen im Sortiment.
+ * ========================================================================= */
+titel('229  Gittermast: Rippen halten nur seitlich; zwei Wanddicken');
+{
+  const M229 = await import(J('data.masten.js'));
+  const C229 = await import(J('core.constants.js'));
+  const N229 = await import(J('core.nachbarn.js'));
+  const AS229 = await import(J('app.stabwerk.js'));
+  const GI229 = await import(J('export.axisvm.gitter.js'));
+  const SN229 = await import(J('core.stabnachweis.js'));
+  wahr('Der Halt an der Rippe: nur waagrecht (global x, y), lotrecht und in den Drehungen frei',
+       JSON.stringify(GI229.RIPPE_HALT) === JSON.stringify({ x: 'Rigid', y: 'Rigid', z: 'Free', xx: 'Free', yy: 'Free', zz: 'Free' }));
+  const gw = M229.gittermasten().find((g) => g.rohr?.tOben > 0 && Array.isArray(g.rohr?.halter));
+  if (!gw) {
+    console.log('  (kein Gittermast mit zwei Wanddicken in diesem Datenordner - übersprungen)');
+  } else {
+    const G = M229.gittermastGeometrie(gw);
+    wahr('Geometrie: oberer Teil dickwandiger, ab dem Wechsel',
+         G.oben.oberer && G.oben.oberer.t > G.oben.t && G.oben.oberer.d === G.oben.d && G.oben.wechsel > 0,
+         `${(G.oben.t * 1000).toFixed(1)} → ${(G.oben.oberer.t * 1000).toFixed(1)} mm ab ${G.oben.wechsel} m`);
+    wahr('Wanddicke oben ohne Höhe des Wechsels ist ein Datenfehler',
+         M229.gittermastGeometrie({ ...gw, rohr: { ...gw.rohr, wechsel: undefined } }).fehler.some((f) => /Wechsels/.test(f)));
+    const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+    const joch = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+                   L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+    const w = C229.gitterLaengenFest(C229.tragwerkWeg(C229.tragwerkHinzu(joch, 'einzelmast',
+      { mastProfil: M229.GITTER_PRAEFIX + gw.typ, mastH: 8, mastLaenge: 0 }), 'T1'));
+    const ws = N229.rechensatzMitNachbarn(w);
+    const erg = berechne(ws, ...N229.kernArgumente(ws));
+    const h = AS229.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    const dat = h.roh.dat, g = dat.gittermasten[0];
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const qs = new Map(dat.querschnitte.map((q) => [q.name, q]));
+    const rohr = dat.staebe.filter((s) => new RegExp(`^MAST_${g.id}_ROHR_`).test(s.name));
+    const zm = (s) => (kn.get(s.von).z + kn.get(s.bis).z) / 2 - g.zFuss;
+    wahr('Jeder Rohrstab trägt die Wanddicke seiner Höhe (unter / über dem Wechsel)',
+         rohr.length > 0 && rohr.every((s) => Math.abs(qs.get(s.querschnitt).A
+           - (zm(s) > G.oben.wechsel ? G.oben.oberer.A : G.oben.A)) < 1e-12),
+         rohr.map((s) => `${s.name.replace(/.*_ROHR_/, '')} ${s.querschnitt.replace('GM_ROHR_', '')}`).join(' · '));
+    wahr('… mit einem Knoten genau am Wechsel',
+         rohr.some((s) => Math.abs(kn.get(s.bis).z - g.zFuss - G.oben.wechsel) < 1e-6));
+    // Unter Eigengewicht hängt das Rohr am Kopf: unten keine Normalkraft.
+    const lf = h.roh.faelle.find((l) => l.key === 'gk');
+    const kr = SN229.kraefteAusAnteilen(h.roh.lsg, SN229.anteileFuer(lf, dat));
+    const innen = rohr.filter((s) => /_ROHR_I/.test(s.name)).sort((p, q) => kn.get(p.von).z - kn.get(q.von).z);
+    const nUnten = kr.get(innen[0].name)[0], nOben = -kr.get(innen.at(-1).name)[6];
+    const gewicht = innen.reduce((a, s) => a + qs.get(s.querschnitt).A * 7850 * 9.81 / 1000
+      * (kn.get(s.bis).z - kn.get(s.von).z), 0);
+    pruef('Eigengewicht: das Rohr hängt am Kopf - am unteren Ende keine Längskraft', nUnten, 0, 1e-6, 'kN');
+    pruef('… am Kopf das ganze Gewicht des Rohrs im Gitter (ρ g = 77.0 kN/m³)', Math.abs(nOben), gewicht, 1e-4 * gewicht + 1e-6, 'kN');
+    const PB229 = await import(J('ui.profilblatt.js'));
+    const blatt = PB229.profilBlattHtml({ art: 'mast', name: 'x', p: M229.getMastprofil(M229.GITTER_PRAEFIX + gw.typ), rolle: 'Mast' });
+    wahr('Das Profilblatt nennt beide Wanddicken und die Art des Halts',
+         blatt.includes(`ab ${G.oben.wechsel.toFixed(2)} m`) && blatt.includes('seitlich gehalten') && blatt.includes('verschraubt'));
+  }
 }
 
 console.log('\n' + '='.repeat(104));

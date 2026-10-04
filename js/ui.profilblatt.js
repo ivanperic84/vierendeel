@@ -383,8 +383,10 @@ function gitterBlattHtml(e) {
   const kopf = st[st.length - 1];
   const zeile = (a, b, c = '') => `<tr><td>${esc(a)}</td><td class="num">${esc(b)}</td><td>${esc(c)}</td></tr>`;
   const oben = G.oben ? (G.oben.art === 'rohr'
-    ? `Rohr ø ${mm(G.oben.d)} × ${(G.oben.t * 1000).toFixed(1)}, ${G.oben.innen.toFixed(2)} m im Gitter`
-      + (G.oben.halter ? ` (gehalten auf ${G.oben.halter.map((h) => h.toFixed(2)).join(' / ')} m)` : '')
+    ? `Rohr ø ${mm(G.oben.d)} × ${(G.oben.t * 1000).toFixed(1)}`
+      + (G.oben.oberer ? `, ab ${G.oben.wechsel.toFixed(2)} m × ${(G.oben.oberer.t * 1000).toFixed(1)}` : '')
+      + `, ${G.oben.innen.toFixed(2)} m im Gitter`
+      + (G.oben.halter ? ` (seitlich gehalten auf ${G.oben.halter.slice(0, -1).map((h) => h.toFixed(2)).join(' / ')} m, am Kopf verschraubt)` : '')
       + `, ${G.oben.laenge.toFixed(2)} m frei`
     : `Mastaufsatz ${mm(G.oben.a)} × ${mm(G.oben.a)} × ${(G.oben.t * 1000).toFixed(1)}, ${G.oben.laenge.toFixed(2)} m`) : 'ohne';
   return `<div class="pb"><div class="pb-daten" style="flex:1 1 100%">

@@ -32,9 +32,11 @@
  *                   und das Fundament an den Masten (Annahme, dem
  *                   Auftraggeber am 3. Oktober vorgelegt)
  *   ROHR            echter Stab auf der Achse: von der untersten Halterippe
- *                   bis zum Kopf, an jeder Rippe über ein Schott gehalten
- *                   (Sortiment `halter`, seit 4. Oktober; ohne Liste zwei
- *                   Halte im Oberteil wie im AxisVM-Beispiel), darüber frei;
+ *                   bis zum Kopf (Sortiment `halter`, seit 4. Oktober; ohne
+ *                   Liste zwei Halte im Oberteil wie im AxisVM-Beispiel);
+ *                   am Kopf verschraubt (starr), an den Rippen darunter nur
+ *                   seitlich gehalten (Linkelement), darüber frei; beim
+ *                   UL-Rohr zwei Wanddicken (`tOben` ab `wechsel`);
  *                   beim Typ mit Mastaufsatz das Quadratrohr ab dem Kopf
  *
  * Die Achsstäbe im Gitter fallen weg; die Achsknoten bleiben, und mit ihnen
@@ -88,6 +90,14 @@ function gurtQs(w, tausch) {
     It: winkelIt(w) / 1e8,
   };
 }
+
+/*
+ * Der Halt des Rohrs an einer Rippe unter dem Kopf (4. Oktober, «rippe
+ * hält nur seitlich»): ein Linkelement, das nur die beiden waagrechten
+ * Richtungen hält, 50 mm lang (Rohrknoten über der Rippe).
+ */
+export const RIPPE_VERSATZ = 0.05;
+export const RIPPE_HALT = { x: 'Rigid', y: 'Rigid', z: 'Free', xx: 'Free', yy: 'Free', zz: 'Free' };
 
 const blechQs = (b, t) => ({
   name: `GM_BLECH_${Math.round(b * 1000)}x${Math.round(t * 1000)}`, form: 'Rectangle',
@@ -222,12 +232,36 @@ export function gittermastenEinsetzen(dat) {
      * und Kopf. Jeder Halt ist ein Achsknoten und bekommt damit sein Schott
      * an die vier Gurte. Zwischen zwei Halten läuft das Rohr frei - an einem
      * Achsknoten dazwischen (Joch, Anbauteil) hängt es nicht.
+     *
+     * >>> DIE RIPPE HÄLT NUR SEITLICH (4. Oktober). <<<
+     * Weisung: «rippe hält nur seitlich, ist sicher auch mit etwas spiel
+     * versehen. das gleiche muster anwenden bei den gittermasten, was
+     * ändert sind die profile.» Am Kopf ist das Rohr über seinen Bund auf
+     * die Kopfrippe geschraubt - dort hängt es starr am Achsknoten und
+     * trägt Gewicht und Moment ab. An jeder tieferen Rippe hat das Rohr
+     * einen eigenen Knoten, 50 mm über der Rippe (AxisVM verschmilzt
+     * deckungsgleiche Knoten), mit einem Linkelement zum Achsknoten, das
+     * nur die beiden waagrechten Richtungen hält (global x, y); lotrecht
+     * und in den Drehungen frei. Das Spiel ist nicht abgebildet (linear
+     * gerechnet: die Rippe hält ab der ersten Bewegung).
      */
     const halteZ = G.oben?.halter?.length > 1 ? G.oben.halter.map(r6)
       : G.oben?.innen > 0 ? [r6(zKopf - G.oben.innen), zKopf] : [];
     const halteKn = halteZ.map((z, i) => (Math.abs(z - zKopf) < 1e-6 ? kKopf
       : achsKn(z, i === 0 ? 'GROHR' : `GROHR${i + 1}`)));
-
+    // Ein Knoten des Rohrs auf der Achse, der keinem vorhandenen Knoten
+    // näher als 25 mm kommt (sonst verschmölze AxisVM die beiden).
+    const rohrKn = (z, name) => {
+      let zz = z;
+      for (let k = 0; k < 8 && [...kn.values()].some((q) => Math.abs(q.x - fuss.x) < 1e-6
+        && Math.abs(q.y - fuss.y) < 1e-6 && Math.abs(q.z - fuss.z - zz) < RIPPE_VERSATZ / 2); k += 1) {
+        zz = r6(zz + RIPPE_VERSATZ / 2);
+      }
+      return { name: neuKn(name, fuss.x, fuss.y, fuss.z + zz), z: r6(zz) };
+    };
+    // Der Wechsel der Wanddicke (UL-Rohr: unten dünner als oben).
+    const zWechsel = G.oben?.oberer && G.oben.wechsel > 0 ? r6(G.oben.wechsel) : null;
+    if (zWechsel !== null && zWechsel > zKopf + 1e-6 && zWechsel < G.laenge - 1e-6) achsKn(zWechsel, 'GROHRW');
     // --- Höhen der Gurtknoten: Stationen und Achsknoten im Gitter ----------
     const hoehen = G.stationen.map((s) => ({ z: s.z, station: s, achs: [] }));
     achse.forEach((k) => {
@@ -307,22 +341,44 @@ export function gittermastenEinsetzen(dat) {
     const obenStaebe = [];
     const lcsOben = zug.staebe[0].lcsZ ?? [1, 0, 0];
     let qOben = null;
+    let qObenO = null;
     if (G.oben) {
       qOben = nimmQs(obenQs(G.oben));
-      // Ein Abschnitt zwischen zwei Halten; mit zwei Halten heisst er wie
-      // bisher ROHR_I, mit mehr ROHR_I1, ROHR_I2 … von unten.
-      for (let i = 0; i < halteKn.length - 1; i += 1) {
-        const name = halteKn.length === 2 ? `MAST_${id}_ROHR_I` : `MAST_${id}_ROHR_I${i + 1}`;
-        stab(name, qOben, halteKn[i].name, halteKn[i + 1].name, lcsOben);
-        obenStaebe.push({ name, z0: halteZ[i], z1: halteZ[i + 1], innen: true });
+      qObenO = G.oben.oberer ? nimmQs(obenQs(G.oben.oberer)) : null;
+      // Die Punkte des Rohrs im Gitter: je tiefere Rippe ein eigener Knoten
+      // mit seitlichem Halt, der Wechsel der Wanddicke, zuletzt der Kopf.
+      const pkt = [];
+      halteKn.forEach((k, i) => {
+        if (k === kKopf) return;
+        const t = rohrKn(halteZ[i] + RIPPE_VERSATZ, `MAST_${id}_RI${i + 1}`);
+        staebe.push({ name: `MAST_${id}_RL${i + 1}`, von: k.name, bis: t.name,
+                      querschnitt: 'STARR', lcsZ: [1, 0, 0], gelenkAnfang: null, gelenkEnde: null,
+                      art: 'link', kraftuebertragung: { ...RIPPE_HALT } });
+        pkt.push(t);
+      });
+      if (pkt.length && zWechsel !== null && zWechsel > pkt[0].z + 1e-6 && zWechsel < zKopf - 1e-6) {
+        pkt.push(rohrKn(zWechsel, `MAST_${id}_RW`));
+      }
+      pkt.sort((p, q) => p.z - q.z);
+      if (pkt.length) pkt.push({ name: kKopf.name, z: zKopf });
+      // Mit zwei Punkten heisst der Abschnitt wie bisher ROHR_I, mit mehr
+      // ROHR_I1, ROHR_I2 … von unten.
+      for (let i = 0; i < pkt.length - 1; i += 1) {
+        const name = pkt.length === 2 ? `MAST_${id}_ROHR_I` : `MAST_${id}_ROHR_I${i + 1}`;
+        const oben = zWechsel !== null && (pkt[i].z + pkt[i + 1].z) / 2 > zWechsel;
+        stab(name, oben ? qObenO : qOben, pkt[i].name, pkt[i + 1].name, lcsOben);
+        obenStaebe.push({ name, z0: pkt[i].z, z1: pkt[i + 1].z, innen: true,
+                          A: oben ? G.oben.oberer.A : G.oben.A });
       }
     }
     const ueber = achse.filter((k) => k.z - fuss.z >= zKopf - 1e-6);
     for (let i = 0; i < ueber.length - 1; i += 1) {
       const name = `MAST_${id}_ROHR_S${i + 1}`;
-      if (qOben) stab(name, qOben, ueber[i].name, ueber[i + 1].name, lcsOben);
+      const z0 = r6(ueber[i].z - fuss.z), z1 = r6(ueber[i + 1].z - fuss.z);
+      const oben = qObenO && zWechsel !== null && (z0 + z1) / 2 > zWechsel;
+      if (qOben) stab(name, oben ? qObenO : qOben, ueber[i].name, ueber[i + 1].name, lcsOben);
       else starr(name, ueber[i].name, ueber[i + 1].name);
-      obenStaebe.push({ name, z0: r6(ueber[i].z - fuss.z), z1: r6(ueber[i + 1].z - fuss.z), innen: false });
+      obenStaebe.push({ name, z0, z1, innen: false, A: oben ? G.oben.oberer.A : G.oben?.A });
     }
 
     // --- Lasten der Achsstäbe umsetzen --------------------------------------
@@ -374,7 +430,7 @@ export function gittermastenEinsetzen(dat) {
         wert: r6(-A * RHO_G), lastfall: egFall });
       gurtStaebe.forEach((g) => eg(g.name, g.A));
       blechStaebe.forEach((b) => eg(b.name, b.A));
-      if (qOben) obenStaebe.forEach((o) => eg(o.name, G.oben.A));
+      if (qOben) obenStaebe.forEach((o) => eg(o.name, o.A ?? G.oben.A));
     }
 
     meta.push({

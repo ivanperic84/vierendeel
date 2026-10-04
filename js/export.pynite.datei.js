@@ -68,16 +68,34 @@ export function pyniteDaten(dat) {
     drehung.set(name, h);
   });
   const staebe = dat.staebe.map((st) => {
-    if (st.art === 'link') {
-      throw new Error(`PyNite aus der Datei: das Linkelement ${st.name} wird hier nicht übersetzt.`);
-    }
     const a = kn.get(st.von), b = kn.get(st.bis);
+    /*
+     * DER SEITLICHE HALT DES ROHRS AN EINER RIPPE (4. Oktober, «rippe hält
+     * nur seitlich»): ein lotrechtes Linkelement, global x und y starr, z
+     * und die Drehungen frei. In PyNite ein steifer Stab, am Ende j axial
+     * und in den drei Drehungen freigegeben (lokal x = lotrecht); die
+     * Querkraft bleibt - mit dem Restmoment V · 0.05 m am Achsknoten, wie
+     * bei den gelenkigen Anschlüssen (24. September). Andere Linkelemente
+     * werden hier weiter nicht übersetzt.
+     */
+    let frei = null;
+    if (st.art === 'link') {
+      const k = st.kraftuebertragung ?? {};
+      const lotrecht = Math.abs(b.z - a.z) > 1e-9 && Math.hypot(b.x - a.x, b.y - a.y) < 1e-9;
+      const seitlich = k.x === 'Rigid' && k.y === 'Rigid'
+        && ['z', 'xx', 'yy', 'zz'].every((f) => k[f] === 'Free');
+      if (!lotrecht || !seitlich) {
+        throw new Error(`PyNite aus der Datei: das Linkelement ${st.name} wird hier nicht übersetzt.`);
+      }
+      frei = ['Dxj', 'Rxj', 'Ryj', 'Rzj'];
+    }
     const { R } = dreibein(b.x - a.x, b.y - a.y, b.z - a.z, st.lcsZ);
     const h = drehung.get(st.querschnitt) ?? { c: 1, s: 0 };
     // z' = −s·ey + c·ez
     const ez = [0, 1, 2].map((i) => -h.s * R[1][i] + h.c * R[2][i]);
     return { name: st.name, von: st.von, bis: st.bis, qs: st.querschnitt,
-             mat: st.art === 'starr' ? 'STARR' : (st.steifesMaterial ? 'STEIF' : 'STAHL'), ez };
+             mat: st.art === 'starr' || st.art === 'link' ? 'STARR' : (st.steifesMaterial ? 'STEIF' : 'STAHL'), ez,
+             ...(frei ? { frei } : {}) };
   });
   const benutzt = new Set(staebe.map((s) => s.qs));
   const faelle = new Set();
@@ -121,6 +139,9 @@ for nam, x, y, z in D['knoten']:
     M.add_node(nam, x, y, z)
 for s in D['staebe']:
     M.add_member(s['name'], s['von'], s['bis'], s['mat'], s['qs'])
+for s in D['staebe']:
+    if s.get('frei'):
+        M.def_releases(s['name'], **{f: True for f in s['frei']})
 
 # Drehlage: aus PyNites eigener Transformationsmatrix, danach nachgemessen.
 schief = []
