@@ -1948,7 +1948,7 @@ function nachbarFaerben(sz, t) {
   }
   const roh = g.h.roh;
   const lf = roh ? wegeFall(g) : null;
-  const an = lf ? anteileFuer(lf, roh.dat) : null;
+  const an = lf ? wegeAnteile(g, lf) : null;
   const mastNamen = { A: mastNameAmEnde(werte, t, 'A'), B: mastNameAmEnde(werte, t, 'B') };
   stabwerkFaerben(sz, g.h.jeStab, {
     jochKey: (g.h.tragwerke ?? 1) > 1 ? `tragwerk:${t.id}` : 'tragwerk',
@@ -2031,7 +2031,7 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
   if ((js || hatGitter || walzEinzel) && sz) {
     const roh = g.h.roh;
     const lf = roh ? wegeFall(g) : null;
-    const an = lf ? anteileFuer(lf, roh.dat) : null;
+    const an = lf ? wegeAnteile(g, lf) : null;
     /*
      * >>> DER GITTERMAST IM EINZELLASTFALL (3. Oktober). <<<
      * Gemeldet mit Bild (LF1 gewählt, σ_v): «hier wird kein plot der
@@ -2249,14 +2249,61 @@ function ohneBalken() {
  * (3. Oktober): der gewählte, bei «umhüllend» der massgebende der
  * Gebrauchstauglichkeit.
  */
+function gzgMassgebend(g) {
+  return ['fahrdraht', 'A', 'B'].map((e) => g?.h?.verformung?.[e]?.massgebend).filter(Boolean)
+    .sort((a, b) => b.eta - a.eta)[0] ?? null;
+}
+
 function wegeFall(g) {
   const roh = g?.h?.roh;
   if (!roh) return null;
   const umh = anzeigeKombi === 'umhuellend';
-  const mg = ['fahrdraht', 'A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
-    .sort((a, b) => b.eta - a.eta)[0];
-  const key = umh ? (mg?.lastfall ?? 'wyk') : anzeigeKombi;
+  const key = umh ? (gzgMassgebend(g)?.lastfall ?? 'wyk') : anzeigeKombi;
   return roh.faelle.find((l) => l.key === key) ?? null;
+}
+
+/*
+ * >>> DIE FIGUR MIT DEM FAKTOR DES NACHWEISES (4. Oktober). <<<
+ * Gemeldet mit Bild: «die auswertung des gebrauchtauglichkeitsnachweises
+ * checken, hier sind werte die nicht ganz nachvollziebar sind.» Bei
+ * «umhüllend» zeigte die Figur den massgebenden Fall der Gebrauchs-
+ * tauglichkeit OHNE ψ 0.70 - der Nachweis rechnet den reinen Wind mal ψ
+ * (gemessen Testdaten: Figur «Spitze M2 87.1 mm», Kachel 61 mm = 87.1 ·
+ * 0.70). Jetzt gehen die Wege mit dem Faktor ein, mit dem der Fall im
+ * Nachweis steht (`faktor` am massgebenden Eintrag); ein gewählter
+ * Einzellastfall bleibt, wie er ist (Faktor 1).
+ */
+function wegeFaktor(g) {
+  if (anzeigeKombi !== 'umhuellend') return 1;
+  const f = gzgMassgebend(g)?.faktor;
+  return Number.isFinite(f) && f > 0 ? f : 1;
+}
+
+function wegeAnteile(g, lf) {
+  const f = wegeFaktor(g);
+  return anteileFuer(lf, g.h.roh.dat).map((a) => ({ ...a, faktor: a.faktor * f }));
+}
+
+/*
+ * >>> WOMIT DIE FIGUR GERECHNET IST - IN DER ANSCHRIFT (4. Oktober). <<<
+ * «orangfarben soll als text noch aufführen, ob mit oder ohne reduktion
+ * abgebildet wird zur besseren verständniss, sonst muss man zuerst die
+ * lastfall kombination anschauen gehen.» Die Beiwerte des Falls (mal dem
+ * Faktor der Figur) und was sie bedeuten.
+ */
+const FIGUR_GRUPPE = { G: 'ständig', WindX: 'Wind quer', WindY: 'Wind längs', Schnee: 'Schnee',
+                       HavarieX: 'Havarie', HavarieY: 'Havarie längs' };
+function figurGrundlage(lf, f = 1) {
+  const z = (v) => (Math.round(Math.abs(v) * 100) / 100).toFixed(2);
+  const bw = Object.entries(lf?.beiwerte ?? {}).filter(([, v]) => v)
+    .map(([k, v]) => `${FIGUR_GRUPPE[k] ?? k} × ${z(v * f)}`).join(' · ');
+  const art = f !== 1 ? `mit Reduktion ψ ${z(f)} - wie der GZG-Nachweis`
+    : lf?.stufe === 'betrieb' ? 'Betriebswind, Reduktion ψ 0.70 enthalten'
+    : lf?.art === 'tragsicherheit' ? 'Bemessungswerte, ohne Reduktion - nicht der GZG-Nachweis'
+    : lf?.art === 'aussergewoehnlich' ? 'aussergewöhnlich, ohne Reduktion'
+    : 'charakteristisch, ohne Reduktion (GZG: Wind × 0.70)';
+  // Zwei kurze Zeilen - eine lange lief unter die Legende.
+  return [bw ? `Beiwerte: ${bw}` : '', art].filter(Boolean);
 }
 
 function verformtSetzen(szene = null) {
@@ -2268,9 +2315,11 @@ function verformtSetzen(szene = null) {
   const lf = wegeFall(g);
   const key = lf?.key;
   if (!lf) { ansicht.verformt = null; return; }
-  const merk = `${g.h.kennung}|${key}|${werte.twId}|${(szene?.marken ?? []).filter((mk) => mk.fahrdraht).length}`;
+  const fFig = wegeFaktor(g);
+  const merk = `${g.h.kennung}|${key}|${fFig}|${werte.twId}|${(szene?.marken ?? []).filter((mk) => mk.fahrdraht).length}`;
   if (verformtMerk?.merk === merk) { ansicht.verformt = verformtMerk.wert; return; }
-  const fig = verformteFigur(roh.dat, roh.lsg, anteileFuer(lf, roh.dat));
+  // Mit dem Faktor des Nachweises (ψ bei «umhüllend», 4. Oktober).
+  const fig = verformteFigur(roh.dat, roh.lsg, wegeAnteile(g, lf));
   // Der Bezug: ein Mast, der im Modell und im Blatt steht.
   const masten = mastenVon(werte);
   const fuss = roh.dat.knoten.map((k) => ({ k, m: /(?:^|_)MAST_(.+)_F$/.exec(k.name) }))
@@ -2335,7 +2384,8 @@ function verformtSetzen(szene = null) {
     text: [`Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht`,
       `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`
         + (fahrdraehte.length ? ` · Fahrdraht quer ${(fdMax * 1000).toFixed(1)} mm` : ''),
-      `${lf.bez}${umh ? ' (massgebend GZG)' : ''}`],
+      `${lf.bez}${umh ? ' (massgebend GZG)' : ''}`,
+      ...figurGrundlage(lf, fFig)],
   } : null;
   verformtMerk = { merk, wert };
   ansicht.verformt = wert;

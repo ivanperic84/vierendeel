@@ -301,7 +301,7 @@ function fahrdrahtNachweis(dat, lsg, nurW, grenz, opt = {}) {
       const u = knotenWeg(lsg, anteileFuer(l, dat), f.knoten);
       if (!u) return;
       const wert = Math.abs(u[0] * BETRIEBSWIND);
-      if (!best || wert > best.wert) best = { wert, achse: 'x', lastfall: l.key, bez: l.bez };
+      if (!best || wert > best.wert) best = { wert, achse: 'x', lastfall: l.key, bez: l.bez, faktor: BETRIEBSWIND };
     });
     if (!best) return null;
     const kn = dat.knoten.find((k) => k.name === f.knoten);
@@ -341,7 +341,9 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
         if (!u) return;
         achsen.forEach((a) => {
           const wert = Math.abs(u[achsIdx[a]] * faktor);
-          if (!best || wert > best.wert) best = { wert, achse: a, lastfall: l.key, bez: l.bez };
+          // `faktor`: womit der Fall in den Nachweis eingeht (ψ beim reinen
+          // Wind) - die verformte Figur zeigt ihn damit (4. Oktober).
+          if (!best || wert > best.wert) best = { wert, achse: a, lastfall: l.key, bez: l.bez, faktor };
         });
       });
       return best;
@@ -369,7 +371,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
       const phi = mastVerdrehung(dat, lsg, anteileFuer(l, dat), zug, hV);
       if (!Number.isFinite(phi)) return;
       const wert = Math.abs(phi * BETRIEBSWIND);
-      if (!dreh || wert > dreh.wert) dreh = { wert, lastfall: l.key, bez: l.bez };
+      if (!dreh || wert > dreh.wert) dreh = { wert, lastfall: l.key, bez: l.bez, faktor: BETRIEBSWIND };
     });
     const gradGrenz = kern.grenzen?.verdrehungGrad ?? VERFORMUNG_GRENZEN.verdrehungGrad;
     const drehGrenz = gradGrenz * Math.PI / 180;

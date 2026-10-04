@@ -37900,6 +37900,43 @@ titel('224  Einzelmast im Bild und in den Verläufen aus dem Stabwerk');
        && app.includes("const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;"));
 }
 
+/* =========================================================================
+ * 225  VERFORMTE FIGUR MIT DEM FAKTOR DES NACHWEISES; GRUNDLAGE IN DER
+ *      ANSCHRIFT (4. Oktober)
+ * =========================================================================
+ * «die auswertung des gebrauchtauglichkeitsnachweises checken, hier sind
+ * werte die nicht ganz nachvollziebar sind. orangfarben soll als text noch
+ * aufführen, ob mit oder ohne reduktion abgebildet wird». Befund (Testdaten,
+ * Reihe): bei «umhüllend» zeigte die Figur den massgebenden Fall ohne
+ * ψ 0.70 - «Spitze M2 87.1 mm» gegen die Kachel 61 mm. Jetzt 61.0 mm.
+ * ========================================================================= */
+titel('225  Verformte Figur mit dem Faktor des Nachweises; Grundlage angeschrieben');
+{
+  const N225 = await import(J('core.nachbarn.js'));
+  const AS225 = await import(J('app.stabwerk.js'));
+  const SV225 = await import(J('core.stabverformung.js'));
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  const w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const ws = N225.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N225.kernArgumente(ws));
+  const h = AS225.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const kern = { A: { L: 8.5, stelle: { z: 7.5, was: 'Jochauflager' } }, B: { L: 8.5, stelle: { z: 7.5, was: 'Jochauflager' } },
+                 gruppen: { fahrdraht: true, spitze: true, verdrehung: true }, grenzen: { fahrdraht: 0.04, spitzeN: 100 }, spitze: true };
+  const v = SV225.verformungAusStabwerk(kern, h.roh.dat, h.roh.lsg, h.roh.faelle, { A: 'M1', B: 'M2' });
+  const nw = v.A.nachweise;
+  wahr('Jeder Nachweis nennt den Faktor, mit dem sein Fall eingeht (ψ 0.70 beim reinen Wind)',
+       nw.length > 0 && nw.every((n) => n.faktor === 0.7), nw.map((n) => `${n.was.slice(0, 20)} ${n.faktor}`).join(' · '));
+  const app = APP_QUELLE();
+  wahr('Die Figur rechnet mit diesem Faktor (bei «umhüllend») und schreibt die Grundlage an',
+       app.includes('const fig = verformteFigur(roh.dat, roh.lsg, wegeAnteile(g, lf));')
+       && app.includes('...figurGrundlage(lf, fFig)],')
+       && app.includes("'Bemessungswerte, ohne Reduktion - nicht der GZG-Nachweis'"));
+  const ui225 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Der Block Gebrauchstauglichkeit nimmt das Stabwerk auch im Einzellastfall (beide Seitenleisten)',
+       (ui225.match(/const swG = stabwerkFuehrt\(opt, false\);/g) ?? []).length === 2);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -5601,8 +5601,15 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
    * DIE VERFORMUNG AUS DEM STABWERK, wenn es gilt (28. September, «Ins
    * Stabwerk») - dieselbe Gestalt wie die des Kerns, nur andere Wege.
    */
-  const zeigV = swH?.verformung ? { ...zeig, verformung: swH.verformung } : zeig;
-  const gzgQuelle = swH?.verformung ? 'Stabwerk'
+  /*
+   * >>> DIE GEBRAUCHSTAUGLICHKEIT HÄNGT NICHT AM GEWÄHLTEN LASTFALL (4. Oktober). <<<
+   * Sie rechnet immer den Betriebswind. Im Einzellastfall stand hier der
+   * Kern (ohne Fahrdraht-Kachel), bei «umhüllend» das Stabwerk - zwei
+   * verschiedene Zahlen für denselben Nachweis, je nach Wahl oben.
+   */
+  const swG = stabwerkFuehrt(opt, false);
+  const zeigV = swG?.verformung ? { ...zeig, verformung: swG.verformung } : zeig;
+  const gzgQuelle = swG?.verformung ? 'Stabwerk'
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
@@ -7386,8 +7393,15 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
   // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
   // Solange das gewählte Stabwerk nicht gilt, ist das Urteil vorläufig.
   // Die Verformung aus dem Stabwerk, wenn es gilt (28. Sept., «Ins Stabwerk»).
-  const ergV = swH?.verformung ? { ...erg, verformung: swH.verformung } : erg;
-  const gzgQuelle = swH?.verformung ? 'Stabwerk'
+  /*
+   * >>> DIE GEBRAUCHSTAUGLICHKEIT HÄNGT NICHT AM GEWÄHLTEN LASTFALL (4. Oktober). <<<
+   * Sie rechnet immer den Betriebswind. Im Einzellastfall stand hier der
+   * Kern (ohne Fahrdraht-Kachel), bei «umhüllend» das Stabwerk - zwei
+   * verschiedene Zahlen für denselben Nachweis, je nach Wahl oben.
+   */
+  const swG = stabwerkFuehrt(opt, false);
+  const ergV = swG?.verformung ? { ...erg, verformung: swG.verformung } : erg;
+  const gzgQuelle = swG?.verformung ? 'Stabwerk'
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
