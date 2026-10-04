@@ -38629,6 +38629,57 @@ titel('234  Gurt am Anschnitt im Stabwerk; «beide» ohne Träger ab Jochachse; 
        /zoomAufAnbauteil\(i\);[\s\S]{0,300}maskenAnkerLoesen\(\);/.test(app234));
 }
 
+titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
+/* ===========================================================================
+ * «ich finde den signalbauer nicht. kann man bei diesem die signal-bilder
+ * aus der excel als symbole hinterlegen um die zusammenstellung schnelle
+ * vorzunehmen» (4. Oktober). Die Bilder stehen im Sortiment (Spalte `bild`,
+ * vertraulich), der Bauer zeigt sie als Kacheln; ein Knopf in der Liste
+ * öffnet ihn, danach wird gesetzt.
+ * ========================================================================= */
+{
+  const A235 = await import(J('data.anbauteile.js'));
+  const K235 = await import(J('data.katalog.js'));
+  const ab = K235.abschnitt('signalteile');
+  wahr('Der Katalog führt die Spalte «bild» der Signalteile',
+       ab?.felder?.some((f) => f.k === 'bild' && f.bild === true));
+  wahr('Bild-URL: nur eingebettete Bilder (data:image/…;base64)',
+       K235.istBildUrl('data:image/png;base64,iVBORw0KGgo=')
+       && !K235.istBildUrl('https://beispiel.ch/a.png')
+       && !K235.istBildUrl('data:text/html;base64,PGI+')
+       && !K235.istBildUrl('data:image/png;base64,"><script>'));
+  const teile = A235.signalteile();
+  const mitBild = teile.filter((t) => K235.istBildUrl(t.bild));
+  wahr('Jedes Bild der Tabelle ist eine gültige Bild-URL',
+       teile.every((t) => t.bild === undefined || K235.istBildUrl(t.bild)),
+       `${mitBild.length} von ${teile.length} mit Bild`);
+  wahr('Bilder nur an Signalen und Tafeln (die Mappe hat keine für Korb und Tragwerk)',
+       mitBild.every((t) => t.gruppe === 'signal'));
+  const sv = A235.signalVorlage();
+  wahr('Es gibt eine Vorlage mit Signalmodul (wenn die Daten Signale führen)',
+       !teile.length || (sv && A235.istSignalVorlage(sv)), sv?.id ?? '-');
+  if (sv) {
+    const a = A235.mitSignalAuswahl(A235.neuesAnbauteil(sv.id, 5), [{ id: teile[0]?.id, anzahl: 2 }]);
+    const m = a.module.find(A235.istSignalModul);
+    wahr('Die Auswahl landet im Signalmodul der Baugruppe',
+         m && m.signal?.length === 1 && m.signal[0].anzahl === 2);
+  }
+  const dlg = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Der Bauer zeigt Signale als Bildkacheln mit −/+ (Klick aufs Bild zählt eins dazu)',
+       dlg.includes("g === 'signal'") && dlg.includes('data-sig-plus') && dlg.includes('data-sig-minus')
+       && dlg.includes('istBildUrl(t.bild)'));
+  const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',
+       set.includes("setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl })")
+       && set.includes('if (signalVorlageId(vorlageId)') && set.includes("v.art === 'signal'"));
+  const ui235 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Der Knopf «Signal zusammenstellen» steht neben «Bauteil zuweisen»',
+       ui235.includes('data-signal-direkt') && ui235.includes('Signal zusammenstellen'));
+  const dat235 = readFileSync(join(HIER, 'js', 'ui.daten.js'), 'utf8');
+  wahr('Die Tabellenansicht zeigt ein Bild als Bild',
+       dat235.includes('s.feld.bild && istBildUrl(z[s.pfad])'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

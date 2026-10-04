@@ -30,7 +30,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { ABSCHNITTE, tabellenKatalog, spaltenVon, alsText, pruefeTabelle,
+import { ABSCHNITTE, tabellenKatalog, spaltenVon, alsText, istBildUrl, pruefeTabelle,
          datenbanken } from './data.katalog.js';
 import { AUFBAU, zerlege, zelleAus } from './data.tabellen.js';
 import { einteilung, einteilungAbfang, pruefeAlle,
@@ -230,6 +230,11 @@ function tabelle(tabBestand, db, name, filter = '') {
           const such = schl.map((k) => z[k] ?? '').join(' ').toLowerCase();
           const zeigen = !filter || such.includes(filter.toLowerCase());
           return `<tr data-such="${esc(such)}"${zeigen ? '' : ' hidden'}>${sp.map((s) => {
+            // Ein Bild steht als Bild da, nicht als Zeichenkette von 3000
+            // Zeichen (Signalbilder, 4. Oktober).
+            if (s.feld.bild && istBildUrl(z[s.pfad])) {
+              return `<td class="bild"><img src="${esc(z[s.pfad])}" alt="" height="22"></td>`;
+            }
             const txt = alsText(z[s.pfad], s.feld);
             /*
              * EINE LEERE ZELLE IST EINE AUSSAGE. Die Lasttabelle sagt

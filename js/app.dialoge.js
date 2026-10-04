@@ -18,6 +18,7 @@ import { getTragjoch, laengenbereich, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { signalteile, signalFlaeche, SIGNAL_CW } from './data.anbauteile.js';
+import { istBildUrl } from './data.katalog.js';
 import { windAusFlaeche } from './data.fl.js';
 import { istGerade } from './core.trasse.js';
 import { abfangFuerStuetzweite } from './core.abfangjoch.js';
@@ -1045,15 +1046,60 @@ export function dialogSignal(app, auswahl, fertig) {
     .map(([id, w]) => ({ id, anzahl: w.anzahl,
                          ...(w.laenge ? { laenge: w.laenge } : {}) }));
 
-  const koerper = teile.length ? SIGNAL_GRUPPEN.map(([g, titel, offen]) => {
+  /*
+   * >>> SIGNALE ALS BILDKACHELN (4. Oktober). <<<
+   * Weisung: «kann man bei diesem die signal-bilder aus der excel als
+   * symbole hinterlegen um die zusammenstellung schnelle vorzunehmen, da
+   * man sonst wissen muss wie jedes signal heisst und ich bin nicht vom fach
+   * der signale sondern nur tragwerk.» Die Bilder stehen in der Tabelle
+   * (Spalte `bild`, aus der Mappe, im Sortiment - nicht in der Ablage). Ein
+   * Klick aufs Bild zählt eins dazu, − und + daneben; Name, Flächen und
+   * Masse stehen im Titel. Ohne Bild steht die Positionsnummer da - die
+   * Kachel bleibt bedienbar. Arbeitskorb und Tragwerksteile behalten die
+   * Tabelle (sie haben keine Bilder, und die Tragwerksteile eine Länge).
+   */
+  const kachel = (t) => {
+    const w = wert(t);
+    const bild = istBildUrl(t.bild)
+      ? `<img src="${esc(t.bild)}" alt="">`
+      : `<span class="sig-ohne">${esc(String(t.nr ?? ''))}</span>`;
+    return `<div class="sig-kachel${w.anzahl > 0 ? ' an' : ''}" data-sig-kachel="${esc(t.id)}"
+        title="${esc(`${t.nr ? `Nr. ${t.nr} · ` : ''}${t.name} · A quer ${zahl(t.aQuer)} / längs ${zahl(t.aLaengs)} m² · ${zahl(t.masse, 0)} kg`)}">
+      <button type="button" class="sig-bild" data-sig-plus="${esc(t.id)}"
+        aria-label="${esc(t.name)} hinzufügen">${bild}</button>
+      <span class="sig-name">${esc(t.name)}</span>
+      <span class="sig-zahl">
+        <button type="button" class="btn btn-mini" data-sig-minus="${esc(t.id)}" aria-label="eins weniger">−</button>
+        <input type="number" class="sig-n" data-sig="${esc(t.id)}" step="1" min="0" value="${w.anzahl}">
+        <button type="button" class="btn btn-mini" data-sig-plus="${esc(t.id)}" aria-label="eins mehr">+</button>
+      </span>
+    </div>`;
+  };
+  // Was gewählt ist, oben in einer Zeile - mit Bild, damit man es wiedererkennt.
+  const gewaehltHtml = () => {
+    const tab = new Map(teile.map((t) => [t.id, t]));
+    const l = liste();
+    if (!l.length) return '<span class="ablage-meta">Noch nichts gewählt - Bild anklicken zählt eins dazu.</span>';
+    return l.map((x) => {
+      const t = tab.get(x.id);
+      const b = t && istBildUrl(t.bild) ? `<img src="${esc(t.bild)}" alt="">` : '';
+      return `<span class="sig-chip">${b}${x.anzahl} × ${esc(t?.name ?? x.id)}</span>`;
+    }).join('');
+  };
+
+  const koerper = teile.length ? `<div class="sig-gewaehlt">${gewaehltHtml()}</div>`
+    + SIGNAL_GRUPPEN.map(([g, titel, offen]) => {
     const l = teile.filter((t) => t.gruppe === g);
     if (!l.length) return '';
     const gewaehlt = l.some((t) => wert(t).anzahl > 0);
+    const inhalt = g === 'signal'
+      ? `<div class="sig-kacheln">${l.map(kachel).join('')}</div>`
+      : `<table class="dt sig-tab"><thead><tr><th>Teil</th><th class="num">A quer / längs [m²]</th>
+        <th class="num">Masse [kg]</th><th>L [m]</th><th>Anzahl</th></tr></thead>
+        <tbody>${l.map(zeile).join('')}</tbody></table>`;
     return `<details class="sig-gruppe"${offen || gewaehlt ? ' open' : ''}>
       <summary>${esc(titel)} <span class="ablage-meta">${l.length} Teile</span></summary>
-      <table class="dt sig-tab"><thead><tr><th>Teil</th><th class="num">A quer / längs [m²]</th>
-        <th class="num">Masse [kg]</th><th>L [m]</th><th>Anzahl</th></tr></thead>
-        <tbody>${l.map(zeile).join('')}</tbody></table></details>`;
+      ${inhalt}</details>`;
   }).join('') + `<p class="notiz sig-summe">${summeHtml()}</p>
     <p class="notiz">G = Anzahl · Masse / 100 kN (wie die Mappe, 10 N/kg);
       A quer trifft der Wind quer zum Gleis (x), A längs der Wind längs zum Gleis (y).
@@ -1065,15 +1111,29 @@ export function dialogSignal(app, auswahl, fertig) {
      <button class="btn btn-acc" data-sig-ok${teile.length ? '' : ' disabled'}>Übernehmen</button>`,
     'dialog-signal');
   const n = d.node;
-  const neuSumme = () => { const p = n.querySelector('.sig-summe'); if (p) p.innerHTML = summeHtml(); };
-  n.querySelectorAll('.sig-n').forEach((inp) => {
-    inp.oninput = () => {
-      const id = inp.dataset.sig;
-      const v = Math.max(0, Math.round(parseFloat(inp.value) || 0));
-      e.set(id, { ...(e.get(id) ?? { laenge: null }), anzahl: v });
+  const neuSumme = () => {
+    const p = n.querySelector('.sig-summe'); if (p) p.innerHTML = summeHtml();
+    const g = n.querySelector('.sig-gewaehlt'); if (g) g.innerHTML = gewaehltHtml();
+  };
+  // Eine Anzahl setzen - aus dem Feld, aus − und + und aus dem Bild.
+  const setzeAnzahl = (id, v) => {
+    v = Math.max(0, Math.round(Number(v) || 0));
+    e.set(id, { ...(e.get(id) ?? { laenge: null }), anzahl: v });
+    n.querySelectorAll(`.sig-n[data-sig="${CSS.escape(id)}"]`).forEach((inp) => {
+      if (String(inp.value) !== String(v)) inp.value = v;
       inp.closest('tr')?.classList.toggle('an', v > 0);
-      neuSumme();
-    };
+    });
+    n.querySelector(`[data-sig-kachel="${CSS.escape(id)}"]`)?.classList.toggle('an', v > 0);
+    neuSumme();
+  };
+  n.querySelectorAll('.sig-n').forEach((inp) => {
+    inp.oninput = () => setzeAnzahl(inp.dataset.sig, parseFloat(inp.value));
+  });
+  n.querySelectorAll('[data-sig-plus]').forEach((b) => {
+    b.onclick = () => setzeAnzahl(b.dataset.sigPlus, (e.get(b.dataset.sigPlus)?.anzahl ?? 0) + 1);
+  });
+  n.querySelectorAll('[data-sig-minus]').forEach((b) => {
+    b.onclick = () => setzeAnzahl(b.dataset.sigMinus, (e.get(b.dataset.sigMinus)?.anzahl ?? 0) - 1);
   });
   n.querySelectorAll('.sig-l').forEach((inp) => {
     inp.oninput = () => {

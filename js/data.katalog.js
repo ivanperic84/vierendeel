@@ -854,9 +854,24 @@ export const ABSCHNITTE = [
       zahl('aLaengs', 'Fläche längs (Wind längs zum Gleis)', 'm² bzw. m²/m', { von: 0, bis: 20 }),
       zahl('aQuer', 'Fläche quer (Wind quer zum Gleis)', 'm² bzw. m²/m', { von: 0, bis: 20 }),
       zahl('masse', 'Masse', 'kg bzw. kg/m', { von: 0, bis: 5000 }),
+      // Das Bild des Signals aus der Mappe (4. Oktober): «kann man bei
+      // diesem die signal-bilder aus der excel als symbole hinterlegen um
+      // die zusammenstellung schnelle vorzunehmen». Als data:-URL in der
+      // Zelle - es gehört zum Sortiment und wandert mit dem Datenpaket.
+      text('bild', 'Bild', { bild: true,
+        notiz: 'Symbol als data:-URL (PNG, JPEG, GIF oder SVG); der Signalbauer zeigt es als Kachel.' }),
     ],
   },
 ];
+
+/**
+ * Ist das eine Bild-URL, die eine Kachel zeigen darf? Nur eingebettete
+ * Rasterbilder und SVG als data:-URL - nichts, was nachlädt oder ausführt.
+ */
+export function istBildUrl(v) {
+  return typeof v === 'string'
+    && /^data:image\/(png|jpeg|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(v);
+}
 
 /** Ein Abschnitt nach seinem Schlüssel. */
 export function abschnitt(key) {
@@ -1078,6 +1093,8 @@ function pruefeWert(s, v, wo, fehler, warnung) {
   } else if (fd.typ === 'text') {
     if (typeof v !== 'string') {
       fehler.push(`${wo}: «${s.kopf}» ist kein Text (${alsText(v)}).`);
+    } else if (fd.bild && !istBildUrl(v)) {
+      warnung.push(`${wo}: «${s.kopf}» ist keine Bild-URL (data:image/…;base64,…) - es wird nicht gezeigt.`);
     }
   } else if (fd.typ === 'liste') {
     if (!Array.isArray(v)) {

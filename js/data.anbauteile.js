@@ -120,6 +120,23 @@ export function signalteile() {
 /** Ist dieses Modul ein Signal (Signalbauer)? */
 export const istSignalModul = (m) => m?.signalbauer === true || Array.isArray(m?.signal);
 
+/** Trägt diese Vorlage ein Signalmodul (füllt sie der Signalbauer)? */
+export const istSignalVorlage = (v) => (v?.module ?? []).some(istSignalModul);
+
+/**
+ * Die Vorlage, die der Knopf «Signal zusammenstellen» setzt (4. Oktober) -
+ * die erste mit einem Signalmodul, null ohne eine (z. B. in den Testdaten).
+ */
+export function signalVorlage() {
+  return vorlagen().find(istSignalVorlage) ?? null;
+}
+
+/** Eine Baugruppe mit dieser Signalauswahl in ihrem Signalmodul. */
+export function mitSignalAuswahl(a, auswahl) {
+  return { ...a, module: (a.module ?? []).map((m) => (istSignalModul(m)
+    ? { ...m, signal: (auswahl ?? []).map((x) => ({ ...x })) } : m)) };
+}
+
 /**
  * Gewicht und Flächen einer Signalauswahl.
  * @param {{id:string, anzahl:number, laenge?:number}[]} auswahl

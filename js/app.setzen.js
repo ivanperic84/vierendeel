@@ -14,7 +14,7 @@ import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangVorgabeFuer } from './core.lasten.js';
-import { getVorlage, havarieKopieren, leiterKennung, neuesAnbauteil, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { getVorlage, havarieKopieren, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -394,9 +394,38 @@ Hand geändert wurden. Steht ${anzahl}× im Modell."
     </div>`;
 }
 
+/* ===========================================================================
+ * >>> SIGNAL: ERST WÄHLEN, DANN SETZEN (4. Oktober). <<<
+ * ===========================================================================
+ *
+ * Gemeldet: «ich finde den signalbauer nicht.» Die Vorlage «Signal
+ * (Signalbauer)» setzte ein LEERES Signal (G 0, keine Fläche); den
+ * Signalbauer fand man danach nur in der Modulzeile der Karte. Jetzt öffnet
+ * er sich, bevor gesetzt wird - über den Knopf «Signal zusammenstellen»
+ * (zuerst die Signale, dann die Stelle) und über die Vorlage selbst (zuerst
+ * die Stelle, dann die Signale). Ohne Auswahl wird nichts gesetzt.
+ * =========================================================================== */
+export function signalZusammenstellen(app) {
+  const v = signalVorlage();
+  if (!v || typeof app.signalbauer !== 'function') return;
+  app.signalbauer([], (auswahl) => {
+    if (!auswahl?.length) return;
+    setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl });
+    app.meldeImBalken?.('Signal gewählt - jetzt ins Modell klicken, wo es hin soll (Joch oder Mast); Esc bricht ab.');
+  });
+}
+
+/** Ist diese Vorlage eine, die der Signalbauer füllt? */
+function signalVorlageId(id) {
+  try { return istSignalVorlage(getVorlage(id)); } catch { return false; }
+}
+
 /** Name der Vorwahl - fuer den Balken beim Ziehen. */
 export function vorwahlName(app, vw) {
   if (!vw) return null;
+  if (vw.art === 'signal') {
+    return `Signal (${vw.signal.reduce((s, x) => s + (x.anzahl || 0), 0)} Teile)`;
+  }
   if (vw.art === 'kopie') {
     return (app.werte.anbauteile ?? []).find((a) => a.id === vw.id)?.name ?? null;
   }
@@ -406,6 +435,16 @@ export function vorwahlName(app, vw) {
 /** Das gewaehlte Bauteil an die gemerkte Stelle setzen. */
 export function setzeVorlageAnStelle(app, vorlageId) {
   zuletztMerken(vorlageId);
+  // Ein Signal ohne Auswahl wöge nichts - erst der Signalbauer (4. Oktober).
+  // Die Stelle bleibt gemerkt, solange der Dialog offen ist.
+  if (signalVorlageId(vorlageId) && typeof app.signalbauer === 'function') {
+    setzWahlWeg();
+    app.signalbauer([], (auswahl) => {
+      if (!auswahl?.length) return;
+      setzeBaugruppeAnStelle(app, mitSignalAuswahl(neuesAnbauteil(vorlageId, 0), auswahl));
+    });
+    return;
+  }
   setzeBaugruppeAnStelle(app, neuesAnbauteil(vorlageId, 0));
 }
 
@@ -574,5 +613,8 @@ export function setzeVorwahlAnStelle(app) {
   const v = app.setzen?.vorwahl;
   if (!v) return;
   if (v.art === 'kopie') setzeKopieAnStelle(app, v.id);
-  else setzeVorlageAnStelle(app, v.id);
+  else if (v.art === 'signal') {
+    zuletztMerken(v.id);
+    setzeBaugruppeAnStelle(app, mitSignalAuswahl(neuesAnbauteil(v.id, 0), v.signal));
+  } else setzeVorlageAnStelle(app, v.id);
 }

@@ -40,7 +40,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe,
          leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
-         SIGNAL_CW } from './data.anbauteile.js';
+         SIGNAL_CW, signalVorlage } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -3104,6 +3104,16 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          >${icon('anbau', 12)} Bauteil zuweisen</button>
        ${tragwerksart(werte).traeger ? `<button class="btn btn-mini" data-generator type="button"
          title="Anbauteile über die Gleise verteilen">Lastgenerator</button>` : ''}
+       ${/*
+          * >>> DER SIGNALBAUER STEHT VORN (4. Oktober). <<<
+          * Gemeldet: «ich finde den signalbauer nicht.» Er war nur über die
+          * Vorlage «Signal (Signalbauer)» in der zugeklappten Vorlagenliste
+          * und danach über einen Knopf im Modul der Karte zu erreichen. Jetzt
+          * ein Knopf neben «Bauteil zuweisen»: erst die Signale wählen, dann
+          * ins Modell klicken, wo sie hin sollen.
+          */ signalVorlage() ? `<button class="btn btn-mini" data-signal-direkt type="button"
+         title="Signalbauer: Signale, Tafeln und Arbeitskorb nach Bild wählen, danach ins Modell klicken, wo sie hin sollen"
+         >${icon('anbau', 12)} Signal zusammenstellen</button>` : ''}
      </div>` +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
       <div class="vl-suchzeile">
@@ -4723,7 +4733,7 @@ export function setzeTastenliste(liste) { tastenListe = liste; }
 let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
 let beiAnbauOeffnen = null, beiAnbauDuplizieren = null, beiAnbauKontext = null;
-let beiAnbauAlleWeg = null;
+let beiAnbauAlleWeg = null, beiSignalDirekt = null;
 
 /** Rückrufe der Anbauteil-Oberfläche registrieren (einmalig beim Start). */
 export function setzeAnbauHandler(h) {
@@ -4732,7 +4742,7 @@ export function setzeAnbauHandler(h) {
   beiAnbauZoom = h.zoom; beiVorlageBearbeiten = h.bearbeiten;
   beiAnbauOeffnen = h.oeffnen;
   beiAnbauDuplizieren = h.duplizieren; beiAnbauKontext = h.kontext;
-  beiAnbauAlleWeg = h.alleWeg;
+  beiAnbauAlleWeg = h.alleWeg; beiSignalDirekt = h.signal;
 }
 
 /**
@@ -4896,6 +4906,9 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   container.querySelectorAll('[data-generator]').forEach((b) => {
     b.addEventListener('click', () => beiGenerator?.());
+  });
+  container.querySelectorAll('[data-signal-direkt]').forEach((b) => {
+    b.addEventListener('click', () => beiSignalDirekt?.());
   });
   container.querySelectorAll('[data-at-zoom]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauZoom?.(+b.dataset.atZoom));

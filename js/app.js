@@ -137,7 +137,7 @@ import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeich
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
-         setzWahlZeigen, setzWahlWeg } from './app.setzen.js';
+         setzWahlZeigen, setzWahlWeg, signalZusammenstellen } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -262,6 +262,8 @@ const app = {
 // Der Signalbauer der Anbauteil-Karte (30. September) ist ein Dialog der
 // Anwendung; die Karte kennt ihn nur als Aufruf.
 ui.setzeSignalbauer((auswahl, fertig) => dialogSignal(app, auswahl, fertig));
+// Derselbe Dialog für das Setzen (4. Oktober): Signale wählen, dann setzen.
+app.signalbauer = (auswahl, fertig) => dialogSignal(app, auswahl, fertig);
 /*
  * Der Füllstand der Schieber (30. September, «den balken etwas heller als
  * den punkt»): bei jeder Eingabe und nach jedem Neuaufbau eines Teils der
@@ -6409,6 +6411,7 @@ export async function start() {
     bearbeiten: dialogVorlageBearbeiten,
     duplizieren: (i) => anbauteilDuplizieren(app, i),
     alleWeg: anbauteileAlleEntfernen,
+    signal: () => signalZusammenstellen(app),
     kontext: (i, bei) => kontextZeigen(app, bei, kontextAnbauteil(app, i)),
     oeffnen: (i) => {
       const a = (werte.anbauteile ?? [])[i];
