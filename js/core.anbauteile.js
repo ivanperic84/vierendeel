@@ -487,6 +487,43 @@ export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
 }
 
 /**
+ * >>> DER DIREKTE WEG FÜR DAS STABMODELL (4. Oktober). <<<
+ *
+ * Weisung, mit Bild (rechtwinkliger Weg schwarz, der gemeinte Weg in
+ * Magenta): «der fahrweg der einzelnen starrelement verbindungen optimieren
+ * auf die variante direkt (markierung auf bild) so sparen wir an anzahl
+ * elementen beim aufbau des modells. die berechnung sollte es nicht
+ * beeinflussen.»
+ *
+ * Die Knickpunkte der Kette (`knick: true`) tragen keine Last und kein
+ * Teil; sie sind da, damit das BILD den Weg zeigt, wie er gebaut ist
+ * (Weisungen vom 19./20./24. September zur Reihenfolge der Achsen). Im
+ * Stabmodell ist jedes Glied ein Starrkörper - zwischen zwei Lastpunkten
+ * ist es für die Rechnung gleich, ob ein Starrkörper sie direkt verbindet
+ * oder drei rechtwinklig hintereinander: dieselbe Kinematik, dieselbe
+ * Resultante am Anschluss. Hier fällt deshalb jeder Knickpunkt weg, und das
+ * nächste Glied läuft schräg vom letzten echten Punkt zum Ziel.
+ *
+ * Das Bild (render.3d.js) liest `anbauKette` weiter unverändert und zeigt
+ * den rechtwinkligen Weg.
+ *
+ * @param {{wurzel, glieder}} kette Ergebnis von `anbauKette`
+ * @returns {object[]} Glieder [{von, bis, rang, teil}] ohne Knickpunkte;
+ *   `von` ist immer die Wurzel oder ein echter Punkt
+ */
+export function direkteGlieder(kette) {
+  const ersatz = new Map();          // Knickpunkt -> sein echter Vorgänger
+  const echt = (p) => ersatz.get(p) ?? p;
+  const aus = [];
+  (kette?.glieder ?? []).forEach((g) => {
+    const von = echt(g.von);
+    if (g.bis.knick) { ersatz.set(g.bis, von); return; }
+    aus.push({ ...g, von });
+  });
+  return aus;
+}
+
+/**
  * Bemessungswert eines Lastanteils: Summe über alle Einwirkungsgruppen.
  * @param {object} a  aufgelöstes Anbauteil mit a.kraefte
  * @param {object} bw Beiwerte je Gruppe

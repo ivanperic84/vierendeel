@@ -37619,6 +37619,110 @@ if (AJ.abfangDbDa()) {
        && readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('mm quer`'));
 }
 
+/* =========================================================================
+ * 221  DER DIREKTE WEG DER STARRGLIEDER IM STABMODELL (4. Oktober)
+ * =========================================================================
+ * «der fahrweg der einzelnen starrelement verbindungen optimieren auf die
+ * variante direkt (markierung auf bild) so sparen wir an anzahl elementen
+ * beim aufbau des modells. die berechnung sollte es nicht beeinflussen.»
+ *
+ * Die Knickpunkte der Kette (`anbauKette`) bleiben dem Bild; das Stabmodell
+ * verbindet die echten Punkte direkt (`direkteGlieder`). Gemessen auf den
+ * erfundenen Testdaten (TEST-80/20 m, Masten): Haengestuetze mit Fahrdraht
+ * 1.5 m aussen und 0.3 m quer 786/895 -> 784/893 Knoten/Staebe; zwei
+ * Traversen mit Leiter hoeher und aussen 812/920 -> 810/918; Teil am
+ * Masten aussen und hoeher 750/852 -> 747/849. Die Wege alt gegen neu
+ * weichen um 0.6e-6 (Starrfaktor 1) bis 1.3e-5 (Starrfaktor 30) ab - das
+ * alte Modell gegen sich selbst mit Starrfaktor 10 gegen 30: 2.5e-5. Die
+ * eta aendern sich in der fuenften Stelle (Blech 0.445415 -> 0.445424).
+ * ========================================================================= */
+titel('221  Direkter Weg der Starrglieder im Stabmodell');
+{
+  const CA221 = await import(J('core.anbauteile.js'));
+  const AS221 = await import(J('app.stabwerk.js'));
+  const N221 = await import(J('core.nachbarn.js'));
+  const SW221 = await import(J('core.stabwerk.js'));
+  const DA221 = await import(J('data.anbauteile.js'));
+
+  // (a) Die Kette selbst: Stuetze bis -1.35, Ausleger 1.5 m aussen auf -2.70.
+  const tl = (id, x, y, z, rolle) => ({ id, name: id, x, y, z, rolle, stationX: 0 });
+  const k = CA221.anbauKette([tl('HS', 0, 0, -1.35, 'traeger'), tl('AUS', 1.5, 0.3, -2.7, 'aufbau'),
+                              tl('FD', 1.5, 0.3, -3.2, 'drahtwerk')], { x0: 0, zAn: 0 });
+  const d = CA221.direkteGlieder(k);
+  const echt = new Set([k.wurzel, ...k.belegung.map((b) => b.punkt)]);
+  wahr('Die Kette des Bildes führt Knickpunkte (rechtwinkliger Weg)',
+       k.glieder.some((g) => g.bis.knick), `${k.glieder.length} Glieder`);
+  wahr('Der direkte Weg verbindet nur Wurzel und echte Punkte',
+       d.every((g) => echt.has(g.von) && echt.has(g.bis) && !g.bis.knick),
+       d.map((g) => `(${g.von.x},${g.von.y},${g.von.z})->(${g.bis.x},${g.bis.y},${g.bis.z})`).join(' '));
+  pruef('… je echter Punkt ausser der Wurzel ein Glied',
+        d.length, new Set(k.belegung.map((b) => b.punkt).filter((p) => p !== k.wurzel)).size, 1e-12, 'Stk');
+  wahr('… das Glied zum Ausleger läuft schräg von der Stütze aus',
+       d.some((g) => g.teil?.id === 'AUS' && g.von.z === -1.35 && g.bis.x === 1.5 && g.bis.y === 0.3));
+
+  // (b) Im Stabmodell: kein Knoten ohne Last an einer Kette, Lastpunkte gleich.
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  const teil = (vid, x, mods, extra = {}) => {
+    const a = { ...DA221.neuesAnbauteil(vid, x), ...extra };
+    mods.forEach((m, i) => { if (a.module[i]) Object.assign(a.module[i], m); });
+    return a;
+  };
+  const w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
+              anbauteile: [teil('hs-fahrdraht', 10, [{}, { x: 1.5, y: 0.3, folge: 'zyx' }]),
+                           teil('hs-fahrdraht', 0, [{ x: -0.5, z: 0.2 }, { x: -1.5, y: 0.4, z: 0.9 }],
+                                { ort: 'mastA', hMast: 6 })] };
+  const ws = N221.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N221.kernArgumente(ws));
+  const dat = AS221.stabwerkDatei(w, erg);
+  const arme = dat.staebe.filter((s) => /^ARMM?\d+_\d+$/.test(s.name));
+  const lastKn = new Set([...(dat.lasten?.punkt ?? []), ...(dat.lasten?.moment ?? [])].map((l) => l.knoten));
+  const kettenKn = new Set(arme.map((s) => s.bis));
+  // Ein Knickknoten haette ein weiteres Glied, aber keine Last - deshalb
+  // genuegt «traegt ein weiteres Glied» hier nicht als Kennzeichen.
+  wahr('Jeder Endknoten eines Kettenglieds trägt Last (keine Knickknoten)',
+       kettenKn.size > 0 && [...kettenKn].every((n) => lastKn.has(n)),
+       [...kettenKn].filter((n) => !lastKn.has(n)).join(', ') || `${kettenKn.size} Knoten`);
+  wahr('Am Joch und am Masten läuft mindestens ein Glied schräg (x und z zugleich)',
+       ['ARM', 'ARMM'].every((p) => arme.some((s) => {
+         if (!new RegExp(`^${p}\\d+_`).test(s.name)) return false;
+         const a = dat.knoten.find((q) => q.name === s.von), b = dat.knoten.find((q) => q.name === s.bis);
+         return Math.abs(b.x - a.x) > 1e-6 && Math.abs(b.z - a.z) > 1e-6;
+       })));
+
+  // (c) Gegenprobe im Loeser: einen Knick wieder einfuegen - die Rechnung bleibt.
+  const schraeg = arme.find((s) => {
+    const a = dat.knoten.find((q) => q.name === s.von), b = dat.knoten.find((q) => q.name === s.bis);
+    return Math.abs(b.x - a.x) > 1e-6 && Math.abs(b.z - a.z) > 1e-6;
+  });
+  if (!schraeg) {
+    wahr('Gegenprobe im Löser: ein schräges Glied ist da', false);
+  } else {
+  const a0 = dat.knoten.find((q) => q.name === schraeg.von);
+  const b0 = dat.knoten.find((q) => q.name === schraeg.bis);
+  const mitKnick = JSON.parse(JSON.stringify(dat));
+  mitKnick.knoten.push({ ...a0, name: 'KNICK_221', z: b0.z });
+  mitKnick.staebe = mitKnick.staebe.flatMap((s) => (s.name !== schraeg.name ? [s]
+    : [{ ...s, name: `${s.name}_a`, bis: 'KNICK_221' }, { ...s, name: `${s.name}_b`, von: 'KNICK_221' }]));
+  const l1 = SW221.loese(dat), l2 = SW221.loese(mitKnick);
+  let gross = 0, bezug = 0;
+  l1.faelle.forEach((f) => {
+    const u1 = l1.u.get ? l1.u.get(f.key ?? f) : l1.u[f.key ?? f];
+    const u2 = l2.u.get ? l2.u.get(f.key ?? f) : l2.u[f.key ?? f];
+    if (!u1 || !u2) return;
+    dat.knoten.forEach((q) => {
+      const i1 = l1.knotenIdx.get(q.name) * 6, i2 = l2.knotenIdx.get(q.name) * 6;
+      for (let j = 0; j < 3; j += 1) {
+        bezug = Math.max(bezug, Math.abs(u1[i1 + j]));
+        gross = Math.max(gross, Math.abs(u1[i1 + j] - u2[i2 + j]));
+      }
+    });
+  });
+  wahr('Ein Knick mehr oder weniger ändert die Wege nicht (≤ 1e-4 des grössten Wegs)',
+       bezug > 0 && gross / bezug < 1e-4, `${(gross / bezug).toExponential(2)} von ${(bezug * 1000).toFixed(2)} mm`);
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

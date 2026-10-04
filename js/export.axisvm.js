@@ -51,7 +51,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
-import { anbauKette, anschlussGurt } from './core.anbauteile.js';
+import { anbauKette, anschlussGurt, direkteGlieder } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
 import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
@@ -1563,7 +1563,8 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
     // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
     const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0, amMast: true });
     const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
-    kette.glieder.forEach((g) => {
+    // Der direkte Weg, ohne Knickpunkte (4. Oktober, `direkteGlieder`).
+    direkteGlieder(kette).forEach((g) => {
       const p = [r6(xM + g.bis.x), r6(g.bis.y), r6(wurzelKn[1].z + g.bis.z)];
       // Ein Glied ohne Länge ist kein Stab (sonst NaN im ganzen Stabwerk).
       if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }
@@ -3825,7 +3826,15 @@ export function stabmodell(m, opt = {}) {
       s.stab(`ARM${k}_W`, qsArm, anker, wurzelKn, { starrRolle: 'anbauteil' });
     }
     const knotenVon = new Map([[kette.wurzel, wurzelKn]]);
-    kette.glieder.forEach((g) => {
+    /*
+     * >>> DER DIREKTE WEG (4. Oktober). <<< Weisung: «der fahrweg der
+     * einzelnen starrelement verbindungen optimieren auf die variante direkt
+     * ... so sparen wir an anzahl elementen beim aufbau des modells. die
+     * berechnung sollte es nicht beeinflussen.» Die Knickpunkte des Bildes
+     * bekommen hier keinen Knoten; das Glied laeuft schraeg vom letzten
+     * echten Punkt zum naechsten (`direkteGlieder` in core.anbauteile.js).
+     */
+    direkteGlieder(kette).forEach((g) => {
       const p = [r6(g.bis.x), r6(g.bis.y), r6(g.bis.z)];
       // Ein Glied ohne Länge ist kein Stab (2. Oktober, `gleicheLage`).
       if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }

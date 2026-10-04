@@ -11,6 +11,10 @@ funktionierenden stand erlaubt» - ein grüner Stand (Prüfstand und
 Durchgang) wird gepusht. Letzter Commit zur Übergabe: siehe
 `git log --oneline -1`; der Arbeitsbaum ist sauber, alles ist gepusht.
 
+⚠ **Zuerst (4. Oktober):** die direkten Starrglieder der Anbauteile (Prüfstand 221) sind in einer
+Cloud-Sitzung ohne Betreiberdaten gebaut. Am Arbeitsrechner `node pruefung.mjs` und `node durchlauf.mjs`
+laufen lassen und die verformte Figur im Browser ansehen, bevor der Stand als grün gilt.
+
 **Nächster Schritt (4. Oktober, wartet auf den Auftraggeber):**
 1. ⚠ **AxisVM-Lauf des Beispiels B** (altes Joch auf zwei Gittermasten) mit
    der entflochtenen Datei - gefragt, nicht beantwortet. Nur auf Anweisung:
@@ -173,7 +177,7 @@ mit falscher Linklage; PyNite-Links.
 >
 > Lies zuerst `CLAUDE.md` ganz — besonders *Stand*, *Offene Punkte* und
 > *Entschieden*; dort stehen die Entscheide, die nicht wieder aufzumachen
-> sind. Dann `git log --oneline -15` und `git status`. Danach
+> sind. Dann `INITIALPROMPT.md`, `git log --oneline -15` und `git status`. Danach
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
 > Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
