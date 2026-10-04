@@ -377,13 +377,14 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**4. Oktober 2026** · Prüfstand 6709 Kontrollen grün (mit den Betreiberdaten, Datenpaket vom 3. Oktober + Halterippen, in der Cloud-Sitzung gelaufen) · `durchlauf.mjs`
+**4. Oktober 2026** · Prüfstand 6711 Kontrollen grün (mit den Betreiberdaten, Datenpaket vom 3. Oktober + Halterippen, in der Cloud-Sitzung gelaufen) · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 - **4. Okt., Signalbauer mit Bildkacheln und Knopf «Signal zusammenstellen»** (Prüfstand 235, siehe *Entschieden*).
+- **4. Okt., Signalkacheln mit Fläche längs / quer und Masse in der Fusszeile.** Im Wortlaut: «kannst du bei den signalen jeweils noch klein in der fusszeile die fläche längs / quer und das gewicht aufführen, so hat man die möglichkeit bei ähnlichen signalen, die vielleicht nicht aufgeführt sind eine auswahl zu machen.» Je Kachel «A längs … · quer … m²» und «… kg» (je Stück, aus der Tabelle `signalteile`, keine Zahl im Code; `sig-werte`, app.dialoge.js). Masse statt G in kN, wie die Tabellen des Bauers und die Mappe. Im Browser (Betreiberdaten): 26 Kacheln mit Fusszeile, gleich hoch, Werte = Titel. Prüfstand 235.
 - **4. Okt., Stabwerk: Gurt am Anschnitt; «beide» ohne Träger ab Jochachse; Sprung der Seitenleiste behoben** (Prüfstand 234, siehe *Entschieden*).
 - **4. Okt., Befestigung am Joch schaltet wieder; Anbauteile am Tragausleger im 3D anklickbar** (Prüfstand 233, siehe *Entschieden*).
 - **4. Okt., Tragausleger: Kette der Anbauteile in der verformten Figur statt Diagonale** (Prüfstand 231, siehe *Entschieden*).
@@ -2810,7 +2811,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6709 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6711 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

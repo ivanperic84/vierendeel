@@ -3354,6 +3354,9 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .sig-kachel.an .sig-name { color: var(--acc); }
 .sig-zahl { display: flex; gap: 3px; align-items: center; }
 .sig-zahl input { width: 40px; text-align: center; }
+.sig-werte { font-size: 9.5px; line-height: 1.2; color: var(--dim); text-align: center;
+  font-variant-numeric: tabular-nums; border-top: 1px solid var(--ol); padding-top: 2px;
+  width: 100%; display: flex; flex-direction: column; }
 .sig-gewaehlt { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-items: center;
   padding: 4px 0 6px; border-bottom: 1px solid var(--ol); margin-bottom: 4px; font-size: 11.5px; }
 .sig-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--acc);

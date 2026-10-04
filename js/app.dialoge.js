@@ -1054,7 +1054,10 @@ export function dialogSignal(app, auswahl, fertig) {
    * der signale sondern nur tragwerk.» Die Bilder stehen in der Tabelle
    * (Spalte `bild`, aus der Mappe, im Sortiment - nicht in der Ablage). Ein
    * Klick aufs Bild zählt eins dazu, − und + daneben; Name, Flächen und
-   * Masse stehen im Titel. Ohne Bild steht die Positionsnummer da - die
+   * Masse stehen im Titel. In der Fusszeile stehen Fläche längs / quer und
+   * Masse je Stück (4. Oktober: «so hat man die möglichkeit bei ähnlichen
+   * signalen, die vielleicht nicht aufgeführt sind eine auswahl zu
+   * machen») - man wählt dann das Signal mit passenden Werten. Ohne Bild steht die Positionsnummer da - die
    * Kachel bleibt bedienbar. Arbeitskorb und Tragwerksteile behalten die
    * Tabelle (sie haben keine Bilder, und die Tragwerksteile eine Länge).
    */
@@ -1073,6 +1076,7 @@ export function dialogSignal(app, auswahl, fertig) {
         <input type="number" class="sig-n" data-sig="${esc(t.id)}" step="1" min="0" value="${w.anzahl}">
         <button type="button" class="btn btn-mini" data-sig-plus="${esc(t.id)}" aria-label="eins mehr">+</button>
       </span>
+      <span class="sig-werte" data-sig-werte="${esc(t.id)}"><span>A längs ${zahl(t.aLaengs)} · quer ${zahl(t.aQuer)} m²</span><span>${zahl(t.masse, 0)} kg</span></span>
     </div>`;
   };
   // Was gewählt ist, oben in einer Zeile - mit Bild, damit man es wiedererkennt.

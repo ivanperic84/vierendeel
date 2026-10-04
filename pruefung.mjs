@@ -38668,6 +38668,12 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
   wahr('Der Bauer zeigt Signale als Bildkacheln mit −/+ (Klick aufs Bild zählt eins dazu)',
        dlg.includes("g === 'signal'") && dlg.includes('data-sig-plus') && dlg.includes('data-sig-minus')
        && dlg.includes('istBildUrl(t.bild)'));
+  wahr('Die Fusszeile jeder Kachel nennt Fläche längs / quer und Masse (aus der Tabelle, keine Zahl im Code)',
+       dlg.includes('data-sig-werte') && dlg.includes('A längs ${zahl(t.aLaengs)} · quer ${zahl(t.aQuer)} m²')
+       && dlg.includes('${zahl(t.masse, 0)} kg</span></span>'));
+  const css235 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Die Fusszeile der Kachel ist im Stilblatt klein und blass gesetzt',
+       /\.sig-werte \{[^}]*font-size: 9\.5px[^}]*var\(--dim\)/.test(css235));
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',
        set.includes("setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl })")
