@@ -2655,6 +2655,17 @@ export class Modellansicht {
       c.beginPath(); c.arc(q[0], q[1], 1.4 * s, 0, Math.PI * 2); c.stroke();
       fd.push({ q, text: `Fd ${(Math.abs(f.w[0]) * 1000).toFixed(1)} mm quer` });
     });
+    // Die Mastspitzen (4. Oktober), wenn ihr Nachweis geführt wird: ein
+    // Quadrat statt eines Rings, die grössere waagrechte Komponente.
+    (v.spitzen ?? []).forEach((f) => {
+      const q = proj([f.p[0] + v.faktor * f.w[0], f.p[1] + v.faktor * f.w[1], f.p[2] + v.faktor * f.w[2]]);
+      if (!q) return;
+      const a = 4 * s;
+      c.fillStyle = t.bg ?? '#0b0d12';
+      c.fillRect(q[0] - a, q[1] - a, 2 * a, 2 * a); c.strokeRect(q[0] - a, q[1] - a, 2 * a, 2 * a);
+      const quer = Math.abs(f.w[0]) >= Math.abs(f.w[1]);
+      fd.push({ q, text: `${f.titel} ${(Math.max(Math.abs(f.w[0]), Math.abs(f.w[1])) * 1000).toFixed(1)} mm ${quer ? 'quer' : 'längs'}` });
+    });
     c.restore();
     if (fd.length && !this.sparsam) {
       c.font = this._wertFont();

@@ -5807,10 +5807,12 @@ export function gzgKacheln(erg) {
   if (!erg?.verformung) return k;
   const namenV = erg.modell?.federn?.namen ?? {};
   const gesehenV = new Set();
-  ['A', 'B'].forEach((ende) => {
+  // Dazu der Nachweis am Fahrdraht (4. Oktober, «ja nachweis auf
+  // fahrdrahtpunkt umstellen») - eine Kachel neben denen der Masten.
+  ['fahrdraht', 'A', 'B'].forEach((ende) => {
     const q = erg.verformung[ende];
     if (!q?.massgebend) return;
-    const name = namenV[ende] || `Ende ${ende}`;
+    const name = ende === 'fahrdraht' ? 'Fahrdraht' : (namenV[ende] || `Ende ${ende}`);
     if (gesehenV.has(name)) return;
     gesehenV.add(name);
     const mg = q.massgebend;
@@ -5859,7 +5861,7 @@ export function gzgKacheln(erg) {
         + `(${q.L.toFixed(2)} m) und gilt deshalb nicht. Gemessen wird auf `
         + `${mg.z?.toFixed(2)} m — dort, wo der Kern eine Verschiebung `
         + `rechnet.` : '';
-    k.push(kachel(`Verformung ${name}`, mm(mg.wert),
+    k.push(kachel(ende === 'fahrdraht' ? `Seitenlage ${name}` : `Verformung ${name}`, mm(mg.wert),
       `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig`
       + `${mg.verdrehung ? ' · um die Achse' : ` · ${mg.achse === 'x' ? 'quer' : 'längs'}`}`
       /*

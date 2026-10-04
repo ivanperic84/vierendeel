@@ -37803,6 +37803,65 @@ titel('222  Nachbarn aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen');
   }
 }
 
+/* =========================================================================
+ * 223  GEBRAUCHSTAUGLICHKEIT AM FAHRDRAHT; MASTSPITZEN AN DER FIGUR
+ *      (4. Oktober)
+ * =========================================================================
+ * «ja nachweis auf fahrdrahtpunkt umstellen. falls die masspitzen auch
+ * nachgewiesen werden, diese auch als punkt aufführen im verformten
+ * stabmodell.» Gemessen auf den Testdaten (TEST-80/20 m, Hängestütze mit
+ * Fahrdraht in Feldmitte, HEB 260 der Anwendung): am Fahrdraht 5.18 mm quer
+ * auf 4.89 m (mit dem HEB 240 des Prüfstands 6.48 mm), an der
+ * bisherigen Referenzhöhe (Jochauflager 7.50 m) 4.82 mm.
+ * ========================================================================= */
+titel('223  Gebrauchstauglichkeit am Fahrdraht; Mastspitzen an der Figur');
+{
+  const N223 = await import(J('core.nachbarn.js'));
+  const AS223 = await import(J('app.stabwerk.js'));
+  const SV223 = await import(J('core.stabverformung.js'));
+  const SN223 = await import(J('core.stabnachweis.js'));
+  const VF223 = await import(J('core.verformung.js'));
+  const DA223 = await import(J('data.anbauteile.js'));
+  const UI223 = await import(J('ui.js'));
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  const w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
+              anbauteile: [DA223.neuesAnbauteil('hs-fahrdraht', 10)] };
+  const ws = N223.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N223.kernArgumente(ws));
+  const h = AS223.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const r = h.roh;
+  wahr('Die Modelldatei nennt die Knoten der Fahrdrähte', (r.dat.fahrdraehte ?? []).length === 1,
+       JSON.stringify(r.dat.fahrdraehte));
+  const kern = { A: { L: 8.5, stelle: { z: 7.5, was: 'Jochauflager' } },
+                 B: { L: 8.5, stelle: { z: 7.5, was: 'Jochauflager' } },
+                 gruppen: { fahrdraht: true, spitze: true, verdrehung: false },
+                 grenzen: { fahrdraht: 0.04, spitzeN: 100 }, spitze: true };
+  const v = SV223.verformungAusStabwerk(kern, r.dat, r.lsg, r.faelle, { A: 'M1', B: 'M2' });
+  const fd = v.fahrdraht;
+  // Gegenprobe von Hand: Knotenweg quer × ψ, grösster über die reinen Windfälle.
+  const kn = r.dat.fahrdraehte[0].knoten;
+  const i = r.lsg.knotenIdx.get(kn) * 6;
+  const soll = Math.max(...VF223.nurWindFaelle(r.faelle).map((l) =>
+    Math.abs(SN223.anteileFuer(l, r.dat).reduce((s, a) => s + a.faktor * (r.lsg.u.get(a.lastfall)?.[i] ?? 0), 0))))
+    * 0.70;
+  pruef('Seitenlage am Fahrdraht = Knotenweg quer × ψ 0.70 (nur Wind)', fd?.massgebend?.wert ?? NaN, soll, 1e-12, 'm');
+  wahr('… gegen 40 mm, η = w / 40 mm, im Urteil der Verformung',
+       fd.massgebend.grenz === 0.04 && Math.abs(fd.eta - soll / 0.04) < 1e-12 && v.eta >= fd.eta - 1e-12);
+  wahr('Die Mastenden tragen dann keinen Nachweis an der Referenzhöhe mehr (Auskunft)',
+       ['A', 'B'].every((e) => !(v[e].nachweise ?? []).some((n) => /quer zum Gleis/.test(n.was))
+         && (v[e].auskunft ?? []).some((n) => /Jochauflager auf 7\.50 m quer/.test(n.was))));
+  const ohne = SV223.verformungAusStabwerk(kern, { ...r.dat, fahrdraehte: [] }, r.lsg, r.faelle, { A: 'M1', B: 'M2' });
+  wahr('Ohne Fahrdraht gilt die Referenzhöhe am Masten (Rückfall)',
+       !ohne.fahrdraht && ohne.A.nachweise.some((n) => /Jochauflager auf 7\.50 m quer/.test(n.was)));
+  const k = UI223.gzgKacheln({ verformung: v, modell: erg.modell });
+  wahr('Kachel «Seitenlage Fahrdraht» vor den Mastkacheln', /Seitenlage Fahrdraht/.test(k[0] ?? ''));
+  wahr('Die Figur führt die Mastspitzen als Punkt, wenn ihr Nachweis geführt wird',
+       APP_QUELLE().includes("if (g.h.verformung?.spitze === true) {")
+       && APP_QUELLE().includes('linien, faktor, fahrdraehte, spitzen,')
+       && readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('(v.spitzen ?? []).forEach((f) => {'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

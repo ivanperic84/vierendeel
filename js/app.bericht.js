@@ -257,7 +257,7 @@ export function stabwerkBerichtDaten(app) {
       modell: r?.erg?.modell ?? null, r,
       stabKey: mitPraefix ? `tragwerk:${t.id}` : 'tragwerk',
       checks: r?.checks ?? [], hinweise: r?.hinw ?? [], namen,
-      verformung: verformungFuer(sw, r?.erg?.verformung ?? null, namen),
+      verformung: verformungFuer(sw, r?.erg?.verformung ?? null, namen, t.id),
     };
   });
   const traegerName = (ids) => (ids ?? []).map((id) => {

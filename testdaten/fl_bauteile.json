@@ -54,7 +54,7 @@
   {
    "id": "drahtwerk-test-fl",
    "gruppe": "drahtwerk",
-   "name": "Test-Fahrleitung",
+   "name": "Test-Fahrdraht",
    "einheit": "kN/m",
    "eigengewicht": 0.02,
    "windQuer": {

@@ -406,8 +406,10 @@ export function rechneStabwerk(app) {
    */
   const alleFaelle = eingaben.flatMap((s) => lastfaelle(s))
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  // Im Blatt die Fahrdrähte des aktiven Tragwerks (4. Oktober).
   const verformung = verformungAusStabwerk(erg.verformung ?? null, dat, lsg,
-    alleFaelle, erg.modell?.federn?.namen ?? {});
+    alleFaelle, erg.modell?.federn?.namen ?? {},
+    { praefix: eingaben.length > 1 ? `${satz.twId ?? 'T1'}_` : '' });
 
   /*
    * >>> DER TRAGAUSLEGER: AUFHÄNGUNG, KNICKEN, FUNDAMENT (28. September). <<<
@@ -619,9 +621,10 @@ export function ankerFuerMast(sw, id, meta, satz) {
     id, meta, r.seilInfo, satz, ankerAuswertung);
 }
 
-export function verformungFuer(sw, kern, namen) {
+export function verformungFuer(sw, kern, namen, twId = null) {
   const r = sw?.roh;
-  return r && kern ? verformungAusStabwerk(kern, r.dat, r.lsg, r.faelle, namen ?? {}) : null;
+  return r && kern ? verformungAusStabwerk(kern, r.dat, r.lsg, r.faelle, namen ?? {},
+    { praefix: (sw.tragwerke ?? 1) > 1 && twId ? `${twId}_` : '' }) : null;
 }
 
 /**

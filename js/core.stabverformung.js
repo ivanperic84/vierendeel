@@ -262,7 +262,60 @@ export function mastVerdrehung(dat, lsg, anteile, zug, h) {
  * @param {Array} faelle    ALLE Lastfälle der Sätze (auch die ohne Nachweis)
  * @param {object} namen    Mastname je Ende ({A: 'M1', B: 'M2'})
  */
-export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
+/** Der Weg eines Knotens [m, global] unter einer Kombination. */
+function knotenWeg(lsg, anteile, name) {
+  const i = lsg.knotenIdx?.get(name);
+  if (i === undefined) return null;
+  const u = [0, 0, 0];
+  (anteile ?? []).forEach(({ lastfall, faktor }) => {
+    const uv = lsg.u.get(lastfall);
+    if (!faktor || !uv) return;
+    for (let c = 0; c < 3; c += 1) u[c] += faktor * uv[i * 6 + c];
+  });
+  return u;
+}
+
+/* ===========================================================================
+ * >>> DER NACHWEIS AM FAHRDRAHT (4. Oktober). <<<
+ * Weisung: «ja nachweis auf fahrdrahtpunkt umstellen». Bis hierher galt die
+ * Seitenlage an der Referenzhöhe am MASTEN (Verschiebung des Masten quer
+ * zum Gleis). Jetzt die Auslenkung quer zum Gleis (global x) am Knoten
+ * jedes Fahrdrahts des Tragwerks - mit Joch, Hängestütze und Ausleger
+ * dazwischen, wie die verformte Figur sie zeigt. Dieselben Fälle (nur Wind
+ * × ψ 0.70) und derselbe Grenzwert (40 mm, Optionen) wie bisher. Ohne
+ * Fahrdraht im Stabwerk bleibt die Referenzhöhe am Masten (Rückfall), der
+ * Ersatzbalken rechnet weiter dort.
+ * `opt.praefix`: im Blatt die Fahrdrähte des aktiven Tragwerks (`T2_…`).
+ * ========================================================================= */
+function fahrdrahtNachweis(dat, lsg, nurW, grenz, opt = {}) {
+  const liste = (dat.fahrdraehte ?? [])
+    .filter((f) => !opt.praefix || String(f.knoten).startsWith(opt.praefix));
+  if (!liste.length) return null;
+  // Die Höhe über dem tiefsten Mastfuss des Modells (sonst über z = 0).
+  const zMast = dat.knoten.filter((k) => /(?:^|_)MAST_/.test(k.name)).map((k) => k.z);
+  const zBezug = zMast.length ? Math.min(...zMast) : 0;
+  const kurz = (n) => String(n ?? '').split(' · ').pop();
+  const nw = liste.map((f) => {
+    let best = null;
+    nurW.forEach((l) => {
+      const u = knotenWeg(lsg, anteileFuer(l, dat), f.knoten);
+      if (!u) return;
+      const wert = Math.abs(u[0] * BETRIEBSWIND);
+      if (!best || wert > best.wert) best = { wert, achse: 'x', lastfall: l.key, bez: l.bez };
+    });
+    if (!best) return null;
+    const kn = dat.knoten.find((k) => k.name === f.knoten);
+    return { ...best, grenz, eta: best.wert / grenz, ok: best.wert <= grenz + 1e-12,
+             z: kn ? kn.z - zBezug : null, knoten: f.knoten, fahrdraht: true,
+             was: `Fahrdraht ${kurz(f.name)} quer zum Gleis, nur Wind` };
+  }).filter(Boolean);
+  if (!nw.length) return null;
+  const mg = nw.reduce((a, b) => (b.eta > a.eta ? b : a));
+  return { nachweise: nw, massgebend: mg, eta: mg.eta, ok: nw.every((q) => q.ok),
+           auskunft: [], stelle: { was: 'Fahrdraht' }, quelle: 'stabwerk', fahrdraht: true };
+}
+
+export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = {}) {
   if (!kern) return null;
   const mitSpitze = kern.spitze === true;
   // Die Schalter je Prüfung (30. September) - wie der Kern sie führt.
@@ -270,6 +323,10 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
   const mitVerdrehung = kern.gruppen?.verdrehung === true;
   const mitG = faelle.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(faelle);
+  // Am Fahrdraht, wo es einen gibt (4. Oktober) - sonst an der Referenzhöhe.
+  const fd = mitFahrdraht
+    ? fahrdrahtNachweis(dat, lsg, nurW, kern.grenzen?.fahrdraht ?? VERFORMUNG_GRENZEN.auslegerQuer, opt)
+    : null;
   const achsIdx = { x: 0, y: 1 };
   const proEnde = {};
   ['A', 'B'].forEach((ende) => {
@@ -319,7 +376,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     const drehWas = `Verdrehung um die Mastachse auf ${hV.toFixed(2)} m, Betriebswind`;
     // Die Mastspitze L/100 (30. September) - geführt, wie der Kern es sagt.
     const nw = [
-      querS && mitFahrdraht ? { ...querS, grenz, eta: querS.wert / grenz,
+      querS && mitFahrdraht && !fd ? { ...querS, grenz, eta: querS.wert / grenz,
         ok: querS.wert <= grenz + 1e-12, z: stelle.z,
         was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
       mitSpitze ? spitzeNachweis(spitzeW, L, spitzeN) : null,
@@ -327,8 +384,9 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
         ok: dreh.wert <= drehGrenz + 1e-12, z: hV, einheit: 'rad', verdrehung: true,
         was: drehWas } : null,
     ].filter(Boolean);
-    // Ausgeschaltet bleiben Fahrdraht und Verdrehung Auskunft.
-    if (querS && !mitFahrdraht) {
+    // Ausgeschaltet bleiben Fahrdraht und Verdrehung Auskunft; die
+    // Referenzhöhe am Masten auch dann, wenn am Fahrdraht nachgewiesen wird.
+    if (querS && (!mitFahrdraht || fd)) {
       auskunft.push({ ...querS, z: stelle.z,
         was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` });
     }
@@ -336,7 +394,10 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
       auskunft.push({ ...dreh, z: hV, einheit: 'rad', verdrehung: true, was: drehWas });
     }
     if (!nw.length) {
-      proEnde[ende] = { ...k, auskunft, quelle: 'stabwerk' };
+      // Wird am Fahrdraht nachgewiesen, trägt das Mastende keine Zahl des
+      // Kerns weiter (sie stünde sonst im Urteil).
+      proEnde[ende] = fd ? { L, stelle, nachweise: [], auskunft, quelle: 'stabwerk' }
+                         : { ...k, auskunft, quelle: 'stabwerk' };
       return;
     }
     const schlimmste = nw.reduce((a, b) => (b.eta > a.eta ? b : a));
@@ -344,11 +405,12 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
                       eta: schlimmste.eta, ok: nw.every((q) => q.ok), quelle: 'stabwerk',
                       kern: k.massgebend?.wert ?? null };
   });
-  const enden = Object.values(proEnde);
+  const enden = [...Object.values(proEnde), ...(fd ? [fd] : [])];
   if (!enden.length) return null;
   const gefuehrt = enden.filter((x) => Number.isFinite(x.eta));
   return {
     ...proEnde,
+    ...(fd ? { fahrdraht: fd } : {}),
     eta: gefuehrt.length ? Math.max(...gefuehrt.map((x) => x.eta)) : null,
     ok: gefuehrt.length ? gefuehrt.every((x) => x.ok) : null,
     ohneStelle: !gefuehrt.length,

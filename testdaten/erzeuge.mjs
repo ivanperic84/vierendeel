@@ -98,7 +98,7 @@ schreibe('fl_bauteile.json', {
     { id: 'test-traverse', gruppe: 'anbauteil', name: 'Test-Traverse',
       einheit: 'kN/m', eigengewicht: 0.15, windQuer: wind3(null, null, null),
       windLaengs: wind3(0.1, 0.12, 0.14), rolle: 'aufbau' },
-    { id: 'drahtwerk-test-fl', gruppe: 'drahtwerk', name: 'Test-Fahrleitung',
+    { id: 'drahtwerk-test-fl', gruppe: 'drahtwerk', name: 'Test-Fahrdraht',
       einheit: 'kN/m', eigengewicht: 0.02, windQuer: wind3(0.012, 0.015, 0.018),
       windLaengs: wind3(null, null, null), leiterzug: 20, reglage: reglage(20),
       rolle: 'drahtwerk' },

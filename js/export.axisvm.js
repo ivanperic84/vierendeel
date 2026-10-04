@@ -51,7 +51,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
-import { anbauKette, anschlussGurt, direkteGlieder } from './core.anbauteile.js';
+import { anbauKette, anschlussGurt, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
 import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
@@ -4749,6 +4749,15 @@ function starrArt(s, starrModell) {
   return { art: 'link', kraftuebertragung: k };
 }
 
+/** Die Knoten der Fahrdrähte (`istFahrdraht`), je Knoten einmal. */
+function fahrdrahtKnoten(bau) {
+  const gesehen = new Set();
+  return (bau?.arme ?? [])
+    .filter((a) => a?.knoten && istFahrdraht(a.teil) && !gesehen.has(a.knoten)
+      && gesehen.add(a.knoten))
+    .map((a) => ({ knoten: a.knoten, name: a.teil.name ?? a.teil.bauteilName ?? '' }));
+}
+
 export function stabmodellJson(m, opt = {}) {
   /*
    * EIN FERTIGES MODELL HAT VORRANG.
@@ -5060,6 +5069,14 @@ export function stabmodellJson(m, opt = {}) {
     // der E-Modul vervielfacht. Die Brücke legt es an, sobald ein Stab
     // `steifesMaterial` trägt.
     materialSteif: { name: `${stahl} steif`, faktor: STEIF_FAKTOR },
+    /*
+     * >>> DIE FAHRDRAEHTE (4. Oktober). <<< Weisung: «ja nachweis auf
+     * fahrdrahtpunkt umstellen». Der Nachweis der Gebrauchstauglichkeit
+     * misst die Auslenkung quer zum Gleis am Knoten jedes Fahrdrahts
+     * (core.stabverformung.js); hier steht, welche Knoten das sind. Die
+     * Bruecke liest das Feld nicht.
+     */
+    fahrdraehte: fahrdrahtKnoten(bau),
     querschnitte: [...bau.querschnitte.values()].map((q) => ({
       name: q.name, form: q.form, parameter: q.parameter,
       profil: q.profil ?? null,

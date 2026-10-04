@@ -670,17 +670,18 @@ export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x, qu
   if (!erste) return '';
   eintraege.forEach(({ v: vv, namen }) => {
   if (!vv) return;
-  ['A', 'B'].forEach((e) => {
+  // Der Nachweis am Fahrdraht (4. Oktober) steht als eigene Zeile vorn.
+  ['fahrdraht', 'A', 'B'].forEach((e) => {
     const q = vv[e];
     if (!q?.nachweise?.length) return;
-    const name = anzeige(namen?.[e] || `Ende ${e}`);
+    const name = e === 'fahrdraht' ? 'Fahrdraht' : anzeige(namen?.[e] || `Ende ${e}`);
     if (gesehen.has(name)) return;
     gesehen.add(name);
     q.nachweise.forEach((n) => {
       // In MILLIMETERN, die Verdrehung um die Mastachse in GRAD (30. Sept.).
       const grad = n.einheit === 'rad';
       const w = (x) => (grad ? `${zahl(x * 180 / Math.PI, 2)}°` : zahl(x * 1000, 1));
-      zeilen.push([esc(`Mast ${name}`), esc(n.was),
+      zeilen.push([esc(e === 'fahrdraht' ? name : `Mast ${name}`), esc(n.was),
         w(n.wert), w(n.grenz),
         esc(grad ? 'um die Achse' : n.achse === 'x' ? 'quer' : 'längs'),
         `<span data-pruef="verf-${esc(e)}">${zahl(n.eta, 3)}</span>`,
@@ -710,9 +711,10 @@ export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x, qu
   return `<section><h2>§ Gebrauchstauglichkeit — Mastverformung</h2>
     <p>Nachgewiesen wird die Verschiebung des Masten im Gebrauchszustand.
     Maassgebend ist der <b>Betriebswind</b> mit ψ = ${zahl(psi, 2)}
-    (Wiederkehrperiode 5 Jahre), Wind allein. Grenzwerte: auf Höhe
-    Fahrdraht bzw. Ausleger oder Jochauflager ${zahl(fdMm, 1)} mm quer zum
-    Gleis${spitzeText}.</p>
+    (Wiederkehrperiode 5 Jahre), Wind allein. Grenzwerte: ${zahl(fdMm, 1)} mm
+    quer zum Gleis ${quelle === 'stabwerk'
+      ? 'am Fahrdraht selbst (Knoten des Fahrdrahts im Stabwerk, mit Joch und Anbauteilen; ohne Fahrdraht auf der Referenzhöhe am Masten)'
+      : 'auf Höhe Fahrdraht bzw. Ausleger oder Jochauflager am Masten'}${spitzeText}.</p>
     <p class="klein">${quelle === 'stabwerk'
       ? `Die Wege kommen aus dem Stabwerk - die Knotenwege des Lösers, zwischen
     den Mastknoten nach der Biegelinie, mit der Kopplung durch Joch, Anker und

@@ -2248,7 +2248,7 @@ function wegeFall(g) {
   const roh = g?.h?.roh;
   if (!roh) return null;
   const umh = anzeigeKombi === 'umhuellend';
-  const mg = ['A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
+  const mg = ['fahrdraht', 'A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
     .sort((a, b) => b.eta - a.eta)[0];
   const key = umh ? (mg?.lastfall ?? 'wyk') : anzeigeKombi;
   return roh.faelle.find((l) => l.key === key) ?? null;
@@ -2294,6 +2294,27 @@ function verformtSetzen(szene = null) {
     }));
     if (best && !fahrdraehte.some((f) => f.p === best.p)) fahrdraehte.push({ ...best, titel: mk.titel });
   });
+  /*
+   * >>> UND DIE MASTSPITZEN, WENN SIE NACHGEWIESEN WERDEN (4. Oktober). <<<
+   * Weisung: «falls die masspitzen auch nachgewiesen werden, diese auch als
+   * punkt aufführen im verformten stabmodell.» Je Mast der oberste Punkt
+   * seiner Stäbe (Walzprofil und Gittermast, Rohr eingeschlossen), mit der
+   * grösseren waagrechten Komponente - der Nachweis L/n prüft beide
+   * Richtungen getrennt.
+   */
+  const spitzen = [];
+  if (g.h.verformung?.spitze === true) {
+    const oben = new Map();
+    linien.filter((l) => !l.anbau).forEach((l) => {
+      const m = /(?:^|_)MAST_([^_]+)_/.exec(l.name ?? '');
+      if (!m) return;
+      l.punkte.forEach((q, i) => {
+        const da = oben.get(m[1]);
+        if (!da || q[2] > da.p[2]) oben.set(m[1], { p: q, w: l.wege[i] });
+      });
+    });
+    oben.forEach((s, id) => spitzen.push({ ...s, titel: `Spitze ${mastAnzeigeText(id, anzeigeKarte)}` }));
+  }
   const fdMax = fahrdraehte.reduce((a, f) => Math.max(a, Math.abs(f.w[0])), 0);
   const xs = linien.flatMap((l) => l.punkte.map((p) => p[0]));
   const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
@@ -2305,7 +2326,7 @@ function verformtSetzen(szene = null) {
     faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
   }
   const wert = faktor > 0 ? {
-    linien, faktor, fahrdraehte,
+    linien, faktor, fahrdraehte, spitzen,
     text: [`Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht`,
       `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`
         + (fahrdraehte.length ? ` · Fahrdraht quer ${(fdMax * 1000).toFixed(1)} mm` : ''),
