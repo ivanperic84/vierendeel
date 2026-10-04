@@ -230,6 +230,7 @@ node pruefung.mjs           # Pruefstand, 6562 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/
+node modell_typen.mjs       # alle Tragjoch-Typen pruefen und fuer AxisVM zusammentragen
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 node vergleich_axisvm.mjs com/AxisVM_Einzel_J90_20m.json      # Loeser gegen AxisVM
