@@ -4462,7 +4462,10 @@ export class Modellansicht {
       // der Rest - auch dann, wenn die Darstellung sonst undurchsichtig ist.
       // Passiv heisst: sichtbar, aber im Hintergrund. Es soll den Blick auf
       // das gerechnete Tragwerk nicht streitig machen.
-      const durch = f.passiv ? Math.max(klar, 0.72)
+      // Ein Nachbar mit Werten aus dem Stabwerk steht so deckend wie das
+      // aktive Tragwerk da (4. Oktober, «alle stäbe färben») - mit 72 %
+      // Durchsicht waren seine Farben nicht zu lesen.
+      const durch = this._passivGrau(f) ? Math.max(klar, 0.72)
                   : f.punkt ? Math.max(klarAT, 0.62)
                   : (f.gruppe === 'anbau' || f.gruppe === 'last') ? klarAT : klar;
       let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
@@ -4784,6 +4787,11 @@ export class Modellansicht {
     return Math.max(3, Math.round(spalten * zeilen * 0.35 * dichte));
   }
 
+  /** Steht die Fläche grau im Hintergrund? (passiv und ohne Wert aus dem Stabwerk) */
+  _passivGrau(f, p = PLOTS.find((x) => x.key === this.modus)) {
+    return f.passiv === true && !(p && f.werte && (f.stabwerk || f.wegeStabwerk));
+  }
+
   _grundfarbe(f, t) {
     /*
      * EIN NICHT AKTIVES TRAGWERK WIRD NICHT EINGEFAERBT.
@@ -4793,8 +4801,15 @@ export class Modellansicht {
      * steht und dass es dazugehoert; alles Weitere sagt es, sobald man es
      * anklickt.
      */
-    if (f.passiv) return t.xdim ?? t.dim;
     const p = PLOTS.find((x) => x.key === this.modus);
+    /*
+     * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
+     * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine
+     * passive Fläche Werte daraus (`stabwerk` bzw. `wegeStabwerk`, gesetzt
+     * in render.stabwerk.js), ist die Farbe keine Behauptung mehr. Ohne
+     * Plot und ohne Stabwerkswert bleibt sie grau.
+     */
+    if (this._passivGrau(f, p)) return t.xdim ?? t.dim;
     if (p && f.werte) {
       const v = f.werte[p.feld];
       // Fehlt der Wert an diesem Bauteil, bleibt es neutral - lieber eine

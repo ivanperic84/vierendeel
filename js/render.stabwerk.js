@@ -202,7 +202,10 @@ export function gurtTeilung(js) {
 export function stabwerkFaerben(sz, jeStab, o = {}) {
   const jsJoch = jochStaebe(jeStab, o.jochKey ?? 'tragwerk');
   // Ohne Joch nur, wenn ein Gittermast im Stabwerk steht (Einzelmast).
-  const nurGitter = !jsJoch;
+  // `mastenOhneJoch`: ein Nachbar ohne Joch (Einzelmast aus Walzprofil)
+  // bekommt seinen Masten aus dem Stabwerk (4. Oktober, «alle stäbe
+  // färben») - für ihn gibt es keinen Kern, der ihn sonst färbte.
+  const nurGitter = !jsJoch && o.mastenOhneJoch !== true;
   if (!sz || (nurGitter && !Object.keys(jeStab ?? {}).some(istGitterStab))) return 0;
   const js = jsJoch ?? { versatz: 0, gurt: {}, blech: {} };
   // `nurWege`: nur die Verformung setzen (Einzellastfall - die Hülle gilt

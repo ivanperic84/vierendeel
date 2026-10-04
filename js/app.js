@@ -1918,6 +1918,43 @@ function uebernehmeAnsichtsoptionen() {
  * Nachbar darf nicht das Bild des aktiven verhindern.
  */
 function szeneVonNebenan(t, zeichnen) {
+  return nachbarFaerben(szeneVonNebenanRoh(t, zeichnen), t);
+}
+
+/*
+ * >>> AUCH DIE NACHBARN TRAGEN DIE FARBE DES STABWERKS (4. Oktober). <<<
+ * Weisung: «umhüllen alle stäbe färben». Der Satz oben («Es wird nur
+ * GEZEICHNET, nicht gerechnet») galt dem Kern. Das Stabwerk rechnet die
+ * zusammenhängenden Tragwerke des Blattes in EINEM Modell (Etappe 3) - die
+ * Nachbarn stehen also gerechnet da, und grau zu bleiben verschwieg ihr
+ * Ergebnis. Bei «umhüllend» trägt jeder Nachbar die Hülle seiner Stäbe,
+ * im Plot «w» die Wege des Falls der verformten Figur; ein gewählter
+ * Einzellastfall färbt ihn nicht (der Kern rechnet nur das aktive
+ * Tragwerk, und je Stab führt das Stabwerk nur die Hülle).
+ * Was nicht im Stabwerk steht, bleibt grau (render.3d.js, `_grundfarbe`).
+ */
+function nachbarFaerben(sz, t) {
+  const g = sz ? stabwerkGilt() : null;
+  if (!g?.h?.jeStab) return sz;
+  const umh = anzeigeKombi === 'umhuellend';
+  // Der Tragausleger setzt seine Werte selbst (`auslegerSzene` mit jeStab);
+  // hier nur das Kennzeichen, dass sie aus dem Stabwerk stammen.
+  if (tragwerksart(tragwerkSatz(werte, t.id)).key === 'tragausleger') {
+    if (umh) (sz.flaechen ?? []).forEach((f) => { if (Number.isFinite(f.werte?.eta)) f.stabwerk = true; });
+    return sz;
+  }
+  const roh = g.h.roh;
+  const lf = roh ? wegeFall(g) : null;
+  const an = lf ? anteileFuer(lf, roh.dat) : null;
+  const mastNamen = { A: mastNameAmEnde(werte, t, 'A'), B: mastNameAmEnde(werte, t, 'B') };
+  stabwerkFaerben(sz, g.h.jeStab, {
+    jochKey: (g.h.tragwerke ?? 1) > 1 ? `tragwerk:${t.id}` : 'tragwerk',
+    mastNamen, nurWege: !umh, mastenOhneJoch: true,
+    weg: an ? (name, xi) => wegImStab(roh.dat, roh.lsg, an, name, xi) : null });
+  return sz;
+}
+
+function szeneVonNebenanRoh(t, zeichnen) {
   try {
     const satz = tragwerkSatz(werte, t.id);
     // Der Zeichenplan gehoert an die SZENE, nicht an die Rechnung: was ein
@@ -1947,8 +1984,11 @@ function szeneVonNebenan(t, zeichnen) {
     }
     // Der Tragausleger zeichnet sich aus seinem Stabmodell (28. September).
     if (tragwerksart(satz).key === 'tragausleger') {
+      // Gefärbt aus dem Stabwerk wie das aktive (4. Oktober, «alle stäbe färben»).
+      const g = anzeigeKombi === 'umhuellend' ? stabwerkGilt() : null;
       return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
-                                   mastZeichnen: zeichnen });
+                                   mastZeichnen: zeichnen,
+                                   jeStab: g?.h?.jeStab ?? null, praefix: `${t.id}_` });
     }
     const j = getTragjoch(satz.typ);
     return erzeugeSzene(mit(modell(satz, getProfil(satz.profOG),

@@ -139,7 +139,46 @@ schreibe('anbauteile.json', {
                  x: 1.0, umlenkung: true }] },
     { id: 'frei', name: 'Frei definiert', farbe: 'frei', beschreibung: 'Test',
       raster: 0, befestigung: 'unten', gruppe: 'frei', rang: 9, module: [] },
+    // Ein einseitig abgefangener Leiter am Abfangjoch (4. Oktober, siehe unten).
+    // Die Kennung ruft der Durchgang beim Namen.
+    { id: 'leiter-ts-nfl-abf', name: 'Test-Leiter abgefangen', farbe: 'leiter',
+      beschreibung: 'Test', raster: 0, befestigung: 'unten', gruppe: 'leiter', rang: 4,
+      abfangung: 'einseitig',
+      module: [{ bauteil: 'drahtwerk-test-leiter', anzahl: 1, laenge: null, z: 0, y: 0,
+                 umlenkung: true }] },
   ],
+});
+
+/* --- Abfangjoch (4. Oktober) ------------------------------------------------
+ * Bis hierher fuhr der Durchgang auf den Testdaten kein Abfangjoch (offener
+ * Punkt «der erfundene Datensatz fuehrt noch keinen Anker und kein
+ * Abfangjoch»). Ein Typ aus UPE 160 (Normprofil), runde Werkstattmasse.
+ * Die Blecheinteilung muss aufgehen (`abfangBlechstationen` in
+ * core.abfangjoch.js): Randbleche 250 + 750 links, 500 + 500 rechts,
+ * 250 bis zum Ende; dazwischen Regelfelder A = 500 und in der Mitte ein
+ * Paar A1, das den Rest auf ganze Meter bringt.
+ */
+const abfangLaenge = (jt) => {
+  const qv = Math.round(jt * 1000 - 2250);                 // Bindeblechbereich, mm
+  return { jt, js: [+(jt - 0.99).toFixed(2), +(jt - 0.5).toFixed(2)],
+           A1: (qv % 1000) / 2 || 500, A: 500, QV1: qv, S: [250, 250] };
+};
+schreibe('abfangjoche.json', {
+  _beschreibung: HINWEIS,
+  typen: [{
+    typ: 'TEST-A16', bauweise: 'neu', profil: 'UPE 160', jt: [10, 14], gewicht: 40,
+    masse: { a: 160, b: 70, c: 9.5, d: 200, e: 200, h: 340, k: 340, teilung: 500 },
+    wind: { EK1: 0.2, EK2: 0.25, EK3: 0.3 },
+    aufbau: { gurte: 2, gurtprofil: 'UPE 160', stahl: 'S355', a: 160, b: 70, c: 9.5,
+              d: 200, k: 340 },
+    bindeblech: { ebenen: 2, regel: { b: 100, t: 8, l: 200, stahl: 'S355' },
+                  endeL: { b: 120, t: 15, l: 200 }, endeR: { b: 100, t: 12, l: 200 } },
+    verstaerkung: { profil: 'UPE 160', laenge: 1500, anzahl: 2, beginn: 0, lage: 'aussen' },
+    randmasse: { linksErstesBlech: 250, linksZweitesFeld: 750, rechtsFelder: [500, 500],
+                 rechtsBisEnde: 250, aussenBereich: 2000 },
+    regelfelder: 20,
+    laengen: [10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14].map(abfangLaenge),
+  }],
 });
 
 console.log('Testdaten geschrieben:', HIER);

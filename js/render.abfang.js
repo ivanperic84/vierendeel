@@ -676,6 +676,16 @@ export function abfangSzene(typ, jt, opt = {}) {
    * Enden unterscheiden - `opt.masten` traegt sie einzeln, wo sie da sind.
    */
   const mastBezug = {};
+  /*
+   * >>> DIE MASTEN LASSEN SICH ZIEHEN - AUCH HIER (4. Oktober). <<<
+   * Gemeldet: «beim abfangjoch kann man keine drag and drop befehle
+   * ausführen bei den masten.» Die Szene führte keine Griffe (`mastZiehen`,
+   * wie render.3d.js und render.tragausleger.js sie liefern). Kopf und Lage
+   * wie am Einzelmasten (`einzel`): einen Fussversatz kennt das Abfangjoch
+   * nicht (`abfangMastenAngabe` führt keinen), ein Fussgriff schriebe einen
+   * Wert, den Bild und Rechnung hier nicht lesen.
+   */
+  const mastGriff = {};
   const fussUnten = {};   // Unterkante der Fundamentkloetze, fuer die Lagerangabe
   if (opt.mast?.profil && opt.mast.hoehe > 0) {
     const enden = [['A', ue], ['B', jt - ue]];
@@ -758,6 +768,8 @@ export function abfangSzene(typ, jt, opt = {}) {
                           laenge: (md.ueberstand ?? 0) > 0
                             ? md.hoehe + md.ueberstand : null };
       fussUnten[name] = mk.fussUnten;
+      mastGriff[name] = { x, zF: -md.hoehe, zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
+                          einzel: true, halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 };
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
       bauteiltitel.push(...(mk.bauteiltitel ?? []));
@@ -1018,5 +1030,6 @@ export function abfangSzene(typ, jt, opt = {}) {
     xNachweis: stationen[0] ?? null,
     // Die Masse zum Einmessen der Zeichnung (bild.zeichnung.js, BEZUEGE).
     bezug: { joch: jt > 0 ? { xA: 0, xB: jt, z: 0 } : null, masten: mastBezug },
+    mastZiehen: Object.keys(mastGriff).length ? mastGriff : null,
   };
 }

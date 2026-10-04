@@ -30,7 +30,7 @@ import { mastLaengeVorgabe, mastImModell, einzelmastLaenge,
 import { laengenbereich, getTragjoch, moeglicheLaengen } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerAufhaengung, tragauslegerSpreizung,
-         tragauslegerTypen, abfangBindeblech } from './data.abfangjoche.js';
+         tragauslegerTypen, abfangBindeblech, abfangLaengen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
@@ -48,7 +48,8 @@ import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGeset
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
          abfangart, mitTrasse } from './core.lasten.js';
-import { massketteLesen, fangeAufMasskette, rechensatz, kragarme, stossEnden } from './core.constants.js';
+import { massketteLesen, fangeAufMasskette, rechensatz, kragarme, stossEnden,
+         abfangUeberstand } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -359,7 +360,7 @@ export function maskenSignatur(werte, tab) {
                  // entscheidet, welches Feld im Aufklappteil steht.
                  (a.module ?? []).map((m) => ablenkQuelle(m)).join(',') + ':' +
                  // Die Auswahl des Signalbauers (30. Sept.): Liste und Summen
-                 // der Karte stehen im Aufbau, nicht in nachgeführten Feldern.
+                 // der Karte stehen im Aufbau, nicht in nachgefuehrten Feldern.
                  (a.module ?? []).map((m) => (Array.isArray(m.signal)
                    ? m.signal.map((s) => `${s.id}*${s.anzahl}*${s.laenge ?? ''}`).join('+') : '')).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(',') + ':' +
@@ -512,7 +513,7 @@ function havarieHtml(g, werte) {
       Leiter. Massgebend ist die Hülle. ${esc(regel)}</p>
     <table class="hav-tab">
       <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th>
-        <th title="Wie der Leiter geführt ist">Abfangung</th>
+        <th title="Wie der Leiter gefuehrt ist">Abfangung</th>
         <th title="Zugrichtung der einseitigen Abfangung">Ri.</th>
         <th title="Ständiger Längszug [kN]">G_y</th>
         <th title="Änderung beim Riss dieses Leiters [kN]">Δ Riss</th>
@@ -870,7 +871,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     } else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
   });
   // Die aus der Tabelle gerechneten Lasten der Module hängen an Trasse,
-  // Spannweite und Einwirkungsklasse - sie müssen mitgeführt werden, auch wenn
+  // Spannweite und Einwirkungsklasse - sie müssen mitgefuehrt werden, auch wenn
   // sich an der Struktur der Maske nichts ändert.
   const trasse = trasseVon(werte);
   container.querySelectorAll('.at-karte').forEach((karte) => {
@@ -928,7 +929,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
       if (bl && String(inp.value) !== String(v)) inp.value = v;
     });
   });
-  // Die mitgeführten Ergebnisstücke (Querschnittsklassen, Lastfallmatrix)
+  // Die mitgefuehrten Ergebnisstücke (Querschnittsklassen, Lastfallmatrix)
   Object.entries(extras).forEach(([gid, html]) => {
     const n = container.querySelector(`[data-extra="${gid}"]`);
     if (n && n.innerHTML !== html) n.innerHTML = html;
@@ -1376,6 +1377,27 @@ export function mastStelleSetzen(werte, r, xZiel) {
    * dorthin; hält das linke früher an, rückt das rechte nach - die beiden
    * Enden bleiben auf EINEM Masten.
    */
+  /*
+   * >>> AM ABFANGJOCH STEHT DER MAST, WO ER LOSGELASSEN WIRD (4. Oktober). <<<
+   * Beim Ziehen im 3D gefunden (Weisung «beim abfangjoch kann man keine
+   * drag and drop befehle ausführen bei den masten»): die Lage eines
+   * Abfangjochs ist sein erster Mast, der Mast B steht bei L − 2·ü
+   * (`mastLagen`), und ü kommt aus dem Sortiment - für eine Länge, die es
+   * führt, der Überstand der grössten Stützweite, sonst 0. Hier wurde
+   * L = Mastabstand gesetzt: bei einer gefuehrten Länge rückte der Mast
+   * danach um 2·ü zurück (Ziel 12.00 m → Mast bei 11.50 m, L 12.00).
+   * `abfangLaengeFuer` wählt die Länge, deren Mastlage das Ziel trifft:
+   * Mastabstand + 2·ü, wenn das Sortiment sie führt, sonst der Abstand
+   * selbst (ohne Überstand - der Hinweis nennt dann das passende Joch,
+   * Entscheid vom 20. September «Warnen, Berichtigung auf Klick»).
+   */
+  const abfang = (t) => tragwerksart(t).key === 'abfangjoch';
+  const jsVon = (t, L) => L - 2 * abfangUeberstand({ ...t, L });
+  const abfangLaengeFuer = (t, js) => {
+    let gefuehrt = [];
+    try { gefuehrt = abfangLaengen(t.abfangTyp); } catch { gefuehrt = []; }
+    return [...gefuehrt, js].find((L) => Math.abs(jsVon(t, L) - js) < 1e-6) ?? js;
+  };
   const kB = r.alsB ? kragarme(r.alsB.t)[1] : 0;
   const kA = r.alsA ? kragarme(r.alsA.t)[0] : 0;
   /*
@@ -1401,10 +1423,10 @@ export function mastStelleSetzen(werte, r, xZiel) {
       const b = bereichVonTyp(t);
       const r6 = (v) => Math.round(v * 1e6) / 1e6;
       let lage = xZiel - kA;
-      let L = ende - lage;
+      let L = abfang(t) ? abfangLaengeFuer(t, Number(mB.x) - xZiel) : ende - lage;
       if (L < b.min) L = b.min;
       if (L > b.max) L = b.max;
-      lage = r6(ende - L);
+      lage = abfang(t) ? r6(Number(mB.x) - jsVon(t, L)) : r6(ende - L);
       const dx = r6(lage - (Number(t.xLage) || 0));
       return tragwerkAendern(werte, t.id, (q) => {
         const f = { xLage: lage, L: r6(L) };
@@ -1443,9 +1465,11 @@ export function mastStelleSetzen(werte, r, xZiel) {
      * gemeinsame Mast. Mit Kragarm ragt das Joch um c_B über den Masten
      * (30. September).
      */
-    const roh = Math.max(0, x - r.alsB.x0) + kB;
-    const L = freieLaenge(werte, r.alsB.t.id, roh, r.alsA ? [r.alsA.t.id] : []).L;
-    x = r.alsB.x0 + L - kB;
+    const tB = r.alsB.t;
+    const roh = abfang(tB) ? abfangLaengeFuer(tB, Math.max(0, x - r.alsB.x0))
+                           : Math.max(0, x - r.alsB.x0) + kB;
+    const L = freieLaenge(werte, tB.id, roh, r.alsA ? [r.alsA.t.id] : []).L;
+    x = r.alsB.x0 + (abfang(tB) ? jsVon(tB, L) : L - kB);
     setzeAn(r.alsB.t.id, 'L', L);
   }
   if (r.alsA) setzeAn(r.alsA.t.id, 'xLage', x - kA);
@@ -3612,7 +3636,7 @@ function momentHinweis(a) {
          + 'Anschlussraster ins Joch ein.';
   }
   /*
-   * AM MASTEN STEHT DIE TORSION NUR IN DER TABELLE. Sie wird geführt, aber
+   * AM MASTEN STEHT DIE TORSION NUR IN DER TABELLE. Sie wird gefuehrt, aber
    * nicht nachgewiesen - und das gehört dorthin gesagt, wo man die Zahl
    * einträgt. Lautlos aus dem Nachweis fallen darf nichts.
    */
@@ -5307,7 +5331,7 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  *
  * Das Urteil sagte «1 Prüfung(en) verletzt» und liess den Benutzer damit
  * stehen: welche es war, stand nur in der Excel-Ausleitung. Seit der
- * Gurtanschluss am Mast als eigener Nachweis geführt wird (Prüfung A1), ist
+ * Gurtanschluss am Mast als eigener Nachweis gefuehrt wird (Prüfung A1), ist
  * das eine Zahl, die man sehen und einordnen können muss.
  *
  * Verletzte stehen oben - wer hierher kommt, sucht sie.
@@ -5352,17 +5376,17 @@ function nichtGefuehrtHtml(urteil) {
    * gestern. Als Balken war das kein Hinweis mehr, sondern Tapete.
    *
    * Weg darf er trotzdem nicht: die Zahl bleibt im Urteil («2 Nachweis(e)
-   * nicht geführt»), die Namen stehen in der Kopfzeile des Abschnitts, und
+   * nicht gefuehrt»), die Namen stehen in der Kopfzeile des Abschnitts, und
    * ein Klick zeigt, warum. Das ist die Form, in der die Uebersicht auch die
    * Hinweise und die Konstruktionspruefungen fuehrt.
    *
    * UNTER DEN KACHELN (Weisung), nicht unter dem Urteil. Dort steht, was
-   * geführt WIRD - η Obergurt, Untergurt, Bindeblech. Was nicht geführt
+   * gefuehrt WIRD - η Obergurt, Untergurt, Bindeblech. Was nicht gefuehrt
    * wird, gehört daneben und nicht an den Anfang: die Reihe liest sich dann
    * als ein Gedanke, und die Lücke steht dort, wo man die Nachweise sucht.
    */
   const namen = liste.map((g) => g.titel).join(', ');
-  return klapp('uebersicht-nichtgefuehrt', 'Nicht geführte Nachweise',
+  return klapp('uebersicht-nichtgefuehrt', 'Nicht gefuehrte Nachweise',
     `<div class="nichtgefuehrt">
       ${liste.map((g) => `<p class="notiz"><b>${esc(g.titel)}</b>
         <span class="ablage-meta">· ${esc(g.grund)}</span><br>${esc(g.was)}</p>`).join('')}
@@ -5477,7 +5501,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
    * BEIDE; wer nichts wählt, sieht alles.
    *
    * Was der Filter WEGNIMMT, ist genau das, was ein η der Tragsicherheit
-   * zeigt - Kacheln, nicht geführte Nachweise, die Tabelle der
+   * zeigt - Kacheln, nicht gefuehrte Nachweise, die Tabelle der
    * höchstbeanspruchten Stellen. Was nachweisunabhängig ist
    * (Schnittgrössen, Hinweise zur Gültigkeit), bleibt stehen: es gehört
    * keiner der beiden Arten.
@@ -5510,7 +5534,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const urteilText = einzelLastfall
     ? 'Einzellastfall — kein Tragsicherheitsurteil'
     : (zustand === 'ok' ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt')
-      + (ohneKnicken ? ' · Biegeknicken nicht geführt' : '');
+      + (ohneKnicken ? ' · Biegeknicken nicht gefuehrt' : '');
   /*
    * >>> DIE KOMBINATION DES MASSGEBENDEN BAUTEILS (29. September). <<<
    *
@@ -5591,7 +5615,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
       <span class="urteil-zahl">η ${f3(U.eta)}</span>
       ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
       <span>${U.text}${(!einzelLastfall && offeneNw)
-        ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
+        ? ` · ${offeneNw} Nachweis(e) nicht gefuehrt` : ''}</span>
       ${/* Stellt die Verformung die Kopfzahl (Stellung «beide»), gehört
            die Kombination der Tragsicherheit nicht dazu - dann keine. */''}
       ${!einzelLastfall && fallBez && (!U.wer || U.wer === werKopf)
@@ -5770,7 +5794,7 @@ export function urteilMitGebrauch(basis, erg, art = 'beide', einzelLastfall = fa
   }
   return {
     eta: Math.max(basis.eta ?? 0, gEta),
-    // «nicht geführt» (warn) bleibt, was es ist - es ist kein Urteil.
+    // «nicht gefuehrt» (warn) bleibt, was es ist - es ist kein Urteil.
     zustand: basis.zustand === 'warn' ? 'warn'
       : ((basis.zustand === 'nok' || !gOk) ? 'nok' : 'ok'),
     wer: gEta > (basis.eta ?? 0) ? wer : basis.wer,
@@ -6080,7 +6104,7 @@ export function stabwerkFuehrt(opt = {}, einzelLastfall = false) {
  * Der Kern nennt ihn «NICHT nachgewiesen» (Phantomauflager, Entscheid vom
  * 18. September). Liegt ein gültiges Stabwerk mit Ausleger vor, trägt das
  * Stabwerk sein Urteil (UPE, Bleche, Aufhängung, Mast, Knicken, Fundament)
- * - dann fallen Vermerk und «nicht geführt: Tragausleger» weg. Ohne
+ * - dann fallen Vermerk und «nicht gefuehrt: Tragausleger» weg. Ohne
  * gültiges Stabwerk bleibt es, wie der Kern es sagt.
  */
 export function urteilMitStabwerk(urteil, swH) {
@@ -6270,7 +6294,7 @@ export function gzgBlockHtml(erg, quelle = '', gzg = null) {
   const v = erg?.verformung;
   const psi = v?.psi;
   // Die Grenzwerte aus den Optionen (30. September), sonst die Vorgaben;
-  // genannt werden nur die geführten Prüfungen.
+  // genannt werden nur die gefuehrten Prüfungen.
   const gr = v?.grenzen;
   const gp = v?.gruppen ?? { fahrdraht: true, spitze: v?.spitze === true };
   const grenzen = [
@@ -6292,7 +6316,7 @@ export function gzgBlockHtml(erg, quelle = '', gzg = null) {
   // Die Quelle steht dabei wie an den Gruppen der Nachweise (28. Sept.).
   return `${abschnitt('Gebrauchstauglichkeit',
     [psi ? (grenzen.length ? `Betriebswind ψ ${psi.toFixed(2)} · Grenzen ${grenzen.join(' · ')}`
-      : 'nicht geführt (Optionen → Nachweise)') : '', quelle]
+      : 'nicht gefuehrt (Optionen → Nachweise)') : '', quelle]
       .filter(Boolean).join(' · '))}
     ${referenz}${nurSw}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
@@ -6308,7 +6332,7 @@ export function gzgBlockHtml(erg, quelle = '', gzg = null) {
         ? 'Kein Verformungsnachweis — es gibt keine Referenzhöhe: weder '
           + 'Fahrdraht noch Ausleger noch Jochauflager. Der Nachweis der '
           + 'Seitenlage braucht eine Stelle, an der er gilt.'
-        : 'Kein Verformungsnachweis — er wird nur für Masten geführt.'}</p>`}`;
+        : 'Kein Verformungsnachweis — er wird nur für Masten gefuehrt.'}</p>`}`;
 }
 
 /* ===========================================================================
@@ -6609,7 +6633,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        * >>> EIN NACHWEIS AN EINEM BAUTEIL, DAS ES NICHT GIBT. <<<
        *
        * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
-       * dann warnung angeben.» Auf Zug wird der Nachweis geführt - gegen die
+       * dann warnung angeben.» Auf Zug wird der Nachweis gefuehrt - gegen die
        * Befestigung ist nichts einzuwenden -, aber die Kachel darf dann
        * nicht grün danebenstehen: das Sortiment führt diese Länge nicht.
        */
@@ -6796,7 +6820,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * BEIDE; wer nichts wählt, sieht alles.
    *
    * Was der Filter WEGNIMMT, ist genau das, was ein η der Tragsicherheit
-   * zeigt - Kacheln, nicht geführte Nachweise, die Tabelle der
+   * zeigt - Kacheln, nicht gefuehrte Nachweise, die Tabelle der
    * höchstbeanspruchten Stellen. Was nachweisunabhängig ist
    * (Schnittgrössen, Hinweise zur Gültigkeit), bleibt stehen: es gehört
    * keiner der beiden Arten.
@@ -6840,7 +6864,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    *
    * Die Zahl steht weiterhin da - sie ist gerechnet und richtig -, aber
    * «Tragsicherheit erfüllt» darf nicht danebenstehen, wenn der Nachweis, der
-   * das entscheidet, gar nicht geführt wird. Dann sagt die Zeile genau das.
+   * das entscheidet, gar nicht gefuehrt wird. Dann sagt die Zeile genau das.
    */
   const gefuehrt = urteil.tragwerkGefuehrt !== false;
   const offeneNw = urteil.nichtGefuehrt?.length ?? 0;
@@ -7151,7 +7175,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
    * einem anderen Nachweis. Sie zusammenzuziehen hiesse, eine Zahl zu
    * bilden, die nirgends mehr sagt, WAS sie ausnutzt.
    *
-   * Nur wenn der Nachweis auch geführt wird: die Gruppe lässt sich
+   * Nur wenn der Nachweis auch gefuehrt wird: die Gruppe lässt sich
    * abschalten, und dann hat hier keine Zahl zu stehen.
    */
   /*
@@ -7197,7 +7221,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
     { titel: ab ? 'Abfangjoch'
         : (swH?.ausleger || taK || erg.ausleger?.fehler ? 'Tragausleger' : 'Joch'),
       kacheln: kz, rechts: quelle(jochAusSw) },
-    // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
+    // «Knicken Ersatzbalken» nur, wenn das Knicken auch gefuehrt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
       // Seit dem 28. September kann das Knicken am Tragjoch aus dem
       // Stabwerk kommen - die Anschrift liest es an der Zeile selbst ab.
@@ -7353,7 +7377,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
     : (!gefuehrt
         ? (urteil.nichtNachgewiesen
             ? `${urteil.nichtNachgewiesen} NICHT nachgewiesen — Modell nicht gesichert, η ist kein Urteil`
-            : 'Jochtragwerk NICHT geführt — η ist kein Urteil')
+            : 'Jochtragwerk NICHT gefuehrt — η ist kein Urteil')
         : (zustand === 'ok'
             ? 'Tragsicherheit erfüllt'
             : 'Tragsicherheit NICHT erfüllt'));
@@ -7377,7 +7401,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
         einzelLastfall ? '' : (urteil.alleOk
           ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}${
         (!einzelLastfall && offeneNw)
-          ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
+          ? ` · ${offeneNw} Nachweis(e) nicht gefuehrt` : ''}</span>
       ${/*
          * DER MASSGEBENDE FALL steht neben der Zahl (Weisung, 9. September:
          * die Regliertemperatur haengt an der Kombination). «η 0.72» sagt
@@ -7433,7 +7457,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        * Nachweis ist die gefährlichste Zeile der Anwendung), aber sie
        * gehören dorthin, wo man sie sucht: ans Ende.
        *
-       * «Nicht geführte Nachweise» bleibt oben bei den Nachweisen. Es ist
+       * «Nicht gefuehrte Nachweise» bleibt oben bei den Nachweisen. Es ist
        * keine Prüfung, sondern die Kehrseite der Kacheln daneben.
        */''}
     ${nachweisartLeiste(nwArt)}
@@ -7977,7 +8001,7 @@ function profilZeilen(erg, werte) {
  * >>> DIE PROFILTAFEL: DIESES TRAGWERK ODER DAS GANZE BLATT (2. Oktober). <<<
  *
  * Frage mit Bild: «das j90 joch besteht aus unterschiedlichen flachblechen,
- * wo sind diese aufgeführt?» - die Tafel zeigte nur das AKTIVE Tragwerk
+ * wo sind diese aufgefuehrt?» - die Tafel zeigte nur das AKTIVE Tragwerk
  * (dort der Tragausleger), die Bleche des J90 erst nach dem Umschalten. Auf
  * Rückfrage «Beides umschaltbar»: Schalter im Kopf, Vorgabe dieses
  * Tragwerk. Im Blatt eine Spalte «Tragwerk»; ein geteilter Mast steht
@@ -8200,7 +8224,7 @@ function mastProfilHtml(erg, masten, st) {
       lassen den plastischen Widerstand zu (Optionen).</p>
     <p class="hinweis" style="margin:3px 0 0"><b>Fussplatte:</b> der Mast ist
       mit der Fussplatte <b>durchgeschweisst</b> (Stumpfnaht mit voller
-      Durchschweissung) — bei den Standardfussplatten so ausgeführt. Die Naht
+      Durchschweissung) — bei den Standardfussplatten so ausgefuehrt. Die Naht
       trägt damit wie der Mastquerschnitt (EN 1993-1-8, 4.7.1); der Nachweis
       des Querschnitts am Fuss deckt sie, eine eigene Nahtbemessung entfällt.
       Für eine abweichende Fussplatte gilt das nicht.</p>`;
@@ -8942,7 +8966,7 @@ function knickblatt(kS, n) {
    */
   if (!kS && n?.knickenGefuehrt === false) {
     return `<p class="notiz stark" style="margin:6px 0 0">
-      <b>Biegeknicken nicht geführt</b> — der Nachweis ist im Reiter
+      <b>Biegeknicken nicht gefuehrt</b> — der Nachweis ist im Reiter
       «Nachweise» abgeschaltet. Gerechnet ist allein der Querschnitt;
       η oben sagt nichts über die Stabilität. Halten die Leiter den Masten
       — Rückleiter am Masten, Kettenwerke am Joch —, stellen sich eine
@@ -9037,7 +9061,7 @@ function knickblatt(kS, n) {
       (Minimum beider Achsen, 5.1.10.1) · ω = ${z(kS.omega, 3)} ·
       γ_M = ${z(kS.gammaM1, 3)}. Geführt wird <b>Gleichung (50)</b>.
       ${kS.ohneNachweis ? 'Unter λ̄ = 0.2 verlangt die Norm keinen Knicknachweis.' : ''}</p>
-    <p class="notiz"><b>Der Nachweis ist nach SIA 263 geführt.</b> Die
+    <p class="notiz"><b>Der Nachweis ist nach SIA 263 gefuehrt.</b> Die
       Knickkurve nach Ziffer 4.5.1 — χ = 1/(Φ + √(Φ²−λ̄²)) mit
       Φ = 0.5[1 + α(λ̄−0.2) + λ̄²] —, die Widerstände nach 4.5.1.3 und 5.1.3,
       die Interaktion nach 5.1.10.1. <b>ω = 1.0</b> nach Ziffer 5.1.10.3: bei
@@ -9046,13 +9070,13 @@ function knickblatt(kS, n) {
       zweiter Ordnung</b> steckt im Vergrösserungsfaktor; N_Ed und M_Ed sind
       deshalb Werte nach Theorie 1. Ordnung, ohne Ersatzimperfektionen, wie
       die Norm es verlangt.</p>
-    <p class="notiz"><b>Nicht geführt: das Kippen</b> (Ziffer 4.5.2). An die
+    <p class="notiz"><b>Nicht gefuehrt: das Kippen</b> (Ziffer 4.5.2). An die
       Stelle von M_D,Rd tritt M_y,Rd. Beim eingespannten Stiel mit Momenten um
       beide Achsen ist das die übliche Annahme; sie steht hier, damit sie
       nachgeprüft werden kann. Gleichung (51) setzt „Knicken aus der Ebene und
       Kippen nicht verhindert“ voraus und gilt für doppeltsymmetrische
       I-Querschnitte — beides trifft zu; die Norm lässt mit „darf“ die Wahl,
-      geführt wird die strengere und bedingungslose (50).</p>`)}`;
+      gefuehrt wird die strengere und bedingungslose (50).</p>`)}`;
 }
 
 /* ===========================================================================
@@ -9187,7 +9211,7 @@ function mastblattHtml(erg) {
         des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
         Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
       ${mn.knickenGefuehrt === false ? `
-      <p class="notiz stark"><b>Das Biegeknicken ist NICHT geführt</b> —
+      <p class="notiz stark"><b>Das Biegeknicken ist NICHT gefuehrt</b> —
         im Reiter «Nachweise» abgeschaltet. η ist die
         Querschnittsausnutzung und kein Stabilitätsurteil.</p>` : `
       <p class="notiz"><b>Das Biegeknicken ist enthalten</b> — SIA 263,
@@ -9401,9 +9425,9 @@ export function nachweiseHtml(werte) {
    */
   const art = tragwerksart(werte).key;
   const wasVon = (g) => (typeof g.was === 'function' ? g.was(art) : g.was);
-  return `<p class="notiz">Ein nicht geführter Nachweis zählt <b>nie als
+  return `<p class="notiz">Ein nicht gefuehrter Nachweis zählt <b>nie als
     erfüllt</b>. Er wird im Urteil, im Bericht und in der Ausleitung
-    ausdrücklich als nicht geführt genannt.</p>`
+    ausdrücklich als nicht gefuehrt genannt.</p>`
     + NACHWEISGRUPPEN.map((g, i) => {
       /*
        * >>> OBERSCHALTER UND UNTERPUNKTE (30. September). <<<

@@ -115,6 +115,27 @@
    "gruppe": "frei",
    "rang": 9,
    "module": []
+  },
+  {
+   "id": "leiter-ts-nfl-abf",
+   "name": "Test-Leiter abgefangen",
+   "farbe": "leiter",
+   "beschreibung": "Test",
+   "raster": 0,
+   "befestigung": "unten",
+   "gruppe": "leiter",
+   "rang": 4,
+   "abfangung": "einseitig",
+   "module": [
+    {
+     "bauteil": "drahtwerk-test-leiter",
+     "anzahl": 1,
+     "laenge": null,
+     "z": 0,
+     "y": 0,
+     "umlenkung": true
+    }
+   ]
   }
  ]
 }

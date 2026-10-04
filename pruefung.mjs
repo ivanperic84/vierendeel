@@ -37723,6 +37723,86 @@ titel('221  Direkter Weg der Starrglieder im Stabmodell');
   }
 }
 
+/* =========================================================================
+ * 222  ALLE TRAGWERKE AUS DEM STABWERK GEFÄRBT; MASTEN AM ABFANGJOCH ZIEHEN
+ *      (4. Oktober)
+ * =========================================================================
+ * «umhüllen alle stäbe färben» und «beim abfangjoch kann man keine drag and
+ * drop befehle ausführen bei den masten.»
+ * Gemessen auf den Testdaten (Reihe TEST-80 20 + 15 m, T2 aktiv): T1 im
+ * Bild Blech 0.4428 = Stabwerk, geteilter Mast M2 0.6596 = Stabwerk.
+ * Abfangjoch TEST-A16/12.5 m: Mast B auf 12.00 / 13.40 / 13.50 m gezogen
+ * steht genau dort (L 12.5 / 13.4 / 14); vorher bei 13.50 m L 13.5 und der
+ * Mast bei 13.00 m.
+ * ========================================================================= */
+titel('222  Nachbarn aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen');
+{
+  const C222 = await import(J('core.constants.js'));
+  const N222 = await import(J('core.nachbarn.js'));
+  const AS222 = await import(J('app.stabwerk.js'));
+  const DA222 = await import(J('data.anbauteile.js'));
+  const R222 = await import(J('render.3d.js'));
+  const RS222 = await import(J('render.stabwerk.js'));
+  const AJ222 = await import(J('data.abfangjoche.js'));
+  const RA222 = await import(J('render.abfang.js'));
+  const UI222 = await import(J('ui.js'));
+  const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
+  let w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
+            L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
+            anbauteile: [DA222.neuesAnbauteil('hs-fahrdraht', 10)] };
+  w = C222.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20 });
+  const ws = N222.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N222.kernArgumente(ws));
+  const h = AS222.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const tw1 = C222.tragwerkeVon(w).find((t) => t.id === 'T1');
+  const s1 = C222.tragwerkSatz(w, 'T1');
+  const sz = R222.erzeugeSzene(modell(s1, getProfil(s1.profOG), getProfil(s1.profUG),
+                                      getStahl(s1.stahl), T.getTragjoch(s1.typ)), null);
+  RS222.stabwerkFaerben(sz, h.jeStab, { jochKey: 'tragwerk:T1', mastenOhneJoch: true,
+    mastNamen: { A: C222.mastNameAmEnde(w, tw1, 'A'), B: C222.mastNameAmEnde(w, tw1, 'B') } });
+  const etaBild = Math.max(...sz.flaechen.filter((f) => f.stabwerk && !/^MAST/.test(f.teil ?? ''))
+    .map((f) => f.werte.eta));
+  const etaSw = Math.max(...Object.entries(h.teile).filter(([k]) => k.startsWith('tragwerk:T1|'))
+    .map(([, v]) => v.eta));
+  pruef('Nachbar T1 (nicht aktiv): grösstes η im Bild = η des Jochs im Stabwerk', etaBild, etaSw, 1e-9, '');
+  const etaMast = Math.max(...sz.flaechen.filter((f) => f.stabwerk && /^MAST/.test(f.teil ?? ''))
+    .map((f) => f.werte.eta));
+  const etaMastSw = Math.max(...['M1', 'M2'].map((m) => h.teile[`mast:${m}|mast`]?.eta ?? 0));
+  pruef('… seine Masten tragen die Zahlen des Stabwerks', etaMast, etaMastSw, 1e-9, '');
+  const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Der Renderer färbt eine passive Fläche mit Stabwerkswert, deckend wie das aktive Tragwerk',
+       r3d.includes('if (this._passivGrau(f, p)) return t.xdim ?? t.dim;')
+       && r3d.includes('const durch = this._passivGrau(f) ? Math.max(klar, 0.72)'));
+  wahr('Die Anwendung färbt jede Nachbarszene (`nachbarFaerben`)',
+       APP_QUELLE().includes('return nachbarFaerben(szeneVonNebenanRoh(t, zeichnen), t);'));
+
+  // Abfangjoch: Griffe in der Szene und der Mast steht, wo er losgelassen wird.
+  const atyp = AJ222.abfangjoche()[0]?.typ;
+  if (atyp) {
+    const jt0 = AJ222.abfangLaengen(atyp).find((l) => l >= 12) ?? AJ222.abfangLaengen(atyp)[0];
+    const sza = RA222.abfangSzene(atyp, jt0, { anbauteile: [], lager: {},
+      mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' } });
+    wahr('Die Abfangjoch-Szene führt Griffe an beiden Masten (Kopf und Lage, kein Fuss)',
+         sza.mastZiehen?.A?.einzel === true && sza.mastZiehen?.B?.einzel === true
+         && sza.mastZiehen.B.x > sza.mastZiehen.A.x, JSON.stringify(sza.mastZiehen));
+    let wa = C222.tragwerkHinzu({ ...w }, 'abfangjoch', { xLage: 0, L: jt0, abfangTyp: atyp, mastH: 7.5 });
+    wa = C222.tragwerkWeg(C222.tragwerkWeg(wa, 'T1'), 'T2');
+    const ta = () => C222.tragwerkeVon(wa)[0];
+    const ue = C222.abfangUeberstand(ta());
+    const ziele = [...AJ222.abfangLaengen(atyp).slice(-2).map((l) => l - 2 * ue), jt0 - 2 * ue + 0.13];
+    const erreicht = ziele.map((z) => {
+      const [, mB] = C222.mastenFuer(wa, ta());
+      wa = UI222.mastStelleSetzen(wa, UI222.mastRollen(wa, mB.id), z);
+      return [z, C222.mastLagen(ta())[1], C222.mastenVon(wa).map((m) => m.x)[1]];
+    });
+    wahr('Mast B am Abfangjoch gezogen: Mastlage nach der Regel = Ziel = Mastliste',
+         erreicht.every(([z, regel, liste]) => Math.abs(regel - z) < 1e-6 && Math.abs(liste - z) < 1e-6),
+         erreicht.map((e) => e.map((v) => v.toFixed(2)).join('/')).join(' · '));
+  } else {
+    wahr('Abfangjoch-Sortiment vorhanden (für die Prüfung des Ziehens)', false);
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

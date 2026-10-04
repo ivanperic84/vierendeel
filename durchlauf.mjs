@@ -476,7 +476,10 @@ if (!AJ.abfangDbDa()) {
   try { ANK.setzeAnkerDB(daten('anker.json')); ankerDa = true; } catch { /* ohne Anker */ }
   const typ = AJ.abfangjoche?.()?.[0]?.typ ?? 'A160';
   const teil = (vid, x) => ({ ...A.neuesAnbauteil(vid, x), ort: 'joch' });
-  const vorl = A.getVorlage('leiter-ts-nfl-abf') ? 'leiter-ts-nfl-abf' : null;
+  // `getVorlage` wirft bei unbekannter Kennung - ohne die Vorlage (Testdaten)
+  // laeuft das Abfangjoch ohne Leiter durch.
+  const vorl = (() => { try { return A.getVorlage('leiter-ts-nfl-abf') ? 'leiter-ts-nfl-abf' : null; }
+                        catch { return null; } })();
   const eins = (H = 7.5) => {
     let w = C.tragwerkHinzu(joch(), 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: typ, mastH: H });
     w = C.tragwerkWeg(w, 'T1');
