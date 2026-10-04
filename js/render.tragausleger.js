@@ -314,6 +314,58 @@ export function auslegerSzene(satz, opt = {}) {
     }
   }
 
+  /* --- Wind auf Mast und Ausleger (4. Oktober) ---------------------------- *
+   * Gemeldet mit Bild: «warum sehe ich im 3d am Modell Tragausleger keine
+   * Windlasten am Mast und Ausleger?» Das Stabmodell setzt beide an
+   * (Mastwind WindX/WindY je Maststab, Wind längs halb auf jede UPE), das
+   * Bild zeichnete nur die Pfeile der Anbauteile. Gezeichnet wird, was in
+   * der Datei steht - CHARAKTERISTISCH (das Modell führt Lastfälle, die
+   * Beiwerte kommen in den Kombinationen), deshalb «w_k». Der Wind steht
+   * auf der Seite, von der er kommt, wie am Tragjoch.
+   */
+  const strecke = d.lasten?.strecke ?? [];
+  const lastflaechen = [];
+  const windLinie = (pVon, pBis, achse, wert, lastart, nm, titel, teil) => {
+    const lang = Math.hypot(...[0, 1, 2].map((i) => pBis[i] - pVon[i]));
+    const n = Math.max(4, Math.min(16, Math.round(lang / 1.1)));
+    const v = [0, 0, 0]; v[achse] = 0.34;
+    const aus = (q) => { const r = [...q]; r[achse] -= 0.42; return r; };
+    for (let i = 0; i <= n; i++) {
+      const p0 = [0, 1, 2].map((k) => pVon[k] + (i / n) * (pBis[k] - pVon[k]));
+      vektoren.push({ gruppe: 'last', art: 'wind', lastart, teil, p: aus(p0), v, schlank: true,
+                      text: i === Math.round(n / 2) ? `${nm} = ${wert.toFixed(2)} kN/m` : '',
+                      titel });
+    }
+    lastflaechen.push({ gruppe: 'last', art: 'wind', lastart,
+                        punkte: [aus(pVon), aus(pBis), pBis, pVon],
+                        titel: `${titel} · ${nm} = ${wert.toFixed(2)} kN/m` });
+  };
+  // Mast: nur wo dieses Bild den Masten zeichnet - sonst zeichnet ihn (und
+  // seinen Wind) das Joch, das ihn trägt.
+  const mastStaebe = d.staebe.filter((s) => /^MAST_A_S\d+$/.test(s.name));
+  if (mastStaebe.length && md?.profil && opt.mastZeichnen?.A !== false) {
+    let mp = null;
+    try { mp = getMastprofil(md.profil); } catch { mp = null; }
+    const halb = mp ? Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 : 0.13;
+    const zs = mastStaebe.flatMap((s) => [kn.get(s.von)?.z, kn.get(s.bis)?.z]).filter(Number.isFinite);
+    const zU = Math.min(...zs), zO = Math.max(...zs);
+    [['WindX', 0, 'windX', 'w_M,x,k', 'quer zum Gleis'],
+     ['WindY', 1, 'windY', 'w_M,y,k', 'längs zum Gleis']].forEach(([fall, achse, la, nm, bez]) => {
+      const w = strecke.find((l) => l.lastfall === fall && /MAST_A_S\d+$/.test(l.stab))?.wert;
+      if (!(w > 0)) return;
+      const kante = (z) => { const p0 = [0, 0, z]; p0[achse] = -halb; return p0; };
+      windLinie(kante(zU), kante(zO), achse, w, la, nm, `Wind auf Mast · ${bez}`, 'MAST_A');
+    });
+  }
+  // Ausleger: die Hälften auf beiden UPE zusammen, vor dem hinteren Gurt.
+  const qA = strecke.filter((l) => l.lastfall === 'WindY' && /^[VH]_S\d+$/.test(l.stab));
+  if (qA.length) {
+    const wA = 2 * qA[0].wert;
+    const yK = -(d.tragausleger.e ?? t.spreizung / 1000) / 2 - 0.08;
+    windLinie([xG(-t.hinten), yK, 0], [xG(t.L - t.hinten), yK, 0], 1, wA, 'windY', 'w_A,k',
+              'Wind auf den Tragausleger · längs zum Gleis', 'GURT_H');
+  }
+
   /* --- Titel und Masse ----------------------------------------------------- */
   const xE = xG(t.L - t.hinten), x0 = xG(-t.hinten);
   bauteiltitel.push({ p: [(x0 + xE) / 2, 0, hG / 2 + 0.25],
@@ -346,7 +398,7 @@ export function auslegerSzene(satz, opt = {}) {
 
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel, vektoren,
-    lastflaechen: [],
+    lastflaechen,
     legende: [...bauteile.values()],
     grenzen: { xMin: gx0, xMax: gx1, yMin: gy0, yMax: gy1, zMin: gz0 - 1.2, zMax: gz1 + 0.8 },
     stationen: [],

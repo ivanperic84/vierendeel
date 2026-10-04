@@ -38429,6 +38429,44 @@ titel('232  Löser: Dreibein eines schrägen Stabes ohne lcsZ');
   pruef('>>> Der Starrstab nimmt den Punkt mit: u_y(P) − u_y(B) = −θx · r_z <<<', pP[1] - b[1], -b[3] * -2.6, 1e-6, 'm');
 }
 
+// ===========================================================================
+titel('233  Tragausleger: Wind auf Mast und Ausleger im 3D');
+/* ===========================================================================
+ * «warum sehe ich im 3d am Modell Tragausleger keine Windlasten am Mast und
+ * Ausleger?» (4. Oktober) - das Modell setzt beide an, das Bild zeigte sie
+ * nicht. Jetzt dieselben Werte wie in der Datei, charakteristisch.
+ * ========================================================================= */
+{
+  const RT233 = await import(J('render.tragausleger.js'));
+  const TA233 = await import(J('export.axisvm.tragausleger.js'));
+  const N233 = await import(J('core.nachbarn.js'));
+  const basis = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0,
+                  mastVorhanden: true, twId: 'MT1', anbauteile: [] };
+  const mast = { profil: 'HEB 260', hoehe: 7.5, ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' };
+  [['rechts', 1], ['links', -1]].forEach(([seite, sp]) => {
+    const satz = N233.rechensatzMitNachbarn({ ...basis, auslegerSeite: seite });
+    const d = TA233.tragauslegerModell(satz);
+    const sz = RT233.auslegerSzene(satz, { mast });
+    const wind = sz.vektoren.filter((v) => v.art === 'wind');
+    const mx = d.lasten.strecke.find((l) => l.lastfall === 'WindX' && /^MAST_A_S/.test(l.stab)).wert;
+    const my = d.lasten.strecke.find((l) => l.lastfall === 'WindY' && /^MAST_A_S/.test(l.stab)).wert;
+    const qa = d.lasten.strecke.find((l) => l.lastfall === 'WindY' && /^[VH]_S/.test(l.stab)).wert;
+    const txt = wind.map((v) => v.text).filter(Boolean);
+    wahr(`${seite}: Mastwind quer und längs mit den Werten der Datei`,
+         txt.includes(`w_M,x,k = ${mx.toFixed(2)} kN/m`) && txt.includes(`w_M,y,k = ${my.toFixed(2)} kN/m`), txt.join(' | '));
+    wahr(`${seite}: Wind längs auf den Ausleger = beide UPE zusammen`,
+         txt.includes(`w_A,k = ${(2 * qa).toFixed(2)} kN/m`));
+    const aus = wind.filter((v) => v.teil === 'GURT_H').map((v) => v.p[0]);
+    wahr(`${seite}: die Pfeile des Auslegers liegen auf seiner Seite`,
+         aus.length > 3 && aus.every((x) => sp * x >= -0.26) && Math.max(...aus.map((x) => sp * x)) > 9.5);
+    wahr(`${seite}: jede Windlast mit ihrer Fläche`, sz.lastflaechen.length === 3);
+  });
+  const satz = N233.rechensatzMitNachbarn(basis);
+  const ohne = RT233.auslegerSzene(satz, { mast, mastZeichnen: { A: false } });
+  wahr('Zeichnet ein Joch den Masten, zeichnet es auch seinen Wind (kein zweiter Satz)',
+       !ohne.vektoren.some((v) => v.teil === 'MAST_A') && ohne.vektoren.some((v) => v.teil === 'GURT_H'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
