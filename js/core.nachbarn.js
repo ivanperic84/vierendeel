@@ -119,6 +119,7 @@ function abfangEinmal(w, satzA, stahl, anbauteile) {
      */
     fyd: abfangFyd(stahl, w.gammaM0),
     ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
+    windReduktion: satzA.windReduktion === true || w.windReduktion === true,
     knotenbereich: 'anschnitt',
     /*
      * DIE WAHL JE LEITER (24. September): durchgehend, beidseitig

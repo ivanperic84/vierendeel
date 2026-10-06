@@ -1843,6 +1843,18 @@ export const FELDER = [
       + 'Δη ≤ 0.05, beide Zustände mit der gewählten Windstufe. Eingeschaltet '
       + 'zeigt jede Bauteilkarte das Kennzeichen «neu». Derselbe Schalter wie '
       + 'unter Optionen → Nachweise und über der Anbauteilliste.' },
+  /*
+   * >>> REDUKTION IM GROSSFLAECHIGEN UEBERBAUUNGSGEBIET (6. Oktober). <<<
+   * Weisung im Wortlaut: «Reduktionsfaktor (grossflächiges
+   * Überbauungsgebiet) auswählbar machen mit 0.74»; auf Rückfrage «Auf
+   * allen Wind». Ein Schalter fuer das Blatt; die Rechnung steht in
+   * `lastfaelle` (core.lasten.js): Wind x und Wind y jedes Falls × 0.74.
+   */
+  { key: 'windReduktion', gruppe: 'ein', typ: 'schalter',
+    label: 'Grossflächiges Überbauungsgebiet (Wind × 0.74)', standard: false,
+    hinweis: 'Reduziert allen Wind - Joch, Masten, Anbauteile, Leiter, Abfangjoch, '
+      + 'Tragausleger - über die Beiwerte der Lastfälle: Wind x und Wind y × 0.74 in jeder '
+      + 'Kombination, auch im Betriebswind und in der AxisVM-Ausleitung.' },
   { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'

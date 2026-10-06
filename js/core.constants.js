@@ -203,6 +203,8 @@ export const BLATT_FELDER = [
   'grundwerteFragen',
   // Einwirkungen aus den Linienkarten
   'windKlasse', 'schneeKlasse', 'schneeAktiv',
+  // Wind × 0.74 im grossflächigen Überbauungsgebiet (6. Oktober).
+  'windReduktion',
   // Lastfälle, Beiwerte und Rechenmodelle: sie beschreiben, WIE gerechnet
   // wird. Zwei Tragwerke auf einem Blatt verschieden zu rechnen wäre ein
   // Fehler, kein Freiheitsgrad.

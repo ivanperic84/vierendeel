@@ -177,6 +177,7 @@ function dialogSortimentAbfang(app, { f0, f2, f3 }) {
         gammaG: app.werte.gammaG, gammaQ: app.werte.gammaQ, psi0: app.werte.psi0,
         fyd: abfangFyd(getStahl(app.werte.stahl), app.werte.gammaM0), ek: satz.ek,
         L_FL: satz.L_FL, R: satz.R, knotenbereich: 'anschnitt',
+        windReduktion: app.werte.windReduktion === true,
       });
       if (!r) return { typ: a.typ, eta: null, profil: a.profil,
                        grund: 'nicht rechenbar — Blechlage nicht erfasst' };

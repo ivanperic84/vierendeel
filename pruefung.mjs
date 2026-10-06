@@ -38971,6 +38971,28 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
        Math.abs(ein) < 0.05, `${ein.toFixed(3)} kNm`);
 }
 
+titel('239  Wind × 0.74 im grossflächigen Überbauungsgebiet');
+/* ===========================================================================
+ * 6. Oktober: «Reduktionsfaktor (grossflächiges Überbauungsgebiet)
+ * auswählbar machen mit 0.74», auf Rückfrage «Auf allen Wind». Eine Stelle
+ * (`lastfaelle`): Wind x und Wind y jedes Falls × 0.74; der Abfangjoch-Kern
+ * nimmt denselben Faktor (`rW`).
+ * ========================================================================= */
+{
+  const L239 = await import(J('core.lasten.js'));
+  const C239 = await import(J('core.constants.js'));
+  const w = standardwerte();
+  const aus = L239.lastfaelle(w), ein = L239.lastfaelle({ ...w, windReduktion: true });
+  wahr('Jeder Fall: Wind × 0.74, alles andere gleich',
+       aus.length === ein.length && aus.every((l, i) => Object.keys(l.beiwerte).every((g) =>
+         Math.abs((ein[i].beiwerte[g] ?? 0) - (/^Wind/.test(g) ? 0.74 : 1) * (l.beiwerte[g] ?? 0)) < 1e-12)));
+  wahr('… auch im Betriebswind', ein.filter((l) => l.stufe === 'betrieb')
+       .every((l) => Math.abs(Math.abs((l.beiwerte.WindX ?? 0) + (l.beiwerte.WindY ?? 0)) - 0.74 * 0.7) < 1e-12));
+  wahr('Das Feld gehört dem Blatt', C239.BLATT_FELDER.includes('windReduktion'));
+  wahr('Der Abfangjoch-Kern nimmt den Faktor', /const rW = o\.windReduktion === true \? 0\.74 : 1;/
+       .test(readFileSync(join(HIER, 'js', 'core.abfangjoch.js'), 'utf8')));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

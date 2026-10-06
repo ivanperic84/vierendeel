@@ -1641,11 +1641,15 @@ export function abfangAuswertung(o = {}) {
    * denen dieselbe Festlegung steht - und der zweite laeuft dem ersten
    * davon.
    */
+  // Grossflächiges Überbauungsgebiet (6. Oktober, «Auf allen Wind»): derselbe
+  // Faktor wie in `lastfaelle` (core.lasten.js), hier am Windbeiwert des
+  // eigenen Kerns und an der charakteristischen Windlast (`rW`).
+  const rW = o.windReduktion === true ? 0.74 : 1;
   const beiwerteVon = (fall) => {
     const havarie = fall.key === 'havarie';
     return {
       g: havarie ? 1.0 : gG,
-      w: havarie ? 0 : (fall.leit === 'wind' ? gQ : gQ * p0),
+      w: havarie ? 0 : rW * (fall.leit === 'wind' ? gQ : gQ * p0),
       s: havarie ? 0 : (fall.leit === 'schnee' ? gQ : gQ * p0),
     };
   };
@@ -1790,7 +1794,7 @@ export function abfangAuswertung(o = {}) {
       const kT = (bal) => Math.abs(ende === 'A' ? bal.A : bal.B);
       const Ptors = bw.g * kT(b.torG) + bw.s * kT(b.torS)
                   + bw.w * kT(b.torW);
-      const PtorsK = kT(b.torG) + kT(b.torS) + kT(b.torW);
+      const PtorsK = kT(b.torG) + kT(b.torS) + rW * kT(b.torW);
       /*
        * >>> JE EINE RICHTUNG, NICHT DIAGONAL (Weisung vom 18. September). <<<
        *
@@ -1820,9 +1824,9 @@ export function abfangAuswertung(o = {}) {
          * Beiwert 1, der Wind in derselben Richtung. Gebraucht fuer den
          * Anker (zulaessige Kraft gegen charakteristische).
          */
-        char: { Fz: Gz + Sz, Fy: Zy + (bw.w ? sy : 1) * Wy,
-                Fxges: (bw.w ? sx : 1) * b.Fx, Ptors: PtorsK },
-        anteile: { G: Gz, S: Sz, Z: Zy, W: (bw.w ? sy : 1) * Wy },
+        char: { Fz: Gz + Sz, Fy: Zy + rW * (bw.w ? sy : 1) * Wy,
+                Fxges: rW * (bw.w ? sx : 1) * b.Fx, Ptors: PtorsK },
+        anteile: { G: Gz, S: Sz, Z: Zy, W: rW * (bw.w ? sy : 1) * Wy },
         beiwerte: bw,
       }));
     });

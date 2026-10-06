@@ -663,17 +663,31 @@ export function standardLastfaelle(inp) {
  *                          Beiwerte eines vorgegebenen Lastfalls
  *   inp.lastfaelleEigen    [{bez, beiwerte}] frei ergänzte Lastfälle
  */
+/**
+ * >>> REDUKTION IM GROSSFLAECHIGEN UEBERBAUUNGSGEBIET (6. Oktober). <<<
+ * «Reduktionsfaktor (grossflächiges Überbauungsgebiet) auswählbar machen
+ * mit 0.74», auf Rückfrage «Auf allen Wind». Eine Stelle: die Beiwerte der
+ * Windgruppen jedes Lastfalls - so gilt der Faktor in Kern, Stabwerk,
+ * Gebrauchstauglichkeit (char. Windfälle × ψ) und AxisVM-Ausleitung
+ * gleich, und die Lastfalltabelle zeigt ihn als Beiwert.
+ */
+export const WIND_REDUKTION = 0.74;
+export const windReduktionVon = (inp) => (inp?.windReduktion === true ? WIND_REDUKTION : 1);
+
 export function lastfaelle(inp) {
   const anp = inp.lastfallAnpassung ?? {};
+  const r = windReduktionVon(inp);
+  const reduziert = (bw) => (r === 1 ? bw
+    : { ...bw, WindX: (Number(bw.WindX) || 0) * r, WindY: (Number(bw.WindY) || 0) * r });
   const std = standardLastfaelle(inp).map((l) => (anp[l.key]
     ? { ...l, beiwerte: { ...l.beiwerte, ...anp[l.key] }, angepasst: true }
-    : l));
+    : l)).map((l) => ({ ...l, beiwerte: reduziert(l.beiwerte) }));
   const eigen = (inp.lastfaelleEigen ?? []).map((l, i) => ({
     key: l.key ?? `eigen${i}`,
     bez: l.bez || `Eigener Lastfall ${i + 1}`,
     art: 'eigen', eigen: true, index: i,
     nachweis: l.nachweis !== false,
-    beiwerte: { ...NULLBEIWERTE(), ...(l.beiwerte ?? {}) },
+    beiwerte: reduziert({ ...NULLBEIWERTE(), ...(l.beiwerte ?? {}) }),
   }));
   return markiereDoppelte([...std, ...eigen]);
 }
