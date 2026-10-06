@@ -885,8 +885,10 @@ titel('15  Lastfälle');
     pruef('Davon vier in der Betriebsstufe', betrieb.length, 4, 1e-12, 'Stk');
     wahr('… und keine seltene Stufe mehr (29. Sept.)',
          gzg.every((x) => x.stufe === 'betrieb') && !lf.some((x) => /^gtselten/.test(x.key)));
-    wahr('… Ständig mit 1.00, Wind mit ψ = 0.70',
-         betrieb.every((x) => x.beiwerte.G === 1
+    // Seit dem 6. Oktober ohne ständige: «Betriebswind kombination ohne
+    // ständige nur wind 0.7».
+    wahr('… ohne Ständige, Wind mit ψ = 0.70',
+         betrieb.every((x) => !x.beiwerte.G
            && Math.abs(Math.abs(x.beiwerte.WindX ?? 0) + Math.abs(x.beiwerte.WindY ?? 0)
                        - L.BETRIEBSWIND) < 1e-12),
          betrieb.map((x) => `${x.beiwerte.WindX}/${x.beiwerte.WindY}`).join(' '));
@@ -913,7 +915,7 @@ titel('15  Lastfälle');
        && holen('gwk').nur === undefined);
   wahr('Gebrauchstauglichkeit ist kein Nachweis',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
-         .every((x) => x.nachweis === false && x.beiwerte.G === 1));
+         .every((x) => x.nachweis === false && !x.beiwerte.G));
   // Seit dem 17. September zwei mehr: der Havariefall (intern).
   wahr('Sechs Gruppen: G, Wind x, Wind y, Schnee, Havarie x, Havarie y',
        L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee,HavarieX,HavarieY'
@@ -28216,8 +28218,10 @@ titel('113  Mastverformung im Gebrauchszustand');
     const g0 = kopfVon(stG.key), w0 = kopfVon(wx.key), b0 = kopfVon(bx.key);
     wahr('Das exzentrische Gewicht biegt schon staendig quer',
          Math.abs(g0.x) > 1e-4, `${(g0.x * 1000).toFixed(2)} mm`);
-    pruef('Betriebswind = staendig + 0.70 mal Wind',
-          b0.x, g0.x + L113.BETRIEBSWIND * w0.x, 1e-12, 'm');
+    // Seit dem 6. Oktober ohne ständige (Weisung «Betriebswind kombination
+    // ohne ständige nur wind 0.7»); vorher g0.x + 0.70 · w0.x.
+    pruef('Betriebswind = 0.70 mal Wind, ohne ständige',
+          b0.x, L113.BETRIEBSWIND * w0.x, 1e-12, 'm');
   }
 
   // --- c) Die drei Grenzwerte -------------------------------------------

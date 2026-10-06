@@ -346,7 +346,7 @@ export function verformungsNachweis(kombi, opt = {}) {
      * fragt, sobald sie gross wird.
      */
     const auskunft = [
-      spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, ständig + Betriebswind',
+      spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, Betriebswind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
       spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,

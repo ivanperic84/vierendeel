@@ -625,16 +625,21 @@ export function standardLastfaelle(inp) {
    * Ankers skaliert mit, ihr Vorzeichen bleibt, also fällt kein Seil
    * anders aus. Bei «ständig + Wind» ist das nicht so: G + 0.7·W ist ein
    * anderer Zustand als G + 1.0·W, und der Anker kann darin anders stehen.
+   *
+   * >>> OHNE STÄNDIGE (6. Oktober). <<< Weisung im Wortlaut: «Betriebswind
+   * kombination ohne ständige nur wind 0.7». Die vier Fälle tragen seither
+   * G = 0 und Wind × 0.70 - derselbe Zustand wie «nur Wind» des Nachweises;
+   * Spitze, Figur und Wähler zeigen damit dieselbe Kombination.
    * ======================================================================= */
   [['Y', 'WindY', 'y (längs zum Gleis)'], ['X', 'WindX', 'x (quer zum Gleis)']]
     .forEach(([tag, gruppe, richtung]) => {
       [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
         lf.push({
           key: `gtbetriebW${tag}${suffix}`,
-          bez: `Betriebswind (ψ ${BETRIEBSWIND.toFixed(2)}): ständig + Wind ${zeichen}${richtung}`,
+          bez: `Betriebswind (ψ ${BETRIEBSWIND.toFixed(2)}): Wind ${zeichen}${richtung}`,
           art: 'gebrauchstauglichkeit', nachweis: false,
           leit: gruppe, vorzeichen: vz, stufe: 'betrieb',
-          beiwerte: bw({ G: 1, [gruppe]: vz * BETRIEBSWIND }),
+          beiwerte: bw({ [gruppe]: vz * BETRIEBSWIND }),
         });
       });
     });
