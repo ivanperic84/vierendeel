@@ -38917,6 +38917,60 @@ titel('237  Ausleger-Vorlagen mit Tragseil und Fahrdraht getrennt; Kettenwerk ke
                                wirkung: { G: false, Q: true, ablenk: true } }));
 }
 
+titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havarie in der Achse');
+/* ===========================================================================
+ * Die Bedienpunkte der Liste vom 6. Oktober (Wortlaut in CLAUDE.md,
+ * *Entschieden*). Geprüft am Quelltext, wo nur der Browser sie zeigt, und
+ * an der Rechnung, wo sie etwas ändert (Havarie in der Achse).
+ * ========================================================================= */
+{
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const app238 = APP_QUELLE();
+  const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Leiste zu, Klick aufs Teil: `seiteAusklappen` ist exportiert und wird gerufen (kein `ausklappen` in app.js)',
+       /export function seiteAusklappen\(seite\)/.test(lay) && /seiteAusklappen\('links'\)/.test(app238)
+       && !/[^.\w]ausklappen\('links'\)/.test(readFileSync(join(HIER, 'js', 'app.js'), 'utf8')));
+  wahr('Nur die linke Taste klickt (Rechtsklick zoomt nicht)', /!griff\.bewegt && !\(e\.button > 0\)/.test(r3));
+  wahr('Zoom auf die Mitte des ganzen Teils', /this\._animiere\(\[mitte, 0, zM\], dist\)/.test(r3));
+  wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = this\.auswahlTeil/.test(r3));
+  wahr('Kraftpfeile mit Vorzeichen (F_z nach oben)', /pf\.k \* \(pf\.ri\[0\] \+ pf\.ri\[1\] \+ pf\.ri\[2\]\)/.test(r3));
+  wahr('Längsanker im 3D ziehbar', /beiLaengsankerZiehen/.test(r3) && /beiLaengsankerZiehen: \(d\) =>/.test(app238));
+  wahr('Lastfalltabelle: eine Zeile wählt den Fall', /data-lf-wahl/.test(readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'))
+       && /app\.anzeigeKombi = z\.dataset\.lfWahl/.test(app238));
+  wahr('Neues Tragwerk aus der Projektablage öffnet den Parameterdialog', /dialogTragwerk\(app, t0\.id, null, \{ grundwerte: true \}\)/.test(app238));
+  wahr('Startdialog: Vorlage «Abfangjoch mit Anker»', /value="abfangjoch-anker"/.test(app238) && /function abfangjochMitAnker/.test(app238));
+  wahr('Duplizieren fragt, wohin (dieselben Masten oder daneben)', /name="kopie-wo" value="hoehe"/.test(kq));
+  wahr('Kontextmenü: Art und Neues Tragwerk als Auswahl', /label: 'Art', wert: tragwerksart\(t\)\.key/.test(kq)
+       && /label: `Neu bei x/.test(kq) && !/Art wechseln auf: \$\{a\.label\}/.test(kq));
+
+  // Havarie in der Achse: dieselben Lastfälle, die Kraft an der Wurzel der Kette.
+  const C238 = await import(J('core.constants.js'));
+  const N238 = await import(J('core.nachbarn.js'));
+  const AS238 = await import(J('app.stabwerk.js'));
+  const SN238 = await import(J('core.stabnachweis.js'));
+  const T238 = await import(J('data.tragjoche.js'));
+  const grund = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' }, T238.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const w = C238.setzeAnbauteileAn(grund, [{ ...A.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', x: 0, hMast: 6.5 }]);
+  const hav = {}; A.leiterListe(w.anbauteile).forEach((l) => { hav[l.key] = { reisst: true, name: l.name }; });
+  const mz = (achse) => {
+    const w2 = { ...w, havarie: hav, havarieInAchse: achse };
+    const ws = N238.rechensatzMitNachbarn(w2);
+    const erg = berechne(ws, ...N238.kernArgumente(ws));
+    const h = AS238.rechneStabwerk({ werte: w2, letzte: { erg }, stabwerk: null });
+    const d = h.roh.dat, L = h.roh.lsg;
+    const lf = h.roh.faelle.find((f) => f.art === 'aussergewoehnlich' && /\|p$/.test(f.key));
+    const an = SN238.anteileFuer(lf, d);
+    return an.reduce((s, x) => s + x.faktor * (L.auflagerkraefte(x.lastfall).find((q) => q.knoten === 'MAST_M1_F')?.fiz ?? 0), 0);
+  };
+  const aus = mz(false), ein = mz(true);
+  wahr('Havarie am Leiter des NT-Auslegers: ohne Schalter Torsion am Mastfuss (Hebel des Auslegers)',
+       Math.abs(aus) > 0.1, `${aus.toFixed(3)} kNm`);
+  wahr('… mit «Last aufs Tragwerk» praktisch keine (die Kraft greift in der Achse an)',
+       Math.abs(ein) < 0.05, `${ein.toFixed(3)} kNm`);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

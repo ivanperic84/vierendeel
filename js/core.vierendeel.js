@@ -380,6 +380,8 @@ export function modellEinzelmast(inp, stahl) {
     havarie: inp.havarie ?? null,
     // Havariefall abgeschaltet: die Ausleitung laesst seine Lastfaelle weg.
     havarieAus: inp.havarieAus === true,
+    // Havarie-Kräfte an der Wurzel der Kette (6. Oktober, «Last auf Tragwerk»).
+    havarieInAchse: inp.havarieInAchse === true,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
@@ -1007,6 +1009,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     havarie: inp.havarie ?? null,
     // Havariefall abgeschaltet: die Ausleitung laesst seine Lastfaelle weg.
     havarieAus: inp.havarieAus === true,
+    // Havarie-Kräfte an der Wurzel der Kette (6. Oktober, «Last auf Tragwerk»).
+    havarieInAchse: inp.havarieInAchse === true,
   };
 
   // Stationsliste mit den tatsächlichen Blechen - die Zeichenmodule lesen sie,

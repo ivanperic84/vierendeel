@@ -503,8 +503,19 @@ function havarieHtml(g, werte) {
    * dieselben Faelle tragen, die der Nachweis rechnet.
    */
   const aus = werte.havarieAus === true;
+  /*
+   * >>> LAST AUFS TRAGWERK (6. Oktober). <<< Weisung im Wortlaut: «Beim
+   * Havariefall schalter für Last auf Tragwerk transerieren, die überlegung
+   * ist, das die traversen nachgeben und die Last dann in Mastachse zu ligen
+   * kommt.» Eingeschaltet greifen die Havarie-Kräfte eines Teils an der
+   * Wurzel seiner Kette an (Anschluss am Joch bzw. auf der Mastachse), nicht
+   * am Leiterpunkt - ohne den Hebel der Traverse.
+   */
+  const achse = werte.havarieInAchse === true;
   const schalter = `<label class="hav-an" title="Ausgeschaltet: keine Havariefälle im Nachweis und in der AxisVM-Ausleitung">
-      <input type="checkbox" data-hav-an="1"${aus ? '' : ' checked'}> Havariefall rechnen (Nachweis und Export)</label>`;
+      <input type="checkbox" data-hav-an="1"${aus ? '' : ' checked'}> Havariefall rechnen (Nachweis und Export)</label>`
+    + (aus ? '' : `<label class="hav-an" title="Die Traversen geben nach: die Havarie-Kräfte greifen am Anschluss des Teils an (Joch bzw. Mastachse), ohne den Hebel bis zum Leiter. Gilt im Stabwerk am Tragjoch und an Teilen am Masten.">
+      <input type="checkbox" data-hav-achse="1"${achse ? ' checked' : ''}> Havarie: Last aufs Tragwerk übertragen (in der Achse)</label>`);
   return abschnitt(g.titel, `<span class="sec-r">${aus ? 'aus' : `${n} von ${leiter.length}`}</span>`)
     + schalter
     + (aus ? '<p class="notiz">Der Havariefall ist abgeschaltet — er wird weder nachgewiesen noch ausgeleitet.</p>'
@@ -537,6 +548,9 @@ function verdrahteHavarie(container, werte, onChange) {
   const wahl = () => ({ ...((aktuelleWerte ?? werte).havarie ?? {}) });
   container.querySelectorAll('[data-hav-an]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieAus', !inp.checked));
+  });
+  container.querySelectorAll('[data-hav-achse]').forEach((inp) => {
+    inp.addEventListener('change', () => onChange('havarieInAchse', inp.checked));
   });
   container.querySelectorAll('[data-hav]').forEach((inp) => {
     const ev = inp.type === 'checkbox' ? 'change' : 'change';

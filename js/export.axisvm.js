@@ -1674,7 +1674,7 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
                              : { starrRolle: 'anbauteil' });
     });
     kette.belegung.forEach(({ teil, punkt }) =>
-      arme.push({ teil, knoten: knotenVon.get(punkt) }));
+      arme.push({ teil, knoten: knotenVon.get(punkt), wurzel: knotenVon.get(kette.wurzel) }));
   });}
 
 /**
@@ -3980,7 +3980,7 @@ export function stabmodell(m, opt = {}) {
                              : { starrRolle: 'anbauteil' });
     });
     kette.belegung.forEach(({ teil, punkt }) =>
-      arme.push({ teil, knoten: knotenVon.get(punkt) }));
+      arme.push({ teil, knoten: knotenVon.get(punkt), wurzel: knotenVon.get(kette.wurzel) }));
 
     if (zweiPunkt) {
       zweiPunktAnschluss.push({ name: a.name ?? `AT${k}`, x: x0, ebene: ebenen[0] });
@@ -4184,6 +4184,14 @@ export function lasten(m, bau, opt = {}) {
 
   // Anbauteile: Kraft und Moment am wirklichen Angriffspunkt.
   bau.arme.forEach((arm, k) => {
+    /*
+     * >>> HAVARIE IN DER ACHSE (6. Oktober). <<< «Beim Havariefall schalter
+     * für Last auf Tragwerk transerieren, die überlegung ist, das die
+     * traversen nachgeben und die Last dann in Mastachse zu ligen kommt.»
+     * Eingeschaltet (`havarieInAchse`) greifen die Havarie-Kraefte an der
+     * Wurzel der Kette an - am Anschluss des Teils -, nicht am Leiterpunkt.
+     */
+    const havKn = m.havarieInAchse === true && arm.wurzel ? arm.wurzel : arm.knoten;
     EINWIRKUNGEN.forEach((e) => {
       // Alle Lastblöcke desselben Anschlusspunktes wirken am selben Knoten
       // und werden je Gruppe aufsummiert.
@@ -4205,7 +4213,8 @@ export function lasten(m, bau, opt = {}) {
         // ist das Gewicht des Anbauteils.
         const fall = (!gTrennen || e.key !== 'G') ? e.key
                    : richtung === 'X' ? G_ABLENK : G_ANBAU;
-        punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: arm.knoten,
+        punkt.push({ name: `F${k}_${fall}_${richtung}`,
+                     knoten: /^Havarie/.test(e.key) ? havKn : arm.knoten,
                      richtung, wert: r6(wert), lastfall: fall });
       });
       const mom = [['Mx', kr.Mxx ?? 0], ['My', kr.Myy ?? 0], ['Mz', kr.Mzz ?? 0]];
@@ -4249,7 +4258,7 @@ export function lasten(m, bau, opt = {}) {
        [`HavarieY|${c.key}|m`, 'Y', s2((x) => (x.fest ? 1 : -1) * x.m.Fy)]]
         .forEach(([fall, richtung, wert]) => {
         if (!wert) return;
-        punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: arm.knoten,
+        punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: havKn,
                      richtung, wert: r6(wert), lastfall: fall });
       });
     });
