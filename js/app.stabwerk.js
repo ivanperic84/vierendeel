@@ -332,7 +332,7 @@ export function stabwerkDatei(werte, erg, opt = {}) {
   const saetze = (sichtbareTragwerke(werte) ?? []).map((t) => tragwerkSatz(werte, t.id));
   const eingaben = [satz, ...saetze.filter((s) => s.twId !== satz.twId)];
   const { dat } = stabwerkModell(werte, erg, satz, eingaben,
-    { knotenmodell: 'anschnitt', gTrennen: true, ...opt, eigengewicht: true });
+    { knotenmodell: 'anschnitt', gTrennen: true, ...opt, eigengewicht: 'staebe' });
   // AxisVM setzt das Eigengewicht je Stab selbst an (`AddBeamSelfWeight`).
   dat.lasten.strecke = dat.lasten.strecke.filter((l) => !/(^|_)EG_/.test(l.name ?? ''));
   return dat;
@@ -367,7 +367,8 @@ export function rechneStabwerk(app, aufruf = {}) {
 
   const t0 = Date.now();
   let dat = null; let lsg = null; let bau = null; let seile = [];
-  const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+  // Eigengewicht aus den Stäben wie AxisVM (6. Oktober).
+  const opt = { knotenmodell: 'anschnitt', eigengewicht: 'staebe', gTrennen: true };
   try {
     ({ dat, bau } = stabwerkModell(werte, erg, satz, eingaben, opt));
     // Seilanker nur auf Zug (30. September): je Seil ein Hilfsfall, VOR dem

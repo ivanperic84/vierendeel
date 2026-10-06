@@ -386,8 +386,20 @@ export const GRUPPEN = [
    */
   { id: 'trasse', titel: 'Trasse und Fahrleitung', zugeklappt: true },
   { id: 'anbau', titel: 'Anbauteile' },
-  { id: 'ein',   titel: 'Verteilte Einwirkungen',
-    feinTitel: 'Zuschlag und Wind auf den Masten' },
+  /*
+   * >>> NACH EINWIRKUNG GEGLIEDERT (6. Oktober). <<< Weisung: «diese
+   * eingaben hinterfragen und die gliderung nachvollziehbarer machen. das
+   * eigengewicht wird aus den stäben generiert, die windlasten aufführen für
+   * joche und masten gleichbedeutend und nicht in einer separeten gruppe die
+   * zugeklappt ist.» Statt «Verteilte Einwirkungen» mit einer zugeklappten
+   * zweiten Ebene (Zuschlag, Mastwind) je Einwirkung eine Gruppe: Wind
+   * (Stufe, Reduktion, Joch, Masten in beiden Richtungen), Ständig, Schnee,
+   * Bestandesschutz. Die Schlüssel der Felder bleiben.
+   */
+  { id: 'ein',   titel: 'Wind', feinTitel: 'Nur Ersatzbalken' },
+  { id: 'staendig', titel: 'Ständige Lasten' },
+  { id: 'schnee', titel: 'Schnee' },
+  { id: 'bestand', titel: 'Bestandesschutz' },
   { id: 'havarie', titel: 'Havarie: welcher Leiter reisst' },
   { id: 'komb',  titel: 'Lastfälle' },
   { id: 'ansicht', titel: 'Modellansicht' },
@@ -1864,7 +1876,7 @@ export const FELDER = [
    * (`wertAus`), `aendern` in app.js schreibt dorthin zurück - ein zweiter
    * Ort für dieselbe Wahl wäre einer, der sich irgendwann widerspricht.
    */
-  { key: 'bestandesschutz', gruppe: 'ein', typ: 'schalter', label: 'Bestandesschutz',
+  { key: 'bestandesschutz', gruppe: 'bestand', typ: 'schalter', label: 'Bestandesschutz',
     wertAus: (w) => nachweiseAuswahl(w.nachweise).bestandesschutz === true,
     notiz: (w) => (w.windKlasse === '1.0' && !nachweiseAuswahl(w.nachweise).bestandesschutz
       ? 'Bestand nach alter Norm? Bestandesschutz prüfen' : null),
@@ -1878,11 +1890,11 @@ export const FELDER = [
    * ausnutzung oder den Grenzwert de Bauteils.» Nur sichtbar, wenn der
    * Vergleich eingeschaltet ist; Regel in core.bestand.js (`bestandRegel`).
    */
-  { key: 'bestandProzent', gruppe: 'ein', typ: 'zahl', label: 'Bestandesschutz: zulässige Zunahme',
+  { key: 'bestandProzent', gruppe: 'bestand', typ: 'zahl', label: 'Bestandesschutz: zulässige Zunahme',
     sym: 'Δ', einheit: '%', standard: 5, schritt: 0.5, min: 0.5,
     sichtbar: (w) => nachweiseAuswahl(w.nachweise).bestandesschutz === true,
     hinweis: 'Zulässige Zunahme der Ausnutzung je Bauteil durch die neuen Teile.' },
-  { key: 'bestandBezug', gruppe: 'ein', typ: 'auswahl', label: 'Bestandesschutz: bezogen auf',
+  { key: 'bestandBezug', gruppe: 'bestand', typ: 'auswahl', label: 'Bestandesschutz: bezogen auf',
     standard: 'grenzwert',
     optionen: [{ wert: 'grenzwert', text: 'Grenzwert des Bauteils (η = 1.00)' },
                { wert: 'ausnutzung', text: 'tatsächliche Ausnutzung (η Bestand)' }],
@@ -1901,12 +1913,12 @@ export const FELDER = [
     hinweis: 'Reduziert allen Wind - Joch, Masten, Anbauteile, Leiter, Abfangjoch, '
       + 'Tragausleger - über die Beiwerte der Lastfälle: Wind x und Wind y × 0.74 in jeder '
       + 'Kombination, auch im Betriebswind und in der AxisVM-Ausleitung.' },
-  { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
+  { key: 'schneeAktiv', gruppe: 'schnee', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
       ? 'Die Laufmeterlast liegt auf dem Joch — am Einzelmasten trägt sie '
       + 'niemand. Schnee auf Anbauteilen zählt unabhängig davon.' : '') },
-  { key: 'schneeKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Schneelast',
+  { key: 'schneeKlasse', gruppe: 'schnee', typ: 'auswahl', label: 'Schneelast',
     standard: '1.25', optionen: opt(SCHNEE_KLASSEN),
     sichtbar: (w) => w.lastHerkunft === 'tabelle' && w.schneeAktiv
                   && tragwerksart(w).key !== 'einzelmast' },
@@ -1915,7 +1927,7 @@ export const FELDER = [
   // Tabellenwerte gelten, stehen sie gesperrt darin - man sieht also stets,
   // womit gerechnet wird. Der Knopf "Werte bearbeiten" entsperrt sie und
   // schaltet die Herkunft auf "manuell".
-  { key: 'gkManuell', gruppe: 'ein', typ: 'zahl', label: 'Ständige Last',
+  { key: 'gkManuell', gruppe: 'staendig', typ: 'zahl', label: 'Ständige Last Joch',
     sym: 'g_k', einheit: 'kN/m', standard: 0.6, schritt: 0.05, min: 0,
     ausLast: true,
     // >>> LAUFMETERLASTEN GEHOEREN DEM TRAEGER (20. September). <<<
@@ -1925,23 +1937,31 @@ export const FELDER = [
     // Laufmeter liegen koennte. Was den Masten trifft, steht darunter
     // (w_Mast) und an den Anbauteilen.
     sichtbar: (w) => tragwerksart(w).key !== 'einzelmast',
-    hinweis: 'Eigengewicht nach Sortimentstabelle plus Zuschlag.'},
-  { key: 'wkManuell', gruppe: 'ein', typ: 'zahl', label: 'Windlast',
+    // Seit dem 6. Oktober wiegt das Stabwerk die Stäbe wie AxisVM; die
+    // Tabellenlast gilt dem Ersatzbalken und dient dem Vergleich.
+    hinweis: (w) => (nurErsatzbalken(w)
+      ? 'Eigengewicht nach Sortimentstabelle plus Zuschlag.'
+      : 'Laufmeterlast der Sortimentstabelle - gilt dem Ersatzbalken und zum Vergleich. '
+        + 'Das Stabwerk wiegt wie AxisVM die Stäbe (Gurte, Bleche, Masten; Querschnitt × Wichte) '
+        + 'plus Zuschlag Δg_k. Nicht als Stab im Modell: Anschlusswinkel, Stosslaschen, '
+        + 'Schrauben - beim J130/30 m rund 5 % der Tabelle; bei Bedarf als Δg_k ansetzen.') },
+  { key: 'wkManuell', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Joch',
     sym: 'w_k', einheit: 'kN/m', standard: 0.52, schritt: 0.05, min: 0,
     ausLast: true,
     sichtbar: (w) => tragwerksart(w).key !== 'einzelmast' },
-  { key: 'skManuell', gruppe: 'ein', typ: 'zahl', label: 'Schneelast',
+  { key: 'skManuell', gruppe: 'schnee', typ: 'zahl', label: 'Schneelast',
     sym: 's_k', einheit: 'kN/m', standard: 0.27, schritt: 0.05, min: 0,
     ausLast: true,
     sichtbar: (w) => w.schneeAktiv && tragwerksart(w).key !== 'einzelmast' },
 
-  { key: 'gZusatz', fein: true, gruppe: 'ein', typ: 'zahl',
+  { key: 'gZusatz', gruppe: 'staendig', typ: 'zahl',
     label: 'Zuschlag ständige Last',
     sym: 'Δg_k', einheit: 'kN/m', standard: 0.0, schritt: 0.05, min: 0,
     sichtbar: (w) => w.lastHerkunft === 'tabelle'
                   && tragwerksart(w).key !== 'einzelmast',
-    hinweis: 'Kommt zur Tabellenlast g_k dazu — Leitungen, Beschilderung, '
-           + 'was das Sortiment nicht kennt.' },
+    hinweis: 'Kommt zum Eigengewicht dazu — im Stabwerk und in AxisVM zu den Stäben, '
+           + 'im Ersatzbalken zur Tabellenlast g_k: Leitungen, Beschilderung, Anschlusswinkel '
+           + 'und Stosslaschen, was kein Stab ist.' },
   /* =========================================================================
    * >>> ZUSCHLAG UND MASTWIND STEHEN HINTER DEN GRUNDLASTEN. <<<
    * =========================================================================
@@ -1978,8 +1998,8 @@ export const FELDER = [
    * gaebe es beiden 0.37 statt 0.28 und 0.31 kN/m. Dem Auftraggeber
    * vorgelegt, bis dahin gilt die Tabelle.
    */
-  { key: 'wMast', fein: true, gruppe: 'ein', typ: 'zahl',
-    label: 'Windlast auf Mast · Jochachse',
+  { key: 'wMast', gruppe: 'ein', typ: 'zahl',
+    label: 'Windlast auf Mast · quer zum Gleis',
     sym: 'w_Mast,x', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     nurAnzeige: true,
     wertAus: (w) => mastWindAnzeige(w).x,
@@ -1995,8 +2015,8 @@ export const FELDER = [
    * nicht - sichtbar sein muessen sie trotzdem beide, sonst sieht man am
    * Einzelmasten die massgebende Richtung gar nicht.
    */
-  { key: 'wMastY', fein: true, gruppe: 'ein', typ: 'zahl',
-    label: 'Windlast auf Mast · Gleisrichtung',
+  { key: 'wMastY', gruppe: 'ein', typ: 'zahl',
+    label: 'Windlast auf Mast · längs zum Gleis',
     sym: 'w_Mast,y', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
     nurAnzeige: true,
     wertAus: (w) => mastWindAnzeige(w).y,
@@ -2032,8 +2052,8 @@ export const FELDER = [
      * voll eingespannt: M_A 15.0 -> 36.7 kNm).
      */
     sichtbar: (w) => mastDa(w) && !['einzelmast', 'abfangjoch']
-      .includes(tragwerksart(w).key),
-    hinweis: 'Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
+      .includes(tragwerksart(w).key) && nurErsatzbalken(w),
+    hinweis: 'Nur Ersatzbalken. Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
            + 'Verdrehung wird dem Jochende aufgezwungen. Wind in Gleisrichtung '
            + 'bleibt aussen vor. Handbuch.'},
 

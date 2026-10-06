@@ -4106,12 +4106,12 @@ export function stabmodell(m, opt = {}) {
  * Stäbe (Starrkörper und Links nie), lotrecht in G.
  */
 const RHO_STAHL = 7850;         // kg/m³, wie dat.material.rho
-function eigengewichtAus(bau, auswahl) {
+function eigengewichtAus(bau, auswahl, qsVon = (st) => st.qs ?? st.querschnitt) {
   const qsMap = bau.querschnitte instanceof Map ? bau.querschnitte
     : new Map((bau.querschnitte ?? []).map((q) => [q.name, q]));
   const out = [];
   bau.staebe.filter(auswahl).forEach((st) => {
-    const q = qsMap.get(st.qs ?? st.querschnitt);
+    const q = qsMap.get(qsVon(st));
     const A = Number.isFinite(q?.A) ? q.A
       : (q?.form === 'Rectangle' ? (q.parameter[0] * q.parameter[1]) / 1e6 : null);
     if (!(A > 0)) return;
@@ -4171,7 +4171,20 @@ export function lasten(m, bau, opt = {}) {
   // VERGLEICHSMODELL ohnehin das Richtige ist: so wird die Modellbildung
   // verglichen und nicht die Wichte.
   const gZusatz = m.char?.herkunft?.gZusatz ?? 0;
-  const gStrecke = opt.eigengewicht ? (m.char?.gk ?? 0) : gZusatz;
+  /*
+   * >>> DAS STABWERK WIEGT DIE STÄBE, WIE AXISVM (6. Oktober). <<< Auf
+   * Rückfrage «Stabwerk aus den Stäben wie AxisVM»: mit
+   * `eigengewicht: 'staebe'` bekommt das Joch nur den Zuschlag Δg_k als
+   * Streckenlast, das Eigengewicht aller echten Stäbe (Gurte, Bleche,
+   * Masten, Anker) kommt aus Querschnitt × Wichte. Bis hierher nahm das
+   * Stabwerk die Laufmeterlast g_k der Sortimentstabelle fürs Joch, AxisVM
+   * die Stäbe - zwei Eigengewichte für dasselbe Modell. Und die COM-Datei
+   * aus dem Stabwerk (`stabwerkDatei`) trug g_k als `Q_G_…`, das nicht
+   * herausgefiltert wurde: AxisVM wog das Joch dort doppelt. PyNite
+   * (`eigengewicht: true`) behält die Tabelle (Vergleichsmodell, siehe oben).
+   */
+  const ausStaeben = opt.eigengewicht === 'staebe';
+  const gStrecke = opt.eigengewicht && !ausStaeben ? (m.char?.gk ?? 0) : gZusatz;
   const verteilt = [
     { gruppe: 'G', richtung: 'Z', wert: -gStrecke, auf: ['OGL', 'OGR', 'UGL', 'UGR'] },
     { gruppe: 'WindY', richtung: 'Y', wert: +(m.char?.wk ?? 0), auf: ['OGL', 'UGL'] },
@@ -4228,7 +4241,19 @@ export function lasten(m, bau, opt = {}) {
   }
   // Das Eigengewicht der Masten, wenn die Liste es tragen soll (siehe
   // `eigengewichtAus`) - das Joch steckt schon in g_k oben.
-  if (opt.eigengewicht && mastStaebe.length) {
+  if (ausStaeben) {
+    // Echte Stäbe nach derselben Regel wie die Ausleitung (`starrArt`): ein
+    // Starrkörper mit dem Ersatzquerschnitt 500x500 wöge das Fünfzigfache.
+    // Die steifen Gurtabschnitte im Knotenbereich tragen im Baustein den
+    // Ersatzquerschnitt STARR, in der Datei aber den Gurt (`gurtSteif`) - und
+    // AxisVM wiegt sie. Ohne sie fehlten dem J130/30 m 20 % der Gurte
+    // (gemessen 6. Oktober: 18.8 statt 23.6 kg/m am Obergurt).
+    const sm = opt.starrModell ?? 'koerper';
+    const steif = (st) => st.starrRolle === 'gurtabschnitt' && sm !== 'staebe';
+    strecke.push(...eigengewichtAus(bau,
+      (st) => steif(st) || (starrArt(st, sm).art === 'stab' && rohQs(st) !== STARR.name),
+      (st) => (steif(st) ? gurtSteif(st, sm).querschnitt : st.qs ?? st.querschnitt)));
+  } else if (opt.eigengewicht && mastStaebe.length) {
     strecke.push(...eigengewichtAus(bau, (st) => mastStaebe.includes(st)));
   }
 

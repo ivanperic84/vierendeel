@@ -205,7 +205,8 @@ export const EINGABE_TABS = [
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
   { id: 'profil', titel: 'Profile', icon: 'profil', gruppen: ['prof', 'blech', 'stueck'] },
   { id: 'anbau', titel: 'Anbauteile', icon: 'anbau', gruppen: ['trasse', 'anbau'] },
-  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['ein', 'havarie', 'komb'] },
+  // Nach Einwirkung gegliedert (6. Oktober): ständig, Wind, Schnee, Bestandesschutz.
+  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['staendig', 'ein', 'schnee', 'bestand', 'havarie', 'komb'] },
 ];
 
 /** Reiter der Auswertung. */
@@ -600,6 +601,8 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
    * dastehende Felder wuerden behaupten, es gaebe dort etwas zu entscheiden.
    */
   const gruppen = gruppenFuer(tab, werte);
+  // «Werte bearbeiten» der Lasten nur an der ersten Gruppe, die Tabellenlasten führt.
+  let lastKnopfDa = false;
   container.innerHTML = gruppen.map((gid) => {
     const g = GRUPPEN.find((x) => x.id === gid);
     if (!g) return '';
@@ -611,7 +614,8 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     // Zusatzstück bestehen - die Lastfallmatrix ist so ein Fall.
     if (!felder.length) return zusatz;
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
-                : felder.some((f) => f.ausLast) ? lastenKnopf(werte) : '';
+                : felder.some((f) => f.ausLast) && !lastKnopfDa
+                  ? ((lastKnopfDa = true), lastenKnopf(werte)) : '';
     /* =====================================================================
      * >>> EINE ERSTE UND EINE ZWEITE EBENE. <<<
      * =====================================================================
@@ -9987,6 +9991,13 @@ export function kombiMatrixHtml(kombi, normensatz) {
       Gruppe um; ständige Einwirkungen behalten ihre Wirkrichtung.
       Die veränderlichen Vertikallasten der Anbauteile (Q_z) laufen in der
       Gruppe <b>Schnee</b> mit.
+      ${/* Nachgeführt am 6. Oktober («diesen textblock hinterfragen ob es dem
+           jetzigen stand entspricht»). */''}
+      Die Zahlen nennen Joch und Anbauteile; <b>Eigengewicht und Wind der
+      Masten</b> sind darin nicht enthalten, sie stehen am Masten. Das
+      Stabwerk wiegt die Stäbe selbst (wie AxisVM), die Laufmeterlast der
+      Tabelle gilt dem Ersatzbalken. <b>Begleitend</b> wirkt ψ₀ · Q_k, ohne
+      γ_Q (SIA 260 Gl. 16).
       ${normensatz ? '' : '<b>Die Beiwerte weichen von SIA 260 und RTE ab.</b>'}
     </div>`)}`;
 }

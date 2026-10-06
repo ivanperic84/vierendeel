@@ -1520,58 +1520,33 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
    * Klassenwahl, dann der Zuschlag, und erst danach die drei
    * charakteristischen Grundlasten. Also von hinten nach vorn.
    */
+  /*
+   * >>> SEIT DEM 6. OKTOBER NACH EINWIRKUNG GEGLIEDERT. <<< «die windlasten
+   * aufführen für joche und masten gleichbedeutend und nicht in einer
+   * separeten gruppe die zugeklappt ist.» Ständig / Wind / Schnee /
+   * Bestandesschutz je eine Gruppe; Zuschlag und Mastwind erste Ebene.
+   */
   {
-    const ek = keys('ein');
-    const vorEin = (a, b) => ek.indexOf(a) >= 0 && ek.indexOf(b) >= 0
-      && ek.indexOf(a) < ek.indexOf(b);
-    wahr('Erst die Wahl, dann was daraus folgt',
-         vorEin('windKlasse', 'gkManuell'), ek.join(', '));
-    /*
-     * MIT SCHNEE: ohne ihn stehen die beiden Schneefelder gar nicht da -
-     * `schneeAktiv` schaltet sie frei. Die Kontrolle muss ihn einschalten,
-     * sonst prueft sie eine leere Liste und faellt aus dem falschen Grund.
-     */
-    const ekS = U.sichtbareFelder('ein', { ...w, schneeAktiv: true })
-      .map((f) => f.key);
-    wahr('Schnee ja/nein steht vor der Schneelast',
-         ekS.indexOf('schneeAktiv') < ekS.indexOf('skManuell')
-         && ekS.includes('skManuell'), ekS.join(', '));
-    wahr('… und die Klasse gleich dahinter',
-         ekS.indexOf('schneeKlasse') === ekS.indexOf('schneeAktiv') + 1);
-    wahr('Die Grundlasten stehen beieinander',
-         ek.indexOf('wkManuell') === ek.indexOf('gkManuell') + 1);
-    /*
-     * >>> DER ZUSCHLAG UND DER MASTWIND SIND ZWEITE EBENE. <<<
-     */
-    const feinEin = U.sichtbareFelder('ein', { ...w, mastVorhanden: true })
+    const wM = { ...w, mastVorhanden: true, schneeAktiv: true };
+    const kw = U.sichtbareFelder('ein', wM).map((f) => f.key);
+    wahr('Wind: Stufe zuerst, dann Joch und beide Mastrichtungen', kw[0] === 'windKlasse'
+         && ['wkManuell', 'wMast', 'wMastY'].every((k) => kw.includes(k)), kw.join(', '));
+    const ks = U.sichtbareFelder('schnee', wM).map((f) => f.key);
+    wahr('Schnee: ja/nein, Klasse, Last', ks.join(',') === 'schneeAktiv,schneeKlasse,skManuell', ks.join(', '));
+    const kg = U.sichtbareFelder('staendig', wM).map((f) => f.key);
+    wahr('Ständig: Joch und Zuschlag', kg.join(',') === 'gkManuell,gZusatz', kg.join(', '));
+    const fein = ['ein', 'staendig', 'schnee'].flatMap((g) => U.sichtbareFelder(g, wM))
       .filter((f) => f.fein).map((f) => f.key);
-    for (const k of ['gZusatz', 'wMast', 'mastWindAufJoch']) {
-      wahr(`${k} steht in der zweiten Ebene`, feinEin.includes(k),
-           feinEin.join(', '));
-    }
-    /* =====================================================================
-     * >>> DIE DREI GRUNDLASTEN NICHT - UND DAS IST EINE AUSNAHME. <<<
-     * =====================================================================
-     *
-     * Sie tragen `ausLast` und sind ohne «Werte bearbeiten» gesperrt. Nach
-     * der Regel aus dem Reiter System (was man nicht anfassen kann, gehoert
-     * nicht in die erste Ebene) muessten sie in den Klappblock.
-     *
-     * SIE BLEIBEN TROTZDEM OBEN. Der Unterschied: die Katalogmasse dort
-     * sagen, wie das Bauteil AUSSIEHT - diese hier sagen, was auf ihm
-     * LIEGT. Man soll stets sehen, womit gerechnet wird, ohne einen Block
-     * aufzuklappen. Der Vermerk steht seit jeher im Schema; hier steht er
-     * als Kontrolle, damit ihn kein spaeteres Aufraeumen wegwischt.
-     */
+    wahr('Zuschlag und Mastwind in der ersten Ebene', !fein.includes('gZusatz')
+         && !fein.includes('wMast') && !fein.includes('wMastY'), fein.join(', '));
+    wahr('Mastwind auf das Joch nur beim Ersatzbalken',
+         !U.sichtbareFelder('ein', wM).some((f) => f.key === 'mastWindAufJoch')
+         && U.sichtbareFelder('ein', { ...wM, rechenverfahren: 'ersatzbalken' }).some((f) => f.key === 'mastWindAufJoch'));
     for (const k of ['gkManuell', 'wkManuell']) {
       const f = U.FELDER.find((x) => x.key === k);
       wahr(`${k} ist gesperrt …`, f.ausLast === true);
       wahr('… steht aber in der ersten Ebene', !f.fein);
     }
-    // Und die Gruppe sagt, wie ihr Block heisst.
-    const gEin = U.GRUPPEN.find((g) => g.id === 'ein');
-    wahr('Die Gruppe nennt ihre zweite Ebene beim Namen',
-         gEin.feinTitel === 'Zuschlag und Wind auf den Masten');
   }
 
   /* =========================================================================
@@ -1648,7 +1623,7 @@ titel('18  Oberfläche: Struktur der Eingabe');
   const w = standardwerte();
 
   // Keine Grösse darf zweimal bedienbar sein
-  const alleSichtbaren = ['geo', 'aufl', 'prof', 'blech', 'anbau', 'ein', 'komb']
+  const alleSichtbaren = ['geo', 'aufl', 'prof', 'blech', 'anbau', 'ein', 'staendig', 'schnee', 'bestand', 'komb']
     .flatMap((g) => sichtbar(g, w));
   wahr('Nachweisschnitt nicht doppelt in der Eingabe',
        !alleSichtbaren.includes('xNachweis'),
@@ -26612,7 +26587,7 @@ titel('101  Havarie je Leiter: nur einer reisst, Uebersicht, Ausleitung');
        Object.keys(neu.havarie ?? {}).length === 2 && neu.anbauteile.every((a) => a.bruch === undefined));
 
   const ui101 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
-  wahr('Die Uebersicht steht unter Lasten', ui101.includes("gruppen: ['ein', 'havarie', 'komb']")
+  wahr('Die Uebersicht steht unter Lasten', ui101.includes("'bestand', 'havarie', 'komb']")
        && ui101.includes('data-hav="reisst"'));
 }
 
@@ -34974,7 +34949,9 @@ titel('182  Kleine Befunde: Name in der Reihenzeile, Höhe im Dialog, Ankerfang,
       const a = sw.reaktionen?.find((r) => r.art === 'anker')?.haupt ?? {};
       const m = Math.max(...['Mq', 'Ml', 'T'].map((k) => Math.abs(a[k]?.wert ?? 0)));
       wahr(`${typ} quer: am Ankerfundament keine Momente (vorher U12 M_l 4.10, T 2.62; SA20 M_l 0.70 kNm)`,
-           m < 0.01, `grösstes ${m.toFixed(4)} kNm`);
+           // Seit dem 6. Oktober wiegt das Stabwerk auch den Anker (Eigengewicht
+           // aus den Stäben); über den 50-mm-Link am Fuss bleiben ~0.013 kNm.
+           m < 0.02, `grösstes ${m.toFixed(4)} kNm`);
     });
   }
   // (7) Mastdialog: Höhe des Tragwerks, das der Mast trägt, an seinem Ende.
@@ -35055,7 +35032,8 @@ titel('183  Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und
     pruef('Blech: τ = 1.5·V / A', d.tau, 1.5 * d.V / d.A / 1000, 1e-9, 'N/mm²');
     pruef('Blech: η = √(σ² + 3τ²) / f_yd (σ_v mit τ, Rückfrage 1. Oktober)', bl.eta,
           Math.sqrt(sigNorm ** 2 + 3 * d.tau ** 2) / fyd, 1e-12, '');
-    pruef('J90/20 m: Blech mit Schub (vorher 0.3634 ohne τ)', bl.eta, 0.3712, 2e-4, '');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 0.3715
+    // Eigengewicht aus den Stäben wie AxisVM (6. Okt.): vorher 0.3712 mit g_k der Tabelle.
+    pruef('J90/20 m: Blech mit Schub (vorher 0.3634 ohne τ)', bl.eta, 0.3689, 2e-4, '');   // Querschnittswerte aus dem Normumriss (2. Okt.): vorher 0.3715
   }
   {
     const d = ma.detail;
@@ -38350,12 +38328,13 @@ titel('230  Bestandesschutz: Schalter unter Lasten und über der Anbauteilliste'
   const U230 = await import(J('ui.js'));
   const i = SCH230.FELDER.findIndex((f) => f.key === 'bestandesschutz');
   const f = SCH230.FELDER[i];
-  wahr('Ein Schalter «Bestandesschutz» in der Gruppe Lasten, direkt unter der Windbelastung',
-       f && f.gruppe === 'ein' && f.typ === 'schalter' && SCH230.FELDER[i - 1]?.key === 'windKlasse');
+  // Seit dem 6. Oktober eine eigene Gruppe «Bestandesschutz» unter Lasten.
+  wahr('Ein Schalter «Bestandesschutz» in der eigenen Gruppe unter Lasten',
+       f && f.gruppe === 'bestand' && f.typ === 'schalter');
   const w0 = { ...standardwerteApp(), lastHerkunft: 'tabelle' };
   wahr('Er steht bei jeder Tragwerksart da (auch am Einzelmasten)',
-       SCH230.sichtbareFelder('ein', w0).some((x) => x.key === 'bestandesschutz')
-       && SCH230.sichtbareFelder('ein', { ...w0, tragwerksart: 'einzelmast' }).some((x) => x.key === 'bestandesschutz'));
+       SCH230.sichtbareFelder('bestand', w0).some((x) => x.key === 'bestandesschutz')
+       && SCH230.sichtbareFelder('bestand', { ...w0, tragwerksart: 'einzelmast' }).some((x) => x.key === 'bestandesschutz'));
   wahr('Er zeigt die Nachweisauswahl - kein eigener Wert im Stand',
        f.wertAus(w0) === false && f.wertAus({ ...w0, nachweise: { bestandesschutz: true } }) === true
        && standardwerteApp().bestandesschutz === undefined);
