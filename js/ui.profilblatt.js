@@ -123,6 +123,33 @@ const FELDER = {
  */
 const roh = (v) => (Number.isFinite(v) ? String(v) : '–');
 
+/*
+ * >>> ANGEZEIGT IN mm, MIT 10³ / 10⁶ (6. Oktober). <<< Weisung: «bei den
+ * Querschnittswerten immer mm verwenden und mit 10^3 oder 10^6 anschreiben
+ * wenn notwendig. ist besser für die vergleichbarkeit mit den tabellen c5
+ * szs». Hinterlegt bleibt jede Tabelle in ihrer Einheit; umgerechnet wird
+ * nur die Anzeige, und nur mit Zehnerpotenzen - die Ziffern bleiben die
+ * hinterlegten. Länge mm, Fläche mm², W 10³ mm³, I 10⁶ mm⁴, I_t 10³ mm⁴.
+ */
+const ANZEIGE_MM = {
+  cm: ['mm', 1],
+  'cm²': ['mm²', 2],
+  'cm³': ['10³ mm³', 0],
+  'cm⁴': ['10⁶ mm⁴', -2],
+};
+const ANZEIGE_IT = ['10³ mm⁴', 1];
+/** Schiebt das Komma um n Stellen - als Zeichenkette, ohne Gleitkommarest. */
+function komma(text, n) {
+  const v = Number(text);
+  if (!Number.isFinite(v) || n === 0) return text;
+  return String(Number((v * 10 ** n).toPrecision(12)));
+}
+function inMm(r) {
+  const regel = r.sym.includes('I_t') && r.einheit === 'cm⁴' ? ANZEIGE_IT : ANZEIGE_MM[r.einheit];
+  if (!regel) return r;
+  return { ...r, einheit: regel[0], wert: komma(r.wert, regel[1]) };
+}
+
 /* ===========================================================================
  * DIE ZEICHNUNG
  * ===========================================================================
@@ -320,7 +347,7 @@ function zeilen(art, p) {
       ['Wz', 'W_z', 'cm³', 'b · t² / 6'],
       ['It', 'I_t', 'cm⁴', 'b · t³ / 3 · (1 − 0.63 t/b)']]) {
       z.push({ sym, einheit, abgeleitet: true, text: `gerechnet: ${text}`,
-               wert: k[key].toFixed(2) });
+               wert: String(Number(k[key].toPrecision(6))) });
     }
   }
   if (art === 'winkel' && Number.isFinite(p?.A)) {
@@ -328,7 +355,7 @@ function zeilen(art, p) {
       if (Number.isFinite(p[i])) {
         z.push({ sym, einheit: 'cm⁴', abgeleitet: true,
                  text: `abgeleitet: ${sym.replace('I', 'i')}² · A`,
-                 wert: (p[i] ** 2 * p.A).toFixed(2) });
+                 wert: String(Number((p[i] ** 2 * p.A).toPrecision(6))) });
       }
     }
     // I_t, wie das Stabwerk ihn rechnet (core.winkel.js, winkelIt).
@@ -336,10 +363,10 @@ function zeilen(art, p) {
       const aH = p.aH ?? p.a, aV = p.aV ?? p.a;
       z.push({ sym: 'I_t', einheit: 'cm⁴', abgeleitet: true,
                text: 'abgeleitet: (a_H + a_V) · t³ / 3, dünnwandig, wie im Stabwerk',
-               wert: (((aH + aV) * p.t ** 3) / 3 / 1e4).toFixed(2) });
+               wert: String(Number((((aH + aV) * p.t ** 3) / 3 / 1e4).toPrecision(6))) });
     }
   }
-  return z;
+  return z.map(inMm);
 }
 
 /** Was unter der Zeichnung zur Ausführung gesagt werden muss. */
@@ -473,8 +500,8 @@ export function profilBlattHtml(e) {
           e.quelle ? ` · ${esc(e.quelle)}` : ''}. ${e.art === 'blech'
           ? 'Hinterlegt sind nur die Masse; die Kennwerte (kursiv) sind aus b × t gerechnet.'
           : `Die Werte stehen, wie sie in der Datenbasis hinterlegt sind
-          (ungerundet, in der Einheit ihrer Tabelle) — zum Abgleich mit der
-          Profiltabelle der Literatur. Kursiv: abgeleitet, wie gerechnet wird.`}</p>
+          (ungerundet), angezeigt in mm mit 10³ / 10⁶ wie die Profiltabellen
+          der Literatur (SZS C5). Kursiv: abgeleitet, wie gerechnet wird.`}</p>
         ${e.p.hinweis ? `<p class="hinweis" style="margin:3px 0 0">${esc(e.p.hinweis)}</p>` : ''}
       </div>
     </div>`;

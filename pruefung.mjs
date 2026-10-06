@@ -35261,12 +35261,14 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
 
   // (d) Die Tabelle des Blattes: die Werte ungerundet, wie hinterlegt.
   const html = PB.profilBlattHtml({ art: 'winkel', p: wink, name: wink.name, rolle: 'Obergurt' });
-  wahr('Blatt L 90x90x9: z_s und y_s mit dem Tabellenwert (2.54 cm), W_y 17.93',
-       html.includes('<td class="num">2.54</td>') && html.includes('<td class="num">17.93</td>'));
+  // Seit dem 6. Oktober in mm mit 10³ / 10⁶ angezeigt (SZS C5): 2.54 cm = 25.4 mm.
+  wahr('Blatt L 90x90x9: z_s und y_s mit dem Tabellenwert (25.4 mm), W_y 17.93 · 10³ mm³',
+       html.includes('<td class="num">25.4</td>') && html.includes('<td class="num">17.93</td>')
+       && html.includes('10³ mm³') && html.includes('10⁶ mm⁴') && !html.includes('cm⁴'));
   wahr('Blatt L 90x90x9: I_y als abgeleitet gekennzeichnet (i_y² · A)',
-       html.includes('pb-abgeleitet') && html.includes((wink.iy ** 2 * wink.A).toFixed(2)));
+       html.includes('pb-abgeleitet') && html.includes(String(Number((wink.iy ** 2 * wink.A / 100).toPrecision(6)))));
   const hU = PB.profilBlattHtml({ art: 'walz', p: upe, name: upe.name });
-  wahr('Blatt UPE 140: I_t 3.96 und e_y 2.17, ohne Rundung', hU.includes('>3.96<') && hU.includes('>2.17<'));
+  wahr('Blatt UPE 140: I_t 39.6 · 10³ mm⁴ und e_y 21.7 mm, ohne Rundung', hU.includes('>39.6<') && hU.includes('>21.7<'));
   wahr('Blatt UNP des Ankers: sagt, dass EIN Profil gezeichnet ist',
        PB.profilBlattHtml({ art: 'anker', p: unp, name: 'UNP 120' }).includes('Gezeichnet ist EIN Profil'));
 
