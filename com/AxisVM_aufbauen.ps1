@@ -1557,23 +1557,58 @@ $gesehen = New-Object System.Collections.Generic.HashSet[string]
 foreach ($nc in @(@{ n = 'ndcEuroCode';     v = $ndcEuroCode },
                   @{ n = 'ndcEuroCode_GER'; v = $ndcEuroGER },
                   @{ n = 'ndcSwiss_SIA26x'; v = $ndcSchweiz })) {
-    foreach ($nm in @($stahl, ($stahl -replace '^S\s*', 'S '), ($stahl -replace '\s+', ''))) {
+    # Die Schreibweise mit Leerzeichen zuerst (6. Oktober): der Katalog
+    # fuehrt 'S 235'; 'S235' lieferte bei jedem Aufbau zuerst errNotFound,
+    # und die Meldung im Bericht las sich wie ein Fehler.
+    foreach ($nm in @(($stahl -replace '^S\s*', 'S '), $stahl, ($stahl -replace '\s+', ''))) {
         $bez = "AddFromCatalog($($nc.n), '$nm')"
         if (-not $gesehen.Add($bez)) { continue }
         $v = $nc.v; $x = $nm
         $kand += @{ name = $bez; tu = { $m.Materials.AddFromCatalog($v, $x) }.GetNewClosure() }
     }
 }
-$r = Versuche 'Material' $kand -Positiv
-if (-not $r.ok) {
-    Signaturen 'IAxisVMMaterials' 'AddSteel'
-    Schreib ''
-    Schreib 'Damit laesst sich der Stahl von Hand setzen - unsere Datei fuehrt:'
-    Schreib ("  E $($d.material.E) N/mm2, G $($d.material.G), nu $($d.material.nu), " +
-             "alpha $($d.material.alpha), rho $($d.material.rho) kg/m3, fy $($d.material.fy)")
-    Beenden 3 ("$stahl in keinem Katalog gefunden. AxisVM meldet das als " +
-               'negative Zahl, nicht als Fehler - deshalb faellt es sonst ' +
-               'erst beim Rechnen auf.')
+$r = Versuche 'Material' $kand -Positiv -Leise
+<#  KEIN ABBRUCH, WENN DER KATALOG DEN STAHL ANDERS NENNT (6. Oktober).
+    Gemeldet: auf einem anderen Rechner kam eine Fehlermeldung zur
+    Materialzuweisung. Welche Namen ein Katalog fuehrt, haengt an Fassung,
+    Sprache und Laendereinstellung von AxisVM. Findet keiner den Stahl, wird
+    er mit den Kennwerten der Datei angelegt - derselbe Weg wie das steife
+    Material unten (AddSteel_EuroCode, Einheiten kN/m2 und kg/m3).      #>
+if ($r.ok) {
+    Schreib ("  {0,-34} {1}" -f 'Material', $r.name)
+} else {
+    Schreib "  $stahl in keinem Katalog gefunden - lege ihn aus den Kennwerten der Datei an."
+    $fyD = if ($d.material.fy) { [double]$d.material.fy } else { 235 }
+    $fuTab = @{ 235 = 360; 275 = 430; 355 = 490; 420 = 520; 460 = 540 }
+    $fuD = if ($d.material.fu) { [double]$d.material.fu } elseif ($fuTab.ContainsKey([int]$fyD)) { $fuTab[[int]$fyD] } else { 360 }
+    $eD  = if ($d.material.E) { [double]$d.material.E * 1000 } else { 2.1e8 }
+    $nuD = if ($d.material.nu) { [double]$d.material.nu } else { 0.3 }
+    $alD = if ($d.material.alpha) { [double]$d.material.alpha } else { 1.2e-5 }
+    $rhD = if ($d.material.rho) { [double]$d.material.rho } else { 7850 }
+    $wertM = 0
+    try {
+        $wertM = $m.Materials.AddSteel_EuroCode('EuroCode', $stahl, $stahl,
+            0x999999, 0x666666, $eD, $eD, $eD, $nuD, $nuD, $nuD, $alD, $alD, $alD,
+            $rhD, $fyD * 1000, $fuD * 1000, $fyD * 1000, $fuD * 1000)
+    } catch {
+        Schreib "  >>> AddSteel_EuroCode: $($_.Exception.Message -replace "`r?`n", ' ')"
+        $wertM = 0
+    }
+    if ($wertM -gt 0) {
+        Schreib ("  {0,-34} AddSteel_EuroCode (E {1:N0} kN/m2, fy {2} N/mm2, fu {3} N/mm2)" -f 'Material', $eD, $fyD, $fuD)
+        $gefunden.Add("Material -> Materials.AddSteel_EuroCode(...)")
+        $r = @{ ok = $true; wert = $wertM; name = 'AddSteel_EuroCode' }
+    } else {
+        # Erst jetzt die Liste der Katalogversuche, damit man sieht, was fehlte.
+        Versuche 'Material' $kand -Positiv | Out-Null
+        Signaturen 'IAxisVMMaterials' 'AddSteel'
+        Schreib ''
+        Schreib 'Damit laesst sich der Stahl von Hand setzen - unsere Datei fuehrt:'
+        Schreib ("  E $($d.material.E) N/mm2, G $($d.material.G), nu $($d.material.nu), " +
+                 "alpha $($d.material.alpha), rho $($d.material.rho) kg/m3, fy $($d.material.fy)")
+        Beenden 3 ("$stahl weder im Katalog gefunden noch anzulegen$(if (FehlerName $wertM) { ' (' + (FehlerName $wertM) + ')' }). " +
+                   'AxisVM meldet das als negative Zahl, nicht als Fehler.')
+    }
 }
 $iMat = $r.wert
 try { Schreib "  Katalogname: $($m.Materials.Item($iMat).Name)" } catch { }
