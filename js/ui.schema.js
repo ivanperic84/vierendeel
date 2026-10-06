@@ -32,7 +32,7 @@ import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          TA_SPREIZUNG_VORGABE } from './data.abfangjoche.js';
 import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
-         fundamentFuerMast } from './data.masten.js';
+         fundamentFuerMast, istGittermast } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp } from './data.anker.js';
@@ -1229,13 +1229,42 @@ export const FELDER = [
    */
   { key: 'mastFundament', gruppe: 'mast', typ: 'auswahl',
     label: 'Fundament', standard: '',
-    optionenAus: () => [{ wert: '', text: 'nach Masttyp (Vorgabe)' },
-      ...fundamenttypen().map((f) => ({ wert: f.typ,
-        text: `${f.typ}${f.neubau ? '' : ' — Spezialfall'}` }))],
+    /*
+     * >>> VORAUSWAHL UND NUR WAS ZUM MASTEN PASST (6. Oktober). <<< Weisung:
+     * «diese Masttyp angabe mit vorauswahl versehen entsprechend dem
+     * Masttyp, bei den Gittermasten mit Typ spez. (alt) versehen. die
+     * Auswahl auf den jeweils ausgewählten Masttyp begrenzen.» Die erste
+     * Zeile nennt das Fundament der Zuordnung beim Namen; angeboten wird nur,
+     * was das Sortiment diesem Profil zuordnet (beim HEM 240 beide
+     * Stegrichtungen). Der Gittermast hat kein Standardfundament. Ein
+     * gespeicherter Typ, der nicht passt, bleibt sichtbar und sagt es.
+     */
+    optionenAus: (w) => {
+      const m = gewaehlterMast(w);
+      const p = String(m?.profil ?? w?.mastProfil ?? '');
+      const jetzt = String(m?.fundament ?? w?.mastFundament ?? '');
+      const fremd = (liste) => (jetzt && !liste.some((o) => o.wert === jetzt)
+        ? [...liste, { wert: jetzt, text: `${jetzt} — passt nicht zu ${p}` }] : liste);
+      if (istGittermast(p)) {
+        return fremd([{ wert: '', text: 'Typ spez. (alt) — kein Standardfundament' }]);
+      }
+      const auto = fundamentFuerMast(p, m?.steg ?? w?.mastSteg);
+      const passend = fundamenttypen().filter((f) => String(f.profile ?? '')
+        .split(',').map((x) => x.trim()).includes(p));
+      return fremd([
+        { wert: '', text: auto ? `${auto.typ} (nach Masttyp)` : 'kein Standardfundament für dieses Profil' },
+        ...passend.filter((f) => f.typ !== auto?.typ).map((f) => ({ wert: f.typ,
+          text: `${f.typ}${f.neubau ? '' : ' — Spezialfall'}` })),
+      ]);
+    },
     wertAus: amMast('fundament', 'mastFundament'),
     sichtbar: (w) => mastDa(w) && fundamenteDa(),
     hinweis: (w) => {
       const m = gewaehlterMast(w);
+      if (istGittermast(m?.profil ?? w.mastProfil)) {
+        return 'Gittermast (alte Bauweise): Fundament nach Typ spezifisch - das Sortiment '
+             + 'führt kein Standardfundament, der Fundamentnachweis wird nicht geführt.';
+      }
       const f = fundamentFuerMast(m?.profil ?? w.mastProfil,
                                   m?.steg ?? w.mastSteg);
       return `Zulässige Lasten am Fundamentkopf, charakteristisch — `
