@@ -7734,8 +7734,13 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      * Oberschalter aus ist. Keine Attrappe - sie ZEIGEN, was beim
      * Wiedereinschalten gilt, und der Oberschalter daneben ist bedienbar.
      */
+    /*
+     * >>> ZEHN (6. Oktober). <<< Echtzeit / Knopf stehen als Unterpunkte
+     * unter «Stabwerk» und sind beim Ersatzbalken gesperrt - sie ZEIGEN,
+     * was beim Zurückschalten gilt, das Verfahren daneben ist bedienbar.
+     */
     const sperren = [...uq4.matchAll(/disabled/g)].length;
-    wahr('Es gibt genau neun Stellen mit einer Sperre', sperren === 9,
+    wahr('Es gibt genau zehn Stellen mit einer Sperre', sperren === 10,
          `${sperren} Stellen`);
     wahr('7-9 - Unterpunkt, Grenzwert und Referenzhöhe ohne Oberschalter',
          uq4.includes("const gesperrt = !g.vorhanden || (g.unterVon && !nw[g.unterVon]);")

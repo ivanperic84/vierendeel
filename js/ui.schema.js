@@ -2305,8 +2305,9 @@ export function sichtbareFelder(gruppe, werte) {
  */
 export const OPTIONEN_THEMEN = [
   { key: 'modell', titel: 'Rechenmodell' },
-  { key: 'einwirkung', titel: 'Einwirkungen' },
-  { key: 'widerstand', titel: 'Widerstand' },
+  // Einwirkungen und Widerstand in einem Reiter (6. Oktober: «nimm diese
+  // zwei gruppen zusammen») - der Widerstand ist ein einziger Beiwert.
+  { key: 'einwirkung', titel: 'Einwirkungen und Widerstand' },
   // EIGENER REITER, keine Feldliste: neben jedem Schalter muss stehen, WAS er
   // fuehrt und - wo er nicht schaltbar ist - warum nicht. Das traegt keine
   // Feldart.
@@ -2335,7 +2336,7 @@ export const OPTIONEN_ABSCHNITTE = [
   { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft'] },
   { thema: 'einwirkung', titel: 'Lastbeiwerte',
     keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
-  { thema: 'widerstand', titel: 'Widerstand', keys: ['gammaM0'] },
+  { thema: 'einwirkung', titel: 'Widerstand', keys: ['gammaM0'] },
   { thema: 'ansicht', titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },

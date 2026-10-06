@@ -2885,7 +2885,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
           type="checkbox" ${a.neu === true ? 'checked' : ''}>neu</label>` : ''}
         <label class="schalter" title="Teil mitrechnen"><input class="at" data-k="aktiv"
           type="checkbox" ${a.aktiv === false ? '' : 'checked'}></label>
-        <button class="loeschen" data-loesch="${i}" title="Entfernen">×</button>
+        <button class="loeschen" data-loesch="${i}" title="Anbauteil löschen">${icon('loeschen', 12)}</button>
       </span>
       ${offen ? `<div class="at-koerper">
         <div class="at-kopf">
@@ -5039,6 +5039,7 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     // Ein Textfeld (Gruppe) erst beim Verlassen - sonst baut jede Taste die Karte neu.
     const ev = inp.type === 'checkbox' || inp.type === 'text' ? 'change' : 'input';
     inp.addEventListener(ev, () => {
+      if (inp.validity?.badInput) return;   // «-» halb getippt (6. Oktober)
       const karte = inp.closest('.at-karte');
       const idx = +karte.dataset.idx;
       const l = liste();
@@ -5301,6 +5302,15 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     const ev = inp.tagName === 'SELECT' || inp.type === 'checkbox'
       ? 'change' : 'input';
     inp.addEventListener(ev, () => {
+      /*
+       * >>> HALBE EINGABE ABWARTEN (6. Oktober). <<< Gemeldet: «negative
+       * werte lassen sich nicht bei der ablenkung innerhalb eines anbauteils
+       * eingeben, wenn man minus eingibt springt man aus der eingabe.» Ein
+       * Zahlenfeld mit «-» oder «1.» meldet einen leeren Wert (badInput);
+       * geschrieben wurde die Vorgabe, die Karte baute neu, der Fokus war
+       * weg. Bis die Zahl lesbar ist, geschieht nichts.
+       */
+      if (inp.validity?.badInput) return;
       // Die drei Wirkungshaken sind Ja/Nein - weder Zahl noch Text.
       if (inp.type === 'checkbox') {
         setzeModul(+inp.dataset.idx, +inp.dataset.mod, inp.dataset.mk,
@@ -5396,6 +5406,7 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
    */
   container.querySelectorAll('.lpunkt').forEach((inp) => {
     inp.addEventListener('input', () => {
+      if (inp.validity?.badInput) return;   // «-» halb getippt (6. Oktober)
       const l = liste(); const idx = +inp.dataset.idx;
       if (!l[idx]) return;
       const wert = parseFloat(inp.value) || 0;
@@ -9649,19 +9660,25 @@ export function verfahrenHtml(werte) {
         <span class="nw-titel">${esc(v.titel)}</span>
       </label>
       <p class="notiz">${esc(v.was)}</p>
-    </div>`).join('')
-    + `${abschnitt('Stabwerk rechnen')}
-    <p class="notiz">Gerechnet wird nur, wenn sich etwas ändert, das das
-      Ergebnis betrifft — Ansicht, Schrift, Masskette oder Mastnummer lösen
-      keine Rechnung aus.</p>`
-    + STABWERK_AUSLOESUNG.map((v) => `
-    <div class="nw-wahl">
+    </div>${v.key === 'stabwerk' ? auslosungHtml(werte, jetzt !== 'stabwerk') : ''}`).join('');
+}
+
+/*
+ * >>> ECHTZEIT ODER KNOPF ALS UNTERPUNKTE DES STABWERKS (6. Oktober). <<<
+ * Weisung: «setze diese zwei als unterpunkte beim stabwerk (genau), somit
+ * haben sie keine relevanz wenn man ersatzbalken auswählt.» Eingerückt unter
+ * dem Stabwerk, beim Ersatzbalken ausgegraut und gesperrt.
+ */
+function auslosungHtml(werte, aus) {
+  return STABWERK_AUSLOESUNG.map((v) => `
+    <div class="nw-wahl nw-unter${aus ? ' nw-gesperrt' : ''}">
       <label>
         <input type="radio" name="stabwerkAuslosung" data-auslosung="${esc(v.key)}"
-          ${stabwerkAuslosungVon(werte) === v.key ? 'checked' : ''}>
+          ${stabwerkAuslosungVon(werte) === v.key ? 'checked' : ''}${aus ? ' disabled' : ''}>
         <span class="nw-titel">${esc(v.titel)}</span>
       </label>
-      <p class="notiz">${esc(v.was)}.</p>
+      <p class="notiz">${esc(v.was)}${v.key === 'echtzeit'
+        ? ' - nur wenn sich etwas ändert, das das Ergebnis betrifft (Ansicht, Schrift, Masskette, Mastnummer rechnen nicht neu)' : ''}.</p>
     </div>`).join('');
 }
 
