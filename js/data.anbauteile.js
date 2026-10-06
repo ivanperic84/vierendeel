@@ -354,6 +354,20 @@ export const ortVon = (a) => (a?.ort === 'mastA' || a?.ort === 'mastB'
   ? a.ort : 'joch');
 export const amMast = (a) => ortVon(a) !== 'joch';
 
+/*
+ * >>> GRUPPE STATT GLEISNUMMER (6. Oktober). <<< Weisung: «Anstatt Gleis
+ * zuordnung freie benennung quasi hashtag. Bei der gruppe die auswahl
+ * ermöglichen ein / ausblenden im modell». Ein Anbauteil trägt einen freien
+ * Namen `tag` («Gleis 1», «Weiche», «Bestand» …); ohne Namen gilt die
+ * Gleisnummer, die der Lastgenerator setzt, wie bisher. Der Name zählt in
+ * der Kennung des Stabwerks nicht (OHNE_RECHNUNG); ausgeschaltet wird eine
+ * Gruppe über `aktiv` wie jedes Teil.
+ */
+export const anbauGruppe = (a) => {
+  const t = String(a?.tag ?? '').trim().replace(/^#+/, '').trim();
+  return t || (Number(a?.gleis) > 0 ? `Gleis ${a.gleis}` : '');
+};
+
 /**
  * AM MASTEN GIBT ES KEINEN TRÄGER (Weisung: kein Jochaufsatz, keine
  * Hängestütze).

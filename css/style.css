@@ -3502,3 +3502,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .legende-klapp { font: inherit; font-size: 9.5px; color: var(--on2); background: transparent;
   border: 1px solid var(--ol); border-radius: 4px; padding: 0 5px; margin-left: 6px; cursor: pointer; }
 .legende-klapp:hover { background: var(--s3); }
+/* Gruppe der Anbauteile im Modell ausgeblendet (6. Oktober). */
+.at-auge { margin-left: 6px; vertical-align: middle; }
+.at-auge.aus { opacity: 0.45; }
+.at-gruppe.verborgen > .sec { color: var(--dim); }

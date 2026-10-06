@@ -1136,6 +1136,8 @@ export const OHNE_RECHNUNG = new Set([
   'modellTransparenz', 'modellSchrift', 'modellSchriftLast', 'modellSchriftMass',
   'zeichnungDeckkraft', 'masskette', 'mastAktiv', 'mastNummer', 'grundwerteFragen',
   'linie', 'ortschaft', 'km', 'eigeneVorlagen', 'stabwerkAuslosung',
+  // Der Gruppenname der Anbauteile (6. Oktober): nur Gliederung.
+  'tag',
 ]);
 
 export function eingabeKennung(satz) {

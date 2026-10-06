@@ -6578,7 +6578,9 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
   }
 
   // --- Die Gleiszuordnung setzte nur der Generator ------------------------
-  wahr('Die Karte hat ein Feld fuer das Gleis', uq.includes("atFeld(i, 'gleis'"));
+  // Seit dem 6. Oktober ein freier Gruppenname (Hashtag) statt der Gleisnummer;
+  // ohne Namen gilt weiter die Nummer des Generators (`anbauGruppe`).
+  wahr('Die Karte hat ein Feld fuer die Gruppe', uq.includes('data-k="tag"'));
 
   // --- Bei eta > 1 fehlte der Weg zum naechsten Typ -----------------------
   {

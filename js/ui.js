@@ -39,7 +39,7 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe,
+         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, anbauGruppe,
          leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
          SIGNAL_CW, signalVorlage } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
@@ -356,7 +356,7 @@ export function maskenSignatur(werte, tab) {
           (a) => `${a.id}:${a.aktiv !== false}:${a.neu === true}:${befestigungsArt(a)}:` +
                  `${ortVon(a)}:${abfangAnbindung(a).art}:` +
                  `${abfangAnbindung(a).verlauf ?? ''}:` +
-                 `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
+                 `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:${a.tag ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
                  // Woher der Leiter seine Ablenkung nimmt (29. Sept.): sie
                  // entscheidet, welches Feld im Aufklappteil steht.
@@ -2832,8 +2832,9 @@ function anbauteileHtml(g, werte) {
   // steht ein Joch nun einmal über der Anlage.
   const trasse = trasseVon(werte);
   const gruppen = new Map();
+  // Gruppe (6. Oktober): freier Name, sonst die Gleisnummer des Lastgenerators.
   liste.forEach((a, i) => {
-    const name = a.gleis ? `Gleis ${a.gleis}` : 'Ohne Gleiszuordnung';
+    const name = anbauGruppe(a);
     if (!gruppen.has(name)) gruppen.set(name, []);
     gruppen.get(name).push({ a, i });
   });
@@ -2854,7 +2855,7 @@ function anbauteileHtml(g, werte) {
     const lageLang = amMasten
       ? `Mast ${mName} · ${f2(a.hMast ?? 0)} m über Fundament`
       : `x = ${f2(a.x)} m`;
-    const suchtext = `${a.name} ${a.vorlage ?? ''} ${amMasten
+    const suchtext = `${a.name} ${a.vorlage ?? ''} #${anbauGruppe(a)} ${amMasten
       ? `mast ${mEnde} ${a.hMast ?? 0}` : a.x}`.toLowerCase();
     return `<div class="at-karte${a.aktiv === false ? ' aus' : ''}${offen ? ' offen' : ''}"
          data-idx="${i}" data-suche="${esc(suchtext)}">
@@ -3040,15 +3041,17 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
            * erreichbar (Weisung vom 15. September zu den Attrappen).
            */''}
         ${klapp(`at-fein-${i}`, ortVon(a) === 'joch' && tragwerksart(werte).key === 'abfangjoch'
-            ? 'Raster und Gleiszuordnung' : 'Gleiszuordnung',
+            ? 'Raster und Gruppe' : 'Gruppe',
           `<div class="at-gitter">
             ${ortVon(a) === 'joch' && tragwerksart(werte).key === 'abfangjoch'
               ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05) : ''}
-            ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
-                     'Nach welchem Gleis die Baugruppe gruppiert wird. '
-                     + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
-                     + 'selbst; von Hand eingesetzte Teile blieben bisher '
-                     + 'dauerhaft ohne, weil das Feld fehlte.')}
+            <label class="at-feld breit2" data-feldname="tag"
+                   title="Freier Name der Gruppe (wie ein Hashtag): nach ihm wird die Liste gegliedert, und die Gruppe lässt sich im Modell ein- und ausblenden. Leer: die Gleisnummer des Lastgenerators.">
+              <span>Gruppe <i>#</i></span>
+              <input class="at" data-k="tag" data-idx="${i}" type="text" list="at-gruppen"
+                     placeholder="${esc(a.gleis ? `Gleis ${a.gleis}` : 'z. B. Gleis 1')}"
+                     value="${esc(String(a.tag ?? ''))}">
+            </label>
           </div>`, '', false)}
         ${modulListeHtml(a, i, werte)}
         ${windVersatzHtml(a, i)}
@@ -3057,19 +3060,28 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
     </div>`;
   };
 
-  // F_z nach der rechten Hand (1. Oktober): nach oben positiv, das Gewicht
-  // also negativ. Der Kern führt es nach unten - hier wird gedreht.
-  const summeGruppe = (teile) => teile.reduce((s, { a }) => {
-    const k = baugruppeSumme(a, trasse);
-    return s - (k.Gz + k.Qz);
-  }, 0);
-
-  const zeilen = [...gruppen.entries()].map(([name, teile]) => `
-    <div class="at-gruppe">
-      <div class="sec">${esc(name)}<span class="sec-r">${teile.length} Stück ·
-        F_z ${f2(summeGruppe(teile))} kN</span></div>
+  /*
+   * Kopf je Gruppe mit Auge (6. Oktober). Im Wortlaut: «hier die last
+   * weglassen, da wir sonst auch die fy und fx aufführen sollten» - nur die
+   * Stückzahl. Und: «die frage stellt sich mir warum ich bauteile nur
+   * ausblenden will, sie aber trotzdem in die berechnung reihngehen
+   * sollen?» - das Auge schaltet die Gruppe deshalb wie das Häkchen je Teil
+   * (`aktiv`): aus = nicht gerechnet und nicht gezeichnet, die Eingaben
+   * bleiben. Ein Bild, das etwas anderes zeigt als gerechnet wird, wäre
+   * eine Falle.
+   */
+  const zeilen = [...gruppen.entries()].map(([name, teile]) => {
+    const zu = teile.every(({ a }) => a.aktiv === false);
+    return `
+    <div class="at-gruppe${zu ? ' verborgen' : ''}">
+      <div class="sec">${name ? `#${esc(name)}` : 'Ohne Gruppe'}<span class="sec-r">${teile.length} Stück
+        <button type="button" class="btn-icon at-auge${zu ? ' aus' : ''}" data-at-gruppe-auge="${esc(name)}"
+          aria-label="${zu ? 'Einschalten' : 'Ausschalten'}"
+          title="${zu ? 'Gruppe wieder einschalten (rechnen und zeichnen)' : 'Gruppe ausschalten - nicht gerechnet, nicht gezeichnet, die Eingaben bleiben'}">${icon('auge', 13)}</button></span></div>
       ${teile.map(zeile).join('')}
-    </div>`).join('');
+    </div>`;
+  }).join('') + `<datalist id="at-gruppen">${[...new Set([...gruppen.keys()].filter(Boolean))]
+    .map((g) => `<option value="${esc(g)}"></option>`).join('')}</datalist>`;
 
   /*
    * >>> DER HAEUFIGSTE GRIFF STEHT OBEN, NICHT ZUUNTERST IN DER LISTE. <<<
@@ -4999,6 +5011,17 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-dup]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
   });
+  // Gruppe ein-/ausschalten (6. Oktober), wie das Häkchen je Teil.
+  container.querySelectorAll('[data-at-gruppe-auge]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = b.dataset.atGruppeAuge;
+      const l = liste();
+      const drin = l.filter((a) => anbauGruppe(a) === name);
+      const ein = drin.every((a) => a.aktiv === false);
+      onAnbau(l.map((a) => (anbauGruppe(a) === name ? { ...a, aktiv: ein } : a)));
+    });
+  });
   // Rechtsklick auf die Zeile: dasselbe Menü wie im Modell, mit «Duplizieren».
   container.querySelectorAll('.at-zeile').forEach((z) => {
     z.addEventListener('contextmenu', (e) => {
@@ -5013,7 +5036,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
 
   container.querySelectorAll('.at').forEach((inp) => {
-    const ev = inp.type === 'checkbox' ? 'change' : 'input';
+    // Ein Textfeld (Gruppe) erst beim Verlassen - sonst baut jede Taste die Karte neu.
+    const ev = inp.type === 'checkbox' || inp.type === 'text' ? 'change' : 'input';
     inp.addEventListener(ev, () => {
       const karte = inp.closest('.at-karte');
       const idx = +karte.dataset.idx;
