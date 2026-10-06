@@ -2376,6 +2376,9 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 /* Charakteristische Lastfälle sind kein Nachweis - zurückgenommen gesetzt. */
 .dt.kombi tr.char > td { color: var(--dim); }
 .dt.kombi tr.aktiv > td { box-shadow: inset 0 1px 0 var(--warn), inset 0 -1px 0 var(--warn); }
+/* Eine Zeile waehlt den Lastfall (6. Oktober). */
+.dt.kombi tr.lf-zeile { cursor: pointer; }
+.dt.kombi tr.lf-zeile:hover > td { background: var(--acc-s); }
 .dt.kombi td.lf-tasten { white-space: nowrap; padding: 2px 4px; }
 .dt.kombi td.lf-tasten .btn { padding: 2px 5px; }
 .lf-fuss {

@@ -525,6 +525,20 @@ export function verdrahteExtras(app) {
 
 function verdrahteLastfaelle(app) {
   const n = ui.el('maske');
+  /*
+   * >>> EINE ZEILE WAEHLT DEN LASTFALL (6. Oktober). <<< Weisung im Wortlaut:
+   * «Anklicken der lastfälle aus der tabelle in der sidebar ermöglichen. Im
+   * 3d wird gewählter lastfall angezeigt und oben bennant und in der rechten
+   * sidebar abgebildet.» Derselbe Weg wie der Wähler «Lastfall» oben
+   * (`anzeigeKombi`); die Knöpfe der Zeile behalten ihre eigene Aufgabe.
+   */
+  n.querySelectorAll('[data-lf-wahl]').forEach((z) => {
+    z.onclick = (e) => {
+      if (e.target.closest('button')) return;
+      app.anzeigeKombi = z.dataset.lfWahl;
+      app.neuRechnen(false);
+    };
+  });
   n.querySelectorAll('[data-lf]').forEach((b) => {
     b.onclick = () => dialogLastfall(app, b.dataset.lf);
   });
