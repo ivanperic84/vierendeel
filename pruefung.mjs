@@ -39137,6 +39137,42 @@ titel('243  Begleiteinwirkung psi0 * Q_k ohne gamma_Q; alte Staende angehoben');
   wahr('Ein neuer Stand traegt den Merker', APP_QUELLE().includes('psiOhneGamma: true'));
 }
 
+titel('244  Buegelschrauben: Kraft x je Gurtanschluss aus dem Stabwerk; Grenzfeder');
+/* 6./7. Oktober: «Ziehe die Bügelschrauben Prüfung aus der liste der
+ * konstruktionsprüfungen heraus als separate gruppe. biete einen button die
+ * auflagersteifigkeit ensprechend anzupassen …» Rueckfrage «Ja, Kraft x je Gurt». */
+{
+  const T244 = await import(J('data.tragjoche.js'));
+  const N244 = await import(J('core.nachbarn.js'));
+  const AS244 = await import(J('app.stabwerk.js'));
+  const DA244 = await import(J('data.anbauteile.js'));
+  const UI244 = await import(J('ui.js'));
+  const typ = T244.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T244.tragjoche()[0].typ;
+  const lauf = (w) => { const ws = N244.rechensatzMitNachbarn(w); const erg = berechne(ws, ...N244.kernArgumente(ws));
+    return { h: AS244.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }), erg }; };
+  const w = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ }, T244.getTragjoch(typ)),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260',
+              anbauteile: [DA244.neuesAnbauteil('hs-nt-ausleger', 8)] };
+  const a = lauf(w);
+  wahr('Acht Gurtanschluesse, nur der x-haltende Obergurt traegt (Vorgabe)',
+       a.h.buegel?.zeilen?.length === 8 && a.h.buegel.zeilen.filter((z) => z.gurt === 'UG').every((z) => z.F < 1e-6),
+       a.h.buegel?.zeilen?.map((z) => `${z.name} ${z.F.toFixed(2)}`).join(', '));
+  wahr('… klein gegen F_Grenz 24 kN', a.h.buegel.ueber === false && a.h.buegel.Fgrenz === 24, a.h.buegel.F.toFixed(2));
+  const w2 = { ...w, auflagerLinks: { OG: { x: 'Rigid' }, UG: { x: 50000 } } };
+  const b = lauf(w2);
+  wahr('Untergurt mit 50 000 kN/m: Kraeftepaar, die Schraube faellt durch', b.h.buegel.ueber === true,
+       `${b.h.buegel.F.toFixed(2)} kN, ${b.h.buegel.wer}`);
+  const r = await AS244.buegelGrenzfeder({ werte: w2, letzte: { erg: b.erg } });
+  wahr('Grenzfeder nur am eingegebenen Gurt, F gerade unter F_Grenz', r.K > 0 && r.gurte.join() === 'UG' && r.F <= r.Fgrenz && r.F > 0.95 * r.Fgrenz,
+       JSON.stringify({ K: r.K, F: r.F?.toFixed(2), schritte: r.schritte }));
+  const c = lauf({ ...w2, auflagerLinks: { OG: { x: 'Rigid' }, UG: { x: r.K } } });
+  wahr('Uebernommen: eingehalten', c.h.buegel.ueber === false, c.h.buegel.F.toFixed(2));
+  const html = UI244.buegelBlockHtml({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig', ergebnis: b.h }, beiBuegelGrenze: () => {} }, { checks: [] });
+  wahr('Block mit Knopf «Grenzfeder K_X suchen»', html.includes('Bügelschrauben') && html.includes('data-buegel-grenze'));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('A1 steht nicht mehr in der Liste der Konstruktionspruefungen', uq.includes(".filter((c) => c.id !== 'A1')"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

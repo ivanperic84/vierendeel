@@ -45,7 +45,8 @@ import { getMastprofil, getStegrichtung, istGittermast, getGittermast } from './
 import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
-         laengsankerKraft } from './core.stabnachweis.js';
+         laengsankerKraft, buegelNachweis } from './core.stabnachweis.js';
+import { linkBedingung } from './core.auflager.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { anteileFuer } from './core.stabnachweis.js';
@@ -580,8 +581,19 @@ export function rechneStabwerk(app, aufruf = {}) {
                                             { zusammenfassen: false }))
     : null;
 
+  /*
+   * >>> DIE BÜGELSCHRAUBEN (7. Oktober, `buegelNachweis`). <<< Je Tragjoch
+   * seine Grenzlast F_Grenz (`schraubenFgrenz`, Vorgabe 24 kN je Gurt); das
+   * Präfix im Blatt ist die Kennung des Tragwerks.
+   */
+  const buegel = buegelNachweis(dat, lsg, faelle, (praefix) => {
+    const id = praefix.replace(/_$/, '');
+    const s = (id ? eingaben.find((x) => (x.twId ?? 'T1') === id) : null) ?? satz;
+    return tragwerksart(s).key === 'joch' ? (Number(s.schraubenFgrenz) || 24) : 0;
+  });
   const ergebnis = {
     ...huelle,
+    buegel,
     verformung,
     reaktionen,
     reaktionenEinzeln,
@@ -696,6 +708,59 @@ export function rechneStabwerk(app, aufruf = {}) {
  * (Ankertyp und Länge bzw. Messstelle) kommen aus dem Kern des jeweiligen
  * Tragwerks (`rechneTragwerk` in app.js).
  */
+/**
+ * >>> DIE GRENZFEDER DER BÜGELSCHRAUBEN (7. Oktober). <<<
+ * Weisung: «… die schraube fällt durch und bietet mir einen grenzwert an,
+ * den ich mit einem button automatisch übernehmen kann». Gesucht wird die
+ * grösste Feder K_X der Gurte, die in x halten (nach der Auflagerbedingung
+ * des aktiven Tragjochs), bei der die grösste Schraubenkraft F_Grenz gerade
+ * erreicht. Die Kraft wächst mit der Feder; gesucht wird halbierend in
+ * log10(K) zwischen 10² und 10⁸ kN/m, je Schritt ein Stabwerkslauf.
+ * Abgerundet auf zwei Stellen (kleinere Feder = kleinere Kraft).
+ *
+ * @returns {Promise<{K, F, Fgrenz, gurte, schritte}|{grund}>}
+ */
+export async function buegelGrenzfeder(app, melde = () => {}) {
+  const w0 = app.werte;
+  const satz = rechensatz(w0);
+  if (tragwerksart(satz).key !== 'joch') return { grund: 'Nur am Tragjoch.' };
+  const halten = ['OG', 'UG'].filter((g) => linkBedingung(satz, 'joch', g).x !== 'Free');
+  if (!halten.length) return { grund: 'Kein Gurt hält in der Jochachse - die Schrauben tragen dort nichts.' };
+  // Variiert wird die eingegebene Feder; ist keine eingegeben, alle haltenden Gurte.
+  const federn = halten.filter((g) => Number.isFinite(linkBedingung(satz, 'joch', g).x));
+  const gurte = federn.length ? federn : halten;
+  const praefixAkt = (sichtbareTragwerke(w0)?.length ?? 1) > 1 ? `${satz.twId ?? 'T1'}_` : '';
+  const lauf = (K) => {
+    const links = { ...(w0.auflagerLinks ?? {}) };
+    gurte.forEach((g) => { links[g] = { ...(links[g] ?? {}), x: K }; });
+    const w = { ...w0, auflagerLinks: links };
+    const ws = rechensatzMitNachbarn(w);
+    const erg = berechne(ws, ...kernArgumente(ws));
+    const h = rechneStabwerk({ ...app, werte: w, letzte: { ...app.letzte, erg } }, { ohneBestand: true });
+    const z = (h?.buegel?.zeilen ?? []).filter((x) => x.praefix === praefixAkt);
+    return z.length ? Math.max(...z.map((x) => x.F)) : null;
+  };
+  const Fgrenz = Number(satz.schraubenFgrenz) || 24;
+  const warte = () => new Promise((r) => setTimeout(r, 0));
+  melde('Grenzfeder: starr …'); await warte();
+  const Fstarr = lauf(1e9);
+  if (Fstarr === null) return { grund: 'Das Stabwerk liefert keine Schraubenkraft.' };
+  if (Fstarr <= Fgrenz) return { grund: `Auch starr nur ${Fstarr.toFixed(1)} kN ≤ ${Fgrenz} kN - keine Grenzfeder nötig.`, F: Fstarr, Fgrenz };
+  let lo = 2, hi = 8, Flo = null, schritte = 1;
+  for (let i = 0; i < 14; i += 1) {
+    const mid = (lo + hi) / 2;
+    melde(`Grenzfeder: Schritt ${i + 1} · K_X ${Math.round(10 ** mid)} kN/m …`); await warte();
+    const F = lauf(10 ** mid); schritte += 1;
+    if (F === null) break;
+    if (F > Fgrenz) hi = mid; else { lo = mid; Flo = F; }
+    if (hi - lo < 0.004) break;
+  }
+  const roh = 10 ** lo;
+  const p = 10 ** (Math.floor(Math.log10(roh)) - 1);
+  const K = Math.floor(roh / p) * p;
+  return { K, F: Flo ?? lauf(K), Fgrenz, gurte, schritte, Fstarr };
+}
+
 export function ankerFuerMast(sw, id, meta, satz) {
   const r = sw?.roh;
   if (!r || !meta?.typ) return null;

@@ -586,6 +586,73 @@ export function anteileFuer(lf, dat = null) {
   return out;
 }
 
+/* ===========================================================================
+ * >>> DIE BÜGELSCHRAUBEN AM GURTANSCHLUSS AUS DEM STABWERK (7. Oktober). <<<
+ * ===========================================================================
+ * Weisung vom 6. Oktober: «Ziehe die Bügelschrauben Prüfung aus der liste
+ * der konstruktionsprüfungen heraus als separate gruppe. biete einen button
+ * die auflagersteifigkeit ensprechend anzupassen, ich gebe zum beispiel
+ * beim x eine feder von 50000 kn/m ein und die schraube fällt durch und
+ * bietet mir einen grenzwert an, den ich mit einem button automatisch
+ * übernehmen kann». Auf Rückfrage «Ja, Kraft x je Gurt»: die Kraft in der
+ * Jochachse im Linkelement je Gurt am Mast (`LINK_<Ende>_<Gurt><Seite>`),
+ * grösster Betrag über die Bemessungskombinationen, gegen F_Grenz je Gurt.
+ *
+ * Die Linkbedingung gilt global (26. September), die Kraft wird deshalb
+ * global gelesen: K_G · u am Element, Komponente x am Knoten i.
+ *
+ * @param {object} dat      Modelldatei
+ * @param {object} lsg      Lösung (`loese`), mit `elemente`
+ * @param {object[]} faelle Bemessungskombinationen
+ * @param {function} grenze (praefix) -> F_Grenz [kN] des Tragwerks, 0 = keine
+ */
+export const BUEGEL_LINK = /^(.*?)LINK_([^_]+)_(OG|UG)([LR])$/;
+
+export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
+  const links = (lsg.elemente ?? []).filter((e) => e.s.art === 'link' && BUEGEL_LINK.test(e.s.name));
+  if (!links.length) return null;
+  const fx = new Map();     // lastfall -> Map(name -> F_x global)
+  const fxVon = (fall) => {
+    if (fx.has(fall)) return fx.get(fall);
+    const uv = lsg.u.get(fall);
+    const m = new Map();
+    if (uv) {
+      links.forEach((e) => {
+        let s = 0;
+        for (let b = 0; b < 12; b += 1) {
+          const dof = b < 6 ? e.i * 6 + b : e.j * 6 + (b - 6);
+          s += e.kG[b] * uv[dof];
+        }
+        m.set(e.s.name, s);
+      });
+    }
+    fx.set(fall, m);
+    return m;
+  };
+  const je = new Map();
+  faelle.forEach((lf) => {
+    const summe = new Map();
+    anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
+      if (!faktor) return;
+      fxVon(lastfall).forEach((v, name) => summe.set(name, (summe.get(name) ?? 0) + faktor * v));
+    });
+    summe.forEach((v, name) => {
+      const alt = je.get(name);
+      if (!alt || Math.abs(v) > alt.F) je.set(name, { F: Math.abs(v), fall: lf.key, bez: lf.bez });
+    });
+  });
+  const zeilen = [...je.entries()].map(([name, z]) => {
+    const [, praefix, ende, gurt, seite] = BUEGEL_LINK.exec(name);
+    const Fg = Number(grenze(praefix)) || 0;
+    return { name, praefix, ende, gurt, seite, ...z, Fgrenz: Fg,
+             eta: Fg > 0 ? z.F / Fg : null };
+  }).sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0) || b.F - a.F);
+  const m = zeilen[0];
+  return { zeilen, F: m?.F ?? 0, eta: m?.eta ?? null, wer: m?.name ?? null,
+           fall: m?.fall ?? null, bez: m?.bez ?? null, Fgrenz: m?.Fgrenz ?? 0,
+           ueber: zeilen.some((z) => z.eta !== null && z.eta > 1 + 1e-9) };
+}
+
 /**
  * Kraefte aus Anteilen ueberlagern.
  * Linear - deshalb ist das eine Summe und keine neue Rechnung.

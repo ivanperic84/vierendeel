@@ -3519,3 +3519,6 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .at-x { grid-row: 2; grid-column: 3; }
 .at-kraft { grid-row: 2; grid-column: 4; }
 .at-tasten .loeschen svg { display: block; }
+
+/* Warnzeile in der Maske (Bügelschrauben, 7. Oktober). */
+.fail-text { color: var(--fail); }

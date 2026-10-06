@@ -123,7 +123,8 @@ import { verlauf } from './verlauf.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
-import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
+import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand,
+         buegelGrenzfeder } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk, anteileFuer,
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenGewaehlt } from './core.reaktionen.js';
@@ -1325,7 +1326,25 @@ function neuRechnen(neuZeichnen = true) {
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
-          komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
+          komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)),
+          /*
+           * >>> DIE BÜGELSCHRAUBEN SCHON BEI DER EINGABE (7. Oktober). <<<
+           * «… oder ich bekomme schon bei der eingabe der steifigkeit eine
+           * meldung das die zulässigen werte überschritten sind mit dem
+           * aktuellen modellaufbau.» Unter der Auflagerbedingung, aus dem
+           * letzten gültigen Stabwerk; die Grenzfeder sucht der Knopf in der
+           * Übersicht.
+           */
+          aufl: (() => {
+            const b = stabwerkGilt() ? stabwerk?.buegel : null;
+            // Leer ein Platzhalter: sonst entsteht beim ersten Aufbau (noch ohne
+            // Stabwerk) kein Behälter, und die Meldung käme nie an.
+            if (!b?.ueber) return '<span hidden></span>';
+            return `<p class="notiz fail-text" style="margin:6px 0 0"><b>Bügelschrauben überschritten</b>:
+              ${b.F.toFixed(2)} kN &gt; F_Grenz ${b.Fgrenz} kN (${b.wer}) mit dieser
+              Auflagerbedingung. Die Grenzfeder K_X sucht der Knopf im Block
+              «Bügelschrauben» der Übersicht.</p>`;
+          })() }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);
     // Solange sich die Struktur nicht ändert, bleiben die Eingabefelder
@@ -1854,6 +1873,10 @@ function zeichneAuswertung() {
                            beiStab: zeigeStab,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
+                           // Bügelschrauben (7. Oktober).
+                           beiBuegelGrenze: buegelGrenzeSuchen,
+                           beiBuegelUebernehmen: buegelUebernehmen,
+                           buegelVorschlag: buegelAnzeige(),
                            lastfallName: anzeigeKombi === 'umhuellend' ? null
                              : (kombi.lastfaelle
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
@@ -4170,6 +4193,29 @@ const ankerRichtungVor = () => 'y';
  * gibt nur eine Stelle ueber dem Modell, auf die man schaut, und zwei
  * konkurrierende Meldewege waeren einer zu viel.
  */
+/*
+ * >>> DIE GRENZFEDER DER BÜGELSCHRAUBEN (7. Oktober). <<< Der Vorschlag gilt
+ * dem Stand, an dem er gesucht wurde (Kennung); danach verfällt er.
+ */
+let buegelVorschlag = null;
+async function buegelGrenzeSuchen() {
+  const r = await buegelGrenzfeder(app, (t) => meldeImBalken(t));
+  buegelVorschlag = { ...r, kennung: eingabeKennung(werte) };
+  meldeImBalken(r.K ? `Grenzfeder K_X = ${Math.round(r.K).toLocaleString('de-CH')} kN/m `
+    + `(${r.gurte.join(' und ')}) - F ${r.F.toFixed(2)} / ${r.Fgrenz} kN, ${r.schritte} Stabwerksläufe.`
+    : r.grund, { dauer: 6000 });
+  zeichneAuswertung();
+}
+function buegelUebernehmen() {
+  const v = buegelVorschlag;
+  if (!v?.K) return;
+  const links = { ...(werte.auflagerLinks ?? {}) };
+  v.gurte.forEach((g) => { links[g] = { ...(links[g] ?? {}), x: v.K }; });
+  buegelVorschlag = null;
+  aendern('auflagerLinks', links);
+}
+const buegelAnzeige = () => (buegelVorschlag?.kennung === eingabeKennung(werte) ? buegelVorschlag : null);
+
 function meldeImBalken(text, { dauer = 0 } = {}) {
   const n = ui.el('viewer-balken');
   if (!n) return;

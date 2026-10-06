@@ -5540,7 +5540,10 @@ function nichtGefuehrtHtml(urteil) {
 }
 
 function pruefungenHtml(urteil) {
-  const alle = urteil?.checks ?? [];
+  // Die Bügelschrauben (A1) stehen seit dem 7. Oktober im eigenen Block
+  // (`buegelBlockHtml`): «Ziehe die Bügelschrauben Prüfung aus der liste der
+  // konstruktionsprüfungen heraus als separate gruppe.»
+  const alle = (urteil?.checks ?? []).filter((c) => c.id !== 'A1');
   if (!alle.length) return '';
   const geordnet = [...alle].sort((a, b) => (a.ok === b.ok ? 0 : a.ok ? 1 : -1));
   const zeile = (c) => `
@@ -5553,7 +5556,7 @@ function pruefungenHtml(urteil) {
       <td class="num">${esc(c.einheit ?? '')}</td>
       <td class="num">${c.ok ? '✓' : (c.warnungNichtFehler ? '!' : '✗')}</td>
     </tr>`;
-  const offen = urteil.verletzt?.length ?? 0;
+  const offen = alle.filter((c) => !c.ok).length;
   return klapp('uebersicht-pruefungen', 'Konstruktionsprüfungen', `
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th>Prüfung</th><th class="num">vorhanden</th>
@@ -6402,6 +6405,12 @@ let SIGNALBAUER = null;
 export function setzeSignalbauer(fn) { SIGNALBAUER = fn; }
 
 export function verdrahteStabwerk(node, opt = {}) {
+  // Bügelschrauben (7. Oktober): Grenzfeder suchen und übernehmen.
+  node.querySelector('[data-buegel-grenze]')?.addEventListener('click', (e) => {
+    e.currentTarget.inert = true; e.currentTarget.textContent = 'sucht …';
+    opt.beiBuegelGrenze?.();
+  });
+  node.querySelector('[data-buegel-uebernehmen]')?.addEventListener('click', () => opt.beiBuegelUebernehmen?.());
   // Kacheln aus dem Stabwerk: Klick zeigt den massgebenden Stab im Modell.
   if (typeof opt.beiStab === 'function') {
     node.querySelectorAll('[data-kz-stab]').forEach((k) => {
@@ -6479,6 +6488,64 @@ export function verdrahteNachweisart(node, opt) {
  * Bauteil Bestand → mit neuen Teilen. Ein Vergleich, kein Urteil: er steht
  * neben den Nachweisen und färbt die Hauptkachel nicht.
  * ========================================================================= */
+/* ===========================================================================
+ * >>> DER BLOCK BÜGELSCHRAUBEN (7. Oktober). <<<
+ * Weisung: «Ziehe die Bügelschrauben Prüfung aus der liste der
+ * konstruktionsprüfungen heraus als separate gruppe. biete einen button die
+ * auflagersteifigkeit ensprechend anzupassen …» Mit gültigem Stabwerk die
+ * Kraft in der Jochachse je Gurtanschluss (`buegelNachweis`), sonst die
+ * Prüfung A1 des Ersatzbalkens. Ist sie überschritten, sucht ein Knopf die
+ * Grenzfeder K_X (`buegelGrenzfeder`), ein zweiter übernimmt sie. Zählt
+ * zum Urteil nur, wenn die Gruppe «Auflager Joch» geführt wird.
+ * ========================================================================= */
+export function buegelBlockHtml(opt, urteil) {
+  const sw = stabwerkFuehrt(opt, false);
+  const b = sw?.buegel ?? null;
+  const a1 = (urteil?.checks ?? []).find((c) => c.id === 'A1') ?? null;
+  if (!b && !a1) return '';
+  const vorschlag = opt.buegelVorschlag ?? null;
+  const kurz = (x) => (x ? fallKurz(x) : '');
+  let k = '', tabelle = '';
+  if (b) {
+    const Fg = b.Fgrenz || 0;
+    k = kachel('Bügelschrauben', b.eta === null ? '–' : f3(b.eta),
+      `${b.wer ?? ''} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
+      b.eta === null ? '' : ampel(b.eta),
+      { titel: 'Grösste Kraft in der Jochachse im Linkelement je Gurt am Mast, '
+             + 'über die Bemessungskombinationen, gegen die Grenzlast der Gurtverbindung F_Grenz '
+             + '(Auflager → Grenzlast der Gurtverbindung).' });
+    tabelle = klapp('buegel-tabelle', `Je Gurtanschluss · ${b.zeilen.length}`,
+      `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Anschluss</th>
+        <th class="num">F_x [kN]</th><th class="num">F_Grenz</th><th class="num">η</th>
+        <th>massgebend</th></tr></thead><tbody>${b.zeilen.map((z) => `
+        <tr class="${z.eta > 1 ? 'nok' : ''}"><td>${esc(z.name)}</td>
+          <td class="num">${f2(z.F)}</td><td class="num">${f2(z.Fgrenz)}</td>
+          <td class="num ${z.eta === null ? '' : ampel(z.eta)}">${z.eta === null ? '–' : f3(z.eta)}</td>
+          <td>${esc(kurz(z.bez))}</td></tr>`).join('')}</tbody></table></div>`, '', false);
+  } else {
+    k = kachel('Bügelschrauben (A1)', f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0),
+      `${f2(a1.vorhanden)} / ${f2(a1.erforderlich)} kN · Ersatzbalken`,
+      a1.ok ? 'ok' : 'fail', { titel: a1.status ?? '' });
+  }
+  const ueber = b ? b.ueber : a1 && !a1.ok;
+  const knopf = b && ueber && typeof opt.beiBuegelGrenze === 'function'
+    ? `<button class="btn btn-mini btn-acc" data-buegel-grenze type="button"
+        title="Sucht die grösste Feder K_X, bei der die Schrauben die Grenzlast gerade einhalten (mehrere Stabwerksläufe)">Grenzfeder K_X suchen</button>` : '';
+  const vor = vorschlag?.K ? `<p class="notiz" style="margin:4px 0 0">Grenzfeder
+      <b>K_X = ${Math.round(vorschlag.K).toLocaleString('de-CH')} kN/m</b>
+      (${esc(vorschlag.gurte.join(' und '))}) - F = ${f2(vorschlag.F)} / ${f2(vorschlag.Fgrenz)} kN.
+      <button class="btn btn-mini btn-acc" data-buegel-uebernehmen type="button">übernehmen</button></p>`
+    : vorschlag?.grund ? `<p class="notiz" style="margin:4px 0 0">${esc(vorschlag.grund)}</p>` : '';
+  const aus = urteil?.nichtGefuehrt?.some?.((g) => g.key === 'auflagerJoch');
+  return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Ersatzbalken')}
+    <div class="kennzahlen">${k}</div>
+    ${ueber ? `<p class="notiz" style="margin:4px 0 0"><b>Grenzlast überschritten</b> mit
+      der eingestellten Auflagerbedingung. ${knopf}</p>` : ''}
+    ${vor}
+    ${aus ? '<p class="notiz" style="margin:4px 0 0">Die Nachweisgruppe «Auflager Joch» ist ausgeschaltet (Optionen) - der Block zählt nicht zum Urteil.</p>' : ''}
+    ${tabelle}`;
+}
+
 export function bestandBlockHtml(sw) {
   const b = sw?.bestand;
   if (!b) return '';
@@ -7698,6 +7765,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
+    ${zeigtTrag ? buegelBlockHtml(opt, urteil) : ''}
     ${zeigtTrag ? bestandBlockHtml(swG) : ''}
     ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und
          keine Stellen des Ersatzjochs. */''}
