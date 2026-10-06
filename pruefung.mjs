@@ -38994,6 +38994,71 @@ titel('239  Wind × 0.74 im grossflächigen Überbauungsgebiet');
        .test(readFileSync(join(HIER, 'js', 'core.abfangjoch.js'), 'utf8')));
 }
 
+titel('240  Ungleiche Gurte: stehende Bleche von Spitze zu Spitze, ungleichschenkliger Winkel im Spiegelbild');
+/* ===========================================================================
+ * 6. Oktober, gemeldet am J130 mit Bild aus AxisVM: «Falscher
+ * Gurtquerschnitt und die starrelemente in den knotenbereichen haben nicht
+ * die korrekte z werte, die stehenden bleche ragen in den obergurt winkel
+ * hinein … Checke bei allen jochen ob ähnliche fehler auftreten.»
+ * (1) Die Sortimentslänge wurde symmetrisch verteilt - jetzt im Verhältnis
+ * der Wege Achse -> Schenkelspitze. (2) In den um 90 / 270 Grad gedrehten
+ * Ecken stand der ungleichschenklige Winkel quer - jetzt `GURT_.._T`.
+ * ========================================================================= */
+{
+  const N240 = await import(J('core.nachbarn.js'));
+  const AS240 = await import(J('app.stabwerk.js'));
+  const SW240 = await import(J('core.stabwerk.js'));
+  const T240 = await import(J('data.tragjoche.js'));
+  const typen = T240.tragjoche().map((j) => j.typ);
+  const rechne = (typ, L, mast = true) => {
+    const w = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ }, T240.getTragjoch(typ)),
+                L, xLage: 0, mastVorhanden: mast, twId: 'T1', anbauteile: [] };
+    const ws = N240.rechensatzMitNachbarn(w);
+    const erg = berechne(ws, ...N240.kernArgumente(ws));
+    return AS240.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  for (const typ of ['J130', 'J130-alt', 'J90'].filter((t) => typen.includes(t))) {
+    const j = T240.getTragjoch(typ); const L = j.laengeNorm?.[0] ?? 20;
+    const h = rechne(typ, L);
+    const d = h.roh.dat; const kn = new Map(d.knoten.map((k) => [k.name, k]));
+    // Das Blech in Feldmitte: dort volle Bauhöhe (am alten Joch steigt der Untergurt zur Voute).
+    const st = d.staebe.filter((s) => /^BV_L_\d+_2$/.test(s.name))
+      .sort((p1, p2) => Math.abs(kn.get(p1.von).x - L / 2) - Math.abs(kn.get(p2.von).x - L / 2))[0];
+    const b = st.name.replace(/_2$/, '');
+    const s1 = d.staebe.find((s) => s.name === `${b}_1`), s3 = d.staebe.find((s) => s.name === `${b}_3`);
+    const oben = kn.get(s1.von).z - kn.get(st.von).z, unten = kn.get(st.bis).z - kn.get(s3.bis).z;
+    const w0 = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ }, j) };
+    const po = getProfil(w0.profOG), pu = getProfil(w0.profUG);
+    const soll = (p) => ((p.aV ?? p.a) - (p.zsH ?? p.zs) * 10) / 1000;
+    pruef(`${typ}: steifes Stück oben = Achse → Spitze des Obergurts`, oben, soll(po), 1e-6, 'm');
+    pruef(`${typ}: … unten = Achse → Spitze des Untergurts`, unten, soll(pu), 1e-6, 'm');
+    const max = (re) => Math.max(...Object.values(h.jeStab).filter((z) => re.test(z.name)).map((z) => z.eta));
+    const ungleich = (p) => Math.abs((p.aH ?? p.a) - (p.aV ?? p.a)) > 1e-9;
+    if (ungleich(pu)) {
+      // Vorher links bis Faktor 2 gegen rechts (J130-alt 1.04 / 0.43 im ersten Anlauf).
+      pruef(`${typ}: Untergurt links = rechts (Spiegelbild)`, max(/^UGL_S/), max(/^UGR_S/), 2e-3, '');
+      pruef(`${typ}: Obergurt links = rechts`, max(/^OGL_S/), max(/^OGR_S/), 2e-3, '');
+      const qT = d.querschnitte.find((q) => q.name === 'GURT_UG_T');
+      wahr(`${typ}: getauschter Untergurt in der Datei, mit Feld «tausch»`, qT?.tausch === true
+           && d.staebe.some((s) => /^UGL_S/.test(s.name) && s.querschnitt === 'GURT_UG_T'));
+      // Kragarm in beiden Lagen: dieselbe Durchbiegung, gespiegelte Seitenlage.
+      const krag = (qs, lcsZ) => {
+        const dat = { ...d, querschnitte: [qs], knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 2, y: 0, z: 0 }],
+          staebe: [{ name: 'S', von: 'A', bis: 'B', querschnitt: qs.name, lcsZ, art: 'stab' }],
+          auflager: [{ knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid', fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }],
+          lastfaelle: [{ key: 'P' }], kombinationen: [],
+          lasten: { punkt: [{ name: 'F', knoten: 'B', richtung: 'Z', wert: -1, lastfall: 'P' }], moment: [], strecke: [] } };
+        const Ls = SW240.loese(dat, { eigengewicht: false, schubweich: false });
+        const i = Ls.knotenIdx.get('B') * 6; return [Ls.u.get('P')[i + 1], Ls.u.get('P')[i + 2]];
+      };
+      const r = krag(d.querschnitte.find((q) => q.name === 'GURT_UG'), [0, 0, 1]);
+      const l = krag(qT, [0, -1, 0]);
+      pruef(`${typ}: Kragarm links gleich weich wie rechts (lotrecht)`, l[1], r[1], 1e-9, 'm');
+      pruef(`${typ}: … und seitlich gespiegelt`, l[0], -r[0], 1e-9, 'm');
+    }
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

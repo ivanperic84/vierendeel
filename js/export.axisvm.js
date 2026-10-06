@@ -61,7 +61,7 @@ import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { abfangBau } from './export.axisvm.abfang.js';
 import { tragauslegerBau } from './export.axisvm.tragausleger.js';
 import { getTragausleger, tragauslegerSpreizung } from './data.abfangjoche.js';
-import { winkelwerteFuer, winkelIt } from './core.winkel.js';
+import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 import { uKontur } from './core.profilgeometrie.js';
 import { getProfil } from './data.profiles.js';
 import { gitterMerkQuerschnitt, gittermastenEinsetzen } from './export.axisvm.gitter.js';
@@ -2613,6 +2613,34 @@ export function stabmodell(m, opt = {}) {
   const ausrOG = getAusrichtung(m.ausrOG ?? 'LA_SI');
   const ausrUG = getAusrichtung(m.ausrUG ?? 'LA_SI');
   const eckeVon = (id) => ECKEN.find((e) => e.id === id);
+  /*
+   * >>> DER UNGLEICHSCHENKLIGE WINKEL IM SPIEGELBILD (6. Oktober). <<<
+   * Gemeldet am J130 mit Bild aus AxisVM: «Falscher Gurtquerschnitt». Die
+   * vier Gurte entstehen aus EINEM Winkel durch Drehen um die Stabachse
+   * (`lcs`, 0 / 90 / 180 / 270 Grad). Beim gleichschenkligen ist das das
+   * Spiegelbild, beim ungleichschenkligen nicht: in den beiden um 90 bzw.
+   * 270 Grad gedrehten Ecken stand der lange Schenkel senkrecht (J130: L
+   * 120x80x12 unten links). Betroffen waren AxisVM UND das eigene Stabwerk
+   * (es liest dieselbe Datei). Dort steht jetzt der Winkel mit getauschten
+   * Schenkeln (`tausch`, wie am Gittermast); der Nachweis wertet ihn mit
+   * `winkelGetauscht` aus.
+   */
+  const gurtTausch = (gurt, seite) => {
+    const p = gurt === 'OG' ? m.profOG : m.profUG;
+    if (!p || Math.abs((p.aH ?? p.a ?? 0) - (p.aV ?? p.a ?? 0)) < 1e-9) return false;
+    const ecke = eckeVon(`${gurt}_${seite}`);
+    const ausr = gurt === 'OG' ? ausrOG : ausrUG;
+    const dy = ecke.sy * ausr.lg, dz = ecke.sz * ausr.st;
+    return (dy < 0 && dz > 0) || (dy > 0 && dz < 0);
+  };
+  const qsGetauscht = (gurt) => {
+    const p = gurt === 'OG' ? m.profOG : m.profUG;
+    // Katalogname und Radien des Normprofils: die Bruecke legt es an und
+    // tauscht die Schenkel nach den Traegheitsmomenten der Datei.
+    return s.qs({ ...gurtQuerschnitt(winkelGetauscht(p), gurt), name: `GURT_${gurt}_T`,
+                  katalog: { norm: 'EN 10056-1', bezeichnung: p.name },
+                  profil: p.name, tausch: true });
+  };
 
   // --- Schnitte entlang der Gurte -------------------------------------------
   // Ein Gurt wird an jeder Station geteilt, im Knotenmodell 'anschnitt'
@@ -2911,12 +2939,15 @@ export function stabmodell(m, opt = {}) {
       const b = gurtKnoten(gurt, seite, xs[i + 1]);
       const mitte = (xs[i] + xs[i + 1]) / 2;
       const steif = imKnoten(mitte);
-      const qs = steif ? qsStarr : (gurt === 'OG' ? qsOG : qsUG);
+      const tausch = gurtTausch(gurt, seite);
+      const qs = steif ? qsStarr
+        : tausch ? qsGetauscht(gurt) : (gurt === 'OG' ? qsOG : qsUG);
       // Der steife Abschnitt ist TEIL DES GURTES, keine Verbindung: er trägt
       // sein Eigengewicht und die Streckenlasten seines Feldes. Deshalb
       // bleibt er auch in AxisVM ein Stab (siehe starrArt).
+      if (steif && tausch) qsGetauscht(gurt);
       s.stab(`${gurt}${seite}_S${i}`, qs, a, b,
-             steif ? { starrRolle: 'gurtabschnitt' } : null);
+             steif ? { starrRolle: 'gurtabschnitt', ...(tausch ? { gurtTausch: true } : {}) } : null);
     }
   }));
 
@@ -2964,11 +2995,27 @@ export function stabmodell(m, opt = {}) {
     // Der Abstand der beiden Blechenden - nach dem Versatz gemessen, nicht
     // aus dem Hebelarm des Nachweises übernommen.
     const L = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
-    // Die Blechlänge aus dem Sortiment hat Vorrang; sie legt beide steifen
-    // Stücke symmetrisch fest. Fehlt sie, greift die Ableitung je Ende.
-    const ausDaten = laenge > 0 ? Math.max(0, (L - mm(laenge)) / 2) : null;
+    // Die Blechlänge aus dem Sortiment hat Vorrang. Fehlt sie, greift die
+    // Ableitung je Ende.
+    /*
+     * >>> NICHT SYMMETRISCH, WENN DIE GURTE VERSCHIEDEN SIND (6. Oktober). <<<
+     * Gemeldet am J130 (L 130x130x12 oben, L 120x80x12 unten), im Wortlaut:
+     * «die starrelemente in den knotenbereichen haben nicht die korrekte z
+     * werte, die stehenden bleche ragen in den obergurt winkel hinein». Die
+     * Sortimentslaenge wurde je zur Haelfte auf beide Enden verteilt - das
+     * Blech stand mittig zwischen den Gurtachsen. Es reicht aber von
+     * Schenkelspitze zu Schenkelspitze (490 = 700 - 130 - 80), und oben ist
+     * der Weg von der Achse zur Spitze laenger als unten. Jetzt wird der Rest
+     * im Verhaeltnis der Ableitung je Ende (d1 : d2) verteilt; bei gleichen
+     * Winkeln ist das genau die bisherige Lage.
+     */
+    const rest = laenge > 0 ? Math.max(0, L - mm(laenge)) : null;
+    const dSum = (Number(d1) || 0) + (Number(d2) || 0);
+    const ausDaten = rest === null ? null
+      : dSum > 1e-9 ? [rest * (Number(d1) || 0) / dSum, rest * (Number(d2) || 0) / dSum]
+      : [rest / 2, rest / 2];
     const [e1, e2] = km !== 'anschnitt' ? [0, 0]
-                   : ausDaten !== null ? [ausDaten, ausDaten] : [d1, d2];
+                   : ausDaten !== null ? ausDaten : [d1, d2];
     if (!(L > 0) || (e1 + e2) < 1e-9 || (e1 + e2) >= L) {
       s.stab(name, qsBlech, rueck(gurt1, p1, 1).name, rueck(gurt2, p2, 2).name);
       return;
@@ -4844,7 +4891,8 @@ function gurtSteif(s, starrModell) {
   // Am Rohnamen, mit dem Praefix des Tragwerks: «T1_OGL_S0» ist ein
   // Obergurt von T1 (bis 19. September wurde er zu «GURT_UG» ohne Praefix).
   const gurt = (s.roh ?? s.name).startsWith('OG') ? 'OG' : 'UG';
-  return { querschnitt: `${s.praefix ?? ''}GURT_${gurt}`, steifesMaterial: true };
+  // Im Spiegelbild der ungleichschenklige Winkel mit getauschten Schenkeln (6. Oktober).
+  return { querschnitt: `${s.praefix ?? ''}GURT_${gurt}${s.gurtTausch ? '_T' : ''}`, steifesMaterial: true };
 }
 
 function starrArt(s, starrModell) {
@@ -5011,7 +5059,7 @@ export function stabmodellJson(m, opt = {}) {
     // Die Drehlage des Abfangjochs steht schon fest (abfangBau).
     if (stab.lcsFest) return stab.lcsFest;
     const qsR = rohQs(stab), nameR = rohName(stab);
-    const gurt = (qsR === 'GURT_OG' || qsR === 'GURT_UG'
+    const gurt = (/^GURT_(OG|UG)(_T)?$/.test(qsR)
                   || stab.starrRolle === 'gurtabschnitt')
                  ? (nameR.startsWith('OG') ? 'OG' : 'UG') : null;
     if (gurt) {
@@ -5259,6 +5307,10 @@ export function stabmodellJson(m, opt = {}) {
       ...(Number.isFinite(q.Iyz) ? { Iyz: q.Iyz } : {}),
       // Der Merk-Querschnitt des Gittermasts (wird beim Einsetzen ersetzt).
       ...(q.gitter ? { gitter: q.gitter } : {}),
+      // Der ungleichschenklige Winkel im Spiegelbild (6. Oktober, `gurtTausch`).
+      // Fehlte das Feld hier, rechnete der Nachweis die getauschte Ecke mit dem
+      // ungetauschten Winkel - dieselbe Falle wie bei `versatz` und `Iyz`.
+      ...(q.tausch ? { tausch: true } : {}),
     })),
     knoten: [...bau.knoten.values()],
     staebe: bau.staebe.map((s) => ({

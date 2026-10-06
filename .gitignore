@@ -118,3 +118,6 @@ com/AxisVM_Abfangjoch_*
 .vergleich_stabwerk/
 .vergleich_gittermast/
 .vergleich_blech/
+
+# Gemeldete Fehler mit Modellen des Betreibers (Linie, Kilometer im Namen) - nie in die Ablage.
+bugs/
