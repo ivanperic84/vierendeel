@@ -3250,8 +3250,57 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       ${liste.length > 1 ? `<button class="btn btn-mini" data-at-alle-weg type="button"
               title="Alle Anbauteile dieses Tragwerks entfernen (fragt nach, Rückgängig mit Strg+Z)"
               >Alle entfernen (${liste.length})</button>` : ''}</div>` +
-    `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`;
+    `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`
+    + drahtwerkUebersichtHtml(liste);
 }
+
+/* ===========================================================================
+ * >>> DIE DRAHTWERKE NACH TYP (7. Oktober). <<< Weisung: «Drahtwerk
+ * Übersicht im 3d und liste mit typ und anzahl», auf Rückfrage «Liste +
+ * Hervorheben im 3D». Je Baustein der Rolle Drahtwerk (Fahrdraht, Tragseil,
+ * Rückleiter …) die Anzahl über alle Anbauteile (Modul × Anzahl) und die
+ * Teile, an denen er hängt; ein Klick hebt diese Teile im 3D hervor, ein
+ * zweiter Klick oder Esc nimmt es zurück.
+ * ========================================================================= */
+export function drahtwerkUebersicht(liste) {
+  const je = new Map();
+  (liste ?? []).forEach((a, i) => {
+    if (a?.aktiv === false) return;
+    (a.module ?? []).forEach((m) => {
+      if (m?.aktiv === false || !m?.bauteil) return;
+      let b; try { b = getFlBauteil(m.bauteil); } catch { return; }
+      if (b.rolle !== 'drahtwerk') return;
+      const e = je.get(m.bauteil) ?? { id: m.bauteil, name: b.name, anzahl: 0, teile: [], lagen: [] };
+      e.anzahl += Math.max(1, Math.round(Number(m.anzahl) || 1));
+      // Schlüssel des 3D (`AT<Index>`, render.3d.js), angezeigt als A<Nummer>.
+      const teil = `AT${i}`;
+      if (!e.teile.includes(teil)) {
+        e.teile.push(teil);
+        e.lagen.push(amMast(a) ? `${a.hMast ?? 0} m am Mast` : `${(Number(a.x) || 0).toFixed(2)} m`);
+      }
+      je.set(m.bauteil, e);
+    });
+  });
+  return [...je.values()].sort((p, q) => q.anzahl - p.anzahl || p.name.localeCompare(q.name));
+}
+
+function drahtwerkUebersichtHtml(liste) {
+  const d = drahtwerkUebersicht(liste);
+  if (!d.length) return '';
+  const summe = d.reduce((s, e) => s + e.anzahl, 0);
+  return klapp('at-drahtwerke', 'Drahtwerke nach Typ', `
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Typ</th><th class="num">Anzahl</th><th>an</th></tr></thead>
+      <tbody>${d.map((e) => `
+        <tr class="klick" data-drahtwerk="${esc(e.teile.join(','))}" title="Im 3D hervorheben (nochmals klicken oder Esc: zurück)">
+          <td>${esc(e.name)}</td><td class="num">${e.anzahl}</td>
+          <td>${esc(e.teile.map((t, k) => `A${Number(t.slice(2)) + 1} ${e.lagen[k]}`).join(' · '))}</td></tr>`).join('')}
+      </tbody></table></div>`, `${d.length} Typen · ${summe} Stück`, true);
+}
+
+/** Rückruf für das Hervorheben im 3D; app.js setzt ihn beim Start. */
+let beiDrahtwerk = null;
+export function setzeDrahtwerkWahl(fn) { beiDrahtwerk = fn; }
 
 /** Einwirkungsklasse aus der gewählten Windstufe. */
 const ekVonWerten = (w) =>
@@ -5014,6 +5063,15 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   container.querySelectorAll('[data-at-dup]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
+  });
+  // Drahtwerke nach Typ: hervorheben im 3D (7. Oktober).
+  container.querySelectorAll('[data-drahtwerk]').forEach((z) => {
+    z.addEventListener('click', () => {
+      const an = !z.classList.contains('aktiv');
+      container.querySelectorAll('[data-drahtwerk]').forEach((x) => x.classList.remove('aktiv'));
+      if (an) z.classList.add('aktiv');
+      beiDrahtwerk?.(an ? z.dataset.drahtwerk.split(',') : null);
+    });
   });
   // Gruppe ein-/ausschalten (6. Oktober), wie das Häkchen je Teil.
   container.querySelectorAll('[data-at-gruppe-auge]').forEach((b) => {

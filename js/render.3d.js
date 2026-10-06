@@ -2856,6 +2856,7 @@ export class Modellansicht {
    * herauszoomen»). `ganzesJoch` tut dasselbe und fährt zurück aufs Ganze.
    */
   auswahlAufheben() {
+    this.hervorTeile = null;
     this.markierung = null;
     this.fokus = null;
     this.detail = null;
@@ -4598,8 +4599,10 @@ export class Modellansicht {
        * gewaehlten Anbauteils (auch seine Leiterstriche `…_L`, Klemmen) tragen
        * einen Schimmer in der Akzentfarbe und eine kraeftige Kante.
        */
-      const gewaehlt = this.auswahlTeil && typeof f.teil === 'string'
-        && (f.teil === this.auswahlTeil || f.teil.startsWith(`${this.auswahlTeil}_`));
+      // Dazu die Teile der Drahtwerk-Übersicht (7. Oktober, `hervorTeile`).
+      const trifft = (k) => typeof f.teil === 'string' && (f.teil === k || f.teil.startsWith(`${k}_`));
+      const gewaehlt = (this.auswahlTeil && trifft(this.auswahlTeil))
+        || (this.hervorTeile?.size && [...this.hervorTeile].some(trifft));
       if (gewaehlt) {
         c.globalAlpha = 0.45;
         c.fillStyle = t.acc ?? '#4aa3df';

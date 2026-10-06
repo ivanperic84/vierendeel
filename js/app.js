@@ -4837,6 +4837,7 @@ function abbrechen() {
    * UND fuhr aufs ganze Joch zurück. Jetzt nur noch die Auswahl - wer das
    * Ganze sehen will, hat «Ganzes Querprofil» unten links.
    */
+  if (ansicht?.hervorTeile) { ansicht.hervorTeile = null; ansicht.zeichne(); return; }
   if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }
   /*
    * DIE MARKIERUNG DES MASSGEBENDEN STABES (30. September: «mit esc die
@@ -6629,6 +6630,12 @@ export async function start() {
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
   // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.
   ui.setzeSortimentSuche(() => dialogSortiment(app));
+  // Drahtwerke nach Typ (7. Oktober): die Teile im 3D hervorheben.
+  ui.setzeDrahtwerkWahl((teile) => {
+    if (!ansicht) return;
+    ansicht.hervorTeile = teile?.length ? new Set(teile) : null;
+    ansicht.zeichne();
+  });
   ui.setzeAnbauHandler({
     /*
      * EIN WEG ZUM SETZEN, NICHT ZWEI.

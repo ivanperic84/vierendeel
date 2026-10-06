@@ -38925,7 +38925,9 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
        && !/[^.\w]ausklappen\('links'\)/.test(readFileSync(join(HIER, 'js', 'app.js'), 'utf8')));
   wahr('Nur die linke Taste klickt (Rechtsklick zoomt nicht)', /!griff\.bewegt && !\(e\.button > 0\)/.test(r3));
   wahr('Zoom auf die Mitte des ganzen Teils', /this\._animiere\(\[mitte, 0, zM\], dist\)/.test(r3));
-  wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = this\.auswahlTeil/.test(r3));
+  // Seit dem 7. Oktober auch die Teile der Drahtwerk-Übersicht (`hervorTeile`).
+  wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = \(this\.auswahlTeil && trifft\(this\.auswahlTeil\)\)/.test(r3)
+       && /this\.hervorTeile\?\.size/.test(r3));
   wahr('Kraftpfeile mit Vorzeichen (F_z nach oben)', /pf\.k \* \(pf\.ri\[0\] \+ pf\.ri\[1\] \+ pf\.ri\[2\]\)/.test(r3));
   wahr('Längsanker im 3D ziehbar', /beiLaengsankerZiehen/.test(r3) && /beiLaengsankerZiehen: \(d\) =>/.test(app238));
   wahr('Lastfalltabelle: eine Zeile wählt den Fall', /data-lf-wahl/.test(readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'))
@@ -39186,6 +39188,22 @@ titel('245  Lastgenerator: Lage ab Mast A mit Abstand Mast-Gleis; kurze Auswahl'
   const aq = APP_QUELLE();
   wahr('Die Auswahl ist kurz: Haengestuetzen, Kettenwerke, Jochaufsaetze', aq.includes("const GEN_GRUPPEN = [")
        && !/GEN_GRUPPEN[\s\S]{0,400}leiter-rl/.test(aq));
+}
+
+titel('246  Drahtwerke nach Typ: Liste mit Anzahl, Hervorheben im 3D');
+/* 6. Oktober: «Drahtwerk Übersicht im 3d und liste mit typ und anzahl»; Rueckfrage «Liste + Hervorheben im 3D». */
+{
+  const UI246 = await import(J('ui.js'));
+  const DA246 = await import(J('data.anbauteile.js'));
+  const liste = [DA246.neuesAnbauteil('hs-nt-ausleger', 8), DA246.neuesAnbauteil('hs-nt-ausleger', 12), DA246.neuesAnbauteil('hs-nur', 4)];
+  const d = UI246.drahtwerkUebersicht(liste);
+  wahr('Je Typ eine Zeile, Anzahl ueber alle Teile, Schluessel des 3D', d.length > 0
+       && d.every((e) => e.anzahl >= e.teile.length && e.teile.every((t) => /^AT\d+$/.test(t)))
+       && d.every((e) => !e.teile.includes('AT2')), d.map((e) => `${e.name} ${e.anzahl} ${e.teile}`).join(' | '));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Das 3D hebt eine Menge von Teilen hervor, Esc nimmt es zurueck',
+       /this\.hervorTeile\?\.size/.test(r3) && /auswahlAufheben\(\) \{\s*this\.hervorTeile = null;/.test(r3)
+       && APP_QUELLE().includes('if (ansicht?.hervorTeile) { ansicht.hervorTeile = null;'));
 }
 
 console.log('\n' + '='.repeat(104));
