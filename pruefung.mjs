@@ -33710,9 +33710,13 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
        && /dialogTragwerk\(app, null, 'tragausleger', \{ mastA: m\.id \}\)/.test(kq));
   wahr('… und die Einträge der Tragwerke, die er trägt',
        /traegt\.forEach\(\(tid\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, tid\)\)\)/.test(kq));
-  wahr('Auf dem Grund: der Dialog mit den Masten links und rechts der Stelle, dazu die Tragwerke darüber',
-       /dialogTragwerk\(app, null, a\.key, vor\)/.test(kq) && !/app\.aendern\('tragwerkNeu', \{ art: a\.key, xLage: wo \}\)/.test(kq)
-       && /\.forEach\(\(t\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, t\.id\)\)\)/.test(kq));
+  // Seit dem 6. Oktober («Kontextmenues kürzen … jenachdem wo man klickt»):
+  // im Bereich eines Tragwerks nur dessen Abschnitt, an freier Stelle EINE
+  // Auswahl «Neu bei x», die den Dialog mit der Vorbelegung öffnet.
+  wahr('Auf dem Grund: der Dialog mit den Masten links und rechts der Stelle, im Bereich eines Tragwerks dessen Abschnitt',
+       /dialogTragwerk\(app, null, v, vorbelegungAnStelle\(app, v, wo\)\)/.test(kq)
+       && !/app\.aendern\('tragwerkNeu', \{ art: a\.key, xLage: wo \}\)/.test(kq)
+       && /p\.push\('-', \.\.\.tragwerkAbschnitt\(app, aktivDa\.id\)\)/.test(kq));
   wahr('Der Dialog nimmt die Vorbelegung und rechnet Lage und Stützweite aus den Masten',
        /export function dialogTragwerk\(app, id = null, artVor = null, vor = \{\}\)/.test(dq)
        // Seit dem 30. Sept. mit den Kragarmen: L = Stützweite + c_A + c_B.

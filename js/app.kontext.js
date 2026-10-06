@@ -195,16 +195,19 @@ export function kontextTragwerk(app, id) {
    * Wer von einem 30-m-Joch auf A160 wechselt, bekommt die naechste Laenge,
    * die der neue Typ wirklich fuehrt.
    * ======================================================================= */
-  const andere = TRAGWERKSARTEN.filter((a) => a.key !== tragwerksart(t).key);
-  if (andere.length) {
-    p.push('-');
-    andere.forEach((a) => {
-      p.push({ text: `Art wechseln auf: ${a.label}`, tun: () => {
-        if ((app.werte.twId ?? 'T1') !== id) app.werte = tauscheAktives(app.werte, id);
-        app.aendern('tragwerkArt', { id, art: a.key });
-      } });
-    });
-  }
+  /*
+   * >>> KUERZER (6. Oktober). <<< «Allgemein die längeren Kontextmenues
+   * kürzen.» Drei Eintraege «Art wechseln auf: …» sind jetzt EINE Auswahl.
+   */
+  p.push('-');
+  p.push({ feld: { art: 'auswahl', label: 'Art', wert: tragwerksart(t).key,
+                   optionen: TRAGWERKSARTEN.map((a) => ({ wert: a.key, text: a.label })) },
+           tun: (v) => {
+             if (v === tragwerksart(t).key) return;
+             kontextSchliessen(app);
+             if ((app.werte.twId ?? 'T1') !== id) app.werte = tauscheAktives(app.werte, id);
+             app.aendern('tragwerkArt', { id, art: v });
+           } });
   /*
    * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
    *
@@ -695,31 +698,38 @@ export function kontextGrund(app, k) {
    */
   if (Number.isFinite(k?.welt?.x)) {
     const wo = aufRaster(k.welt.x);
-    p.push('-');
-    p.push({ kopf: `Neues Tragwerk bei x = ${wo.toFixed(2)} m` });
     /*
-     * SEIT DEM 30. SEPTEMBER UEBER DEN DIALOG: er fragt die Grundwerte und
-     * die Masten. Stehen links und rechts der Stelle Masten, sind sie fuer
-     * die Arten mit zwei Masten schon gewaehlt - der Fall «ein Joch
-     * dazwischen legen».
+     * >>> JE NACH STELLE (6. Oktober). <<< «Beim Abfangjoch ist der
+     * Kontextmodal im 3d überladen. Allgemein die längeren Kontextmenues
+     * kürzen. Jenachdem wo man klickt die auswahl anpassen (joch / mast /
+     * anker / leere stelle etc.)». Ein Klick neben den Traeger im Bereich
+     * eines Tragwerks meint dieses Tragwerk - dann nur sein Abschnitt, kein
+     * «Neues Tragwerk». An einer freien Stelle das Neue, als EINE Auswahl
+     * statt vier Eintraegen.
      */
-    TRAGWERKSARTEN.forEach((a) => {
-      const vor = vorbelegungAnStelle(app, a.key, wo);
-      p.push({ text: `${a.label} …`, tun: () => dialogTragwerk(app, null, a.key, vor) });
-    });
-    /*
-     * DIE TRAGWERKE UNTER DER STELLE (30. September): zwischen den Gurten
-     * eines Jochs trifft der Zeiger keine Flaeche und landet hier. Wer dort
-     * klickt, meint meist das Joch - seine Eintraege stehen deshalb auch
-     * hier, je Tragwerk, dessen Strecke die Stelle ueberdeckt.
-     */
-    tragwerkeSortiert(app.werte)
+    const imBereich = tragwerkeSortiert(app.werte)
       .filter((t) => !versteckt(t) && tragwerksart(t).masten >= 2)
       .filter((t) => {
         const x0 = lageVon(t), L = Number(t.L) || 0;
         return k.welt.x >= x0 - 0.3 && k.welt.x <= x0 + L + 0.3;
-      })
-      .forEach((t) => p.push('-', ...tragwerkAbschnitt(app, t.id)));
+      });
+    if (imBereich.length) {
+      const aktivDa = imBereich.find((t) => t.id === (app.werte.twId ?? 'T1')) ?? imBereich[0];
+      p.push('-', ...tragwerkAbschnitt(app, aktivDa.id));
+      p.push('-');
+      p.push({ text: app.setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
+               tun: () => (app.setzen ? app.setzenEnde() : app.setzenStarten()) });
+      return p;
+    }
+    p.push('-');
+    p.push({ feld: { art: 'auswahl', label: `Neu bei x ${wo.toFixed(2)}`, wert: '',
+                     optionen: [{ wert: '', text: 'Tragwerk wählen …' },
+                       ...TRAGWERKSARTEN.map((a) => ({ wert: a.key, text: a.label }))] },
+             tun: (v) => {
+               if (!v) return;
+               kontextSchliessen(app);
+               dialogTragwerk(app, null, v, vorbelegungAnStelle(app, v, wo));
+             } });
   }
   p.push('-');
   p.push({ text: app.setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
