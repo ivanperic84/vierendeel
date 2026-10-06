@@ -226,7 +226,7 @@ export function kontextTragwerk(app, id) {
   p.push({ feld: { art: 'zahl', label: 'Lage x₀', einheit: 'm', schritt: 0.05,
                    wert: lageVon(t) },
            tun: (v) => app.aendern('tragwerkLage', { id, x: v }) });
-  p.push({ text: `${tragwerkName(t, app.werte)} kopieren`, tun: () => tragwerkKopieren(app, id) });
+  p.push({ text: `${tragwerkName(t, app.werte)} duplizieren …`, tun: () => tragwerkKopieren(app, id) });
   p.push({ text: 'Auf dieses zoomen', tun: () => app.zoomAufTragwerk(id) });
   if (tragwerksart(t).traeger && mastenFuer(app.werte, t).some(Boolean)) {
     p.push({ text: `${tragwerkName(t, app.werte)} entfernen, Masten als Einzelmasten behalten`,
@@ -250,19 +250,57 @@ export function kontextTragwerk(app, id) {
  * Sie wird ausserdem zum GERECHNETEN - wer kopiert, will an der Kopie
  * weiterarbeiten, nicht am Original.
  */
+/*
+ * >>> KOPIEREN FRAGT, WOHIN (6. Oktober). <<< Weisung im Wortlaut: «Beim
+ * afangjoch befehl zum duplizieren und nachfrage wo ablegen. Man modelliert
+ * meist den träger für die tragseile oder Fahrdrähte und kopiert dann
+ * diesen.» Bisher legte die Kopie sich wortlos ins naechste Feld daneben.
+ * Jetzt ein Fenster: an DENSELBEN Masten in anderer Anschlusshoehe (beim
+ * Abfangjoch die Vorgabe, 1.50 m tiefer - Tragseil oben, Fahrdraht unten)
+ * oder daneben bei x; die Anbauteile am Traeger auf Wunsch mit.
+ */
 export function tragwerkKopieren(app, id) {
-  app.handlung('Tragwerk kopieren', () => {
-    const t = tragwerkeSortiert(app.werte).find((x) => x.id === id);
-    if (!t) return;
-    const satz = { ...tragwerkTeil(t) };
-    delete satz.id;
-    delete satz.pos;
-    const L = Number(t.L) || 0;
-    app.werte = tragwerkHinzu(app.werte, tragwerksart(t).key,
-                          { ...satz, xLage: lageVon(t) + (L || 2) });
-    app.mastNachfuehrenGlobal();
-    app.neuRechnen();
-  });
+  const t = tragwerkeSortiert(app.werte).find((x) => x.id === id);
+  if (!t) return;
+  const art = tragwerksart(t).key;
+  const L = Number(t.L) || 0;
+  const H = Number(t.mastH) || 7.5;
+  const xDaneben = lageVon(t) + (L || 2);
+  const ueber = art === 'abfangjoch' || art === 'tragjoch';
+  const d = app.dialog(`${tragwerkName(t, app.werte)} kopieren`, `
+    <div class="feld"><label>Wohin</label>
+      ${ueber ? `<label class="schalter"><input type="radio" name="kopie-wo" value="hoehe"${art === 'abfangjoch' ? ' checked' : ''}>
+        <span>an <b>dieselben Masten</b>, Anschlusshöhe
+          <input id="kopie-h" type="number" class="kurz" step="0.1" value="${Math.max(2, H - 1.5).toFixed(2)}"> m</span></label>` : ''}
+      <label class="schalter"><input type="radio" name="kopie-wo" value="daneben"${art === 'abfangjoch' && ueber ? '' : ' checked'}>
+        <span><b>daneben</b> bei x =
+          <input id="kopie-x" type="number" class="kurz" step="0.1" value="${xDaneben.toFixed(2)}"> m</span></label>
+    </div>
+    <label class="schalter"><input type="checkbox" id="kopie-teile" checked>
+      <span>Anbauteile am Träger mitnehmen</span></label>`,
+    '<button class="btn btn-acc" data-kopie-ok>Kopieren</button>');
+  d.node.querySelector('[data-kopie-ok]').onclick = () => {
+    const wo = d.node.querySelector('input[name="kopie-wo"]:checked')?.value ?? 'daneben';
+    const hNeu = Number(d.node.querySelector('#kopie-h')?.value);
+    const xNeu = Number(d.node.querySelector('#kopie-x')?.value);
+    const mitTeilen = d.node.querySelector('#kopie-teile')?.checked !== false;
+    d.zu();
+    app.handlung('Tragwerk kopieren', () => {
+      const satz = { ...tragwerkTeil(t) };
+      delete satz.id;
+      delete satz.pos;
+      if (!mitTeilen) satz.anbauteile = (satz.anbauteile ?? []).filter((a) => a?.ort === 'mastA' || a?.ort === 'mastB');
+      const ziel = wo === 'hoehe' && hNeu > 0
+        ? { xLage: lageVon(t), mastH: hNeu, mastHB: hNeu }
+        : { xLage: Number.isFinite(xNeu) ? xNeu : xDaneben };
+      app.werte = tragwerkHinzu(app.werte, art, { ...satz, ...ziel });
+      app.mastNachfuehrenGlobal();
+      app.neuRechnen();
+      app.meldeImBalken(wo === 'hoehe'
+        ? `Kopie an denselben Masten, Anschlusshöhe ${hNeu.toFixed(2)} m`
+        : `Kopie bei x = ${(Number.isFinite(xNeu) ? xNeu : xDaneben).toFixed(2)} m`);
+    });
+  };
 }
 
 /**
