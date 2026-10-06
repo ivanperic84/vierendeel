@@ -6443,23 +6443,33 @@ export function verdrahteNachweisart(node, opt) {
 export function bestandBlockHtml(sw) {
   const b = sw?.bestand;
   if (!b) return '';
-  const kopf = abschnitt('Bestandesschutz', `Δη ≤ ${(b.grenze ?? 0.05).toFixed(2)} · Stabwerk`);
+  // Die Regel (6. Oktober): fest auf den Grenzwert oder anteilig an η(Bestand).
+  const anteilig = b.bezug === 'ausnutzung';
+  const pz = b.prozent ?? (b.grenze ?? 0.05) * 100;
+  const pzT = `${Number(pz.toFixed(2))} %`;
+  const kopf = abschnitt('Bestandesschutz', anteilig
+    ? `Δη ≤ ${pzT} von η Bestand · Stabwerk`
+    : `Δη ≤ ${(b.grenze ?? 0.05).toFixed(3).replace(/0$/, '')} (${pzT} von 1.00) · Stabwerk`);
   if (!b.anzahl) {
     return `${kopf}<p class="leer">Kein Anbauteil als «neu» gekennzeichnet — das Kennzeichen steht in der Bauteilkarte (Reiter Anbauteile).</p>`;
   }
   if (b.fehler) return `${kopf}<p class="leer">Bestand nicht gerechnet: ${esc(b.fehler)}</p>`;
-  const k = kachel('Δη Bestandesschutz', b.dMax.toFixed(3),
+  const k = kachel(anteilig ? 'Zunahme Bestandesschutz' : 'Δη Bestandesschutz',
+    anteilig ? (b.relMax === null ? '–' : `${b.relMax >= 0 ? '+' : '−'}${Math.abs(b.relMax * 100).toFixed(1)} %`)
+             : b.dMax.toFixed(3),
     `${b.wer ?? ''} · ${b.ok ? 'kein vertiefter Nachweis' : 'vertiefter Nachweis nötig'}`,
     b.ok ? 'ok' : 'nok',
     { titel: `${b.anzahl} Anbauteil(e) als neu gekennzeichnet. Je Bauteil η(Bestand + neue Teile) − η(Bestand), `
-           + `bezogen auf die Grenzausnutzung 1.00; beide Zustände mit derselben Windstufe.` });
+           + (anteilig ? `zulässig ${pzT} der Ausnutzung im Bestand; ` : `zulässig ${pzT} der Grenzausnutzung 1.00; `)
+           + 'beide Zustände mit derselben Windstufe.' });
   const zeilen = b.zeilen.map((z) => `<tr class="${z.ok ? '' : 'nok'}"><td>${esc(z.name)}</td>`
     + `<td class="num">${z.alt.toFixed(3)}</td><td class="num">${z.neu.toFixed(3)}</td>`
-    + `<td class="num">${z.d >= 0 ? '+' : '−'}${Math.abs(z.d).toFixed(3)}</td></tr>`).join('');
+    + `<td class="num">${z.d >= 0 ? '+' : '−'}${Math.abs(z.d).toFixed(3)}</td>`
+    + `<td class="num">${Number.isFinite(z.zul) ? z.zul.toFixed(3) : '–'}</td></tr>`).join('');
   return `${kopf}<div class="kennzahlen">${k}</div>
     ${klapp('bestand-tabelle', `Je Bauteil · ${b.anzahl} neue(s) Teil(e)`,
       `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Bauteil</th><th class="num">Bestand</th>`
-      + `<th class="num">mit neuen</th><th class="num">Δη</th></tr></thead><tbody>${zeilen}</tbody></table></div>`)}`;
+      + `<th class="num">mit neuen</th><th class="num">Δη</th><th class="num">zul.</th></tr></thead><tbody>${zeilen}</tbody></table></div>`)}`;
 }
 
 export function gzgBlockHtml(erg, quelle = '', gzg = null) {

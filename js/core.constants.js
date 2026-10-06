@@ -207,6 +207,8 @@ export const BLATT_FELDER = [
   'windReduktion',
   // Echtzeit oder Knopf beim Stabwerk (6. Oktober) - eine Einstellung des Blattes.
   'stabwerkAuslosung',
+  // Die Regel des Bestandesschutzes (6. Oktober) gilt dem Blatt.
+  'bestandProzent', 'bestandBezug',
   // Lastfälle, Beiwerte und Rechenmodelle: sie beschreiben, WIE gerechnet
   // wird. Zwei Tragwerke auf einem Blatt verschieden zu rechnen wäre ein
   // Fehler, kein Freiheitsgrad.

@@ -39090,6 +39090,42 @@ titel('241  Stabwerk: neu rechnen nur, wenn sich das Ergebnis aendert; Echtzeit 
   wahr('Optionen zeigen die Wahl', /data-auslosung=/.test(uq));
 }
 
+titel('242  Bestandesschutz: Grenze einstellbar, bezogen auf Grenzwert oder tatsaechliche Ausnutzung');
+/* ===========================================================================
+ * 6. Oktober: «Beim Bestandesschutz das Delta 5% einstellbar machen auf
+ * tatsächliche ausnutzung oder den Grenzwert de Bauteils.»
+ * ========================================================================= */
+{
+  const BE242 = await import(J('core.bestand.js'));
+  const C242 = await import(J('core.constants.js'));
+  const UI242 = await import(J('ui.js'));
+  const neu = { bauteile: { j: { name: 'Joch', eta: 0.635 }, m: { name: 'Mast M1', eta: 0.84 } } };
+  const alt = { bauteile: { j: { name: 'Joch', eta: 0.60 }, m: { name: 'Mast M1', eta: 0.80 } } };
+  const r0 = BE242.bestandRegel({});
+  wahr('Vorgabe: 5 % auf den Grenzwert (wie bisher)', r0.prozent === 5 && r0.bezug === 'grenzwert');
+  const g = BE242.bestandVergleich(neu, alt, {});
+  wahr('Grenzwert 5 %: Joch +0.035, Mast +0.04 - beide erfüllt', g.ok === true
+       && g.zeilen.every((z) => Math.abs(z.zul - 0.05) < 1e-12));
+  const a = BE242.bestandVergleich(neu, alt, { bestandBezug: 'ausnutzung' });
+  const zj = a.zeilen.find((z) => z.name === 'Joch'), zm = a.zeilen.find((z) => z.name === 'Mast M1');
+  pruef('Ausnutzung 5 %: zul. am Joch = 0.05 · 0.60', zj.zul, 0.03, 1e-12, '');
+  wahr('… Joch +0.035 > 0.03 faellt, Mast +0.04 = 0.05 · 0.80 gilt genau noch; massgebend das Joch',
+       zj.ok === false && Math.abs(zm.zul - 0.04) < 1e-12 && zm.ok === true && a.wer === 'Joch');
+  const a4 = BE242.bestandVergleich(neu, alt, { bestandBezug: 'ausnutzung', bestandProzent: 4 });
+  wahr('Ausnutzung 4 %: beide überschritten, massgebend das mit dem grössten Anteil an seiner Grenze',
+       a4.ok === false && a4.wer === 'Joch' && Math.abs(a4.relMax - 0.035 / 0.6) < 1e-12,
+       a4.zeilen.map((z) => `${z.name} ${z.d.toFixed(3)}/${z.zul.toFixed(3)}`).join(' · '));
+  const g2 = BE242.bestandVergleich(neu, alt, { bestandProzent: 3.75 });
+  wahr('Grenzwert 3.75 %: der Mast (+0.04) fällt, das Joch (+0.035) nicht',
+       g2.zeilen.find((z) => z.name === 'Mast M1').ok === false && g2.zeilen.find((z) => z.name === 'Joch').ok === true);
+  wahr('Alter Aufruf mit einer Zahl bleibt eine Grenze auf den Grenzwert',
+       BE242.bestandVergleich(neu, alt, 0.035).zeilen.find((z) => z.name === 'Mast M1').ok === false);
+  wahr('Beide Felder gehoeren dem Blatt', ['bestandProzent', 'bestandBezug'].every((k) => C242.BLATT_FELDER.includes(k)));
+  const html = UI242.bestandBlockHtml({ bestand: { anzahl: 1, ...a4 } });
+  wahr('Der Block nennt die Regel und die Zunahme in %', html.includes('von η Bestand')
+       && html.includes('+5.8 %') && html.includes('zul.'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

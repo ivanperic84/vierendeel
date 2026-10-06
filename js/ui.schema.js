@@ -1844,6 +1844,23 @@ export const FELDER = [
       + 'zeigt jede Bauteilkarte das Kennzeichen «neu». Derselbe Schalter wie '
       + 'unter Optionen → Nachweise und über der Anbauteilliste.' },
   /*
+   * >>> DIE GRENZE DES BESTANDESSCHUTZES (6. Oktober). <<< «Beim
+   * Bestandesschutz das Delta 5% einstellbar machen auf tatsächliche
+   * ausnutzung oder den Grenzwert de Bauteils.» Nur sichtbar, wenn der
+   * Vergleich eingeschaltet ist; Regel in core.bestand.js (`bestandRegel`).
+   */
+  { key: 'bestandProzent', gruppe: 'ein', typ: 'zahl', label: 'Bestandesschutz: zulässige Zunahme',
+    sym: 'Δ', einheit: '%', standard: 5, schritt: 0.5, min: 0.5,
+    sichtbar: (w) => nachweiseAuswahl(w.nachweise).bestandesschutz === true,
+    hinweis: 'Zulässige Zunahme der Ausnutzung je Bauteil durch die neuen Teile.' },
+  { key: 'bestandBezug', gruppe: 'ein', typ: 'auswahl', label: 'Bestandesschutz: bezogen auf',
+    standard: 'grenzwert',
+    optionen: [{ wert: 'grenzwert', text: 'Grenzwert des Bauteils (η = 1.00)' },
+               { wert: 'ausnutzung', text: 'tatsächliche Ausnutzung (η Bestand)' }],
+    sichtbar: (w) => nachweiseAuswahl(w.nachweise).bestandesschutz === true,
+    hinweis: 'Grenzwert: Δη ≤ Δ · 1.00. Tatsächliche Ausnutzung: Δη ≤ Δ · η(Bestand) - '
+      + 'bei einem Bauteil mit η 0.60 und 5 % also 0.03.' },
+  /*
    * >>> REDUKTION IM GROSSFLAECHIGEN UEBERBAUUNGSGEBIET (6. Oktober). <<<
    * Weisung im Wortlaut: «Reduktionsfaktor (grossflächiges
    * Überbauungsgebiet) auswählbar machen mit 0.74»; auf Rückfrage «Auf

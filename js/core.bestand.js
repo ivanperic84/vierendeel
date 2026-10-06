@@ -31,6 +31,27 @@
 /** Die Grenze der Lastzunahme, bezogen auf die Grenzausnutzung 1.00. */
 export const BESTAND_GRENZE = 0.05;
 
+/*
+ * >>> DIE GRENZE EINSTELLBAR, MIT BEZUG (6. Oktober). <<< Weisung: «Beim
+ * Bestandesschutz das Delta 5% einstellbar machen auf tatsächliche
+ * ausnutzung oder den Grenzwert de Bauteils.» Zwei Felder des Blattes:
+ *   - `bestandProzent` (Vorgabe 5),
+ *   - `bestandBezug`: «grenzwert» (Vorgabe, wie bisher) Δη ≤ p/100 · 1.00,
+ *     «ausnutzung» Δη ≤ p/100 · η(Bestand) - die Zunahme gemessen an der
+ *     vorhandenen Ausnutzung des Bauteils (strenger, solange η < 1).
+ */
+export const BESTAND_BEZUEGE = [
+  { key: 'grenzwert', titel: 'Grenzwert des Bauteils (η = 1.00)' },
+  { key: 'ausnutzung', titel: 'tatsächliche Ausnutzung (η Bestand)' },
+];
+
+/** Die Regel aus dem Satz: Prozent und Bezug, mit Vorgaben. */
+export function bestandRegel(w) {
+  const p = Number(w?.bestandProzent);
+  return { prozent: Number.isFinite(p) && p > 0 ? p : BESTAND_GRENZE * 100,
+           bezug: w?.bestandBezug === 'ausnutzung' ? 'ausnutzung' : 'grenzwert' };
+}
+
 /** Ist ein Anbauteil als neu gekennzeichnet? */
 export const istNeu = (a) => a?.neu === true;
 
@@ -66,14 +87,22 @@ export function ohneNeueTeile(w) {
  * @param {object} bestand  Ergebnis ohne die neuen Teile
  * @returns {{ zeilen: Array<{name, alt, neu, d, ok}>, dMax, wer, ok, grenze }}
  */
-export function bestandVergleich(neu, bestand, grenze = BESTAND_GRENZE) {
+export function bestandVergleich(neu, bestand, regel = {}) {
+  // Eine Zahl gilt als Grenze auf den Grenzwert (alter Aufruf).
+  const r = typeof regel === 'number'
+    ? { prozent: regel * 100, bezug: 'grenzwert' } : bestandRegel(regel);
+  const grenze = r.prozent / 100;
   const zeilen = [];
   const dazu = (name, a, b) => {
     if (!Number.isFinite(a) && !Number.isFinite(b)) return;
     const alt = Number.isFinite(a) ? a : 0;
     const nn = Number.isFinite(b) ? b : 0;
     const d = nn - alt;
-    zeilen.push({ name, alt, neu: nn, d, ok: d <= grenze + 1e-12 });
+    // Zulaessige Zunahme je Bauteil: fest oder anteilig an η(Bestand).
+    const zul = r.bezug === 'ausnutzung' ? grenze * alt : grenze;
+    zeilen.push({ name, alt, neu: nn, d, zul, rel: alt > 1e-12 ? d / alt : null,
+                  q: zul > 1e-12 ? d / zul : (d > 1e-12 ? Infinity : 0),
+                  ok: d <= zul + 1e-12 });
   };
   const namen = new Set([...Object.keys(neu?.bauteile ?? {}), ...Object.keys(bestand?.bauteile ?? {})]);
   [...namen].forEach((k) => {
@@ -91,8 +120,9 @@ export function bestandVergleich(neu, bestand, grenze = BESTAND_GRENZE) {
   if (neu?.ausleger?.aufhaengung || bestand?.ausleger?.aufhaengung) {
     dazu('Aufhängung', bestand?.ausleger?.aufhaengung?.eta, neu?.ausleger?.aufhaengung?.eta);
   }
-  zeilen.sort((p, q) => q.d - p.d);
+  // Massgebend ist das Bauteil, das seine Grenze am meisten ausschöpft.
+  zeilen.sort((p, q) => q.q - p.q || q.d - p.d);
   const m = zeilen[0] ?? null;
-  return { zeilen, dMax: m?.d ?? 0, wer: m?.name ?? null,
-           ok: zeilen.every((z) => z.ok), grenze };
+  return { zeilen, dMax: m?.d ?? 0, relMax: m?.rel ?? null, wer: m?.name ?? null,
+           ok: zeilen.every((z) => z.ok), grenze, prozent: r.prozent, bezug: r.bezug };
 }

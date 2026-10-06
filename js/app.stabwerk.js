@@ -53,7 +53,7 @@ import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell } from './core.
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
-import { ohneNeueTeile, bestandVergleich } from './core.bestand.js';
+import { ohneNeueTeile, bestandVergleich, bestandRegel } from './core.bestand.js';
 import { rechensatzMitNachbarn, kernArgumente } from './core.nachbarn.js';
 import { berechne } from './core.vierendeel.js';
 import { loese } from './core.stabwerk.js';
@@ -636,7 +636,9 @@ export function rechneStabwerk(app, aufruf = {}) {
   if (!aufruf.ohneBestand && nachweiseAuswahl(satz.nachweise).bestandesschutz) {
     const { werte: wB, anzahl } = ohneNeueTeile(app.werte);
     if (anzahl === 0) {
-      ergebnis.bestand = { anzahl: 0 };
+      // Die Regel steht auch ohne neues Teil im Kopf des Blocks (6. Oktober).
+      const r = bestandRegel(app.werte);
+      ergebnis.bestand = { anzahl: 0, prozent: r.prozent, bezug: r.bezug, grenze: r.prozent / 100 };
     } else {
       try {
         const sB = rechensatzMitNachbarn(wB);
@@ -644,7 +646,7 @@ export function rechneStabwerk(app, aufruf = {}) {
         const hB = rechneStabwerk({ ...app, werte: wB, letzte: { ...app.letzte, erg: ergB } },
                                   { ohneBestand: true });
         ergebnis.bestand = hB?.teile
-          ? { anzahl, ...bestandVergleich(ergebnis, hB) }
+          ? { anzahl, ...bestandVergleich(ergebnis, hB, app.werte) }
           : { anzahl, fehler: hB?.fehler ?? hB?.ohneModell ?? 'Bestand ohne Stabwerk' };
       } catch (e) {
         ergebnis.bestand = { anzahl, fehler: String(e?.message ?? e) };
