@@ -1320,7 +1320,8 @@ export function erzeugeSzene(m, erg) {
           vektoren.push({
             gruppe: 'last', art: 'last', lastart: art, p: pAn, teil: teilKey,
             v: skal(pf.ri, Math.sign(pf.k) * pfeilLaenge(pf.k)),
-            text: `${pf.nm} = ${Math.abs(pf.k).toFixed(2)} kN`,
+            // Mit Vorzeichen in den globalen Achsen, F_z nach oben wie die Karte (6. Oktober).
+            text: `${pf.nm} = ${(pf.k * (pf.ri[0] + pf.ri[1] + pf.ri[2])).toFixed(2).replace('-', '−')} kN`,
             titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
           });
         });
@@ -1971,7 +1972,8 @@ function zeichneMastteil(ctx, a, k, ort) {
         vektoren.push({
           gruppe: 'last', art: 'last', lastart: art, p: pAn, teil: teilKey,
           v: skal(pf.ri, Math.sign(pf.k) * pfeilLaenge(pf.k)),
-          text: `${pf.nm} = ${Math.abs(pf.k).toFixed(2)} kN`,
+          // Mit Vorzeichen in den globalen Achsen, F_z nach oben wie die Karte (6. Oktober).
+            text: `${pf.nm} = ${(pf.k * (pf.ri[0] + pf.ri[1] + pf.ri[2])).toFixed(2).replace('-', '−')} kN`,
           titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
         });
       });
@@ -2953,7 +2955,14 @@ export class Modellansicht {
     const zM = (b.zMin + b.zMax) / 2;
     const hoehe = Math.max(b.zMax - b.zMin, 0.6);
     const dist = Math.max(hoehe * 1.9, halb * 2.2);
-    this._animiere([b.x, 0, zM], dist);
+    /*
+     * >>> AUF DAS GANZE TEIL, NICHT AUF DEN ANSCHLUSS (6. Oktober). <<<
+     * «Wenn bauteil angeklickt zoom auf ganzes bauteil und nicht primär auf
+     * anschlusspunkt an mast / joch / ausleger». Die Mitte in x war der
+     * Anschluss (`b.x`); ein Ausleger von 2.50 m hing damit halb aus dem
+     * Bild. Jetzt die Mitte seines Bereichs.
+     */
+    this._animiere([mitte, 0, zM], dist);
   }
 
   _animiere(ziel, dist, ms = 420) {
@@ -3543,8 +3552,15 @@ export class Modellansicht {
           return;
         }
       }
+      /*
+       * >>> NUR DIE LINKE TASTE KLICKT (6. Oktober). <<< Weisung im Wortlaut:
+       * «Wenn rehtsklick auf anbauteil, nicht hieinzoomen, man will jenachdem
+       * nur bauteil löschen, dann muss man es nicht nah sehen.» Die rechte
+       * Taste beginnt ein Schieben der Ansicht; ohne Bewegung kam sie hier als
+       * Klick an, waehlte das Teil und fuhr hinein - vor dem Kontextmenue.
+       */
       const ruhig = griff && griff.art !== 'kneifen' &&
-                    zeiger.size === 1 && !griff.bewegt;
+                    zeiger.size === 1 && !griff.bewegt && !(e.button > 0);
       zeiger.delete(e.pointerId);
       try { c.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
 
@@ -4558,6 +4574,23 @@ export class Modellansicht {
       c.globalAlpha = 1 - durch;
       c.fillStyle = f._farbe;
       c.fill();
+      /*
+       * >>> DAS GEWAEHLTE TEIL LEUCHTET (6. Oktober). <<< Weisung im Wortlaut:
+       * «Aktives Element farblich highlihten im 3d». Die Flaechen des
+       * gewaehlten Anbauteils (auch seine Leiterstriche `…_L`, Klemmen) tragen
+       * einen Schimmer in der Akzentfarbe und eine kraeftige Kante.
+       */
+      const gewaehlt = this.auswahlTeil && typeof f.teil === 'string'
+        && (f.teil === this.auswahlTeil || f.teil.startsWith(`${this.auswahlTeil}_`));
+      if (gewaehlt) {
+        c.globalAlpha = 0.45;
+        c.fillStyle = t.acc ?? '#4aa3df';
+        c.fill();
+        c.globalAlpha = 0.95;
+        c.lineWidth = 1.8 * this._s;
+        c.strokeStyle = t.acc ?? '#4aa3df';
+        c.stroke();
+      }
       // KANTE NUR, WO SIE ETWAS ZEIGT. Weit weg misst eine Blechfläche zwei
       // Pixel; ihr Umriss fällt mit ihrer Füllung zusammen und kostet trotzdem
       // einen vollen Zeichenbefehl. Bei ein paar tausend Flächen ist genau das

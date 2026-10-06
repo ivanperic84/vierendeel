@@ -899,6 +899,15 @@ export function baueLayout(app) {
 
 /** Wird in baueLayout gesetzt; von den Schienen aus gerufen. */
 let ausklappen = () => {};
+/**
+ * Eine Leiste von aussen ausfahren (6. Oktober). `zeigeAnbauteil` in app.js
+ * rief `ausklappen` auf, das seit dem Aufteilen (A1) nur hier steht - der
+ * ReferenceError brach das Loslassen im 3D ab, der Griff blieb haengen, und
+ * die naechste Bewegung zog das Teil («Wenn Sidebar links geschlossen,
+ * funktioniert anklicken nicht der anbauteile nicht richtig, es geht hinüber
+ * in den drag an drop modus.»).
+ */
+export function seiteAusklappen(seite) { ausklappen(seite); }
 
 /**
  * INHALT DER SCHIENEN.

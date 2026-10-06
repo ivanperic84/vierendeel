@@ -19965,10 +19965,9 @@ const CH9x = await import(J('core.checks.js'));
      * DIE PFEILE IM BILD ZEIGEN DIESELBE ZAHL - mit den Angaben, ohne sie
      * nicht. Genau das war der Fehler.
      */
-    const gVon = (sz) => {
-      const v = (sz.vektoren ?? []).find((x) => x.lastart === 'staendig');
-      return v ? Number(String(v.text).match(/([\d.]+)/)?.[1] ?? 0) : 0;
-    };
+    // Seit dem 6. Oktober ein Pfeil je Modul an seinem Punkt - die Summe.
+    const gVon = (sz) => (sz.vektoren ?? []).filter((x) => x.lastart === 'staendig')
+      .reduce((s, v) => s + Number(String(v.text).match(/([\d.]+)/)?.[1] ?? 0), 0);
     const mitAngaben = RA3.abfangSzene('A160', 12.5,
       { anbauteile: [teil], ...lastOpt });
     const ohneAngaben = RA3.abfangSzene('A160', 12.5, { anbauteile: [teil] });
@@ -23094,8 +23093,9 @@ const CH9x = await import(J('core.checks.js'));
             zug.length, 2, 1e-9, 'Stk');
       wahr('Der vordere zieht nach +y, der hintere nach -y',
            zug.some((v) => v.v[1] > 0) && zug.some((v) => v.v[1] < 0));
+      // Mit Vorzeichen seit dem 6. Oktober.
       wahr('Sie nennen ihre Kraft',
-           zug.every((v) => /Z_ab = \d/.test(v.text)));
+           zug.every((v) => /Z_ab = −?\d/.test(v.text)));
       wahr('Alle drei tragen ihr Eigengewicht',
            szL.vektoren.filter((v) => v.lastart === 'staendig').length === 3);
       /*
@@ -23109,9 +23109,11 @@ const CH9x = await import(J('core.checks.js'));
        * DAS MODELL BLEIBT: die Ausleitung setzt Z weiter auf den Knoten der
        * Traegerachse - das prueft der Abschnitt gleich darunter.
        */
-      wahr('Die uebrigen Pfeile greifen auf der Jochachse an',
+      // Seit dem 6. Oktober am Punkt ihres Moduls («Abfangjoch anbauteile …
+      // lasten bleiben immer auf höhe joch»), die Leiter 0.35 m unter der Achse.
+      wahr('Die uebrigen Pfeile greifen am Punkt ihres Moduls an, nicht auf der Achse',
            szL.vektoren.filter((v) => v.lastart !== 'leiterzug')
-             .every((v) => v.p[1] === 0 && v.p[2] === 0));
+             .every((v) => v.p[1] === 0 && v.p[2] < 0));
       wahr('Der Zugpfeil sitzt am Ende des Leiters',
            zug.every((v) => Math.abs(v.p[1]) > 1 && v.p[2] < 0),
            zug.map((v) => `y ${v.p[1].toFixed(2)} z ${v.p[2].toFixed(2)}`).join(' · '));

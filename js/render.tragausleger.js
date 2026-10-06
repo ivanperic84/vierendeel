@@ -239,7 +239,8 @@ export function auslegerSzene(satz, opt = {}) {
           const f = Math.sign(pf.w) * pfeilLaenge(pf.w);
           vektoren.push({ gruppe: 'last', art: 'last', lastart: art, p: pAn, teil,
                           v: pf.ri.map((c) => c * f),
-                          text: `${pf.nm} = ${Math.abs(pf.w).toFixed(2)} kN`,
+                          // Mit Vorzeichen, F_z nach oben wie die Karte (6. Oktober).
+                          text: `${pf.nm} = ${(pf.w * (pf.ri[0] + pf.ri[1] + pf.ri[2])).toFixed(2).replace('-', '−')} kN`,
                           titel: `${tp.name ?? at.name ?? ''} · ${pf.nm}` });
         });
       });

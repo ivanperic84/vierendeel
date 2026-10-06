@@ -46,9 +46,10 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangLichtFeld } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
-import { prisma, prismaY, platte, prismaZ, stab, quader,
+import { prisma, prismaY, platte, prismaZ, stab, quader, schraegerStab,
          iProfilPoly, walzProfilPoly,
          mastKoerper } from './render.koerper.js';
+import { anbauKette, istFahrdraht } from './core.anbauteile.js';
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
@@ -545,22 +546,60 @@ export function abfangSzene(typ, jt, opt = {}) {
     const zTief = zs.length ? Math.min(...zs, 0) : -0.25;
     const zHoch = zs.length ? Math.max(...zs, 0) : 0;
     /*
+     * >>> DIE KETTE WIE AM TRAGJOCH (6. Oktober). <<< Gemeldet: «Abfangjoch
+     * anbauteile funktionieren nicht gut. Fahrdrahtabzug, lasten bleiben
+     * immer auf höhe joch.» Hier stand nur ein lotrechter Staender bis zur
+     * tiefsten und hoechsten Modulhoehe - ein Ausleger 2.50 m seitlich fehlte,
+     * und alle Pfeile standen auf der Traegerachse. Jetzt die Kette der Module
+     * (`anbauKette`, wie Tragjoch und Tragausleger) und je Modul seine Kraefte
+     * an SEINEM Punkt - dieselben, die das Stabmodell mit ihrem Hebel ansetzt.
+     */
+    const lwK = abfangAnbauLasten(at, {
+      ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL,
+      tempFall: opt.tempFall, havarie: opt.havarie ?? null });
+    const modTeile = lwK.teile ?? [];
+    const kette = anbauKette(modTeile, { x0: x, zAn: 0 });
+    const kPunkte = [kette.wurzel, ...kette.glieder.map((g) => g.bis)];
+    /*
      * DER GRIFF: eine Klemme quer über dem Träger. Ein Leiter in der
      * Trägermittelebene ist sonst nur ein Stäbchen zwischen den Gurten -
      * im Bild kaum zu sehen und mit der Maus nicht zu treffen.
      */
     flaechen.push(...quader([x, 0, hG / 2 + 0.03], [0.10, 2 * yAchse(x) + 0.12, 0.05], opt2));
     detailBereiche.push({ teil, id: at.id, index: j, name: at.name, x, r: 0.3,
-                          zMin: Math.min(zTief, -hG / 2) - 0.1, zMax: Math.max(zHoch, hG / 2) + 0.1,
-                          xMin: x - 0.3, xMax: x + 0.3 });
-    if (zTief < -0.01) {
-      flaechen.push(...stab([x, 0, 0], [x, 0, zTief], 0.045, opt2));
-      flaechen.push(...quader([x, 0, zTief], [0.09, 0.09, 0.06], opt2));
-    }
-    if (zHoch > 0.01) {
-      flaechen.push(...stab([x, 0, 0], [x, 0, zHoch], 0.045, opt2));
-      flaechen.push(...quader([x, 0, zHoch], [0.09, 0.09, 0.06], opt2));
-    }
+                          zMin: Math.min(zTief, -hG / 2, ...kPunkte.map((q) => q.z)) - 0.1,
+                          zMax: Math.max(zHoch, hG / 2, ...kPunkte.map((q) => q.z)) + 0.1,
+                          xMin: Math.min(x - 0.3, ...kPunkte.map((q) => q.x)),
+                          xMax: Math.max(x + 0.3, ...kPunkte.map((q) => q.x)) });
+    kette.glieder.forEach((g) => {
+      const p0 = [g.von.x, g.von.y, g.von.z], p1 = [g.bis.x, g.bis.y, g.bis.z];
+      const achsen = [0, 1, 2].filter((i) => Math.abs(p1[i] - p0[i]) > 1e-6).length;
+      const dk = g.rang === 0 ? 0.045 : 0.038;
+      flaechen.push(...(achsen > 1 ? schraegerStab(p0, p1, dk, dk, opt2) : stab(p0, p1, dk, opt2)));
+    });
+    modTeile.forEach((tp) => {
+      const pP = [Number.isFinite(Number(tp.x)) ? x + (Number(tp.x) - (Number(at.x) || 0)) : x,
+                  Number(tp.y) || 0, Number(tp.z) || 0];
+      flaechen.push(...quader(pP, [0.07, 0.07, 0.07],
+        { ...opt2, label: `${tp.name ?? ''} · Angriffspunkt`, gruppe: 'last', punkt: true }));
+      if (istFahrdraht(tp)) {
+        marken.push({ gruppe: 'last', art: 'lastknoten', p: pP, teil, text: '', fahrdraht: true,
+                      titel: `${tp.name ?? ''} · Angriffspunkt` });
+      }
+      [['staendig', 'G', 'Fz', [0, 0, -1], 'F_z'], ['windX', 'WindX', 'Fx', [1, 0, 0], 'F_x'],
+       ['windY', 'WindY', 'Fy', [0, 1, 0], 'F_y']].forEach(([art, gruppe, feld, ri, nm]) => {
+        const k = tp.kraefte?.[gruppe]?.[feld];
+        if (!k) return;
+        const f = Math.sign(k) * pfeilLaenge(k);
+        // Mit Vorzeichen in den globalen Achsen, F_z nach oben (6. Oktober,
+        // «Im 3d die z werte gleiche konvention wie in der sidebar»).
+        const g = k * (ri[0] + ri[1] + ri[2]);
+        vektoren.push({ gruppe: 'last', art: 'last', lastart: art, p: pP, teil,
+                        v: [ri[0] * f, ri[1] * f, ri[2] * f],
+                        text: `${nm} = ${g.toFixed(2).replace('-', '−')} kN`,
+                        titel: `${tp.name ?? at.name ?? ''} · ${nm}` });
+      });
+    });
     /*
      * >>> DER VERLAUF DES LEITERS IST ZU SEHEN. <<<
      *
@@ -623,14 +662,12 @@ export function abfangSzene(typ, jt, opt = {}) {
       vektoren.push({
         gruppe: 'last', art: 'last', lastart: art, p, teil,
         v: [ri[0] * f, ri[1] * f, ri[2] * f],
-        text: `${nm} = ${Math.abs(wert).toFixed(2)} kN`,
+        text: `${nm} = ${(wert * (ri[0] + ri[1] + ri[2])).toFixed(2).replace('-', '−')} kN`,
         titel: `${at.name ?? 'Anbauteil'} · ${nm}`,
       });
     };
+    // G und Wind stehen seit dem 6. Oktober je Modul an seinem Punkt (oben).
     pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab', abspannung ?? pAn);
-    pfeil('staendig', [0, 0, -1], Math.abs(lw.Gz), 'G');
-    pfeil('windX', [1, 0, 0], lw.Qx, 'W_x');
-    pfeil('windY', [0, 1, 0], lw.Qy, 'W_y');
 
     marken.push({ gruppe: 'anbau', art: 'anbau', teil,
                   p: [x, 0, zTief < -0.01 ? zTief - 0.12 : hG / 2 + 0.12],

@@ -135,7 +135,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
-import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren } from './app.layout.js';
+import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, seiteAusklappen } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
          setzWahlZeigen, setzWahlWeg, signalZusammenstellen } from './app.setzen.js';
 
@@ -4732,7 +4732,7 @@ function zeigeAnbauteil(i) {
   (werte.anbauteile ?? []).forEach((x) => ui.setzeKlapp(`at-${x.id}`, false));
   ui.setzeKlapp(`at-${a.id}`, true);
   neuRechnen();
-  if (zuSeite.links) ausklappen('links');
+  if (zuSeite.links) seiteAusklappen('links');
   zoomAufAnbauteil(i);
   // Nach dem Neuaufbau der Maske die Karte ins Bild holen. Ein alter Anker
   // aus einer Eingabe davor würde die Leiste beim nächsten Neuaufbau an
