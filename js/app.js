@@ -5939,6 +5939,10 @@ function neuesTragjoch() {
       ${TRAGWERKSARTEN.map((a, i) => `<label class="schalter">
         <input type="radio" name="vorlage" value="${esc(a.key)}"${i ? '' : ' checked'}>
         <span><b>${esc(a.label)}</b> — ${esc(a.kurz)}</span></label>`).join('')}
+      <label class="schalter">
+        <input type="radio" name="vorlage" value="abfangjoch-anker">
+        <span><b>Abfangjoch mit Anker</b> — A160 12.00 m, zwei abgefangene Tragseile
+          N-FL in der Anordnung 3.50 – 4.50 – 3.50 m, Druckstütze längs an beiden Masten</span></label>
     </div>`,
     '<button class="btn btn-acc" data-los>Beginnen</button>');
   d.node.querySelector('[data-los]').onclick = () => {
@@ -5948,9 +5952,37 @@ function neuesTragjoch() {
   };
 }
 
+/*
+ * >>> VORLAGE «ABFANGJOCH MIT ANKER» (6. Oktober). <<< Weisung im Wortlaut:
+ * «Template Abfangjoch mit Anker als Auswahl im Startmodal. Anordnung
+ * FL-Abfangung 3.5 - 4.5 - 3-5». Meine Lesart: von M1 3.50 m zum ersten
+ * Leiter, 4.50 m zum zweiten, 3.50 m zu M2 - Stuetzweite 11.50 m, Traeger
+ * 12.00 m mit dem Ueberstand 0.25 m je Seite. Zwei abgefangene Tragseile
+ * N-FL; an beiden Masten eine Druckstuetze U12 laengs (h 6.5 / a 4.5),
+ * wie im gegen AxisVM nachgerechneten Beispielblatt A.
+ */
+function abfangjochMitAnker(w) {
+  const ue = 0.25;
+  w = { ...w, L: 12.0 };
+  const leiter = (x, n) => {
+    try { return { ...neuesAnbauteil('leiter-ts-nfl-abf', x), ort: 'joch', name: `Tragseil N-FL ${n}` }; }
+    catch { return null; }   // Vorlage fehlt im Datenpaket
+  };
+  w = setzeAnbauteileAn(w, [leiter(ue + 3.5, 1), leiter(ue + 8.0, 2)].filter(Boolean));
+  mastenVon(w).forEach((m) => {
+    w = setzeMastAnker(w, m.id, { typ: 'U12', h: 6.5, a: 4.5, richtung: 'y', seite: 'minus',
+                                  befestigung: 'ankerplatte' });
+  });
+  return w;
+}
+
 function beginneNeu(art) {
-  const bez = TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
+  const mitAnker = art === 'abfangjoch-anker';
+  if (mitAnker) art = 'abfangjoch';
+  const bez = mitAnker ? 'Abfangjoch mit Anker'
+    : TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
   werte = frisch(art);
+  if (mitAnker) werte = abfangjochMitAnker(werte);
   try {
     const b = localStorage.getItem(BEARBEITER);
     if (b) werte.bearbeiter = b;
