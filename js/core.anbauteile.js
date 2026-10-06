@@ -262,9 +262,23 @@ export function achsenFolge(folge) {
  * sich (Cu 107 / Cu 150) oder als Kettenwerk mit dem Tragseil. Das Tragseil
  * allein (StCu) und die Zusatz- und Rückleiter (Cu 95) sind es nicht.
  */
+/*
+ * >>> DAS KETTENWERK ZAEHLT NICHT (6. Oktober). <<< Weisung im Wortlaut:
+ * «Wenn Ts und Fd in einem Bauteil, dann nicht verwenden für die
+ * Verformungsnachweise, da höhe nicht korrekt». Ein Kettenwerk (Kennung mit
+ * `-ts-`) fuehrt Tragseil und Fahrdraht als EIN Modul auf einer Hoehe - der
+ * Fahrdraht liegt darunter, wie weit, weiss das Modul nicht. Es ist damit
+ * kein Fahrdraht fuer Figur und Nachweis; gilt dort keiner, faellt der
+ * Nachweis auf die Referenzhoehe zurueck wie bisher.
+ */
 export function istFahrdraht(t) {
   if ((t?.rolle ?? '') !== 'drahtwerk') return false;
   const id = String(t.bauteil ?? '');
+  if (/-ts-/.test(id)) return false;
+  // Nur sein GEWICHT am Tragseil (Wind und Ablenkung aus, wie in «Kettenwerk
+  // N-FL am Joch» und den Auslegern seit dem 6. Oktober): das Modul steht auf
+  // der Hoehe des Tragseils, der Fahrdraht selbst liegt anderswo.
+  if (t.wirkung && t.wirkung.Q === false && t.wirkung.ablenk === false) return false;
   if (/^drahtwerk-[nr]-fl/.test(id)) return /(^|-)cu-1\d\d/.test(id);
   return /fahrdraht|\bfd\b/i.test(`${t.bauteilName ?? ''} ${t.name ?? ''}`);
 }

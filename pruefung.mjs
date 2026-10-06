@@ -120,6 +120,20 @@ const PRUEFVORLAGEN = {
     beschreibung: 'Trafo 100 kVA inklusive Konsole am Masten.', raster: 0,
     befestigung: 'unten', gruppe: 'uebrige', rang: 3, ort: 'mast' },
   [{ bauteil: 'diverses-trafo-100-kva', z: 0, x: 0.5 }]],
+  /*
+   * Die vier Ausleger-Vorlagen mit dem Kettenwerk am Auslegerende, wie sie
+   * gemessen wurden. Seit dem 6. Oktober fuehrt der Katalog Tragseil und
+   * Fahrdraht getrennt («Template Ausleger mit ts und fd separat
+   * eingegeben»); Abschnitt 237 prueft die Datei selbst.
+   */
+  'hs-nt-ausleger': [{"id": "hs-nt-ausleger", "name": "Hängestütze mit NT-Ausleger", "farbe": "haengend", "beschreibung": "Hängestütze, daran ein NT-Ausleger als Kragarm in Jochachse und an dessen Ende die Fahrleitung – meist R-FL.", "raster": 0.4, "befestigung": "durchgehend", "windAufTraeger": true, "windAnteil": 50, "gruppe": "haengestuetze", "rang": 2, "ort": "joch"},
+  [{"bauteil": "anbauteil-haengestuetze-od-haengerohr", "z": -1.35}, {"bauteil": "anbauteil-ausleger-typ-nt", "z": -2.7, "x": 1.25}, {"bauteil": "drahtwerk-r-fl-ts-stcu-92-fd-cu-107", "z": -2.7, "umlenkung": true, "x": 2.5}]],
+  'ausleger-rohr': [{"id": "ausleger-rohr", "name": "Hängestütze mit Rohrausleger", "farbe": "haengend", "beschreibung": "Hängestütze, daran ein Rohrausleger als Kragarm in Jochachse und an dessen Ende die Fahrleitung – meist N-FL.", "raster": 0.4, "befestigung": "durchgehend", "windAufTraeger": true, "windAnteil": 50, "gruppe": "haengestuetze", "rang": 2, "ort": "joch"},
+  [{"bauteil": "anbauteil-haengestuetze-od-haengerohr", "z": -1.35}, {"bauteil": "anbauteil-ausleger-typ-rohr", "z": -2.7, "x": 1.25}, {"bauteil": "drahtwerk-n-fl-ts-stcu-50-fd-cu-107", "z": -2.7, "umlenkung": true, "x": 2.5}]],
+  'mast-nt-ausleger': [{"id": "mast-nt-ausleger", "name": "NT-Ausleger am Mast", "farbe": "seitlich", "beschreibung": "Ausleger Typ NT waagrecht am Masten, die Fahrleitung am Ende. Geometrie wie am Joch: Ausleger 1.25 m, Fahrleitung 2.50 m.", "raster": 0, "befestigung": "unten", "gruppe": "mast", "rang": 1, "ort": "mast", "windAufTraeger": true, "windAnteil": 50},
+  [{"bauteil": "anbauteil-ausleger-typ-nt", "z": 0, "x": 1.25}, {"bauteil": "drahtwerk-r-fl-ts-stcu-92-fd-cu-107", "z": 0, "x": 2.5, "umlenkung": true}]],
+  'mast-rohrausleger': [{"id": "mast-rohrausleger", "name": "Rohrausleger am Mast", "farbe": "seitlich", "beschreibung": "Ausleger Typ Rohr waagrecht am Masten, die Fahrleitung am Ende. Geometrie wie am Joch: Ausleger 1.25 m, Fahrleitung 2.50 m.", "raster": 0, "befestigung": "unten", "gruppe": "mast", "rang": 1, "ort": "mast", "windAufTraeger": true, "windAnteil": 50},
+  [{"bauteil": "anbauteil-ausleger-typ-rohr", "z": 0, "x": 1.25}, {"bauteil": "drahtwerk-n-fl-ts-stcu-50-fd-cu-107", "z": 0, "x": 2.5, "umlenkung": true}]],
 };
 const ANBAU_KATALOG = JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8'));
 const mitPruefvorlagen = (d) => {
@@ -37642,11 +37656,16 @@ if (AJ.abfangDbDa()) {
   const DA220 = await import(J('data.anbauteile.js'));
   const R220 = await import(J('render.3d.js'));
   const fd = (bauteil, name = '') => CA220.istFahrdraht({ rolle: 'drahtwerk', bauteil, name });
-  wahr('Fahrdraht: Cu 107 / Cu 150 der Fahrleitung und das Kettenwerk - nicht das Tragseil allein, nicht der Rückleiter',
-       fd('drahtwerk-n-fl-cu-107') && fd('drahtwerk-r-fl-cu-107') && fd('drahtwerk-n-fl-ts-stcu-50-fd-cu-150')
-       && fd('drahtwerk-r-fl-ts-stcu-92-fd-cu-107') && !fd('drahtwerk-n-fl-stcu-50') && !fd('drahtwerk-r-fl-stcu-92')
+  // Seit dem 6. Oktober zaehlt das Kettenwerk nicht mehr («Wenn Ts und Fd in
+  // einem Bauteil, dann nicht verwenden für die Verformungsnachweise»).
+  wahr('Fahrdraht: Cu 107 / Cu 150 der Fahrleitung - nicht das Kettenwerk, nicht das Tragseil allein, nicht der Rückleiter',
+       fd('drahtwerk-n-fl-cu-107') && fd('drahtwerk-r-fl-cu-107') && !fd('drahtwerk-n-fl-ts-stcu-50-fd-cu-150')
+       && !fd('drahtwerk-r-fl-ts-stcu-92-fd-cu-107') && !fd('drahtwerk-n-fl-stcu-50') && !fd('drahtwerk-r-fl-stcu-92')
        && !fd('drahtwerk-cu-95') && !fd('drahtwerk-cu-95-x2')
        && !CA220.istFahrdraht({ rolle: 'aufbau', bauteil: 'drahtwerk-n-fl-cu-107' }));
+  // MIT DEM KATALOG (6. Oktober): dort fuehren beide Vorlagen einen echten
+  // Fahrdraht - die Pruefvorlagen das Kettenwerk, das nicht mehr zaehlt.
+  A.setzeAnbauteilDB(ANBAU_KATALOG);
   const teil = (vid, x) => ({ ...DA220.neuesAnbauteil(vid, x), ort: 'joch' });
   const w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
               L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
@@ -37672,6 +37691,7 @@ if (AJ.abfangDbDa()) {
   wahr('Die Anwendung schreibt die Auslenkung quer zum Gleis je Fahrdraht an die Figur',
        app.includes('fahrdraehte.push({ ...best, titel: mk.titel })')
        && readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('mm quer`'));
+  A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
 }
 
 /* =========================================================================
@@ -37885,7 +37905,11 @@ titel('223  Gebrauchstauglichkeit am Fahrdraht; Mastspitzen an der Figur');
   const typ = T.tragjoche().some((j) => j.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
   const w = { ...typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ)),
               L: 20, xLage: 0, mastVorhanden: true, twId: 'T1',
-              anbauteile: [DA223.neuesAnbauteil('hs-fahrdraht', 10)] };
+              // Ein Fahrdraht FUER SICH: das Kettenwerk der Pruefvorlage zaehlt
+              // seit dem 6. Oktober nicht mehr als Fahrdraht.
+              anbauteile: [(() => { const a = DA223.neuesAnbauteil('hs-fahrdraht', 10);
+                return { ...a, module: (a.module ?? []).map((m) => (/-ts-/.test(m.bauteil ?? '')
+                  ? { ...m, bauteil: 'drahtwerk-n-fl-cu-107' } : m)) }; })()] };
   const ws = N223.rechensatzMitNachbarn(w);
   const erg = berechne(ws, ...N223.kernArgumente(ws));
   const h = AS223.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
@@ -38349,6 +38373,10 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
   const VF231 = await import(J('core.verformung.js'));
   const VZ231 = await import(J('core.vierendeel.js'));
   const A231 = await import(J('data.anbauteile.js'));
+  // MIT DEM KATALOG, nicht mit den Pruefvorlagen: seit dem 6. Oktober fuehrt
+  // die Vorlage Tragseil und Fahrdraht getrennt, der Fahrdraht 1.60 m unter
+  // dem Tragseil (R-FL). Das Kettenwerk der Pruefvorlage ist kein Fahrdraht.
+  A.setzeAnbauteilDB(ANBAU_KATALOG);
   const da = (() => { try { return A231.neuesAnbauteil('hs-nt-ausleger', 8); } catch { return null; } })();
   if (!da) {
     console.log('  (Vorlage «hs-nt-ausleger» fehlt in diesem Datenordner - übersprungen)');
@@ -38394,7 +38422,8 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     pruef('Starrkörper der Station = Weg des echten Knotens im selben Modell (quer)', u3[0], u2[0], 1e-3, 'm');
     pruef('… und längs', u3[1], u2[1], 1e-3, 'm');
     const p = SV231.starrPunkt(dat, lsg, [], fd.starr).p;
-    pruef('Der Fahrdraht liegt 2.70 m unter dem Ausleger', p[2] - ka.z, -2.7, 1e-9, 'm');
+    // Ausleger 2.70 m unter der Achse, der Fahrdraht 1.60 m unter dem Tragseil.
+    pruef('Der Fahrdraht liegt 4.30 m unter dem Ausleger', p[2] - ka.z, -4.3, 1e-9, 'm');
     // Die Kette für die Figur (4. Oktober): wie am Tragjoch Wurzel und
     // echte Punkte - die Stütze lotrecht, dann der Ausleger, am Ende der
     // Fahrdraht. Kein Strich von der Station schräg zum Fahrdraht.
@@ -38415,7 +38444,7 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     wahr('>>> Die Seitenlage wird am Fahrdraht nachgewiesen, nicht mehr an der Referenzhöhe <<<',
          v?.fahrdraht === true && v.massgebend?.was?.startsWith('Fahrdraht'),
          v?.massgebend ? `${(v.massgebend.wert * 1000).toFixed(1)} mm auf ${v.massgebend.z?.toFixed(2)} m` : '(kein Nachweis)');
-    pruef('… auf der Höhe des Fahrdrahts über dem Mastfuss (H − 2.70)', v?.massgebend?.z, (Number(erg.modell?.mastH ?? 7.5) || 7.5) - 2.7, 0.05, 'm');
+    pruef('… auf der Höhe des Fahrdrahts über dem Mastfuss (H − 4.30)', v?.massgebend?.z, (Number(erg.modell?.mastH ?? 7.5) || 7.5) - 4.3, 0.05, 'm');
     pruef('… quer = Weg quer × ψ 0.70 aus dem Starrkörper',
           v?.massgebend?.wert, Math.abs(SV231.starrPunkt(dat, lsg,
             SN231.anteileFuer(h.roh.faelle.find((l) => l.key === v.massgebend.lastfall), dat), fd.starr).u[0]) * 0.7, 1e-9, 'm');
@@ -38446,6 +38475,7 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     wahr('Im Blatt: die Kette nennt dieselben Knoten der Station wie der Fahrdraht',
          kB.length === 1 && JSON.stringify(kB[0].knoten) === JSON.stringify(fdB[0]?.starr.knoten));
   }
+  A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
 }
 
 /* =========================================================================
@@ -38836,6 +38866,41 @@ titel('236  Teile am Masten an Abfangjoch und Tragausleger; Hebel am Abfangjoch;
     pruef('J90/20 m mit Masten: Knoten 828 → 604', d.knoten.length, 604, 0, '');
     pruef('… Stäbe 942 → 718', d.staebe.length, 718, 0, '');
   }
+}
+
+titel('237  Ausleger-Vorlagen mit Tragseil und Fahrdraht getrennt; Kettenwerk kein Fahrdraht');
+/* ===========================================================================
+ * 6. Oktober, im Wortlaut: «Template Ausleger mit ts und fd separat
+ * eingegeben, bei rfl ist fd -1.6m und beim nrl ist rohrausleger fd bei
+ * -2.4m jeweils auf ts bezogen» und «Wenn Ts und Fd in einem Bauteil, dann
+ * nicht verwenden für die Verformungsnachweise, da höhe nicht korrekt».
+ * Geprueft an der DATEI (der Pruefstand rechnet sonst mit den alten
+ * Vorlagen, siehe PRUEFVORLAGEN).
+ * ========================================================================= */
+{
+  const CA237 = await import(J('core.anbauteile.js'));
+  const t = ANBAU_KATALOG.tabellen;
+  const soll = { 'hs-nt-ausleger': ['r-fl', 1.6], 'mast-nt-ausleger': ['r-fl', 1.6],
+                 'ausleger-rohr': ['n-fl', 2.4], 'mast-rohrausleger': ['n-fl', 2.4] };
+  Object.entries(soll).forEach(([id, [fl, ab]]) => {
+    const mods = t.module.filter((m) => m.id === id);
+    if (!mods.length) { console.log(`  (Vorlage «${id}» fehlt - übersprungen)`); return; }
+    const ts = mods.find((m) => new RegExp(`^drahtwerk-${fl}-stcu-`).test(m.bauteil));
+    const fdG = mods.find((m) => m.bauteil === `drahtwerk-${fl}-cu-107` && m.wirktQ === false);
+    const fd = mods.find((m) => m.bauteil === `drahtwerk-${fl}-cu-107` && m.wirktG === false);
+    wahr(`${id}: Tragseil, Fahrdraht-Gewicht am Tragseil, Fahrdraht ${ab.toFixed(2)} m darunter`,
+         ts && fdG && fd && !mods.some((m) => /-ts-/.test(m.bauteil))
+         && Math.abs(fdG.z - ts.z) < 1e-9 && Math.abs((ts.z - fd.z) - ab) < 1e-9
+         && fdG.wirktAblenk === false && fd.x === ts.x,
+         mods.map((m) => `${m.bauteil}@${m.z}`).join(' '));
+  });
+  wahr('Ein Kettenwerk (Ts + Fd in einem Modul) ist kein Fahrdraht',
+       !CA237.istFahrdraht({ rolle: 'drahtwerk', bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107' }));
+  wahr('… und auch nicht der Fahrdraht, der nur sein Gewicht ans Tragseil gibt',
+       !CA237.istFahrdraht({ rolle: 'drahtwerk', bauteil: 'drahtwerk-n-fl-cu-107',
+                             wirkung: { G: true, Q: false, ablenk: false } })
+       && CA237.istFahrdraht({ rolle: 'drahtwerk', bauteil: 'drahtwerk-n-fl-cu-107',
+                               wirkung: { G: false, Q: true, ablenk: true } }));
 }
 
 console.log('\n' + '='.repeat(104));
