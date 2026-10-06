@@ -1144,7 +1144,8 @@ function rechneTragwerk(werte, joch) {
   // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
   // in der Excel-Ausleitung erhalten.
   const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
-  const hinw = hinweise(erg.modell);
+  // Die Sätze hängen am Rechenverfahren (6. Oktober).
+  const hinw = hinweise(erg.modell, { stabwerk: verfahrenVon(werte) === 'stabwerk' });
   // Hat der Ausleger kein Modell (Mast zu kurz für die Aufhängung, Länge
   // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
   // gehört in die Liste, sonst stünde nur das Phantomjoch da.

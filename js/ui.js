@@ -8808,17 +8808,33 @@ export function zeichneAuflager(node, blatt, erg, { stabwerk = false } = {}) {
         <b>abhebend</b> (seit 1. Oktober; die Tabelle der Reaktionskräfte zählt
         Druck positiv). <b>M_xx</b> dreht um die Jochachse,
         <b>M_yy</b> um y, <b>M_zz</b> um die Lotrechte.</p>
-      <p class="notiz"><b>Der Mastfuss trägt Bemessungswerte</b> des oben
+      ${/*
+         * >>> JE NACH RECHENVERFAHREN (6. Oktober). <<< «stimmt diese aussage
+         * noch?» - mit gültigem Stabwerk gibt es die Tabellen des
+         * Jochauflagers je Gruppe nicht mehr, die Reaktionstabelle oben ist
+         * charakteristisch und kommt aus dem Stabwerk, der Mastfuss darunter
+         * weiter aus dem Ersatzbalken. Der Text sagt jetzt, was dasteht.
+         */''}
+      ${stabwerk ? `<p class="notiz"><b>Die Tabelle der Reaktionskräfte</b>
+        oben kommt aus dem Stabwerk: <b>charakteristisch</b>, ohne Beiwerte,
+        Wind ohne Abminderung, je Auflager die Hülle der wirklichen
+        Zustände, dazu der oben gewählte Fall. Eigengewicht und Wind der
+        Masten sind darin enthalten.</p>
+      <p class="notiz"><b>Der Mastfuss</b> darunter trägt die
+        <b>Bemessungswerte</b> des gewählten Lastfalls aus dem
+        <b>Ersatzbalken</b> - eine Auskunft zum Vergleich; massgebend ist das
+        Stabwerk. Die beiden Zahlensätze sind nicht zu vermischen.</p>`
+      : `<p class="notiz"><b>Der Mastfuss trägt Bemessungswerte</b> des oben
         gewählten Lastfalls — mit Beiwerten, fertig zum Weitergeben. Das
         Jochauflager darunter ist <b>charakteristisch</b> und je
         Einwirkungsgruppe getrennt, damit es kombinierbar bleibt. Die beiden
         Zahlensätze sind nicht zu vermischen.</p>
-      <p class="notiz">Der Wind steht in zwei Gruppen: <b>Wind x</b> in
-        Jochachse, <b>Wind y</b> in Gleisrichtung. Das sind zwei
-        Windrichtungen, keine gleichzeitigen Einwirkungen — einzeln
-        anzusetzen, und zwar mit beiden Vorzeichen.</p>
       <p class="notiz">Im Jochauflager nicht enthalten: Eigengewicht und
-        Windlast der Maste selbst. Beides steckt im Mastfuss darüber.</p>`);
+        Windlast der Maste selbst. Beides steckt im Mastfuss darüber.</p>`}
+      <p class="notiz">Der Wind steht in zwei Gruppen: <b>Wind x</b> quer
+        zum Gleis, <b>Wind y</b> längs zum Gleis. Das sind zwei
+        Windrichtungen, keine gleichzeitigen Einwirkungen — einzeln
+        anzusetzen, und zwar mit beiden Vorzeichen.</p>`);
 
   /* =====================================================================
    * >>> OHNE MAST RUECKT DAS JOCHAUFLAGER NACH OBEN. <<<
@@ -8913,7 +8929,7 @@ export function zeichneAuflager(node, blatt, erg, { stabwerk = false } = {}) {
     </div>` : '';
 
   node.innerHTML = `
-    ${abschnitt('Reaktionskräfte am Mastfuss',
+    ${abschnitt(stabwerk ? 'Mastfuss aus dem Ersatzbalken' : 'Reaktionskräfte am Mastfuss',
                 `Bemessungswerte des gewählten Lastfalls · ${
                   masten.length === 1 ? 'ein Mast' : `${masten.length} Masten`}`)}
     ${kacheln}

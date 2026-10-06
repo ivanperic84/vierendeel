@@ -864,8 +864,18 @@ export function fluchtChecks(m) {
 }
 
 /** Zusätzliche Hinweise, die kein Ja/Nein-Nachweis sind. */
-export function hinweise(m) {
+/**
+ * @param {object} m    Modell des Kerns
+ * @param {object} opt  { stabwerk } - Rechenverfahren «Stabwerk» (6. Oktober):
+ *   «das gleiche gilt auch für desen textblock. ist je nach
+ *   berechnungsmodell anzupassen und auf die aktuallität zu prüfen.» Die
+ *   Sätze über Drehfeder, Rahmenfeder, Endfeldfaktor, Torsion auf vier
+ *   Ebenen, Eigenanteil und schiefe Biegung beschreiben den Ersatzbalken;
+ *   im Stabwerk entfallen sie, ein Satz sagt, wie dort gerechnet wird.
+ */
+export function hinweise(m, opt = {}) {
   const h = [];
+  const sw = opt.stabwerk === true;
 
   /*
    * >>> EIN MAST OHNE WINDLAST IST NICHT NACHGEWIESEN (20. September). <<<
@@ -1459,7 +1469,11 @@ export function hinweise(m) {
            `nachgewiesen, lokale Biegung ${wie}.`);
   }
 
-  if ((m.knotenbereich ?? 'anschnitt') === 'schwerachsen') {
+  if ((m.knotenbereich ?? 'anschnitt') === 'schwerachsen' && sw) {
+    h.push('Knotenbereich auf «Achse zu Achse» gestellt: die Gurte werden '
+      + 'auch im steifen Abschnitt bis zur Blechachse ausgewertet - die '
+      + 'Spannungsspitze dort zählt mit. Vorgabe ist der Anschnitt.');
+  } else if ((m.knotenbereich ?? 'anschnitt') === 'schwerachsen') {
     h.push('Knotenbereich auf «Achse zu Achse» gestellt: kein vollständiger '
       + 'Nachweis, sondern ein Vergleich gegen Prüfmodelle. Die Abminderung '
       + 'auf den Anschnitt entfällt, Gurt- und Blechmomente liegen 11 bis '
@@ -1472,7 +1486,7 @@ export function hinweise(m) {
   // deshalb beide Richtungen benennen koennen.
   const kE = m.endfeldZuschlag === false ? 1
     : (Number.isFinite(m.endfeldZuschlag) ? m.endfeldZuschlag : ENDFELD_ZUSCHLAG);
-  h.push(Math.abs(kE - 1) > 1e-9
+  if (!sw) h.push(Math.abs(kE - 1) > 1e-9
     ? `Bindebleche der beiden äussersten Stationen je Ende: Torsionsanteil `
       + `mit Faktor ${kE.toFixed(2)} angesetzt`
       + (kE < 1
@@ -1540,8 +1554,23 @@ export function hinweise(m) {
    * ======================================================================= */
   if (art.key === 'abfangjoch') return h;
 
+  if (sw) {
+    h.push('Gerechnet im räumlichen Stabwerk: Gurtwinkel, Bindebleche und '
+      + 'Masten je als eigener Stab, der Anschluss Joch–Mast über '
+      + 'Linkelemente nach der Auflagerbedingung, die Anbauteile als starre '
+      + 'Ketten. Torsion, Rahmenwirkung der Masten und schiefe Biegung der '
+      + 'Winkel (I_yz) ergeben sich aus dem Modell; die Gurtspannung ist '
+      + 'vorzeichenrichtig, die Bleche mit Schub (σ_v). Bis das Stabwerk '
+      + 'gerechnet ist, stehen die Zahlen des Ersatzbalkens als vorläufig da.');
+    if (m.federn?.mast && m.nachweise?.mast !== false) {
+      h.push('Der Mast ist Bauteil des Stabwerks: Querschnitt aus seinen '
+        + 'Stabkräften (alle 0.5 m ausgewertet), Knicken nach SIA 263 mit '
+        + 'denselben Kräften, sofern eingeschaltet, Fundament am Fuss.');
+    }
+  }
+
   // EIGENANTEIL DER GURTE am globalen Moment.
-  if (m.eigenanteil) {
+  if (m.eigenanteil && !sw) {
     const e = m.eigenanteil;
     h.push('Eigenanteil der Gurte ist erfasst: neben dem Kräftepaar trägt '
       + 'jeder Winkel das globale Moment auch über sein eigenes '
@@ -1554,7 +1583,7 @@ export function hinweise(m) {
   }
 
   // SCHIEFE BIEGUNG DER GURTWINKEL -> Moment in den Blechen der anderen Ebene.
-  h.push(m.schiefeBiegung !== false
+  if (!sw) h.push(m.schiefeBiegung !== false
     ? 'Schiefe Biegung der Gurtwinkel ist erfasst: der Winkel weicht unter '
       + 'dem örtlichen Rahmenmoment quer aus (I_yz ≠ 0), die Bindebleche der '
       + 'anderen Ebene halten dagegen. Das Moment ist über die Blechlänge '
@@ -1572,7 +1601,7 @@ export function hinweise(m) {
   // Beim Nachbau eines geprüften FEM-Modells lagen genau hier die grössten
   // Fehler - eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um
   // 5 %. Beides sieht man dem Ergebnis nicht an, wenn es nirgends steht.
-  if (Number.isFinite(m.kappaA)) {
+  if (Number.isFinite(m.kappaA) && !sw) {
     const grad = (k) => `${(100 * Math.max(0, Math.min(1, k))).toFixed(0)} %`;
     const cTxt = (c) => (c >= 1e11 ? 'starr'
       : c <= 0 ? '0' : `${c.toFixed(0)} kNm/rad`);
@@ -1584,7 +1613,7 @@ export function hinweise(m) {
       + (Math.abs(Math.abs(m.MB) - Math.abs(m.MA)) > 0.005
          ? ` / ${Math.abs(m.MB).toFixed(2)}` : '') + ' kNm.');
   }
-  if (m.federn?.mast) {
+  if (m.federn?.mast && !sw) {
     const ma = m.federn.mastA ?? m.federn.mast;
     /*
      * Seit dem 28. August hat der Mast seinen eigenen Nachweis - der alte
@@ -1612,7 +1641,7 @@ export function hinweise(m) {
         + `Kragmast (${ma.cKragarm.toFixed(0)} kNm/rad). An zwei Rahmen `
         + 'gemessen, Lehrbuchwert wäre 4.00.');
   }
-  if (m.federn?.grenze?.begrenzt) {
+  if (m.federn?.grenze?.begrenzt && !sw) {
     h.push(`Drehfeder auf die Gurtverbindung begrenzt: c_φ von `
       + `${m.federn.roh.cA.toFixed(0)} auf ${m.federn.cA.toFixed(0)} kNm/rad `
       + `herabgesetzt, Gurtkraft ${m.federn.grenze.FA.toFixed(1)} kN. `
@@ -1669,7 +1698,9 @@ export function hinweise(m) {
       + 'Mast im Modell, gerechnet wird GELENKIG. Entweder die Masten unter '
       + '«Masten» einschalten oder eine andere Endbedingung wählen.');
   }
-  if (m.mastKopf) {
+  if (sw) {
+    // Im Stabwerk verschieben und verdrehen sich die Mastköpfe im Modell selbst.
+  } else if (m.mastKopf) {
     const k = m.mastKopf;
     const mr = (v) => (1000 * v).toFixed(2);
     h.push('Die Mastköpfe verdrehen sich, und das Jochende macht es mit: θ₀ = '
@@ -1690,7 +1721,9 @@ export function hinweise(m) {
   [m.profOG, m.profUG].forEach((p) => {
     if (p.hinweis) h.push(`${p.name}: ${p.hinweis}`);
   });
-  if (m.breite?.aktiv) {
+  if (sw) {
+    // Die Breiten bauen im Stabwerk die Geometrie - kein Hebelarm zu nennen.
+  } else if (m.breite?.aktiv) {
     // jkk fehlt bei Typen ohne zweiten Knickpunkt - dann nur den ersten nennen.
     const knick = [m.breite.jk, m.breite.jkk].filter(Number.isFinite).join('/');
     h.push(`Grundriss geknickt: Hebelarm b ortsabhängig, ` +
@@ -1706,16 +1739,16 @@ export function hinweise(m) {
            `${m.massVariante === 'aussen' ? 'dem Aussenmass' :
               m.massVariante === 'licht' ? 'dem lichten Mass' : 'dem Schwerpunktsabstand'}.`);
   }
-  h.push(m.torsionModell === 'huellkurve'
+  if (!sw) h.push(m.torsionModell === 'huellkurve'
     ? 'Torsion als konstante Hüllkurve über die Spannweite (konservativ, ' +
       'Gabellagerung vorausgesetzt).'
     : 'Torsion mit Auflagerverteilung (Gabellagerung vorausgesetzt).');
-  h.push(m.torsionsverteilung === 'schubfluss'
+  if (!sw) h.push(m.torsionsverteilung === 'schubfluss'
     ? 'Torsion als umlaufender Schubfluss q = T/(2·b·h) auf alle vier Ebenen, ' +
       'mit der Querkraft überlagert.'
     : 'Torsion allein den Vertikalebenen zugewiesen (V_T = T/b), doppelt so ' +
       'gross wie der Schubflussanteil.');
-  if (m.verlauf?.aktiv) {
+  if (m.verlauf?.aktiv && !sw) {
     const v = m.verlauf.voute;
     h.push(`Verjüngte Enden: Bauhöhe ${m.jd} → ${v.endJd} mm, Hebelarm h an ` +
            `jeder Station örtlich gerechnet, nach unten abgefangen bei ` +
@@ -1733,7 +1766,7 @@ export function hinweise(m) {
     h.push(`Blechstaffelung ${m.joch.typ} aus den Stückzahlen abgeleitet, nicht ` +
            'abgelesen, gegen das Schemablatt zu prüfen.');
   }
-  h.push('Kein Knicknachweis, Gesamtstab und Einzelwinkel separat nachzuweisen.');
+  h.push('Kein Knicknachweis des Jochs, Gesamtstab und Einzelwinkel separat nachzuweisen.');
   /*
    * DER HAVARIEFALL AM TRAGJOCH (17. September) rechnet mit Z bei -20 °C.
    * Fehlt die Reglagetabelle fuer einen fix abgespannten Leiter, steht der

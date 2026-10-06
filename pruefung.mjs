@@ -12364,7 +12364,8 @@ titel('42  Der lange Mast mit Zusatzleitern');
       const uq = readFileSync(
         new URL('./js/ui.js', import.meta.url), 'utf8');
       wahr('Der Mastfuss steht oben',
-           uq.includes("abschnitt('Reaktionskräfte am Mastfuss'"));
+           // Seit dem 6. Oktober mit dem Rechenverfahren im Titel.
+           uq.includes("'Mastfuss aus dem Ersatzbalken' : 'Reaktionskräfte am Mastfuss'"));
       wahr('… mit den Bemessungswerten angeschrieben',
            /Bemessungswerte des gewählten Lastfalls/.test(uq));
       /*
