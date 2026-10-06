@@ -43,6 +43,8 @@ Sprung der Seitenleiste nach Klick auf den Masttitel behoben.
 **Signalbauer** mit den Signalbildern der Mappe als Kacheln und Knopf «Signal zusammenstellen» (Bilder nur in
 `data/anbauteile.json` bzw. im Datenpaket vom 4. Oktober, vertraulich).
 
+**Gebaut am 6. Oktober** (am Arbeitsrechner, Prüfstand 236): Teile am Masten an Abfangjoch und Tragausleger im Stabmodell (Knoten auf hMast, Kraft und Moment r × F) und im Bild; am Abfangjoch die Hebel der Jochteile (Jochaufsatz, Hängestütze) als Moment am Achsknoten, Leiterzug zentrisch; Blech-Diagonale (ein Starrglied vom Gurtknoten zum Blechende, J90/20 m 942 → 718 Stäbe). Offen dazu: Havarie je Leiter an Mastteilen dieser Arten, Figur/GZG der Mastteile, AxisVM nicht neu gebaut. ⚠ Das Datenpaket vom 4. Oktober ist am Arbeitsrechner noch nicht eingelesen.
+
 **Nächster Schritt (wartet auf den Auftraggeber):**
 1. ⚠ Tragausleger verdreht sich unter Wind längs um rund 0.17 rad (L 10 m, Hängestütze mit NT-Ausleger),
    der Fahrdraht wandert 0.45 m längs - nachgewiesen wird nur quer. Grenzwert nötig?

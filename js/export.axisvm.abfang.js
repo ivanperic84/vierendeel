@@ -397,7 +397,16 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * nicht an der naechsten Blechstation. Seine Stelle ist deshalb ein
    * Knoten wie jede andere.
    */
-  const anbau = (opt.anbauteile ?? []).filter((t2) => t2 && t2.aktiv !== false);
+  /*
+   * >>> NUR DIE TEILE AM JOCH (6. Oktober). <<<
+   * Gemeldet: «beim abfangjoch und beim tragausleger modell lassen sich keine
+   * anbauteile setezen beim masten.» Ein Teil am Masten (ort mastA/mastB)
+   * stand hier mit seinem x = 0 als Last am TRAEGERENDE - auf dem Ueberstand
+   * vor dem Masten, auf Traegerhoehe. Es gehoert an den Masten, auf seine
+   * Hoehe; das baut `mastTeileEinsetzen` in export.axisvm.js.
+   */
+  const anbau = (opt.anbauteile ?? []).filter((t2) => t2 && t2.aktiv !== false
+    && (t2.ort ?? 'joch') === 'joch');
   const anbauX = anbau.map((t2) => Math.min(Math.max(Number(t2.x) || 0, 0), L))
     .map((v) => Math.round(v * 1e6) / 1e6);
   /*
@@ -1296,7 +1305,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   xs.forEach((v, i) => {
     if (Math.abs(v - xM) < Math.abs(xs[mitte] - xM)) mitte = i;
   });
-  const punkt = [];
+  const punkt = [], moment = [];
   /*
    * >>> OHNE ANBAUTEILE BLEIBT DIE PAUSCHALE ABFANGKRAFT. <<<
    *
@@ -1426,7 +1435,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const lastOpt = { ek: ekAn, R: Number(opt.R) || 0,
                     spannweite: Number(opt.L_FL) || 0, tempFall: opt.tempFall,
                     havarie: opt.havarie ?? null };
-  anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
+  anbauKnoten.forEach(({ name: knA, teil: t2, i: iAn }, j) => {
     const lw = abfangAnbauLasten(t2, lastOpt);
     const Gz = lw.Gz, Qx = lw.Qx, Qy = lw.Qy, Zab = lw.Z;
     const { temperaturabhaengig, ohneTabelle } = lw;
@@ -1454,6 +1463,44 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       punkt.push({ name: `WY_${nm2}`, knoten: knA, richtung: 'Y',
                    wert: Qy, lastfall: 'WindY' });
     }
+    /*
+     * >>> DIE HEBEL DER MODULE (6. Oktober). <<<
+     * Gemeldet: «beim abfangjoch liegen die einwirkungen alle auf höhe
+     * träger (jochaufsatz / Hängestütze etc.)». Die Kraefte oben stehen am
+     * Knoten auf der Traegerachse; der Wind auf einen Jochaufsatz zwei Meter
+     * darueber oder auf die Mitte einer Haengestuetze darunter verdreht den
+     * Traeger aber. Der Kern rechnet diese Torsion laengst (`TG`, `TW` in
+     * `abfangAnbauLasten`), das Stabmodell - das seit dem 28. September das
+     * Urteil traegt - nicht.
+     *
+     * Jetzt kommt je Modul das Moment seiner Kraft um den Knoten dazu,
+     * M = r x F mit r = (x - x_Knoten, y, z) des Moduls: statisch dasselbe
+     * wie eine starre Kette bis zum Angriffspunkt, ohne einen Knoten mehr
+     * (vgl. die Weisung «direkt ... so sparen wir an anzahl elementen»).
+     * Dieselben Kraefte wie oben (G lotrecht, Wind je Richtung), dazu die
+     * eigenen Momente der Module. Der LEITERZUG bleibt zentrisch: «Die
+     * Abgefangenen Leiter wirken auf mitte Traeger» (Weisung 4. September).
+     */
+    const Mx = { G_Anbau: [0, 0, 0], WindX: [0, 0, 0], WindY: [0, 0, 0] };
+    (lw.teile ?? []).forEach((tp) => {
+      const r = [(Number.isFinite(Number(tp.x)) ? Number(tp.x) : xs[iAn]) - xs[iAn],
+                 Number(tp.y) || 0, Number(tp.z) || 0];
+      const dazu = (fall, F, eigen) => {
+        const M = [r[1] * F[2] - r[2] * F[1], r[2] * F[0] - r[0] * F[2], r[0] * F[1] - r[1] * F[0]];
+        [0, 1, 2].forEach((j) => { Mx[fall][j] += M[j] + (eigen?.[j] ?? 0); });
+      };
+      const g = tp.kraefte?.G, wx = tp.kraefte?.WindX, wy = tp.kraefte?.WindY;
+      if (g) dazu('G_Anbau', [0, 0, -(g.Fz ?? 0)], [g.Mxx ?? 0, g.Myy ?? 0, g.Mzz ?? 0]);
+      if (wx) dazu('WindX', [wx.Fx ?? 0, 0, 0], [wx.Mxx ?? 0, wx.Myy ?? 0, wx.Mzz ?? 0]);
+      if (wy) dazu('WindY', [0, wy.Fy ?? 0, 0], [wy.Mxx ?? 0, wy.Myy ?? 0, wy.Mzz ?? 0]);
+    });
+    Object.entries(Mx).forEach(([fall, M]) => {
+      ['Mx', 'My', 'Mz'].forEach((richtung, j) => {
+        if (Math.abs(M[j]) < 1e-12) return;
+        moment.push({ name: `M_${nm2}_${fall}_${richtung}`, knoten: knA, richtung,
+                      wert: Math.round(M[j] * 1e6) / 1e6, lastfall: fall });
+      });
+    });
   });
   /* =========================================================================
    * >>> HAVARIE JE LEITER (20. September). <<<
@@ -1727,7 +1774,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                     ? [{ lastfall: h.key ? `HavarieY|${h.key}` : 'HavarieY', faktor: 1 }]
                     : [])] })),
     ],
-    lasten: { punkt, strecke },
+    lasten: { punkt, moment, strecke },
   };
 }
 /* ===========================================================================

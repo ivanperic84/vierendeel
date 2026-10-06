@@ -31,7 +31,11 @@ const J = (n) => new URL(`./js/${n}`, import.meta.url).href;
  */
 const APP_QUELLE = () => ['app.js',
   ...readdirSync(join(HIER, 'js')).filter((f) => /^app\..+\.js$/.test(f)).sort(),
-  'core.anker.js'].map((f) => readFileSync(join(HIER, 'js', f), 'utf8')).join('\n');
+  'core.anker.js'].map((f) => readFileSync(join(HIER, 'js', f), 'utf8')).join('\n')
+  // Unter Windows checkt Git die Dateien mit CR LF aus (core.autocrlf); die
+  // Kontrollen am Quelltext sind mit LF geschrieben (Befund 6. Oktober: eine
+  // Kontrolle aus der Cloud-Sitzung fiel nur hier).
+  .replace(/\r\n/g, '\n');
 
 /*
  * DIE NORMWERTE ZUERST. Seit dem 16. September stehen die Querschnittswerte
@@ -3249,6 +3253,20 @@ titel('19  AxisVM-Export (SAF)');
       const a = b.knoten.get(st.von), e = b.knoten.get(st.bis);
       return Math.hypot(e.x - a.x, e.y - a.y, e.z - a.z);
     };
+    /*
+     * SEIT DER DIAGONALE (6. Oktober) laeuft das steife Stueck vom
+     * Gurtknoten SCHRAEG zum Blechende - der Stummel quer auf die
+     * Blechachse ist darin aufgegangen. Gemeint ist weiter das Stueck
+     * ENTLANG der Blechachse: gemessen wird deshalb seine Projektion auf
+     * die Achse des weichen Teils; der Rest ist der Versatz quer dazu.
+     */
+    const laengsVon = (b, st, achse) => {
+      const a = b.knoten.get(st.von), e = b.knoten.get(st.bis);
+      const p = b.knoten.get(achse.von), q = b.knoten.get(achse.bis);
+      const d = [q.x - p.x, q.y - p.y, q.z - p.z];
+      const n = Math.hypot(...d);
+      return Math.abs(((e.x - a.x) * d[0] + (e.y - a.y) * d[1] + (e.z - a.z) * d[2]) / n);
+    };
     const bv = bauA.staebe.filter((x) => x.name.startsWith('BV_L_0'));
     wahr('Vertikalblech ist in steif / weich / steif geteilt',
          ['_1', '_2', '_3'].every((e) => bv.some((x) => x.name.endsWith(e))));
@@ -3258,7 +3276,7 @@ titel('19  AxisVM-Export (SAF)');
     pruef('Weicher Teil ist die Blechlänge aus dem Sortiment',
           laengeVon(bauA, teil(bauA, 'BV_L_0', '_2')), lV / 1000, 1e-9, 'm');
     pruef('Steifes Stück ist (Hebelarm − Blechlänge)/2',
-          laengeVon(bauA, teil(bauA, 'BV_L_0', '_1')),
+          laengsVon(bauA, teil(bauA, 'BV_L_0', '_1'), teil(bauA, 'BV_L_0', '_2')),
           (m.stationsListe[0].h - lV / 1000) / 2, 1e-9, 'm');
     wahr('Beide Enden gleich lang',
          Math.abs(laengeVon(bauA, teil(bauA, 'BV_L_0', '_1'))
@@ -3266,11 +3284,11 @@ titel('19  AxisVM-Export (SAF)');
     // Für J90 fällt die Ableitung aus dem Profil auf denselben Wert:
     // 320 = 500 − 2·90, also aV − zsH. Das ist die Probe aufs Exempel.
     pruef('Ableitung aV − zsH trifft dasselbe',
-          laengeVon(bauA, teil(bauA, 'BV_L_0', '_1')),
+          laengsVon(bauA, teil(bauA, 'BV_L_0', '_1'), teil(bauA, 'BV_L_0', '_2')),
           (m.profOG.aV - m.profOG.zsH * 10) / 1000, 1e-6, 'm');
     // Die Endstation trägt kein Horizontalblech - die erste ist Nummer 1.
     pruef('Steifes Stück des Horizontalblechs ist zsV',
-          laengeVon(bauA, teil(bauA, 'BH_O_1', '_1')),
+          laengsVon(bauA, teil(bauA, 'BH_O_1', '_1'), teil(bauA, 'BH_O_1', '_2')),
           m.profOG.zsV * 10 / 1000, 1e-9, 'm');
     wahr('Nur das mittlere Stück trägt den Blechquerschnitt',
          teil(bauA, 'BV_L_0', '_2').qs.startsWith('BLECH_V')
@@ -32756,7 +32774,8 @@ titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
   wahr('Die Anwendung zeichnet den Ausleger aus seiner Szene',
        /tragwerksart\(werte\)\.key === 'tragausleger' \? taSzene\(\) : null/.test(q)
        // Als Nachbar seit dem 4. Oktober mit den Werten des Stabwerks (`g`).
-       && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{[\s\S]{0,300}?return auslegerSzene/.test(q));
+       // Seit dem 6. Oktober in `mastTeileNebenan(…)` (Teile am Masten im Bild).
+       && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{[\s\S]{0,300}?return (mastTeileNebenan\()?auslegerSzene/.test(q));
 }
 
 // ===========================================================================
@@ -38686,6 +38705,133 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
   const dat235 = readFileSync(join(HIER, 'js', 'ui.daten.js'), 'utf8');
   wahr('Die Tabellenansicht zeigt ein Bild als Bild',
        dat235.includes('s.feld.bild && istBildUrl(z[s.pfad])'));
+}
+
+titel('236  Teile am Masten an Abfangjoch und Tragausleger; Hebel am Abfangjoch; Blech-Diagonale');
+/* ===========================================================================
+ * 6. Oktober, im Wortlaut: «beim abfangjoch und beim tragausleger modell
+ * lassen sich keine anbauteile setezen beim masten. beim abfangjoch liegen
+ * die einwirkungen alle auf höhe träger (jochaufsatz / Hängestütze etc.)
+ * nimm noch die axis starrelement optimierung auf.»
+ * Befund: der Kern rechnete die Teile am Masten mit, das Stabmodell nicht
+ * (Tragausleger: weggelassen; Abfangjoch: mit x = 0 am Traegerende), und das
+ * Bild zeichnete sie an keiner der beiden Arten. Am Abfangjoch setzte das
+ * Stabmodell alle Kraefte der Jochteile auf die Traegerachse, ohne Hebel.
+ * ========================================================================= */
+{
+  const C236 = await import(J('core.constants.js'));
+  const N236 = await import(J('core.nachbarn.js'));
+  const V236 = await import(J('core.vierendeel.js'));
+  const AS236 = await import(J('app.stabwerk.js'));
+  const SW236 = await import(J('core.stabwerk.js'));
+  const R236 = await import(J('render.3d.js'));
+  const T236 = await import(J('data.tragjoche.js'));
+  const grund = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                                    T236.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const blatt = (art, mitMast = true) => {
+    const extra = art === 'abfangjoch' ? { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 }
+                                       : { xLage: 0, L: 10, mastH: 7.5 };
+    let w = C236.tragwerkWeg(C236.tragwerkHinzu(grund, art, extra), 'T1');
+    const teile = [{ ...A.neuesAnbauteil('ja-einfach', 6), ort: 'joch', x: art === 'abfangjoch' ? 6 : 5 },
+                   { ...A.neuesAnbauteil('hs-nur', 3), ort: 'joch', x: 3 },
+                   ...(mitMast ? [{ ...A.neuesAnbauteil('leiter-traverse', 0), ort: 'mastA', x: 0, hMast: 5.5 }] : [])];
+    return C236.setzeAnbauteileAn(w, teile);
+  };
+  const rechne = (w) => {
+    const ws = N236.rechensatzMitNachbarn(w);
+    const erg = V236.berechne(ws, ...N236.kernArgumente(ws));
+    return { h: AS236.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }), erg };
+  };
+  const trav = A.expandiereAnbauteile([{ ...A.neuesAnbauteil('leiter-traverse', 0), ort: 'mastA', hMast: 5.5 }],
+                                      { ek: 'EK1', R: 0, spannweite: Number(grund.flSpannweite) || 0 });
+  const sG = trav.reduce((a2, t) => a2 + (t.kraefte?.G?.Fz ?? 0), 0);
+  const sWy = trav.reduce((a2, t) => a2 + (t.kraefte?.WindY?.Fy ?? 0), 0);
+  const mWy = trav.reduce((a2, t) => a2 + (t.kraefte?.WindY?.Fy ?? 0) * (5.5 + (t.z ?? 0)), 0);
+
+  for (const [art, fuss, key] of [['abfangjoch', 'MAST_M1_F', 'M1'], ['tragausleger', 'MAST_MT1_F', 'MT1']]) {
+    const mit = rechne(blatt(art)), ohne = rechne(blatt(art, false));
+    const d = mit.h.roh.dat;
+    const kn = d.knoten.find((k) => k.name === `MAST_${key}_T1`);
+    const kf = d.knoten.find((k) => k.name === fuss);
+    wahr(`${art}: der Mast hat einen Knoten auf der Höhe des Teils (5.50 m)`,
+         kn && kf && Math.abs(kn.z - kf.z - 5.5) < 1e-9 && Math.abs(kn.x - kf.x) < 1e-9,
+         kn ? `z ${(kn.z - kf.z).toFixed(3)}` : 'fehlt');
+    wahr(`${art}: kein Teil am Masten auf dem Träger`,
+         !d.knoten.some((k) => /^AT\d/.test(k.name) && Math.abs(k.x - kf.x) < 1e-6 && Math.abs(k.z) < 1e-9
+           && d.lasten.punkt.some((l) => l.knoten === k.name)) || art === 'tragausleger');
+    const Lm = SW236.loese(mit.h.roh.dat, { eigengewicht: false });
+    const Lo = SW236.loese(ohne.h.roh.dat, { eigengewicht: false });
+    const r = (L, fall) => L.auflagerkraefte(fall).find((a2) => a2.knoten === fuss);
+    // Am Abfangjoch traegt das Joch einen Teil an den zweiten Masten weiter -
+    // lotrecht und laengs zum Gleis bleibt alles am eigenen Mast (Teil in
+    // der Mastachse, x = 0).
+    pruef(`${art}: ΔF_z am Mastfuss unter G = Gewicht der Traverse`,
+          r(Lm, 'G_Anbau').uz - r(Lo, 'G_Anbau').uz, sG, 2e-3, 'kN');
+    pruef(`${art}: ΔF_y am Mastfuss unter Wind längs = Wind der Traverse`,
+          -(r(Lm, 'WindY').uy - r(Lo, 'WindY').uy), sWy, 2e-3, 'kN');
+    // Gleichgewicht um die Achse x durch den Fuss, über ALLE Auflager: am
+    // Abfangjoch gibt der Rahmen 0.6 % an den zweiten Masten weiter, am
+    // Tragausleger nimmt der Längsanker einen Teil - die Summe muss aufgehen.
+    const mxUmFuss = (L, dd) => {
+      const kk = new Map(dd.knoten.map((k2) => [k2.name, k2]));
+      return L.auflagerkraefte('WindY').reduce((s2, a2) => {
+        const p2 = kk.get(a2.knoten);
+        return s2 + a2.fix + (p2.y - kf.y) * a2.uz - (p2.z - kf.z) * a2.uy;
+      }, 0);
+    };
+    pruef(`${art}: ΣΔM_x um den Mastfuss = F_y · (h_Mast + z), der Hebel ist da`,
+          mxUmFuss(Lm, mit.h.roh.dat) - mxUmFuss(Lo, ohne.h.roh.dat), mWy, 1e-3, 'kNm');
+  }
+
+  // Am Abfangjoch: die Hebel der Jochteile als Moment am Knoten der Achse.
+  {
+    const { h } = rechne(blatt('abfangjoch', false));
+    const d = h.roh.dat;
+    const hs = A.expandiereAnbauteile([{ ...A.neuesAnbauteil('hs-nur', 3), ort: 'joch', x: 3 }],
+                                      { ek: 'EK1', R: 0, spannweite: Number(grund.flSpannweite) || 0,
+                                        artVorgabe: 'einseitig' });
+    const soll = -hs.reduce((a2, t) => a2 + (t.kraefte?.WindY?.Fy ?? 0) * (t.z ?? 0), 0);
+    const ist = (d.lasten.moment ?? []).filter((l) => /AT2/.test(l.name) && l.richtung === 'Mx'
+      && l.lastfall === 'WindY').reduce((a2, l) => a2 + l.wert, 0);
+    pruef('Abfangjoch: Hängestütze unter Wind längs, M_x = −Σ F_y · z am Achsknoten', ist, soll, 1e-6, 'kNm');
+    wahr('… und der Hebel ist nicht null (die Stütze hängt unter dem Träger)', Math.abs(soll) > 0.05,
+         soll.toFixed(3));
+    const src = readFileSync(join(HIER, 'js', 'export.axisvm.abfang.js'), 'utf8');
+    wahr('Der Leiterzug bleibt zentrisch (kein Moment im Lastfall Leiterzug)',
+         !(d.lasten.moment ?? []).some((l) => /Leiterzug|G_Ablenk/.test(l.lastfall) && /AT\d/.test(l.name))
+         && src.includes("(t2.ort ?? 'joch') === 'joch'"));
+  }
+
+  // Bild: die Szene bekommt die Teile am Masten mit Bereich und Marke.
+  {
+    const sz = { mastZiehen: { A: { x: 0.25, zF: -7.5 } }, flaechen: [], marken: [], vektoren: [], anbauteile: [] };
+    const liste = [{ ...A.neuesAnbauteil('ja-einfach', 6), ort: 'joch', x: 6 },
+                   { ...A.neuesAnbauteil('leiter-traverse', 0), ort: 'mastA', x: 0, hMast: 5.5 }];
+    const flach = A.expandiereAnbauteile([liste[1]], { ek: 'EK1' });
+    R236.mastTeileSzene(sz, liste, flach, { A: 'M1' });
+    wahr('mastTeileSzene: Bereich mit dem Index der Liste (Heranfahren, Karte)',
+         sz.anbauteile.length === 1 && sz.anbauteile[0].index === 1 && sz.anbauteile[0].id === liste[1].id);
+    wahr('… Kette und Anschluss stehen am Masten auf 5.50 m',
+         sz.flaechen.length > 0 && sz.marken.some((mk) => mk.text === 'A2'),
+         `${sz.flaechen.length} Flächen`);
+    const ohneGriff = R236.mastTeileSzene({ mastZiehen: null, flaechen: [] }, liste, flach);
+    wahr('… und nichts, wo diese Szene den Masten nicht zeichnet (Zeichenplan)', ohneGriff.flaechen.length === 0);
+  }
+
+  // Blech-Diagonale (Weisung 4. Oktober «direkt»): ein Glied statt zwei über Eck.
+  {
+    const S236 = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                                     T236.getTragjoch('J90')),
+                   L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [] };
+    const { h } = rechne(S236);
+    const d = h.roh.dat;
+    wahr('Kein Stummel _e/_v mehr, wo das Blech ein steifes Stück hat',
+         !d.staebe.some((st) => /^B[VH]_.*_e[12]$/.test(st.name)),
+         `${d.staebe.filter((st) => /_e[12]$/.test(st.name)).length} Stummel`);
+    pruef('J90/20 m mit Masten: Knoten 828 → 604', d.knoten.length, 604, 0, '');
+    pruef('… Stäbe 942 → 718', d.staebe.length, 718, 0, '');
+  }
 }
 
 console.log('\n' + '='.repeat(104));

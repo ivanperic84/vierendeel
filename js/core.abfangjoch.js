@@ -1180,6 +1180,9 @@ export function abfangAnbauLasten(at, opt = {}) {
     ohneTabelle = ohneTabelle || k.ohneTabelle;
   });
   return { Gz: sum.Gz, Qx: sum.Qx, Qy: sum.Qy, Z, leiter,
+           // Die Module mit Lage (x, y, z) und Kraeften je Gruppe - das
+           // Stabmodell setzt sie mit ihren Hebeln an (6. Oktober).
+           teile: sum.teile ?? [],
            /**
             * Torsionsmomente um die Traegerachse [kNm], je Einwirkung.
             * Der Leiterzug steht NICHT darin - er kommt zentrisch an,

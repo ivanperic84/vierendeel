@@ -1116,79 +1116,9 @@ export function erzeugeSzene(m, erg) {
    * Ausleitung; wuerde hier anders gerechnet als dort, sagte das Bild etwas
    * anderes als das Modell.
    */
-  const zeichneAmMast = (a, k, ort) => {
-    const ende = ort === 'mastB' ? 'B' : 'A';
-    const g = mastGeo[ende];
-    if (!g) return;
-    const meine = nachGruppeMast.get(a.id) ?? [];
-    const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
-    const teilKey = `AT${k}`;
-    const zWurzel = g.zF + (a.hMast ?? 0);
-    const opt = (label) => ({ gruppe: 'anbau', teil: teilKey, farbeBauteil: fb,
-                              werte: null, label: `${a.name} · ${label}`,
-                              anbauteil: a });
-    // Vom Mast in die Welt: x global wie am Joch, z ab dem Anschluss.
-    const welt = (p) => [g.x + (p.x ?? 0), p.y ?? 0, zWurzel + (p.z ?? 0)];
-
-    // Der Anschluss an der Mastachse - das Gegenstueck zu den vier
-    // Anschlusspunkten am Joch. Am Masten ist es einer.
-    flaechen.push(...quader([g.x, 0, zWurzel], [0.09, 0.09, 0.09],
-      opt(`Anschluss am Mast ${m.federn?.namen?.[ende] || ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
-
-    const kette = anbauKette(meine, { x0: 0, zAn: 0, amMast: true });
-    kette.glieder.forEach((gl) => {
-      const p1 = welt(gl.von), p2 = welt(gl.bis);
-      const laenge = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
-      flaechen.push(...stab(p1, p2, gl.rang === 0 ? 0.045 : 0.038,
-        opt(`${gl.teil.bauteilName ?? gl.teil.name} · ${laenge.toFixed(2)} m`)));
-    });
-
-    const punkte = [kette.wurzel, ...kette.glieder.map((gl) => gl.bis)].map(welt);
-    const zMin = Math.min(zWurzel, ...punkte.map((q) => q[2]));
-    const zMax = Math.max(zWurzel, ...punkte.map((q) => q[2]));
-    const xMin = Math.min(g.x - 0.3, ...punkte.map((q) => q[0]));
-    const xMax = Math.max(g.x + 0.3, ...punkte.map((q) => q[0]));
-    detailBereiche.push({ teil: teilKey, id: a.id, index: k, name: a.name,
-                          x: g.x, r: 0.3, zMin, zMax, xMin, xMax });
-
-    marken.push({
-      gruppe: 'anbau', art: 'anbau', teil: teilKey,
-      p: [g.x, 0, zMax],
-      text: `A${k + 1}`,
-      textLang: `A${k + 1} · ${kurzName(a.name)}`,
-      titel: `${a.name} · Mast ${ende}, ${(a.hMast ?? 0).toFixed(2)} m über Fundament`,
-      farbe: fb,
-    });
-
-    // Angriffspunkte und Kraftpfeile - je Teil an SEINEM Kettenpunkt, nicht
-    // an der Wurzel: ein Ausleger traegt am Ende, nicht am Mast.
-    kette.belegung.forEach(({ teil: t, punkt }) => {
-      const pAn = welt(punkt);
-      const kurz = t.bauteilName ?? t.name.split(' · ').slice(-1)[0];
-      flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
-        { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
-          gruppe: 'last', punkt: true }));
-      marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
-                    text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
-                    fahrdraht: istFahrdraht(t),
-                    titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
-      Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
-        [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
-         { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
-         { k: kr.Fx, ri: [1, 0, 0], nm: 'F_x', bez: 'Jochachse' }].forEach((pf) => {
-          if (!pf.k) return;
-          const istZug = gruppe === 'G' && pf.nm === 'F_x' && t.rolle === 'drahtwerk';
-          const art = istZug ? 'leiterzug' : LASTART_VON_GRUPPE[gruppe] ?? 'staendig';
-          vektoren.push({
-            gruppe: 'last', art: 'last', lastart: art, p: pAn, teil: teilKey,
-            v: skal(pf.ri, Math.sign(pf.k) * pfeilLaenge(pf.k)),
-            text: `${pf.nm} = ${Math.abs(pf.k).toFixed(2)} kN`,
-            titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
-          });
-        });
-      });
-    });
-  };
+  const zeichneAmMast = (a, k, ort) => zeichneMastteil({
+    m, mastGeo, nachGruppeMast, farbeFuer, flaechen, marken, vektoren,
+    detailBereiche, pfeilLaenge }, a, k, ort);
 
   /*
    * DER ZAEHLER LAEUFT UEBER DIE GANZE LISTE, nicht ueber die aktiven.
@@ -1960,6 +1890,141 @@ function armAmTraeger(kette, t) {
   const senk = vor && Math.abs(vor.bis.z - vor.von.z) > 1e-6
     && Math.hypot(vor.bis.x - vor.von.x, vor.bis.y - vor.von.y) < 1e-6;
   return Boolean(waag && senk);
+}
+
+/**
+ * EINE BAUGRUPPE AM MASTEN ZEICHNEN - herausgeloest aus `erzeugeSzene`
+ * (6. Oktober), damit Abfangjoch und Tragausleger ihre Teile am Masten mit
+ * DERSELBEN Kette zeigen (`mastTeileSzene`). Vorher fehlten sie dort im
+ * Bild ganz («beim abfangjoch und beim tragausleger modell lassen sich
+ * keine anbauteile setezen beim masten»). Der Kommentar zur Regel steht an
+ * der Aufrufstelle in `erzeugeSzene`.
+ *
+ * ctx: { m, mastGeo, nachGruppeMast, farbeFuer, flaechen, marken, vektoren,
+ *        detailBereiche, pfeilLaenge }
+ */
+function zeichneMastteil(ctx, a, k, ort) {
+  const { m, mastGeo, nachGruppeMast, farbeFuer, flaechen, marken, vektoren,
+          detailBereiche, pfeilLaenge } = ctx;
+  const ende = ort === 'mastB' ? 'B' : 'A';
+  const g = mastGeo[ende];
+  if (!g) return;
+  const meine = nachGruppeMast.get(a.id) ?? [];
+  const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
+  const teilKey = `AT${k}`;
+  const zWurzel = g.zF + (a.hMast ?? 0);
+  const opt = (label) => ({ gruppe: 'anbau', teil: teilKey, farbeBauteil: fb,
+                            werte: null, label: `${a.name} · ${label}`,
+                            anbauteil: a });
+  // Vom Mast in die Welt: x global wie am Joch, z ab dem Anschluss.
+  const welt = (p) => [g.x + (p.x ?? 0), p.y ?? 0, zWurzel + (p.z ?? 0)];
+
+  // Der Anschluss an der Mastachse - das Gegenstueck zu den vier
+  // Anschlusspunkten am Joch. Am Masten ist es einer.
+  flaechen.push(...quader([g.x, 0, zWurzel], [0.09, 0.09, 0.09],
+    opt(`Anschluss am Mast ${m.federn?.namen?.[ende] || ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
+
+  const kette = anbauKette(meine, { x0: 0, zAn: 0, amMast: true });
+  kette.glieder.forEach((gl) => {
+    const p1 = welt(gl.von), p2 = welt(gl.bis);
+    const laenge = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
+    flaechen.push(...stab(p1, p2, gl.rang === 0 ? 0.045 : 0.038,
+      opt(`${gl.teil.bauteilName ?? gl.teil.name} · ${laenge.toFixed(2)} m`)));
+  });
+
+  const punkte = [kette.wurzel, ...kette.glieder.map((gl) => gl.bis)].map(welt);
+  const zMin = Math.min(zWurzel, ...punkte.map((q) => q[2]));
+  const zMax = Math.max(zWurzel, ...punkte.map((q) => q[2]));
+  const xMin = Math.min(g.x - 0.3, ...punkte.map((q) => q[0]));
+  const xMax = Math.max(g.x + 0.3, ...punkte.map((q) => q[0]));
+  detailBereiche.push({ teil: teilKey, id: a.id, index: k, name: a.name,
+                        x: g.x, r: 0.3, zMin, zMax, xMin, xMax });
+
+  marken.push({
+    gruppe: 'anbau', art: 'anbau', teil: teilKey,
+    p: [g.x, 0, zMax],
+    text: `A${k + 1}`,
+    textLang: `A${k + 1} · ${kurzName(a.name)}`,
+    titel: `${a.name} · Mast ${ende}, ${(a.hMast ?? 0).toFixed(2)} m über Fundament`,
+    farbe: fb,
+  });
+
+  // Angriffspunkte und Kraftpfeile - je Teil an SEINEM Kettenpunkt, nicht
+  // an der Wurzel: ein Ausleger traegt am Ende, nicht am Mast.
+  kette.belegung.forEach(({ teil: t, punkt }) => {
+    const pAn = welt(punkt);
+    const kurz = t.bauteilName ?? t.name.split(' · ').slice(-1)[0];
+    flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
+      { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
+        gruppe: 'last', punkt: true }));
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
+                  text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+                  fahrdraht: istFahrdraht(t),
+                  titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
+    Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
+      [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
+       { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
+       { k: kr.Fx, ri: [1, 0, 0], nm: 'F_x', bez: 'Jochachse' }].forEach((pf) => {
+        if (!pf.k) return;
+        const istZug = gruppe === 'G' && pf.nm === 'F_x' && t.rolle === 'drahtwerk';
+        const art = istZug ? 'leiterzug' : LASTART_VON_GRUPPE[gruppe] ?? 'staendig';
+        vektoren.push({
+          gruppe: 'last', art: 'last', lastart: art, p: pAn, teil: teilKey,
+          v: skal(pf.ri, Math.sign(pf.k) * pfeilLaenge(pf.k)),
+          text: `${pf.nm} = ${Math.abs(pf.k).toFixed(2)} kN`,
+          titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
+        });
+      });
+    });
+  });
+}
+
+/**
+ * >>> DIE TEILE AM MASTEN FUER ABFANGJOCH UND TRAGAUSLEGER (6. Oktober). <<<
+ *
+ * Haengt an eine fertige Szene (abfangSzene, auslegerSzene) die Teile am
+ * Masten an - an jedem Masten, den diese Szene zeichnet (`mastZiehen`: nur
+ * ein gezeichneter Mastkoerper hat einen Griff; einen geteilten Masten
+ * zeichnet nach dem Zeichenplan nur ein Tragwerk, und nur dieses traegt dann
+ * auch seine Teile ins Bild).
+ *
+ * @param {object} sz          die Szene, wird ergaenzt und zurueckgegeben
+ * @param {object[]} anbauteile die Liste des Tragwerks (Index = Nummer A…)
+ * @param {object[]} flach      aufgeloeste Teile am Masten (`anbauMastFlach`
+ *                              mit `proGruppe` fuer die Pfeile; ohne sie
+ *                              bleibt es bei Kette und Angriffspunkt)
+ * @param {object} namen        Mastnamen je Ende fuer den Titel
+ */
+export function mastTeileSzene(sz, anbauteile, flach, namen = {}) {
+  if (!sz?.mastZiehen || !(anbauteile ?? []).some((a) => a && a.aktiv !== false && amMast(a))) return sz;
+  const mastGeo = {};
+  Object.entries(sz.mastZiehen).forEach(([e, g]) => {
+    const ende = e === 'B' ? 'B' : 'A';
+    mastGeo[ende] = { x: g.x, zF: g.zF };
+  });
+  const nachGruppeMast = new Map();
+  (flach ?? []).filter((t) => t.aktiv !== false).forEach((t) => {
+    const s2 = t.baugruppe ?? t.id;
+    if (!nachGruppeMast.has(s2)) nachGruppeMast.set(s2, []);
+    nachGruppeMast.get(s2).push(t);
+  });
+  const maxKraft = Math.max(1e-6, ...(flach ?? []).flatMap((t) =>
+    Object.values(t.proGruppe ?? {}).flatMap((kr) => [kr.Fx, kr.Fy, kr.Fz].map((v) => Math.abs(v ?? 0)))));
+  const pfeilLaenge = (kraft) => Math.max(0.22, Math.abs(kraft) / maxKraft) * 0.9;
+  let n = 0;
+  const farbeFuer = () => bauteilFarbe(20 + (n++ % 8));
+  sz.flaechen = sz.flaechen ?? []; sz.marken = sz.marken ?? [];
+  sz.vektoren = sz.vektoren ?? []; sz.anbauteile = sz.anbauteile ?? [];
+  const ctx = { m: { federn: { namen } }, mastGeo, nachGruppeMast, farbeFuer,
+                flaechen: sz.flaechen, marken: sz.marken, vektoren: sz.vektoren,
+                detailBereiche: sz.anbauteile, pfeilLaenge };
+  (anbauteile ?? []).forEach((a, k) => {
+    if (!a || a.aktiv === false || !amMast(a)) return;
+    const ende = ortVon(a) === 'mastB' ? 'B' : 'A';
+    if (!mastGeo[ende]) return;
+    zeichneMastteil(ctx, a, k, ortVon(a));
+  });
+  return sz;
 }
 
 /** Was ein Angriffspunkt zum Ziehen mitbringt - Modul oder Lastblock. */

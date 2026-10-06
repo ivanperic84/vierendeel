@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { standAnheben, amMast, havarieKopieren } from './data.anbauteile.js';
+import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -23,7 +23,7 @@ import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
-         LASTARTEN } from './render.3d.js';
+         LASTARTEN, mastTeileSzene } from './render.3d.js';
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten } from './app.bericht.js';
@@ -2013,11 +2013,11 @@ function szeneVonNebenanRoh(t, zeichnen) {
      */
     if (tragwerksart(satz).key === 'abfangjoch') {
       // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
-      return abfangSzene(satz.abfangTyp, Number(satz.L),
+      return mastTeileNebenan(abfangSzene(satz.abfangTyp, Number(satz.L),
                          { anbauteile: satz.anbauteile ?? [],
                            mast: abfangMastAngabe(satz), lager: satz,
                            mastZeichnen: zeichnen,
-                           ...abfangLastAngaben(satz) });
+                           ...abfangLastAngaben(satz) }), satz);
     }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
@@ -2026,9 +2026,9 @@ function szeneVonNebenanRoh(t, zeichnen) {
     if (tragwerksart(satz).key === 'tragausleger') {
       // Gefärbt aus dem Stabwerk wie das aktive (4. Oktober, «alle stäbe färben»).
       const g = stabwerkAnsicht();
-      return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
+      return mastTeileNebenan(auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
                                    mastZeichnen: zeichnen,
-                                   jeStab: g?.h?.jeStab ?? null, praefix: `${t.id}_` });
+                                   jeStab: g?.h?.jeStab ?? null, praefix: `${t.id}_` }), satz);
     }
     const j = getTragjoch(satz.typ);
     /*
@@ -2191,6 +2191,18 @@ function blattSzene(erg) {
    * Ein gewählter Einzellastfall zeigt weiter den Kern.
    */
   // Seit dem 4. Oktober auch im gewählten Fall (`stabwerkAnsicht`).
+  /*
+   * >>> DIE TEILE AM MASTEN IM BILD (6. Oktober). <<<
+   * «beim abfangjoch und beim tragausleger modell lassen sich keine
+   * anbauteile setezen beim masten» - gesetzt und gerechnet wurden sie,
+   * gezeichnet nicht: beide Szenen kannten nur Teile am Traeger. Jetzt mit
+   * derselben Kette wie am Tragjoch (`mastTeileSzene`, render.3d.js), die
+   * Pfeile aus dem Kern im gezeigten Fall (`anbauMastFlach`).
+   */
+  if (eigen && ['abfangjoch', 'tragausleger'].includes(tragwerksart(werte).key)) {
+    mastTeileSzene(eigen, rechensatz(werte).anbauteile ?? [],
+                   erg.modell?.anbauMastFlach ?? [], erg.modell?.federn?.namen ?? {});
+  }
   if (!ta && tragwerksart(werte).key === 'abfangjoch' && eigen) {
     const g = stabwerkAnsicht();
     if (g) stabwerkFaerben(eigen, g.h.jeStab, { jochKey: g.jochKey, fall: g.einzel ? g.h.fall?.bez : null,
@@ -2839,6 +2851,19 @@ function abfangMastenAngabe(satz, namen) {
  * Eine Stelle fuer alle drei Aufrufe, damit es beim naechsten Mal nicht
  * wieder zwei sind.
  */
+/**
+ * Teile am Masten in der Szene eines NICHT gewaehlten Abfangjochs oder
+ * Tragauslegers (6. Oktober): Kette und Angriffspunkte wie am Tragjoch,
+ * ohne Pfeile - gerechnet wird nur das gewaehlte Tragwerk im Kern.
+ */
+function mastTeileNebenan(sz, satz) {
+  const amM = (satz?.anbauteile ?? []).filter((a) => a && a.aktiv !== false && amMast(a));
+  if (!sz || !amM.length) return sz;
+  const flach = expandiereAnbauteile(amM, { ek: ekVonWindklasse(satz.windKlasse),
+    R: satz.trasseRadius, spannweite: satz.flSpannweite, havarie: satz.havarie });
+  return mastTeileSzene(sz, satz.anbauteile ?? [], flach, {});
+}
+
 function abfangLastAngaben(satz) {
   // Mit Art und Richtung je Leiter (29. September) - das Bild zeigt den
   // Zug, den der Nachweis ansetzt.

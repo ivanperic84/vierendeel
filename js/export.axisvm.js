@@ -41,9 +41,9 @@
  * ---------------------------------------------------------------------------
  */
 
-import { havarieKandidaten } from './data.anbauteile.js';
+import { havarieKandidaten, expandiereAnbauteile } from './data.anbauteile.js';
 import { ECKEN, getAusrichtung } from './geometry.js';
-import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
+import { EINWIRKUNGEN, lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { verortung, verortungKurz, tragwerksart,
          tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
          anzahlTragwerke, anschlusshoehe, lageOrtsnull, stossEnden, stossMasse }
@@ -1478,44 +1478,143 @@ function gleicheLage(s, name, p) {
  * verlängert - er steht ja wirklich höher. Im Blatt reiht
  * `mastNeuAufreihen` den geteilten Masten aus allen Teilpunkten neu auf.
  */
+/**
+ * EIN KNOTEN AUF DER MASTACHSE eines eigenen Bausteins (Abfangjoch,
+ * Tragausleger) in der Hoehe `hoehe` ueber dem Mastfuss - gibt es keinen,
+ * wird der Maststab dort geteilt bzw. der Mast bis dorthin verlaengert.
+ * Herausgeloest aus `abfangAnkerAnbauen` (6. Oktober), weil die Teile am
+ * Masten denselben Schnitt brauchen. Gibt { knoten, x, zFuss } oder null.
+ */
+function mastKnotenAuf(bau, key, hoehe, endung, streckeEndung = endung) {
+  const re = new RegExp(`^MAST_${key}(_O|_S\\d+)?$`);
+  const zug = bau.staebe.filter((st) => re.test(st.name) && (st.artFest ?? 'stab') === 'stab');
+  if (!zug.length) return null;
+  const z = (n) => bau.knoten.get(n).z;
+  const kn = [...new Set(zug.flatMap((st) => [st.von, st.bis]))].sort((a, b) => z(a) - z(b));
+  const kFuss = kn[0], kTop = kn[kn.length - 1];
+  const x = bau.knoten.get(kFuss).x, zFuss = z(kFuss);
+  const zZiel = r6(zFuss + hoehe);
+  const da = kn.find((n) => Math.abs(z(n) - zZiel) < 1e-6);
+  if (da) return { knoten: da, x, zFuss };
+  if (zZiel < zFuss - 1e-9) return null;
+  const kZiel = `MAST_${key}_${endung}`;
+  const frei = (() => {
+    let k = zug.length + 1;
+    while (bau.staebe.some((st) => st.name === `MAST_${key}_S${k}`)) k += 1;
+    return `MAST_${key}_S${k}`;
+  })();
+  const st = zug.find((s2) => (z(s2.von) - zZiel) * (z(s2.bis) - zZiel) < 0);
+  if (st) {
+    bau.knoten.set(kZiel, { name: kZiel, x, y: 0, z: zZiel });
+    // Teilen: das Stück am alten Anfang behält den Namen, das andere ist neu.
+    const neu = { ...st, name: frei, roh: frei, praefix: '', von: kZiel };
+    st.bis = kZiel;
+    bau.staebe.splice(bau.staebe.indexOf(st) + 1, 0, neu);
+    // Streckenlasten (Mastwind) gelten beiden Stücken.
+    const sl = bau.eigeneLasten?.strecke ?? [];
+    sl.filter((l) => l.stab === st.name)
+      .forEach((l) => sl.push({ ...l, name: `${l.name}_${streckeEndung}`, stab: frei }));
+  } else if (zZiel > z(kTop)) {
+    bau.knoten.set(kZiel, { name: kZiel, x, y: 0, z: zZiel });
+    // Über dem Trägeranschluss: der Mast läuft bis dorthin weiter.
+    const vor = zug.find((s2) => s2.von === kTop || s2.bis === kTop);
+    bau.staebe.push({ ...vor, name: frei, roh: frei, praefix: '', von: kTop, bis: kZiel });
+  } else return null;
+  return { knoten: kZiel, x, zFuss };
+}
+
+/**
+ * >>> TEILE AM MASTEN AN ABFANGJOCH UND TRAGAUSLEGER (6. Oktober). <<<
+ *
+ * Gemeldet: «beim abfangjoch und beim tragausleger modell lassen sich keine
+ * anbauteile setezen beim masten.» Gespeichert und im Kern gerechnet wurden
+ * sie (`anbauMastFlach`), das Stabmodell - das seit dem 28. September das
+ * Urteil traegt - kannte sie nicht: der Tragausleger liess sie weg, das
+ * Abfangjoch setzte sie mit x = 0 als Last auf das Traegerende.
+ *
+ * Jetzt bekommt der Mast an der Anschlusshoehe hMast einen Knoten
+ * (`mastKnotenAuf`, derselbe Schnitt wie fuer den Anker), und jedes Modul
+ * greift dort mit seiner Kraft und dem Moment ihres Hebels an, M = r x F mit
+ * r = (x, y, z) des Moduls ab der Mastachse auf hMast - statisch dasselbe
+ * wie die starre Kette des Tragjochs, ohne Knoten dafuer (vgl. «direkt ...
+ * so sparen wir an anzahl elementen»), und so, wie die Teile am Tragausleger
+ * schon angesetzt werden. Aufgeloest mit denselben Angaben wie im Kern
+ * (`anbauMastFlach` in core.vierendeel.js), damit beide dieselben Lasten
+ * sehen. Der Havariefall je Leiter wird hier nicht angesetzt.
+ */
+function mastTeileEinsetzen(bau, satz, opt = {}) {
+  const teile = (satz?.anbauteile ?? []).filter((a) => a && a.aktiv !== false
+    && (a.ort === 'mastA' || a.ort === 'mastB'));
+  if (!teile.length || !bau?.staebe) return bau;
+  const praefix = opt.praefix ?? '';
+  const eo = { ek: ekVonWindklasse(satz.windKlasse), R: satz.trasseRadius,
+               spannweite: satz.flSpannweite, havarie: satz.havarie };
+  bau.eigeneLasten = bau.eigeneLasten ?? { punkt: [], moment: [], strecke: [] };
+  bau.eigeneLasten.punkt = bau.eigeneLasten.punkt ?? [];
+  bau.eigeneLasten.moment = bau.eigeneLasten.moment ?? [];
+  bau.anbauMastAus = bau.anbauMastAus ?? [];
+  const { punkt, moment } = bau.eigeneLasten;
+  teile.forEach((a, k) => {
+    const ende = a.ort === 'mastB' ? 'B' : 'A';
+    const key = opt.mastNamen?.[ende] ?? ende;
+    const h = Number(a.hMast) || 0;
+    const ort = mastKnotenAuf(bau, key, h, `T${k + 1}`);
+    if (!ort) {
+      bau.anbauMastAus.push({ name: a.name ?? a.id, ende, hMast: h, H: 0 });
+      return;
+    }
+    const summen = {};
+    const add = (fall, art, v) => {
+      if (!v.some((w) => w)) return;
+      const sm = summen[fall] ?? (summen[fall] = { F: [0, 0, 0], M: [0, 0, 0] });
+      v.forEach((w, j) => { sm[art][j] += w; });
+    };
+    expandiereAnbauteile([{ ...a, aktiv: true }], eo).forEach((tp) => {
+      const r = [(Number(tp.x) || 0) - (Number(a.x) || 0), Number(tp.y) || 0, Number(tp.z) || 0];
+      EINWIRKUNGEN.forEach((ew) => {
+        if (ew.key === 'HavarieX' || ew.key === 'HavarieY') return;
+        const q = tp.kraefte?.[ew.key];
+        if (!q) return;
+        const F = [q.Fx ?? 0, q.Fy ?? 0, -(q.Fz ?? 0)];
+        [0, 1, 2].forEach((j) => {
+          if (!F[j]) return;
+          const Fj = [0, 0, 0]; Fj[j] = F[j];
+          const Mj = [r[1] * Fj[2] - r[2] * Fj[1], r[2] * Fj[0] - r[0] * Fj[2],
+                      r[0] * Fj[1] - r[1] * Fj[0]];
+          // Wie am Tragjoch: unter G ist die Kraft in der Jochachse die
+          // Ablenkkraft, alles uebrige das Gewicht des Teils.
+          const fall = ew.key !== 'G' ? ew.key : (j === 0 ? 'G_Ablenk' : 'G_Anbau');
+          add(fall, 'F', Fj);
+          add(fall, 'M', Mj);
+        });
+        add(ew.key === 'G' ? 'G_Anbau' : ew.key, 'M', [q.Mxx ?? 0, q.Myy ?? 0, q.Mzz ?? 0]);
+      });
+    });
+    Object.entries(summen).forEach(([fall, sm]) => {
+      ['X', 'Y', 'Z'].forEach((richtung, j) => {
+        if (Math.abs(sm.F[j]) < 1e-12) return;
+        punkt.push({ name: `${praefix}FM${k + 1}_${key}_${fall}_${richtung}`, knoten: ort.knoten,
+                     richtung, wert: r6(sm.F[j]), lastfall: fall });
+      });
+      ['Mx', 'My', 'Mz'].forEach((richtung, j) => {
+        if (Math.abs(sm.M[j]) < 1e-12) return;
+        moment.push({ name: `${praefix}MM${k + 1}_${key}_${fall}_${richtung}`, knoten: ort.knoten,
+                      richtung, wert: r6(sm.M[j]), lastfall: fall });
+      });
+    });
+  });
+  return bau;
+}
+
 function abfangAnkerAnbauen(bau, satz, opt = {}) {
   const praefix = opt.praefix ?? '';
   ['A', 'B'].forEach((ende) => {
     const ak = ende === 'B' ? satz.mastAnkerB : satz.mastAnkerA;
     if (!(ak?.typ && ak.h > 0 && ak.a > 0)) return;
     const key = opt.mastNamen?.[ende] ?? ende;
-    const re = new RegExp(`^MAST_${key}(_O|_S\\d+)?$`);
-    const zug = bau.staebe.filter((st) => re.test(st.name) && (st.artFest ?? 'stab') === 'stab');
-    if (!zug.length) return;
-    const z = (n) => bau.knoten.get(n).z;
-    const kn = [...new Set(zug.flatMap((st) => [st.von, st.bis]))].sort((a, b) => z(a) - z(b));
-    const kFuss = kn[0], kTop = kn[kn.length - 1];
-    const x = bau.knoten.get(kFuss).x, zFuss = z(kFuss);
-    const zAnk = r6(zFuss + ak.h);
-    let kAnk = kn.find((n) => Math.abs(z(n) - zAnk) < 1e-6);
-    if (!kAnk) {
-      kAnk = `MAST_${key}_ANK`;
-      bau.knoten.set(kAnk, { name: kAnk, x, y: 0, z: zAnk });
-      const frei = (() => {
-        let k = zug.length + 1;
-        while (bau.staebe.some((st) => st.name === `MAST_${key}_S${k}`)) k += 1;
-        return `MAST_${key}_S${k}`;
-      })();
-      const st = zug.find((s2) => (z(s2.von) - zAnk) * (z(s2.bis) - zAnk) < 0);
-      if (st) {
-        // Teilen: das Stück am alten Anfang behält den Namen, das andere ist neu.
-        const neu = { ...st, name: frei, roh: frei, praefix: '', von: kAnk };
-        st.bis = kAnk;
-        bau.staebe.splice(bau.staebe.indexOf(st) + 1, 0, neu);
-        // Streckenlasten (Mastwind) gelten beiden Stücken.
-        const sl = bau.eigeneLasten?.strecke ?? [];
-        sl.filter((l) => l.stab === st.name).forEach((l) => sl.push({ ...l, name: `${l.name}_AK`, stab: frei }));
-      } else if (zAnk > z(kTop)) {
-        // Über dem Trägeranschluss: der Mast läuft bis zum Ankerpunkt weiter.
-        const vor = zug.find((s2) => s2.von === kTop || s2.bis === kTop);
-        bau.staebe.push({ ...vor, name: frei, roh: frei, praefix: '', von: kTop, bis: kAnk });
-      } else return;
-    }
+    const ort = mastKnotenAuf(bau, key, ak.h, 'ANK', 'AK');
+    if (!ort) return;
+    const kAnk = ort.knoten, x = ort.x, zFuss = ort.zFuss, zAnk = r6(zFuss + ak.h);
     const s = sammler(praefix);
     s.kn(kAnk, x, 0, zAnk);
     const qsStarr = s.qs(rechteck(STARR));
@@ -2452,7 +2551,8 @@ export function stabmodell(m, opt = {}) {
    */
   const satzOpt = opt.satz ?? opt.eingabe ?? null;
   if (tragwerksart(m).key === 'abfangjoch' && satzOpt) {
-    return abfangAnkerAnbauen(abfangBau(satzOpt, opt), satzOpt, opt);
+    return mastTeileEinsetzen(abfangAnkerAnbauen(abfangBau(satzOpt, opt), satzOpt, opt),
+                              satzOpt, opt);
   }
   /*
    * >>> DER TRAGAUSLEGER EBENSO (28. September, Etappe 2). <<<
@@ -2462,7 +2562,7 @@ export function stabmodell(m, opt = {}) {
    * seit dem 25. September gesperrt (`ohneStabmodell`).
    */
   if (tragwerksart(m).key === 'tragausleger' && satzOpt) {
-    return tragauslegerBau(satzOpt, opt);
+    return mastTeileEinsetzen(tragauslegerBau(satzOpt, opt), satzOpt, opt);
   }
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = opt.sammler ?? sammler(opt.praefix ?? '');
@@ -2829,15 +2929,34 @@ export function stabmodell(m, opt = {}) {
   // jedem Gurtknoten führt ein kurzer steifer Stummel zur Blechachse - so
   // ist die Ausmitte im Modell sichtbar und geht auch nach PyNite mit,
   // wo Stabausmitten nicht zur Verfügung stehen.
+  /*
+   * >>> VOM GURTKNOTEN DIREKT ZUM BLECHENDE (4. Oktober). <<<
+   * Am aufgebauten AxisVM-Modell, mit Bild (ein Ende über Eck, das andere
+   * von Hand als Diagonale markiert), im Wortlaut: «der fahrweg der einzelnen
+   * starrelement verbindungen optimieren auf die variante direkt (markierung
+   * auf bild) so sparen wir an anzahl elementen beim aufbau des modells. die
+   * berechnung sollte es nicht beeinflussen.»
+   *
+   * Bisher führten ZWEI Starrglieder über Eck vom Gurtknoten zum Blechende:
+   * der Stummel quer auf die Blechachse (`_e`, Knoten `_v`) und das steife
+   * Stück längs der Achse bis zur Blechkante (`_1` / `_3`). Jetzt EINES, die
+   * Diagonale. Beide Enden liegen, wo sie lagen; ein Starrkörper kennt
+   * seinen Weg nicht. Wo es kein steifes Stück gibt (Knotenmodell ohne
+   * Anschnitt), bleibt der Stummel - er ist dann schon der direkte Weg.
+   */
   const blechStab = (name, qsBlech, p1, p2, v1, v2, laenge = 0, d1 = 0, d2 = 0) => {
-    const rueck = (p, v, k) => {
-      if (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)) return p;
-      const n = s.kn(`${name}_v${k}`, p.x, p.y + v.dy, p.z + v.dz);
-      s.stab(`${name}_e${k}`, qsStarr, p.name, n, { starrRolle: 'verbindung' });
+    const gurt1 = p1, gurt2 = p2;
+    const versetzt = (p, v) => (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)
+      ? p : { name: null, x: p.x, y: p.y + v.dy, z: p.z + v.dz });
+    // Der Stummel als eigenes Glied - nur noch, wo das Blech an ihm beginnt.
+    const rueck = (g, p, k) => {
+      if (p.name) return p;
+      const n = s.kn(`${name}_v${k}`, p.x, p.y, p.z);
+      s.stab(`${name}_e${k}`, qsStarr, g.name, n, { starrRolle: 'verbindung' });
       return { name: n, ...s.knoten.get(n) };
     };
-    p1 = rueck(p1, v1, 1);
-    p2 = rueck(p2, v2, 2);
+    p1 = versetzt(p1, v1);
+    p2 = versetzt(p2, v2);
 
     // Der Abstand der beiden Blechenden - nach dem Versatz gemessen, nicht
     // aus dem Hebelarm des Nachweises übernommen.
@@ -2848,7 +2967,7 @@ export function stabmodell(m, opt = {}) {
     const [e1, e2] = km !== 'anschnitt' ? [0, 0]
                    : ausDaten !== null ? [ausDaten, ausDaten] : [d1, d2];
     if (!(L > 0) || (e1 + e2) < 1e-9 || (e1 + e2) >= L) {
-      s.stab(name, qsBlech, p1.name, p2.name);
+      s.stab(name, qsBlech, rueck(gurt1, p1, 1).name, rueck(gurt2, p2, 2).name);
       return;
     }
     const t = (f) => ({ x: p1.x + (p2.x - p1.x) * f,
@@ -2857,9 +2976,12 @@ export function stabmodell(m, opt = {}) {
     const a = t(e1 / L), b = t(1 - e2 / L);
     const n1 = s.kn(`${name}_a`, a.x, a.y, a.z);
     const n2 = s.kn(`${name}_b`, b.x, b.y, b.z);
-    s.stab(`${name}_1`, qsStarr, p1.name, n1, { starrRolle: 'blechende' });
+    // Ein Ende ohne steifes Stück beginnt am Stummel (sonst ein Glied ohne Länge).
+    const von = e1 > 1e-9 ? gurt1.name : rueck(gurt1, p1, 1).name;
+    const bis = e2 > 1e-9 ? gurt2.name : rueck(gurt2, p2, 2).name;
+    s.stab(`${name}_1`, qsStarr, von, n1, { starrRolle: 'blechende' });
     s.stab(`${name}_2`, qsBlech, n1, n2);
-    s.stab(`${name}_3`, qsStarr, n2, p2.name, { starrRolle: 'blechende' });
+    s.stab(`${name}_3`, qsStarr, n2, bis, { starrRolle: 'blechende' });
   };
 
   st.forEach((station, i) => {
