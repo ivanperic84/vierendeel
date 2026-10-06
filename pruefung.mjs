@@ -39173,6 +39173,21 @@ titel('244  Buegelschrauben: Kraft x je Gurtanschluss aus dem Stabwerk; Grenzfed
   wahr('A1 steht nicht mehr in der Liste der Konstruktionspruefungen', uq.includes(".filter((c) => c.id !== 'A1')"));
 }
 
+titel('245  Lastgenerator: Lage ab Mast A mit Abstand Mast-Gleis; kurze Auswahl');
+/* 6. Oktober: «was noch fehlt ist der Abstand von Mast zu Gleis …»; Rueckfrage «Kurz: typische Gleisausrüstung». */
+{
+  const D245 = await import(J('data.anbauteile.js'));
+  pruef('Vorgabe Abstand Mast - Gleis', D245.MAST_GLEIS_VORGABE, 3.5, 1e-12, 'm');
+  const r = D245.erzeugeGleislasten({ L: 20, gleise: 3, abstand: 4.5, vorlagen: ['hs-nur'], start: 0.2 + 3.5 });
+  wahr('Ab Mast A (bei 0.20 m): Gleise bei 3.70 / 8.20 / 12.70 m',
+       r.gleisX.map((x) => x.toFixed(2)).join(',') === '3.70,8.20,12.70', r.gleisX.join(', '));
+  const s = D245.erzeugeGleislasten({ L: 20, gleise: 2, abstand: 4.5, vorlagen: ['hs-nur'] });
+  wahr('Ohne Start symmetrisch wie bisher', s.gleisX.map((x) => x.toFixed(2)).join(',') === '7.75,12.25');
+  const aq = APP_QUELLE();
+  wahr('Die Auswahl ist kurz: Haengestuetzen, Kettenwerke, Jochaufsaetze', aq.includes("const GEN_GRUPPEN = [")
+       && !/GEN_GRUPPEN[\s\S]{0,400}leiter-rl/.test(aq));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

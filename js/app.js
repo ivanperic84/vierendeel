@@ -66,7 +66,7 @@ import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, entdoppelteVorlagen,
-         erzeugeGleislasten, neuesModul,
+         erzeugeGleislasten, neuesModul, MAST_GLEIS_VORGABE,
          baugruppeSumme, anbauteilDB,
          setzeAnbauteilDB } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
@@ -4883,11 +4883,87 @@ function klappWechsel(schluessel, offen) {
  * Ein Joch trägt je Gleis dieselbe Ausrüstung. Statt jedes Teil einzeln zu
  * setzen, wird hier die Gleislage beschrieben - der Rest folgt daraus.
  */
+/*
+ * >>> DER LASTGENERATOR, KURZ UND MIT SKIZZE (7. Oktober). <<< Weisung: «hier
+ * einen einfachen auf bau der eingabe aufzeigen (gleise / anbauteile höhen)
+ * so sieht man was die eingabe beinhaltet. Ich frage mich aber ob eine so
+ * lange liste sinn macht, da man nicht genau definieren kann wo die lasten
+ * wirken sollen. was noch fehlt ist der Abstand von Mast zu Gleis, dieser
+ * abstand ist üblicherweise 3.50 m kleiner als der von Gleis zu Gleis, da
+ * hier sich die Lichtraumprofile begegnen.» Auf Rückfrage «Kurz: typische
+ * Gleisausrüstung»: nur Hängestützen, Kettenwerke und Jochaufsätze, nach
+ * Gruppe; Lage ab Mast A mit dem Abstand Mast–Gleis (Vorgabe 3.50 m) oder
+ * wie bisher symmetrisch; darüber eine Skizze mit Masten, Gleisen, Massen
+ * und den Höhen der gewählten Teile.
+ */
+const GEN_GRUPPEN = [
+  ['haengestuetze', 'Hängestützen', (v) => v.gruppe === 'haengestuetze'],
+  ['kettenwerk', 'Kettenwerke', (v) => ['leiter-nfl', 'leiter-rfl', 'kw-nfl-joch'].includes(v.id)],
+  ['jochaufsatz', 'Jochaufsätze', (v) => v.gruppe === 'jochaufsatz'],
+];
+
+/** Höhenbereich einer Vorlage (z der Module, ab Gurt) für die Skizze. */
+function vorlageHoehen(id) {
+  try {
+    const zs = (neuesAnbauteil(id, 0).module ?? []).map((m) => Number(m.z) || 0);
+    return { min: Math.min(0, ...zs), max: Math.max(0, ...zs) };
+  } catch { return { min: 0, max: 0 }; }
+}
+
+function generatorSkizze({ L, gleisX, mastA, mastB, vorlagenIds, abstand, start }) {
+  const B = 560, H = 190, rand = 26;
+  const x0 = Math.min(0, mastA ?? 0), x1 = Math.max(L, mastB ?? L);
+  const sx = (x) => rand + ((x - x0) / Math.max(1e-6, x1 - x0)) * (B - 2 * rand);
+  const yJ = 70, sz = 14;                       // Jochachse, px je m
+  const hoehen = vorlagenIds.map((id) => ({ id, ...vorlageHoehen(id) }));
+  const t = [];
+  t.push(`<rect x="${sx(0)}" y="${yJ - 4}" width="${sx(L) - sx(0)}" height="8" fill="var(--stahl)" opacity=".8"/>`);
+  [mastA, mastB].filter(Number.isFinite).forEach((xm) => {
+    t.push(`<line x1="${sx(xm)}" y1="${yJ - 30}" x2="${sx(xm)}" y2="${H - 22}" stroke="var(--on2)" stroke-width="4"/>`);
+  });
+  gleisX.forEach((xg, k) => {
+    const X = sx(xg);
+    t.push(`<line x1="${X - 14}" y1="${H - 26}" x2="${X + 14}" y2="${H - 26}" stroke="var(--on2)" stroke-width="2"/>`);
+    t.push(`<line x1="${X}" y1="${yJ}" x2="${X}" y2="${H - 26}" stroke="var(--dim)" stroke-dasharray="3 3"/>`);
+    t.push(`<text x="${X}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--on2)">Gleis ${k + 1}</text>`);
+    hoehen.forEach((h, n) => {
+      const dx = (n - (hoehen.length - 1) / 2) * 5;
+      if (h.min < 0) t.push(`<line x1="${X + dx}" y1="${yJ + 4}" x2="${X + dx}" y2="${yJ - h.min * sz}" stroke="var(--acc)" stroke-width="2"/>`);
+      if (h.max > 0) t.push(`<line x1="${X + dx}" y1="${yJ - 4}" x2="${X + dx}" y2="${yJ - h.max * sz}" stroke="var(--acc)" stroke-width="2"/>`);
+    });
+  });
+  // Masse: Mast A – Gleis 1, Gleisabstand, letztes Gleis – Mast B.
+  const mass = (a, b, y, text) => {
+    if (!(Number.isFinite(a) && Number.isFinite(b)) || Math.abs(b - a) < 1e-6) return;
+    t.push(`<line x1="${sx(a)}" y1="${y}" x2="${sx(b)}" y2="${y}" stroke="var(--dim)"/>`
+      + `<text x="${(sx(a) + sx(b)) / 2}" y="${y - 3}" text-anchor="middle" font-size="10" fill="var(--on)">${text}</text>`);
+  };
+  if (gleisX.length) {
+    if (Number.isFinite(mastA)) mass(mastA, gleisX[0], 18, `${(gleisX[0] - mastA).toFixed(2)}`);
+    if (gleisX.length > 1) mass(gleisX[0], gleisX[1], 18, `${abstand.toFixed(2)}`);
+    if (Number.isFinite(mastB)) mass(gleisX[gleisX.length - 1], mastB, 18,
+      `${(mastB - gleisX[gleisX.length - 1]).toFixed(2)}`);
+  }
+  const legende = hoehen.map((h) => {
+    const v = (() => { try { return getVorlage(h.id).name; } catch { return h.id; } })();
+    return `${esc(v)}: ${h.min < 0 ? `bis ${h.min.toFixed(2)} m` : ''}${h.min < 0 && h.max > 0 ? ' / ' : ''}${h.max > 0 ? `bis +${h.max.toFixed(2)} m` : ''}${h.min === 0 && h.max === 0 ? 'am Gurt' : ''}`;
+  }).join(' · ');
+  return `<svg viewBox="0 0 ${B} ${H}" width="100%" style="max-width:${B}px;display:block;margin:6px 0">${t.join('')}</svg>
+    <p class="notiz" style="margin:0">Höhen ab Gurt (blau): ${legende || '–'}. Masse in m.</p>`;
+}
+
 function dialogGenerator() {
-  const g = { gleise: 2, abstand: 4.5, versatz: 0, ersetzen: true,
+  const krA = Math.max(0, Number(werte.kragA) || 0), krB = Math.max(0, Number(werte.kragB) || 0);
+  const mastDa = werte.mastVorhanden !== false;
+  const mastA = mastDa ? krA : null, mastB = mastDa ? werte.L - krB : null;
+  const g = { gleise: 2, abstand: 4.5, versatz: 0, ersetzen: true, lage: mastDa ? 'mast' : 'mitte',
+              mastGleis: MAST_GLEIS_VORGABE,
               vorlagen: ['hs-fahrdraht', 'kw-nfl-joch'], ...(werte.generator ?? {}) };
+  const angebot = GEN_GRUPPEN.map(([key, titel, passt]) => ({ key, titel,
+    v: vorlagen().filter((v) => passt(v)) }));
 
   const koerper = () => `
+    <div id="gen-skizze"></div>
     <div class="gen-gitter">
       <div class="feld"><label for="gen-n">Anzahl Gleise</label>
         <div class="zahlfeld"><input id="gen-n" type="number" min="1" max="12"
@@ -4895,15 +4971,25 @@ function dialogGenerator() {
       <div class="feld"><label for="gen-a">Gleisabstand</label>
         <div class="zahlfeld"><input id="gen-a" type="number" min="0.5" step="0.1"
           value="${g.abstand}"><span class="einheit">m</span></div></div>
-      <div class="feld"><label for="gen-v">Versatz zur Jochmitte</label>
+      <div class="feld"><label for="gen-lage">Lage</label>
+        <select id="gen-lage">
+          <option value="mast"${g.lage === 'mast' ? ' selected' : ''}${mastDa ? '' : ' hidden'}>ab Mast A</option>
+          <option value="mitte"${g.lage !== 'mast' ? ' selected' : ''}>symmetrisch zur Jochmitte</option>
+        </select></div>
+      <div class="feld" data-gen-nur="mast"><label for="gen-mg">Abstand Mast – Gleis</label>
+        <div class="zahlfeld"><input id="gen-mg" type="number" min="0" step="0.1"
+          value="${g.mastGleis}"><span class="einheit">m</span></div></div>
+      <div class="feld" data-gen-nur="mitte"><label for="gen-v">Versatz zur Jochmitte</label>
         <div class="zahlfeld"><input id="gen-v" type="number" step="0.1"
           value="${g.versatz}"><span class="einheit">m</span></div></div>
     </div>
-    <div class="sec">Je Gleis anbringen</div>
-    <div class="haken haken-1">${vorlagen().map((v) => `
+    <p class="notiz" style="margin:2px 0 6px">Abstand Mast – Gleis üblich 3.50 m: dort
+      begegnen sich Lichtraumprofil und Mast, zwischen zwei Gleisen zwei Lichtraumprofile.</p>
+    ${angebot.map((gr) => `<div class="sec">${esc(gr.titel)} je Gleis</div>
+    <div class="haken haken-1">${gr.v.map((v) => `
       <label><input type="checkbox" data-gen-v="${esc(v.id)}"
         ${g.vorlagen.includes(v.id) ? 'checked' : ''}><span>${esc(v.name)}</span></label>`).join('')}
-    </div>
+    </div>`).join('')}
     <label class="schalter" style="margin-top:8px"><input id="gen-ersetzen"
       type="checkbox" ${g.ersetzen ? 'checked' : ''}>
       <span>Vorhandene Anbauteile ersetzen</span></label>
@@ -4912,25 +4998,37 @@ function dialogGenerator() {
   const d = dialog('Lastgenerator', koerper(),
     '<button class="btn btn-acc" data-ok>Erzeugen</button>');
 
-  const lies = () => ({
-    gleise: parseInt(ui.el('gen-n').value, 10) || 0,
-    abstand: parseFloat(ui.el('gen-a').value) || 0,
-    versatz: parseFloat(ui.el('gen-v').value) || 0,
-    ersetzen: ui.el('gen-ersetzen').checked,
-    vorlagen: [...d.node.querySelectorAll('[data-gen-v]')]
-      .filter((c) => c.checked).map((c) => c.dataset.genV),
-  });
+  const lies = () => {
+    const lage = ui.el('gen-lage').value;
+    const mastGleis = parseFloat(ui.el('gen-mg').value);
+    return {
+      gleise: parseInt(ui.el('gen-n').value, 10) || 0,
+      abstand: parseFloat(ui.el('gen-a').value) || 0,
+      versatz: parseFloat(ui.el('gen-v').value) || 0,
+      lage, mastGleis: Number.isFinite(mastGleis) ? mastGleis : MAST_GLEIS_VORGABE,
+      ersetzen: ui.el('gen-ersetzen').checked,
+      vorlagen: [...d.node.querySelectorAll('[data-gen-v]')]
+        .filter((c) => c.checked).map((c) => c.dataset.genV),
+    };
+  };
+  const startVon = (o) => (o.lage === 'mast' && Number.isFinite(mastA) ? mastA + o.mastGleis : null);
 
   const vorschau = () => {
     const o = lies();
-    const r = erzeugeGleislasten({ L: werte.L, ...o });
+    d.node.querySelectorAll('[data-gen-nur]').forEach((el) => { el.hidden = el.dataset.genNur !== o.lage; });
+    const r = erzeugeGleislasten({ L: werte.L, ...o, start: startVon(o) });
+    ui.el('gen-skizze').innerHTML = generatorSkizze({ L: werte.L, gleisX: r.gleisX, mastA, mastB,
+      vorlagenIds: o.vorlagen, abstand: o.abstand, start: startVon(o) });
     // Der Fahrdrahtabzug trägt kein Gewicht - ohne Kettenwerk fehlte es
     // dem Joch (3. Oktober, Variante B).
     const ohneKw = o.vorlagen.includes('hs-fahrdraht')
       && !o.vorlagen.some((id) => /^(kw-|leiter-nfl|leiter-rfl)/.test(id));
+    const zuB = Number.isFinite(mastB) && r.gleisX.length ? mastB - r.gleisX[r.gleisX.length - 1] : null;
     ui.el('gen-vorschau').innerHTML = r.gleisX.length
       ? `<b>${r.teile.length}</b> Anbauteile auf <b>${r.gleisX.length}</b> Gleisen bei
          x = ${r.gleisX.map((x) => x.toFixed(2)).join(' · ')} m.` +
+        (zuB !== null && zuB < o.mastGleis - 1e-6 ? `<br><b>Letztes Gleis nur ${zuB.toFixed(2)} m vor Mast B</b>
+         (weniger als der Abstand Mast – Gleis).` : '') +
         (ohneKw ? `<br><b>Ohne Kettenwerk:</b> die Hängestütze mit Fahrdrahtabzug trägt
          kein Gewicht des Kettenwerks - «Kettenwerk N-FL (Fahrdraht an Hängestütze)»
          dazu anhaken.` : '') +
@@ -4939,7 +5037,7 @@ function dialogGenerator() {
       : 'Keine Gleislage innerhalb des Jochs, Abstand oder Anzahl anpassen.';
   };
 
-  d.node.querySelectorAll('input').forEach((i) => {
+  d.node.querySelectorAll('input, select').forEach((i) => {
     i.addEventListener('input', vorschau);
     i.addEventListener('change', vorschau);
   });
@@ -4947,7 +5045,7 @@ function dialogGenerator() {
 
   d.node.querySelector('[data-ok]').onclick = () => {
     const o = lies();
-    const r = erzeugeGleislasten({ L: werte.L, ...o });
+    const r = erzeugeGleislasten({ L: werte.L, ...o, start: startVon(o) });
     if (!r.teile.length) return;
     werte = { ...werte, generator: o };
     d.zu();

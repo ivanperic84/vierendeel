@@ -1561,7 +1561,16 @@ export function baugruppeSumme(a, o = {}) {
  * @param {object} o {L, gleise, abstand, vorlagen:string[], versatz?}
  * @returns {{teile:object[], gleisX:number[], ausserhalb:number}}
  */
-export function erzeugeGleislasten({ L, gleise, abstand, vorlagen: ids, versatz = 0 }) {
+/*
+ * >>> AB DEM MASTEN (7. Oktober). <<< Weisung: «was noch fehlt ist der
+ * Abstand von Mast zu Gleis, dieser abstand ist üblicherweise 3.50 m kleiner
+ * als der von Gleis zu Gleis, da hier sich die Lichtraumprofile begegnen.»
+ * Mit `start` (Lage des ersten Gleises = Mast A + Abstand Mast–Gleis) liegen
+ * die Gleise ab dort im Gleisabstand; ohne bleibt die symmetrische Lage.
+ */
+export const MAST_GLEIS_VORGABE = 3.5;
+
+export function erzeugeGleislasten({ L, gleise, abstand, vorlagen: ids, versatz = 0, start = null }) {
   const n = Math.max(0, Math.round(gleise ?? 0));
   const a = Math.max(0, abstand ?? 0);
   const teile = [];
@@ -1569,7 +1578,8 @@ export function erzeugeGleislasten({ L, gleise, abstand, vorlagen: ids, versatz 
   let ausserhalb = 0;
 
   for (let i = 0; i < n; i++) {
-    const x = L / 2 + (i - (n - 1) / 2) * a + versatz;
+    const x = Number.isFinite(start) ? start + i * a
+      : L / 2 + (i - (n - 1) / 2) * a + versatz;
     if (x < 0 || x > L) { ausserhalb++; continue; }
     gleisX.push(x);
     (ids ?? []).forEach((id) => {
