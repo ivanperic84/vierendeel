@@ -9,7 +9,7 @@
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { verformungGrenzen } from './core.verformung.js';
-import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon } from './core.stabnachweis.js';
+import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon, stabZuordnung } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
@@ -7660,7 +7660,34 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        * oder ohne Stabwerk. Die Stabliste des Stabwerks steht im Reiter
        * «Schnitt».
        */''}
-    ${zeigtTrag && !taK && !swH?.ausleger && !erg.ausleger?.fehler ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
+    ${/*
+       * >>> AUS DEM STABWERK, WENN ES GILT (6. Oktober). <<< «Die Auswertung
+       * H unter Höchstbeanspruchte Stellen checken, ist noch aus dem
+       * Balkenmodell und nicht stabtragwerk.» Mit gültigem Stabwerk stehen hier
+       * die zehn höchstbeanspruchten Stäbe des Jochs (Gurte, Bleche) mit Lage,
+       * Teil und Fall; ein Klick zeigt den Stab im Modell. Ohne Stabwerk
+       * bleiben die Stationen des Ersatzbalkens.
+       */''}
+    ${zeigtTrag && swH?.jeStab && !taK && !swH?.ausleger ? (() => {
+      const teilName = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindeblech', UPE: 'Gurt UPE', gurt: 'Gurt' };
+      const top = Object.values(swH.jeStab)
+        .filter((z) => ['gurt', 'blech', 'gurtU'].includes(z.rolle) && stabZuordnung(z.name).key === jochKey)
+        .sort((a, b) => b.eta - a.eta).slice(0, 10);
+      if (!top.length) return '';
+      const xm = (z) => (Number.isFinite(z.x0) && Number.isFinite(z.x1) ? (z.x0 + z.x1) / 2 : null);
+      return `${abschnitt('Höchstbeanspruchte Stellen', 'aus dem Stabwerk · anklicken zeigt den Stab')}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>#</th><th>Stab</th><th class="num">x [m]</th><th>Teil</th><th>massgebend</th>
+        <th class="num">η</th></tr></thead>
+      <tbody>${top.map((z, k) => `
+        <tr class="klick" data-kz-stab="${esc(z.name)}" title="${esc(z.bez ?? '')}">
+          <td>${k + 1}</td><td>${esc(z.name)}</td><td class="num">${xm(z) === null ? '–' : f2(xm(z))}</td>
+          <td>${esc(teilName[z.teil] ?? z.teil ?? '')}</td><td>${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
+          <td class="num stark ${ampelU(z.eta)}">${f3(z.eta)}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+    })() : ''}
+    ${zeigtTrag && !swH?.jeStab && !taK && !swH?.ausleger && !erg.ausleger?.fehler ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
         <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>
