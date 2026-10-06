@@ -33578,8 +33578,10 @@ titel('158  Nachweiskachel zeigt den massgebenden Stab; Grundwerte beim neuen Tr
   wahr('… in der Maske unter Trasse wieder einzuschalten',
        S158.feld('grundwerteFragen').gruppe === 'trasse');
   const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
-  wahr('Der Dialog fragt nur beim NEUEN Tragwerk und nur, solange nicht abgewählt',
-       /const grundwerteFragen = neuesTragwerk && app\.werte\.grundwerteFragen !== false;/.test(dq));
+  // Seit dem 6. Oktober auch beim frisch begonnenen Blatt der Projektablage
+  // (`vor.grundwerte`, «parametermodal ... des Tragwerks»).
+  wahr('Der Dialog fragt nur beim NEUEN Tragwerk (oder neuen Blatt) und nur, solange nicht abgewählt',
+       /const grundwerteFragen = \(neuesTragwerk \|\| vor\.grundwerte === true\)\s*&& app\.werte\.grundwerteFragen !== false;/.test(dq));
   wahr('… mit EK, Spannweite, Radius und dem Kästchen',
        ['dlg-tw-ek', 'dlg-tw-spw', 'dlg-tw-r', 'dlg-tw-nichtmehr'].every((id) => dq.includes(`id="${id}"`))
        && /In diesem Projekt nicht mehr nachfragen/.test(dq));
