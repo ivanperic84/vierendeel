@@ -17,7 +17,7 @@ import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
 import { auflagerDiagrammHtml, verdrahteAuflagerLinks, ohneMastHtml }
   from './ui.auflagerlinks.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
-         lageVon, tragwerkeVon, mastenFuer, mastenVon,
+         lageVon, lageOrtsnull, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt, anschlusshoehe,
          aufRaster, mastNameAmEnde, tragwerkPos, mastName,
          tauscheAktives, freieLage, freieLaenge,
@@ -1935,7 +1935,9 @@ export function qpBereich(werte) {
     if (tragwerksart(t).key === 'tragausleger') {
       return [a, a + auslegerRichtung(t) * kragarmEnde(t)];
     }
-    return [a, a + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0)];
+    // Das Abfangjoch beginnt um seinen Ueberstand VOR dem ersten Masten.
+    const a0 = tragwerksart(t).key === 'abfangjoch' ? lageOrtsnull(t) : a;
+    return [a0, a0 + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0)];
   });
   let von = Math.min(...enden, 0), bis = Math.max(...enden, 1);
   /*
@@ -2029,6 +2031,21 @@ export function qpBereich(werte) {
  * der Anfang da, und das Ende liest man am Masten darunter.
  */
 const MASS_PLATZ = 20;
+
+/**
+ * >>> DIE AUSRICHTUNG DES PROFILS UNTER DEM MASTEN (6. Oktober). <<<
+ * Weisung im Wortlaut: «Unterhalb vom Masten die Ausrichtung des Profils
+ * aufzeigen». Der Schnitt in der Draufsicht (x nach rechts = Jochachse):
+ * Steg in der Jochachse liegt waagrecht zwischen zwei Flanschen («H»), Steg
+ * quer zum Gleis steht («I»). Der Titel sagt es in Worten.
+ */
+function stegGlyphe(steg) {
+  const quer = steg === 'quer';
+  const pfad = quer ? 'M2 1H10M6 1V11M2 11H10' : 'M1 2V10M11 2V10M1 6H11';
+  return `<span class="qp-mast-steg" title="${quer ? 'Steg quer zum Gleis' : 'Steg in der Jochachse'}">`
+    + `<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="${pfad}" `
+    + 'stroke="currentColor" stroke-width="1.6" fill="none"/></svg></span>';
+}
 
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
@@ -2264,7 +2281,15 @@ export function querprofilLeisteHtml(werte) {
       const m = lageVon(t), e = m + auslegerRichtung(t) * kragarmEnde(t);
       x0 = Math.min(m, e); x1 = Math.max(m, e);
     } else {
-      x0 = lageVon(t); x1 = x0 + (Number(t.L) || 0);
+      /*
+       * >>> DAS ABFANGJOCH BEGINNT VOR SEINEM MASTEN (6. Oktober). <<<
+       * «Tragwerkskizze bei abfangjoch verschoben»: seine Lage ist der erste
+       * Mast (20. September), der Traeger kragt um den Ueberstand davor aus.
+       * Gezeichnet wurde ab dem Masten - die Linie stand um den Ueberstand zu
+       * weit rechts und ragte nur am Ende B hinaus.
+       */
+      x0 = tragwerksart(t).key === 'abfangjoch' ? lageOrtsnull(t) : lageVon(t);
+      x1 = x0 + (Number(t.L) || 0);
     }
     let b = bahnen.findIndex((ende) => ende <= x0 + 1e-6);
     if (b < 0) { bahnen.push(x1); b = bahnen.length - 1; } else bahnen[b] = x1;
@@ -2315,6 +2340,7 @@ export function querprofilLeisteHtml(werte) {
           title="${esc(`Anker am Masten ${name} · ${d.titel} · anklicken zum Ändern`)}"
           >${ankerGlyphe(d.laengs)}</button>` : ''}
         <span class="qp-mastmass${an ? ' an' : ''}">${esc(name)}</span>
+        ${stegGlyphe(m.steg ?? werte.mastSteg)}
       </span>`;
   }).join('');
 

@@ -6395,6 +6395,21 @@ export async function start() {
     beiPunktZiehen: (i, weg) => punktZiehen(i, weg),
     beiMastZiehen: (ende, weg) => mastZiehen(ende, weg),
     /*
+     * DER LAENGSANKER IM 3D (6. Oktober, «Längsverankerung lässt sich nicht
+     * schieben per drag»): um den gezogenen Weg in x, auf 0.10 m; beim links
+     * liegenden Ausleger zaehlt x vom Masten nach links. 0 heisst im Feld
+     * «am Kragarmende» - gezogen wird von der Stelle, die gilt.
+     */
+    beiLaengsankerZiehen: (d) => {
+      if (tragwerksart(werte).key !== 'tragausleger' || werte.laengsverankerung === false) return;
+      const t = tragwerkeVon(werte)[0];
+      const richtung = t.auslegerSeite === 'links' ? -1 : 1;
+      const alt = Number(werte.laengsverankerungX) > 0 ? Number(werte.laengsverankerungX) : kragarmEnde(werte);
+      const neu = Math.round((alt + richtung * d) * 10) / 10;
+      aendern('laengsverankerungX', neu);
+      meldeImBalken(`Längsanker verschoben: x ${alt.toFixed(2)} → ${Number(werte.laengsverankerungX).toFixed(2)} m · Strg+Z nimmt es zurück`);
+    },
+    /*
      * DIE ZAHL IM BALKEN LAEUFT MIT DEM ZUG MIT.
      *
      * Ohne diese Meldung stuende «Δx = 0.00 m» stehen, bis man loslaesst -

@@ -50,6 +50,7 @@ import { prisma, prismaY, platte, prismaZ, stab, quader, schraegerStab,
          iProfilPoly, walzProfilPoly,
          mastKoerper } from './render.koerper.js';
 import { anbauKette, istFahrdraht } from './core.anbauteile.js';
+import { ziehAngabe } from './render.3d.js';
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
@@ -582,10 +583,10 @@ export function abfangSzene(typ, jt, opt = {}) {
                   Number(tp.y) || 0, Number(tp.z) || 0];
       flaechen.push(...quader(pP, [0.07, 0.07, 0.07],
         { ...opt2, label: `${tp.name ?? ''} · Angriffspunkt`, gruppe: 'last', punkt: true }));
-      if (istFahrdraht(tp)) {
-        marken.push({ gruppe: 'last', art: 'lastknoten', p: pP, teil, text: '', fahrdraht: true,
-                      titel: `${tp.name ?? ''} · Angriffspunkt` });
-      }
+      // Ziehbar auf der Achse seines Kettenglieds wie am Tragjoch (6. Oktober).
+      marken.push({ gruppe: 'last', art: 'lastknoten', p: pP, teil, text: '',
+                    fahrdraht: istFahrdraht(tp), titel: `${tp.name ?? ''} · Angriffspunkt`,
+                    zieh: ziehAngabe(kette, tp) });
       [['staendig', 'G', 'Fz', [0, 0, -1], 'F_z'], ['windX', 'WindX', 'Fx', [1, 0, 0], 'F_x'],
        ['windY', 'WindY', 'Fy', [0, 1, 0], 'F_y']].forEach(([art, gruppe, feld, ri, nm]) => {
         const k = tp.kraefte?.[gruppe]?.[feld];

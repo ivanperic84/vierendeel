@@ -3318,6 +3318,22 @@ export class Modellansicht {
                       kopie: e.ctrlKey || e.metaKey };
           }
         }
+        /*
+         * >>> DER LAENGSANKER DES TRAGAUSLEGERS LAESST SICH ZIEHEN (6. Oktober). <<<
+         * «Längsverankerung lässt sich nicht schieben per drag». Er gleitet in
+         * x entlang des Auslegers; geschrieben wird `laengsverankerungX`
+         * (app.js), begrenzt wie im Feld auf das Kragarmende.
+         */
+        if (griff.art === 'drehen' && e.button === 0 && this.opt.beiLaengsankerZiehen
+            && !this.beiStelle && !this.beiZeichnungsklick) {
+          const tr = this._treffer(e);
+          const [px, py] = this._geraetePunkt(e);
+          const w0 = tr?.flaeche?.teil === 'LAENGSANKER' ? this.weltTreffer(px, py) : null;
+          if (w0) {
+            griff = { art: 'punkt', laengsZug: true, bewegt: false, start: [e.clientX, e.clientY],
+                      teil: 'LAENGSANKER', index: null, w0, achse: 'x', welt: [w0.x, w0.y, w0.z] };
+          }
+        }
         if (griff.art === 'drehen' && e.button === 0 && this.opt.beiAnbauteilZiehen
             && !this.beiStelle && !this.beiZeichnungsklick) {
           const u = this._anbauteilUnter(e);
@@ -3515,7 +3531,9 @@ export class Modellansicht {
       if (griff?.art === 'punkt') {
         const z = this._ziehPunkt;
         this._ziehPunkt = null;
-        if (griff.bewegt && z && z.d) {
+        if (griff.bewegt && z && z.d && griff.laengsZug) {
+          this.opt.beiLaengsankerZiehen?.(z.d);
+        } else if (griff.bewegt && z && z.d) {
           this.opt.beiPunktZiehen(griff.index, { modul: griff.modul, last: griff.last,
                                                  achse: griff.achse, arm: griff.arm, d: z.d,
                                                  kopie: z.kopie || e.ctrlKey || e.metaKey });

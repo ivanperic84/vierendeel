@@ -1952,6 +1952,9 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
   pointer-events: none;
 }
 .qp-mastmass.an { color: var(--acc); }
+/* Ausrichtung des Profils unter dem Masten (6. Oktober): H = Steg in der
+   Jochachse, I = Steg quer zum Gleis. */
+.qp-mast-steg { display: block; margin-top: 2px; color: var(--dim); line-height: 0; }
 /* Der Anker steht als dritte, kleine Zeile im Namen - er gehoert dem
    Masten, hat aber keine eigene Zeile mehr (Weisung, 11. September). */
 .qp-mastlang { font-size: 9px; color: var(--dim); }
