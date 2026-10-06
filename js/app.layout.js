@@ -613,14 +613,18 @@ function verdrahteLegendeZiehen(app, n) {
 
 /** Gemerkte Lage der Legende, damit sie beim Neuzeichnen stehen bleibt. */
 let legendeLage = null;
+/** Legende «Positionen»: null = nach Länge, sonst die Wahl des Nutzers. */
+let posLegendeZu = null;
+/** Ab so vielen Einträgen steht die Positionsliste zugeklappt da. */
+const POS_LEGENDE_LANG = 8;
 
 /** Legende passend zur gewählten Einfärbung. */
 export function zeichneLegende(app) {
   const n = ui.el('legende');
   const p = app.ansicht.plotSkala();
-  const griff = (titel) =>
+  const griff = (titel, klapp = '') =>
     `<div class="legende-griff"><span>${esc(titel)}</span>
-       <small>ziehen</small></div>`;
+       <small>ziehen</small>${klapp}</div>`;
   // Nach dem Neuaufbau die gemerkte Lage wiederherstellen und neu verdrahten.
   const fertig = () => {
     if (legendeLage) {
@@ -650,9 +654,30 @@ export function zeichneLegende(app) {
   }
   if (app.ansicht.modus === 'positionen') {
     const l = app.ansicht.szene?.legende ?? [];
-    n.innerHTML = griff('Positionen') + '<div class="legende-liste">' +
+    /*
+     * >>> ZUKLAPPBAR, WENN SIE LANG WIRD (6. Oktober). <<< «Die Legende bei
+     * pos zuklappbar machen, da sie eine gewisse länge überschreitet.» Ein
+     * Knopf im Griff klappt die Liste zu; ohne eigene Wahl ist sie ab
+     * POS_LEGENDE_LANG Einträgen zu. Die Wahl gilt bis zum Neuladen.
+     */
+    const lang = l.length > POS_LEGENDE_LANG;
+    const zu = posLegendeZu ?? lang;
+    const knopf = l.length > 3
+      ? `<button type="button" class="legende-klapp" title="${zu ? 'Liste aufklappen' : 'Liste zuklappen'}">` +
+        `${zu ? `▸ ${l.length}` : '▾'}</button>` : '';
+    n.innerHTML = griff('Positionen', knopf) + (zu ? '' : '<div class="legende-liste">' +
       l.map((e) => `<div><span class="legende-farbe" style="background:${e.farbe}"></span>` +
-                   `<span>${esc(e.label)}</span></div>`).join('') + '</div>';
+                   `<span>${esc(e.label)}</span></div>`).join('') + '</div>');
+    const b = n.querySelector('.legende-klapp');
+    if (b) {
+      // Der Knopf sitzt im Griff - sein Druck darf kein Ziehen beginnen.
+      b.addEventListener('pointerdown', (e) => e.stopPropagation());
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        posLegendeZu = !zu;
+        zeichneLegende(app);
+      });
+    }
     fertig();
     return;
   }
