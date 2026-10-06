@@ -27,6 +27,14 @@ import { REAKTION_SPALTEN } from './core.reaktionen.js';
 const f2 = (v) => (Number.isFinite(v)
   ? (Math.abs(v) < 0.005 ? 0 : v).toFixed(2).replace('-', '−') : '–');
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1).replace('-', '−') : '–');
+/*
+ * >>> DIE KRÄFTE OHNE NACHKOMMASTELLE (6. Oktober). <<< Weisung im Wortlaut:
+ * «Reaktionskräfte ohne nachkomma stelle.» Kräfte in kN und Momente in kNm
+ * der Tabelle und der zulässigen Standardlasten ganzzahlig; die Lage x
+ * bleibt auf den Zentimeter. Unter einem halben kN steht 0, nicht «−0».
+ */
+const f0 = (v) => (Number.isFinite(v)
+  ? (Math.abs(v) < 0.5 ? 0 : v).toFixed(0).replace('-', '−') : '–');
 
 /*
  * >>> DIE KÖPFE WIE IN DER EXCEL-TABELLE (30. September). <<<
@@ -69,10 +77,10 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   const mast = z.art === 'mast';
   const hat = spaltenVon(z);
   const titel = (b, key) => (b?.[key]?.bez ? ` title="${esc(b[key].bez)}"` : '');
-  const vText = (b) => (b ? `${f2(b.Vmin.wert)} / ${f2(b.Vmax.wert)}` : '–');
+  const vText = (b) => (b ? `${f0(b.Vmin.wert)} / ${f0(b.Vmax.wert)}` : '–');
   const vTitel = (b) => (b ? ` title="${esc(`min: ${b.Vmin.bez} · max: ${b.Vmax.bez}`)}"` : '');
   const anteil = (a) => (a ? `${Math.round(a.prozent * 100)} / ${Math.round((1 - a.prozent) * 100)}` : '–');
-  const anteilTitel = (a) => (a ? ` title="${esc(`quer: ständig ${f2(a.staendig)}, veränderlich ${f2(a.veraenderlich)}`)}"` : '');
+  const anteilTitel = (a) => (a ? ` title="${esc(`quer: ständig ${f0(a.staendig)}, veränderlich ${f0(a.veraenderlich)}`)}"` : '');
   // Der massgebende Fall je Richtung - nur, wo auch etwas steht. Beim
   // Havariefall ohne den Namen des Leiters (er steht in den Hinweisen).
   const kurzBez = (bez) => String(bez)
@@ -87,7 +95,7 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
       .filter(Boolean).join(' · ');
   };
   const werte = (b) => REAKTION_SPALTEN.map((s) => (hat.has(s.key) && b
-    ? `<td class="num"${titel(b, s.key)}>${f2(b[s.key]?.wert)}</td>`
+    ? `<td class="num"${titel(b, s.key)}>${f0(b[s.key]?.wert)}</td>`
     : '<td class="num rk-leer">–</td>')).join('');
   // Was aufs Blatt kommt, wählt man (30. September: «beim output noch
   // bestimmen können ob man den havariefall / standardlasten / Hinweistext
@@ -120,17 +128,17 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   if (gew) {
     // Der oben gewählte Lastfall (2. Oktober), mit Vorzeichen.
     zeilen.push(`<tr class="rk-gewaehlt"><td class="rk-art">gewählter Fall</td>
-      <td class="num">${f2(gew.Vmin.wert)}</td>${REAKTION_SPALTEN.map((s) => (hat.has(s.key)
-        ? `<td class="num">${f2(gew[s.key]?.wert)}</td>` : '<td class="num rk-leer">–</td>')).join('')}
+      <td class="num">${f0(gew.Vmin.wert)}</td>${REAKTION_SPALTEN.map((s) => (hat.has(s.key)
+        ? `<td class="num">${f0(gew[s.key]?.wert)}</td>` : '<td class="num rk-leer">–</td>')).join('')}
       <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(gew.bez)}</td>`}</tr>`);
   }
   if (zul) {
     zeilen.push(`<tr class="rk-zul"><td class="rk-art">Standardlast</td>
-      <td class="num">0 / ${f1(zul.Vmax)}</td>
-      <td class="num" title="veränderlich allein ≤ ${f1(zul.Mq_ver)}">${f1(zul.Mq)}</td>
-      <td class="num" title="veränderlich allein ≤ ${f1(zul.Hq_ver)}">${f1(zul.Hq)}</td>
-      <td class="num">${f1(zul.Ml)}</td><td class="num">${f1(zul.Hl)}</td>
-      <td class="num">${f1(zul.T)}</td>
+      <td class="num">0 / ${f0(zul.Vmax)}</td>
+      <td class="num" title="veränderlich allein ≤ ${f0(zul.Mq_ver)}">${f0(zul.Mq)}</td>
+      <td class="num" title="veränderlich allein ≤ ${f0(zul.Hq_ver)}">${f0(zul.Hq)}</td>
+      <td class="num">${f0(zul.Ml)}</td><td class="num">${f0(zul.Hl)}</td>
+      <td class="num">${f0(zul.T)}</td>
       <td class="num">${Number(zul.Mq) > 0 ? `${Math.round(100 - 100 * zul.Mq_ver / zul.Mq)} / ${Math.round(100 * zul.Mq_ver / zul.Mq)}` : '–'}</td>
       ${kurz ? '' : '<td class="rk-anm">zulässig, Gelände bis 14°</td>'}</tr>`);
   }
@@ -197,12 +205,12 @@ export function reaktionenKurzHtml(daten) {
       werte.join('')}${zul ? `<td class="num rk-zulw">${zulWert}</td>` : ''}</tr>`;
     const v = zeile('F_z (V) min/max', 'kN',
       spalten.map(([, b]) => `<td class="num"${b === z.gewaehlt && b ? ` title="${esc(b.bez)}"` : ''}>${
-        !b ? '–' : b === z.gewaehlt ? f2(b.Vmin.wert) : `${f2(b.Vmin.wert)} / ${f2(b.Vmax.wert)}`}</td>`),
-      zul ? `0 / ${f1(zul.Vmax)}` : '');
+        !b ? '–' : b === z.gewaehlt ? f0(b.Vmin.wert) : `${f0(b.Vmin.wert)} / ${f0(b.Vmax.wert)}`}</td>`),
+      zul ? `0 / ${f0(zul.Vmax)}` : '');
     const rest = REAKTION_SPALTEN.filter((s) => hat.has(s.key)).map((s) => zeile(kopfText[s.key], s.einheit,
       spalten.map(([, b]) => `<td class="num"${b?.[s.key]?.bez ? ` title="${esc(b[s.key].bez)}"` : ''}>${
-        b ? f2(b[s.key]?.wert) : '–'}</td>`),
-      zul ? f1(zul[s.key]) : '')).join('');
+        b ? f0(b[s.key]?.wert) : '–'}</td>`),
+      zul ? f0(zul[s.key]) : '')).join('');
     return `<table class="dt rk-kurz">
       <colgroup><col style="width:${100 - breite * n}%">${`<col style="width:${breite}%">`.repeat(n)}</colgroup>
       <thead><tr><th><b>${esc(z.name)}</b> <span class="rk-x">${esc(fund)} · x ${f2(z.x)} m</span></th>

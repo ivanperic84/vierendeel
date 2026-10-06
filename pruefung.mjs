@@ -18319,13 +18319,18 @@ const CH9x = await import(J('core.checks.js'));
      * massen. Die Regel bleibt, ihr Geltungsbereich steht jetzt dabei.
      */
     const inMetern = grob.filter((f) => f.einheit === 'm');
+    // Seit dem 6. Oktober darf der Schritt vom Satz abhaengen: die Hoehe am
+    // Tragausleger rastet auf 0.10 m («Höhe Ausleger auf 0.10m schritte»).
+    const zs = (f, w = {}) => (typeof f.zugSchritt === 'function' ? f.zugSchritt(w) : f.zugSchritt);
     wahr('Die Laengen rasten am Schieber auf den halben Meter',
-         inMetern.length >= 4 && inMetern.every((f) => f.zugSchritt === 0.5));
+         inMetern.length >= 4 && inMetern.every((f) => zs(f) === 0.5));
+    wahr('… die Höhe am Tragausleger auf 0.10 m',
+         zs(inMetern.find((f) => f.key === 'mastH'), { tragwerksart: 'tragausleger' }) === 0.1);
     wahr('… und der Winkel auf fuenf Grad',
          grob.filter((f) => f.einheit === '°')
              .every((f) => f.zugSchritt === 5));
     wahr('… und im Feld feiner',
-         grob.every((f) => f.schritt < f.zugSchritt));
+         grob.every((f) => f.schritt < zs(f)));
     wahr('Die Jochlaenge ist darunter',
          grob.some((f) => f.key === 'L'));
   }
@@ -34263,8 +34268,9 @@ titel('169 b  Reaktionskräfte: Köpfe nach dem Achssystem, Anker A14, Skizze');
   const ankerZeile = html.slice(html.indexOf('A14'));
   const zellen = [...ankerZeile.matchAll(/<td class="num[^"]*"[^>]*>([^<]*)<\/td>/g)].map((m) => m[1]);
   wahr('Anker längs: V (z) und F_y (y), keine Momente, kein F_x',
-       zellen[0] === '−15.80 / 15.83' && zellen[1] === '–' && zellen[2] === '–'
-       && zellen[3] === '–' && zellen[4] === '8.84' && zellen[5] === '–', zellen.join(' | '));
+       // Ganzzahlig seit dem 6. Oktober («Reaktionskräfte ohne nachkomma stelle»).
+       zellen[0] === '−16 / 16' && zellen[1] === '–' && zellen[2] === '–'
+       && zellen[3] === '–' && zellen[4] === '9' && zellen[5] === '–', zellen.join(' | '));
   wahr('Köpfe nach dem Achssystem wie in der Excel-Tabelle',
        ['F<sub>z</sub> (V)', '±M<sub>y</sub> (M,q)', '±F<sub>x</sub> (H,q)', '±M<sub>x</sub> (M,l)',
         '±F<sub>y</sub> (H,l)', '±M<sub>z</sub> (T)', 'Lastfall quer zum Gleis',

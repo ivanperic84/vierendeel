@@ -361,7 +361,7 @@ export function dialogMast(app, mastId) {
         Dieselbe Zahl steht im Fenster des Tragwerks.</small></div>`}
 
     <div class="feld"><label for="dlg-m-l">Mastlänge gesamt</label>
-      <input id="dlg-m-l" type="number" step="0.1" min="2" max="25"
+      <input id="dlg-m-l" type="number" step="0.5" min="2" max="25"
              value="${(e.laenge > 0 ? e.laenge : laengeVorgabe()).toFixed(2)}">
       <small class="hinweis">${nurEinzel
         ? 'm · Fuss bis Kopf. Der Einzelmast rechnet mit dieser Länge; die '

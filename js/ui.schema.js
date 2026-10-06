@@ -899,7 +899,10 @@ export const FELDER = [
     label: (w) => (tragwerksart(w).key === 'tragausleger'
       ? `Höhe Ausleger über Fundament · Mast ${mastNameAmEnde(w, null, 'A')}`
       : `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`),
-    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
+    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05,
+    // Am Tragausleger auf 0.10 m (6. Oktober: «Schieber Mastlänge auf 0.50 m
+    // schritte. Höhe Ausleger auf 0.10m schritte.»), sonst der halbe Meter.
+    zugSchritt: (w) => (tragwerksart(w).key === 'tragausleger' ? 0.1 : 0.5), min: 2, max: 20,
     /*
      * NICHT BEIM EINZELMAST (Weisung, 18. September: «beim einzelmast ohne
      * tragausleger ist nicht relevant, ausblenden»). Es schliesst kein Joch

@@ -2507,7 +2507,8 @@ export function feldHtml(f, wert, werte) {
      * Ohne `zugSchritt` bleibt es beim Alten - nicht jede Groesse hat eine
      * grobe Stufe, die Sinn ergibt (das Endfeld am Auflager misst 0.75 m).
      */
-    const rngSchritt = f.zugSchritt ?? f.schritt;
+    // Auch als Funktion des Satzes (6. Oktober: Höhe am Tragausleger 0.10 m).
+    const rngSchritt = (typeof f.zugSchritt === 'function' ? f.zugSchritt(werte) : f.zugSchritt) ?? f.schritt;
     const mx = feldMax(f, werte);
     inp = `<div class="zahlfeld">
              <input class="rng" type="range" data-feld="${f.key}"
