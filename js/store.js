@@ -297,6 +297,8 @@ const VORLAGE_AUS = [
   // Der Merker reist mit: eine Vorlage von heute trägt F_z nach oben, eine
   // von früher nicht (1. Oktober, `fzNachObenAnheben`).
   'fzNachOben',
+  // ψ₀ in der neuen Bedeutung (6. Oktober, `psiAnheben`).
+  'psiOhneGamma',
 ];
 
 /** Aus einem Eingabestand die Vorlagenfelder herauslösen. */

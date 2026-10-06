@@ -270,16 +270,17 @@ beiden Richtungen zugleich. Seither je eine Richtung: «Ständig + Wind ±y» un
 «Ständig + Wind ±x». Ersatzlos gestrichen hätte der Ankernachweis ständige
 Last und Wind nie zusammen gesehen.`)}
 
-${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; γ_Q · ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
-γ_G · G &nbsp;±&nbsp; γ_Q · ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}
+${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
+γ_G · G &nbsp;±&nbsp; ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}
 
 <p>SIA 260: γ_G = 1.35, γ_Q = 1.50. <b>RTE: einheitlich 1.30 – das ist die
-Vorgabe.</b> ψ₀ = 0.50. Eigene Lastfälle mit freien Beiwerten – auch negativen –
+Vorgabe.</b> Begleiteinwirkung ψ₀ = 0.65, angesetzt <b>ohne</b> γ_Q
+(SIA 260 Gl. 16: entweder γ_Q als Leit- oder ψ₀ als Begleiteinwirkung); SIA 260 ψ₀ = 0.60. Eigene Lastfälle mit freien Beiwerten – auch negativen –
 sind jederzeit möglich; das Werkzeug weist abweichende Beiwerte als solche aus.</p>
 
 ${q(`Die Vorgabe ist nicht SIA 260, sondern der Bahnsatz. Aus dem geprüften
 Referenzprojekt sind alle 46 Kombinationen ausgezählt: auf ständige Lastfälle
-kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 und 0.65 = 1.30 · 0.50.
+kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 (leitend) und 0.65 (begleitend).
 Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
 Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
 

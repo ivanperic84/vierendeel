@@ -1062,8 +1062,26 @@ export function fzNachObenAnheben(w) {
   return erg;
 }
 
+/**
+ * >>> BEGLEITEINWIRKUNG OHNE γ_Q (6. Oktober). <<< Bis hierher rechnete das
+ * Werkzeug die Begleitlast als γ_Q · ψ₀ · Q_k, seither ψ₀ · Q_k (SIA 260
+ * Gl. 16, core.lasten.js). Ein Stand ohne Merker trägt ψ₀ in der alten
+ * Bedeutung: er wird einmal auf ψ₀ = γ_Q · ψ₀ gesetzt und rechnet damit
+ * unverändert (RTE 1.30 · 0.50 = 0.65). Rein: ein zweiter Lauf ändert nichts.
+ */
+export function psiAnheben(w) {
+  if (!w || typeof w !== 'object' || w.psiOhneGamma === true) return w;
+  const erg = { ...w, psiOhneGamma: true };
+  const p = Number(w.psi0), q = Number(w.gammaQ);
+  if (Number.isFinite(p) && Number.isFinite(q) && q > 0) {
+    erg.psi0 = Math.round(p * q * 1e6) / 1e6;
+  }
+  return erg;
+}
+
 export function standAnheben(w) {
   if (!w || typeof w !== 'object') return w;
+  w = psiAnheben(w);
   /*
    * Die vorhandenen Lastblöcke ZUERST nach der rechten Hand: danach baut
    * `tragwerkAnheben` aus der ältesten Form (Gz, Qz am Teil) Blöcke, und die

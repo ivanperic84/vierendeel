@@ -158,10 +158,21 @@ export function charakteristischeLasten(inp, joch, windflaeche = null) {
  * ständige wie veränderliche Lasten - deutlich einfacher, aber eben ein
  * anderer Satz.
  *
- * ψ₀ ist der Beiwert der BEGLEITENDEN veränderlichen Einwirkung. Er steht in
- * beiden Sätzen auf 0.50 und gilt für Wind wie für Schnee. (SIA 260 Tab. 1
- * führt für Wind 0.60; der hier angesetzte Wert ist eine Festlegung des
- * Anwenders und über die Optionen jederzeit änderbar.)
+ * ψ₀ ist der Beiwert der BEGLEITENDEN veränderlichen Einwirkung und gilt für
+ * Wind wie für Schnee.
+ *
+ * >>> DIE BEGLEITLAST IST ψ₀ · Q_k, OHNE γ_Q (6. Oktober). <<< Auf die
+ * Rückfrage zu ψ₀ = 0.65, im Wortlaut: «es werden nicht beide faktoren
+ * angesetzt nach norm sondern nur der lastbaiwert oder der
+ * reduktionsbeiwert … somit ist der wert entweder 1.3 leiteinwirkung oder
+ * 0.65 begleiteinwirkung und man mutlipliziert damit die charakteristischen
+ * werte, so wie bei der sia». So steht es in SIA 260 Gl. (16): E_d = E{γ_G ·
+ * G_k, γ_Q · Q_k1, ψ₀ · Q_ki}. Bis hierher rechnete das Werkzeug γ_Q · ψ₀;
+ * mit den Zahlen der Sätze (1.30 · 0.50) kam beim Bahnsatz dieselbe 0.65
+ * heraus, der Satz heisst jetzt ψ₀ = 0.65. Gespeicherte Stände werden einmal
+ * angehoben (`psiAnheben`, data.anbauteile.js: ψ₀ = γ_Q · ψ₀ alt, Merker
+ * `psiOhneGamma`) und rechnen unverändert. SIA 260: ψ₀ = 0.60 nach Tab. 1
+ * für Wind (vorher γ_Q · ψ₀ = 1.50 · 0.50 = 0.75).
  *
  * Wer die Beiwerte von Hand ändert, verlässt beide Sätze; das Werkzeug weist
  * das dann als "abweichend" aus.
@@ -169,17 +180,17 @@ export function charakteristischeLasten(inp, joch, windflaeche = null) {
 export const NORMENSAETZE = [
   {
     key: 'rte', label: 'RTE (Bahn)',
-    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.50 },
-    hinweis: 'Einheitlicher Beiwert 1.30 für ständige und veränderliche ' +
-             'Einwirkungen, Begleiteinwirkung ψ₀ = 0.50. So gerechnet im ' +
+    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.65 },
+    hinweis: 'Einheitlicher Beiwert 1.30 für ständige und leitende veränderliche ' +
+             'Einwirkungen, Begleiteinwirkung ψ₀ = 0.65 (ohne γ_Q). So gerechnet im ' +
              'geprüften Referenzprojekt (46 Kombinationen ausgezählt: auf ' +
              'ständige Lastfälle nur 1.0 und 1.30, auf veränderliche 1.30 ' +
-             'und 0.65 = 1.30·0.50).',
+             'und 0.65).',
   },
   {
     key: 'sia260', label: 'SIA 260',
-    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.50 },
-    hinweis: 'SIA 260 Gl. (16): γ_G = 1.35, γ_Q = 1.50, Begleiteinwirkung ψ₀ = 0.50.',
+    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.60 },
+    hinweis: 'SIA 260 Gl. (16): γ_G = 1.35, γ_Q = 1.50 für die Leiteinwirkung, Begleiteinwirkung ψ₀ = 0.60 (Tab. 1, Wind), ohne γ_Q.',
   },
 ];
 
@@ -435,9 +446,9 @@ export function vertikalVeraenderlich(inp) {
  *   LF Schnee              charakteristisch
  *   LF Wind y / Wind x     charakteristisch
  *   LF Ständig + Wind      charakteristisch, alles zusammen
- *   LF Wind y ±  leitend   γ_G · G ± γ_Q · Wind y + γ_Q · ψ₀ · Schnee
- *   LF Wind x ±  leitend   γ_G · G ± γ_Q · Wind x + γ_Q · ψ₀ · Schnee
- *   LF Schnee ±  leitend   γ_G · G ± γ_Q · ψ₀ · Wind y + γ_Q · Schnee
+ *   LF Wind y ±  leitend   γ_G · G ± γ_Q · Wind y + ψ₀ · Schnee
+ *   LF Wind x ±  leitend   γ_G · G ± γ_Q · Wind x + ψ₀ · Schnee
+ *   LF Schnee ±  leitend   γ_G · G ± ψ₀ · Wind y + γ_Q · Schnee
  *
  * Je Windrichtung stehen BEIDE Vorzeichen. Das ist der Zweck der Trennung:
  * welche Seite massgebend wird, hängt davon ab, wohin die ständigen
@@ -451,10 +462,11 @@ export function vertikalVeraenderlich(inp) {
 export function standardLastfaelle(inp) {
   const g = inp.gammaG ?? 1.35;
   const q = inp.gammaQ ?? 1.50;
-  const p = inp.psi0 ?? 0.50;
+  const p = inp.psi0 ?? 0.65;
   const s = vertikalVeraenderlich(inp);
   const bw = (o) => ({ ...NULLBEIWERTE(), ...o });
-  const begleitS = s ? q * p : 0;
+  // Begleiteinwirkung ψ₀ · Q_k, ohne γ_Q (SIA 260 Gl. 16; 6. Oktober).
+  const begleitS = s ? p : 0;
 
   /*
    * >>> DAS GANZE TRAGWERK STAENDIG, DIE ABLENKUNG FUER SICH
@@ -537,7 +549,7 @@ export function standardLastfaelle(inp) {
         key: `schnee${suffix}`,
         bez: `Schnee leitend, Wind ${zeichen}y`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
-        beiwerte: bw({ G: g, WindY: vz * q * p, Schnee: q }),
+        beiwerte: bw({ G: g, WindY: vz * p, Schnee: q }),
       });
     });
     // Der begleitende Wind auch in der Jochachse, beide Seiten (17. Sept.).
@@ -546,7 +558,7 @@ export function standardLastfaelle(inp) {
         key: `schneeX${suffix}`,
         bez: `Schnee leitend, Wind ${zeichen}x`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
-        beiwerte: bw({ G: g, WindX: vz * q * p, Schnee: q }),
+        beiwerte: bw({ G: g, WindX: vz * p, Schnee: q }),
       });
     });
   }

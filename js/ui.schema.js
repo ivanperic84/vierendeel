@@ -2041,8 +2041,10 @@ export const FELDER = [
     sym: 'γ_Q', einheit: '–', standard: 1.30, schritt: 0.05, min: 1 },
   { key: 'psi0', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Beiwert Begleiteinwirkung', sym: 'ψ₀', einheit: '–',
-    standard: 0.50, schritt: 0.05, min: 0,
-    hinweis: 'Gilt für Wind wie für Schnee, je nach begleitender Einwirkung.'},
+    standard: 0.65, schritt: 0.05, min: 0,
+    hinweis: 'Gilt für Wind wie für Schnee, je nach begleitender Einwirkung. '
+      + 'Die Begleitlast ist ψ₀ · Q_k - ohne γ_Q (SIA 260 Gl. 16): entweder γ_Q als '
+      + 'Leiteinwirkung oder ψ₀ als Begleiteinwirkung.'},
   { key: 'torsionModell', optionenDialog: true, gruppe: 'komb', typ: 'auswahl', label: 'Torsionsverlauf',
     standard: 'verteilt', optionen: opt(TORSIONSMODELLE) },
   { key: 'torsionsverteilung', optionenDialog: true, gruppe: 'komb', typ: 'auswahl',

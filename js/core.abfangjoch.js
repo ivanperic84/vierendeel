@@ -1486,7 +1486,7 @@ export function abfangAuswertung(o = {}) {
   const ue = Math.max(0, (jt - js) / 2);
   const gG = Number(o.gammaG) || 1.3;
   const gQ = Number(o.gammaQ) || 1.3;
-  const p0 = Number.isFinite(o.psi0) ? o.psi0 : 0.5;
+  const p0 = Number.isFinite(o.psi0) ? o.psi0 : 0.65;
   const fyd = Number(o.fyd) || 21.8;
 
   // --- Die Lasten sammeln --------------------------------------------------
@@ -1620,8 +1620,9 @@ export function abfangAuswertung(o = {}) {
    *
    * >>> DREI FAELLE, JEDER MIT SEINEN BEIWERTEN. <<<
    *
-   *   Wind leitend      γ_G · (G + Zug)  +  γ_Q · W  +  γ_Q·ψ₀ · S    +5 °C
-   *   Schnee leitend    γ_G · (G + Zug)  +  γ_Q·ψ₀ · W  +  γ_Q · S    -5 °C
+   *   Wind leitend      γ_G · (G + Zug)  +  γ_Q · W  +  ψ₀ · S    +5 °C
+   *   Schnee leitend    γ_G · (G + Zug)  +  ψ₀ · W  +  γ_Q · S    -5 °C
+   *   (Begleitlast ψ₀ · Q_k ohne γ_Q, SIA 260 Gl. 16 - 6. Oktober)
    *   Havarie           1.0 · (G + Zug)                              -20 °C
    *
    * Der LEITERZUG zaehlt zu den staendigen Einwirkungen - er steht immer an
@@ -1649,8 +1650,8 @@ export function abfangAuswertung(o = {}) {
     const havarie = fall.key === 'havarie';
     return {
       g: havarie ? 1.0 : gG,
-      w: havarie ? 0 : rW * (fall.leit === 'wind' ? gQ : gQ * p0),
-      s: havarie ? 0 : (fall.leit === 'schnee' ? gQ : gQ * p0),
+      w: havarie ? 0 : rW * (fall.leit === 'wind' ? gQ : p0),
+      s: havarie ? 0 : (fall.leit === 'schnee' ? gQ : p0),
     };
   };
 

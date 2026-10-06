@@ -9,7 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { standAnheben, fzNachObenAnheben } from './data.anbauteile.js';
+import { standAnheben, fzNachObenAnheben, psiAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
@@ -455,7 +455,9 @@ export async function zeichneSchublade(app) {
     // gespeicherter Stand (29. Sept., `standAnheben`).
     // Die Vorlage für sich anheben (F_z ihrer Lastblöcke, 1. Oktober), dann
     // einsetzen - gemischt trüge sie den Merker des offenen Standes.
-    app.werte = standAnheben({ ...app.werte, ...fzNachObenAnheben(v.werte), bearbeiten: false });
+    // Die Vorlage für sich anheben: der Merker des aktuellen Stands darf ihr
+    // ψ₀ in alter Bedeutung nicht überdecken (6. Oktober, `psiAnheben`).
+    app.werte = standAnheben({ ...app.werte, ...psiAnheben(fzNachObenAnheben(v.werte)), bearbeiten: false });
     app.werte.eigeneVorlagen = app.vorlagenZusammenfuehren(app.werte);
     setzeEigeneVorlagen(app.werte.eigeneVorlagen);
     app.station = null;

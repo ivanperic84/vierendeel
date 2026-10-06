@@ -225,6 +225,8 @@ export const BLATT_FELDER = [
   // Merker «F_z der Lastblöcke nach oben» (1. Oktober) - er gilt dem ganzen
   // Stand, also allen Tragwerken des Blattes.
   'fzNachOben',
+  // Merker «Begleiteinwirkung ohne γ_Q» (6. Oktober, `psiAnheben`).
+  'psiOhneGamma',
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird
   // einmal abgeschrieben und gilt für alles, was auf dem Blatt steht.
   'masskette',

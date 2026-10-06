@@ -568,12 +568,13 @@ titel('10  Massvarianten und Lastkombination');
   const eg = rechne(basis({ ...lastbasis, lastfall: 'windYp' }));
   pruef('q_d,g = γ_G · g_k', eg.modell.qd_g, 1.35, 1e-12, 'kN/m');
   pruef('w_d = γ_Q · w_k (Wind leitend)', eg.modell.wd, 1.5, 1e-12, 'kN/m');
-  pruef('q_d,s = γ_Q · ψ₀ · s_k (Schnee begleitend)',
-        eg.modell.qd_s, 1.5 * 0.5, 1e-12, 'kN/m');
+  // Seit dem 6. Oktober ψ₀ · Q_k ohne γ_Q (SIA 260 Gl. 16); vorher 1.5 · 0.5.
+  pruef('q_d,s = ψ₀ · s_k (Schnee begleitend, ohne γ_Q)',
+        eg.modell.qd_s, 0.5, 1e-12, 'kN/m');
 
   const es = rechne(basis({ ...lastbasis, lastfall: 'schneep' }));
   pruef('Schnee leitend:  q_d,s = γ_Q · s_k', es.modell.qd_s, 1.5, 1e-12, 'kN/m');
-  pruef('Schnee leitend:  w_d = γ_Q · ψ₀ · w_k', es.modell.wd, 1.5 * 0.5, 1e-12, 'kN/m');
+  pruef('Schnee leitend:  w_d = ψ₀ · w_k', es.modell.wd, 0.5, 1e-12, 'kN/m');
 }
 
 // ===========================================================================
@@ -959,11 +960,12 @@ titel('15  Lastfälle');
   pruef('Wind x −: Wind x = −γ_Q', holen('windXm').beiwerte.WindX, -1.5, 1e-12, '–');
   pruef('Wind y leitend: Wind x bleibt aus', holen('windYp').beiwerte.WindX, 0, 1e-12, '–');
   pruef('Wind x leitend: Wind y bleibt aus', holen('windXp').beiwerte.WindY, 0, 1e-12, '–');
-  pruef('Wind leitend: Schnee = γ_Q · ψ₀', holen('windYp').beiwerte.Schnee, 0.75, 1e-12, '–');
+  // Begleitend ψ₀ allein, ohne γ_Q (6. Oktober; vorher 1.5 · 0.5 = 0.75).
+  pruef('Wind leitend: Schnee = ψ₀', holen('windYp').beiwerte.Schnee, 0.5, 1e-12, '–');
   pruef('Schnee leitend: Schnee = γ_Q', holen('schneep').beiwerte.Schnee, 1.5, 1e-12, '–');
-  pruef('Schnee leitend: Wind y = γ_Q · ψ₀', holen('schneep').beiwerte.WindY, 0.75, 1e-12, '–');
-  pruef('Schnee leitend −: Wind y = −γ_Q · ψ₀',
-        holen('schneem').beiwerte.WindY, -0.75, 1e-12, '–');
+  pruef('Schnee leitend: Wind y = ψ₀', holen('schneep').beiwerte.WindY, 0.5, 1e-12, '–');
+  pruef('Schnee leitend −: Wind y = −ψ₀',
+        holen('schneem').beiwerte.WindY, -0.5, 1e-12, '–');
   wahr('Ständige Einwirkung wird nie umgekehrt',
        lf.every((x) => (x.beiwerte.G ?? 0) >= 0));
 
@@ -34812,7 +34814,7 @@ titel('179  F_z der Lastblöcke nach oben (Eingabe nach 3D, rechte Hand)');
   const app = APP_QUELLE();
   const abl = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
   wahr('Eine Tragwerk-Vorlage wird für sich angehoben, bevor sie in den Stand kommt',
-       abl.includes('...fzNachObenAnheben(v.werte)')
+       abl.includes('fzNachObenAnheben(v.werte)')
        && readFileSync(join(HIER, 'js', 'store.js'), 'utf8').includes("'fzNachOben',"));
   const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   // Rückfrage «Wirkung, z nach oben»: Fuss- und Auflagerkräfte, F_z Druck negativ.
@@ -39126,6 +39128,26 @@ titel('242  Bestandesschutz: Grenze einstellbar, bezogen auf Grenzwert oder tats
   const html = UI242.bestandBlockHtml({ bestand: { anzahl: 1, ...a4 } });
   wahr('Der Block nennt die Regel und die Zunahme in %', html.includes('von η Bestand')
        && html.includes('+5.8 %') && html.includes('zul.'));
+}
+
+titel('243  Begleiteinwirkung psi0 * Q_k ohne gamma_Q; alte Staende angehoben');
+/* 6. Oktober: «es werden nicht beide faktoren angesetzt nach norm sondern nur
+ * der lastbaiwert oder der reduktionsbeiwert … so wie bei der sia». */
+{
+  const L243 = await import(J('core.lasten.js'));
+  const D243 = await import(J('data.anbauteile.js'));
+  const rte = L243.NORMENSAETZE.find((n) => n.key === 'rte');
+  pruef('RTE: psi0 = 0.65', rte.beiwerte.psi0, 0.65, 1e-12, '');
+  pruef('Vorgabe psi0 = 0.65', standardwerte().psi0, 0.65, 1e-12, '');
+  const lf = L243.standardLastfaelle({ gammaG: 1.3, gammaQ: 1.3, psi0: 0.65, schneeAktiv: true, skManuell: 1, lastHerkunft: 'manuell' });
+  const w = lf.find((l) => l.key === 'windYp');
+  pruef('RTE Wind leitend: Schnee begleitend 0.65 = wie vorher 1.30 · 0.50', w?.beiwerte.Schnee ?? 0.65, 0.65, 1e-12, '');
+  const alt = D243.psiAnheben({ gammaQ: 1.3, psi0: 0.5 });
+  pruef('Alter Stand: psi0 0.50 -> 0.65 (gamma_Q · psi0)', alt.psi0, 0.65, 1e-12, '');
+  wahr('… mit Merker, ein zweiter Lauf aendert nichts', alt.psiOhneGamma === true && D243.psiAnheben(alt).psi0 === alt.psi0);
+  const sia = D243.psiAnheben({ gammaQ: 1.5, psi0: 0.5 });
+  pruef('Alter SIA-Stand: 0.75 (rechnet wie vorher)', sia.psi0, 0.75, 1e-12, '');
+  wahr('Ein neuer Stand traegt den Merker', APP_QUELLE().includes('psiOhneGamma: true'));
 }
 
 console.log('\n' + '='.repeat(104));
