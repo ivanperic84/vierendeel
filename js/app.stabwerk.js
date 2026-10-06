@@ -296,7 +296,10 @@ export function stabwerkModell(werte, erg, satz, eingaben, opt) {
     const abfangMast = tragwerksart(satz).key === 'abfangjoch'
       && satz.mastVorhanden !== false && (mA?.profil ?? satz.mastProfil)
       && Number(satz.mastH) > 0
-      ? { profil: mA?.profil ?? satz.mastProfil, hoehe: Number(satz.mastH),
+      // Mit Fussversatz je Ende (6. Oktober): der Mast reicht vom Fuss bis zur Jochachse.
+      ? { profil: mA?.profil ?? satz.mastProfil,
+          hoehe: Number(satz.mastH) - (Number(satz.mastFuss) || 0),
+          hoeheB: Number(satz.mastH) - (Number(satz.mastFussB ?? satz.mastFuss) || 0),
           stegrichtung: satz.mastSteg ?? 'jochachse' }
       : null;
     bau = stabmodell(erg.modell, { ...opt,

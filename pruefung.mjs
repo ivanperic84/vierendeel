@@ -37875,8 +37875,9 @@ titel('222  Nachbarn aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen');
     const jt0 = AJ222.abfangLaengen(atyp).find((l) => l >= 12) ?? AJ222.abfangLaengen(atyp)[0];
     const sza = RA222.abfangSzene(atyp, jt0, { anbauteile: [], lager: {},
       mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' } });
-    wahr('Die Abfangjoch-Szene führt Griffe an beiden Masten (Kopf und Lage, kein Fuss)',
-         sza.mastZiehen?.A?.einzel === true && sza.mastZiehen?.B?.einzel === true
+    // Seit dem 6. Oktober auch der Fuss («Fussversatz wie am Joch»).
+    wahr('Die Abfangjoch-Szene führt Griffe an beiden Masten (Kopf, Lage und Fuss)',
+         sza.mastZiehen?.A?.einzel === false && sza.mastZiehen?.B?.einzel === false
          && sza.mastZiehen.B.x > sza.mastZiehen.A.x, JSON.stringify(sza.mastZiehen));
     let wa = C222.tragwerkHinzu({ ...w }, 'abfangjoch', { xLage: 0, L: jt0, abfangTyp: atyp, mastH: 7.5 });
     wa = C222.tragwerkWeg(C222.tragwerkWeg(wa, 'T1'), 'T2');

@@ -2815,7 +2815,12 @@ function abfangMastenAngabe(satz, namen) {
     const zweiH = ende === 'B' && (satz.mastHZwei ?? satz.mastZwei) === true;
     const profil = zwei ? (satz.mastProfilB ?? satz.mastProfil)
                         : satz.mastProfil;
-    const hoehe = Number(zweiH ? (satz.mastHB ?? satz.mastH) : satz.mastH) || 0;
+    // Am Abfangjoch mit dem Fussversatz (6. Oktober, «die mastfuss lassen
+    // sich nicht per drag and drop verschieben» - Rückfrage «Fussversatz wie
+    // am Joch»): der Mast reicht vom gehobenen Fuss bis zur Jochachse.
+    const fuss = tragwerksart(satz).key === 'abfangjoch'
+      ? Number(ende === 'B' ? (satz.mastFussB ?? satz.mastFuss) : satz.mastFuss) || 0 : 0;
+    const hoehe = (Number(zweiH ? (satz.mastHB ?? satz.mastH) : satz.mastH) || 0) - fuss;
     if (!profil || !(hoehe > 0)) return null;
     const roh = Number(zwei ? (satz.mastLaengeB || satz.mastLaenge)
                             : satz.mastLaenge) || 0;

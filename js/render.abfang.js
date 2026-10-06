@@ -807,7 +807,7 @@ export function abfangSzene(typ, jt, opt = {}) {
                             ? md.hoehe + md.ueberstand : null };
       fussUnten[name] = mk.fussUnten;
       mastGriff[name] = { x, zF: -md.hoehe, zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
-                          einzel: true, halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 };
+                          einzel: false, halb: Math.max(mp.b ?? 0, mp.h ?? 0) / 2000 };
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
       bauteiltitel.push(...(mk.bauteiltitel ?? []));

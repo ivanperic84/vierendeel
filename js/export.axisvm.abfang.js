@@ -1068,7 +1068,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       const kKopf = `MAST_${ende}_K`;
       const kFuss = `MAST_${ende}_F`;
       knoten.push({ name: kKopf, x: xs[i], y: 0, z: 0 });
-      knoten.push({ name: kFuss, x: xs[i], y: 0, z: -mastD.hoehe });
+      // Je Ende seine Hoehe: mit Fussversatz (6. Oktober) kann B anders stehen.
+      const hEnde = ende === 'B' && Number(mastD.hoeheB) > 0 ? Number(mastD.hoeheB) : mastD.hoehe;
+      knoten.push({ name: kFuss, x: xs[i], y: 0, z: -hEnde });
       // Zwei Stuecke statt eines: dazwischen sitzt der Konsolansatz
       // `MAST_x_A`. Er entsteht erst weiter unten, deshalb stehen auch die
       // beiden Staebe dort.

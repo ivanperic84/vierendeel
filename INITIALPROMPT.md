@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6731**
+Stand: **4. Oktober 2026**, Übergabe für einen neuen Chat / ein neues Konto. Prüfstand **6735**
 Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung), `durchlauf.mjs` ohne Bruch (Betreiber- und
 Testdaten). Gearbeitet wurde in einer **Cloud-Sitzung** auf dem Zweig `claude/dreamy-cannon-9m6xxb`; jeder
 grüne Stand ist dorthin **und nach `main`** gepusht (Weisungen «danach stand auf main stellen», «pushen wenn
@@ -43,7 +43,7 @@ Sprung der Seitenleiste nach Klick auf den Masttitel behoben.
 **Signalbauer** mit den Signalbildern der Mappe als Kacheln und Knopf «Signal zusammenstellen» (Bilder nur in
 `data/anbauteile.json` bzw. im Datenpaket vom 4. Oktober, vertraulich).
 
-**Liste vom 6. Oktober** abgearbeitet und gepusht (Prüfstand 236-238, 6731 grün; Einzelheiten CLAUDE.md, *Entschieden*). ⚠ Offen mit Rückfrage: Datenbank öffentlich pushen, Reduktionsfaktor 0.74, Fussversatz Abfangjoch, Verformung bei y-Versatz, Fundamentflow, Vergleich Bestand/Bau/Projekt, Doppelanker Zug, Schaltposten (CLAUDE.md, *Offene Punkte*).
+**Liste vom 6. Oktober** abgearbeitet und gepusht (Prüfstand 236-239, 6735 grün; Einzelheiten CLAUDE.md, *Entschieden*). Danach gebaut: Wind × 0.74 (allen Wind), Fussversatz am Abfangjoch; Datenbank bleibt örtlich (entschieden). ⚠ Offen mit Rückfrage: Verformung bei y-Versatz, Fundamentflow, Vergleich Bestand/Bau/Projekt, Doppelanker Zug, Schaltposten (CLAUDE.md, *Offene Punkte*).
 
 **Gebaut am 6. Oktober** (am Arbeitsrechner, Prüfstand 236): Teile am Masten an Abfangjoch und Tragausleger im Stabmodell (Knoten auf hMast, Kraft und Moment r × F) und im Bild; am Abfangjoch die Hebel der Jochteile (Jochaufsatz, Hängestütze) als Moment am Achsknoten, Leiterzug zentrisch; Blech-Diagonale (ein Starrglied vom Gurtknoten zum Blechende, J90/20 m 942 → 718 Stäbe). Offen dazu: Havarie je Leiter an Mastteilen dieser Arten, Figur/GZG der Mastteile, AxisVM nicht neu gebaut. ⚠ Das Datenpaket vom 4. Oktober ist am Arbeitsrechner noch nicht eingelesen.
 
@@ -249,7 +249,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6731 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6735 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

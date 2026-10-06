@@ -2191,9 +2191,12 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     const a = (mastenJe.get(t.id) ?? [])[0];
     const profil = a?.[1]?.profil;
     // Die Anschlusshoehe steht in `mastH` (siehe app.axisvm.js).
-    const hoehe = Number(satzT?.mastH ?? werte.mastH) || 0;
+    // Mit Fussversatz je Ende (6. Oktober), wie im Stabwerk der Anwendung.
+    const H = Number(satzT?.mastH ?? werte.mastH) || 0;
+    const hoehe = H - (Number(satzT?.mastFuss) || 0);
+    const hoeheB = H - (Number(satzT?.mastFussB ?? satzT?.mastFuss) || 0);
     return profil && hoehe > 0
-      ? { profil, hoehe,
+      ? { profil, hoehe, hoeheB,
           stegrichtung: satzT?.mastSteg ?? werte.mastSteg ?? 'jochachse' }
       : null;
   };
