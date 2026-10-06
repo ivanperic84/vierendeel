@@ -5967,6 +5967,15 @@ function beginneNeu(art) {
   markiereGesichert();
   zeichneModellWerkzeuge(app);
   ansicht.ganzesJoch();
+  /*
+   * >>> DANACH DIE PARAMETER DES TRAGWERKS (6. Oktober). <<< Weisung im
+   * Wortlaut: «Wenn im Projektansicht und button neues tragwerk sollte auch
+   * hier die parametermodal eingeblendet werden des Tragwerks». Derselbe
+   * Dialog wie über die Kacheln, für das eben angelegte Tragwerk, mit den
+   * Grundwerten des Blattes (EK, Spannweite, Radius).
+   */
+  const t0 = tragwerkeVon(werte)[0];
+  if (t0) dialogTragwerk(app, t0.id, null, { grundwerte: true });
 }
 
 /* ===========================================================================

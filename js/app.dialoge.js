@@ -524,7 +524,10 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     // Die gewählten Masten (30. September) - leer heisst «neu setzen».
     mA: '', mB: '',
   };
-  const grundwerteFragen = neuesTragwerk && app.werte.grundwerteFragen !== false;
+  // Auch beim frisch begonnenen Blatt aus der Projektablage (6. Oktober,
+  // `vor.grundwerte`): dort ist das erste Tragwerk schon angelegt.
+  const grundwerteFragen = (neuesTragwerk || vor.grundwerte === true)
+    && app.werte.grundwerteFragen !== false;
   /*
    * KOMMT DIE ART AUS DEM MENUE, bringt sie ihr eigenes Sortiment mit - die
    * Vorlage daneben ist vielleicht ein Tragjoch, und «J90» steht in keiner
@@ -714,7 +717,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       + (istGerade(e.R) ? 'gerades Gleis' : `Radius ${e.R.toFixed(0)} m`);
   };
   const grundwerteHtml = () => {
-    if (!neuesTragwerk) return '';
+    if (!neuesTragwerk && vor.grundwerte !== true) return '';
     if (!grundwerteFragen) {
       return `<p class="notiz">Grundwerte des Querprofils: ${esc(grundwerteKurz())}
         — unter <em>Lasten → Trasse</em> und <em>Einwirkungen</em> zu ändern.</p>`;
@@ -909,6 +912,12 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     });
     n.querySelector('[data-tw-ok]').onclick = () => {
       d.zu();
+      if (!neuesTragwerk && grundwerteFragen) {
+        if (e.ek !== String(app.werte.windKlasse ?? '0.9')) app.aendern('windKlasse', e.ek);
+        if (e.spw > 0 && e.spw !== Number(app.werte.flSpannweite)) app.aendern('flSpannweite', e.spw);
+        if (e.R !== (Number(app.werte.trasseRadius) || 0)) app.aendern('trasseRadius', e.R);
+        if (e.nichtMehr) app.aendern('grundwerteFragen', false);
+      }
       if (neuesTragwerk) {
         app.aendern('tragwerkNeu', { art: e.art, xLage: e.x0 });
         // Ohne Bauteilbelegung: die Teile am Träger fallen weg, die an den
