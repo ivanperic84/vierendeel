@@ -205,6 +205,8 @@ export const BLATT_FELDER = [
   'windKlasse', 'schneeKlasse', 'schneeAktiv',
   // Wind × 0.74 im grossflächigen Überbauungsgebiet (6. Oktober).
   'windReduktion',
+  // Echtzeit oder Knopf beim Stabwerk (6. Oktober) - eine Einstellung des Blattes.
+  'stabwerkAuslosung',
   // Lastfälle, Beiwerte und Rechenmodelle: sie beschreiben, WIE gerechnet
   // wird. Zwei Tragwerke auf einem Blatt verschieden zu rechnen wäre ein
   // Fehler, kein Freiheitsgrad.

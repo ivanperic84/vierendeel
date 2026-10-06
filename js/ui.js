@@ -9,7 +9,8 @@
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { verformungGrenzen } from './core.verformung.js';
-import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon, stabZuordnung } from './core.stabnachweis.js';
+import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon, stabZuordnung,
+         STABWERK_AUSLOESUNG, stabwerkAuslosungVon } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
@@ -6166,7 +6167,8 @@ export function stabwerkLeiste(opt = {}) {
     fehlt: 'Angezeigt wird vorläufig der Ersatzbalken. Das Stabwerk sieht '
          + 'auch die Biegung der Bleche aus ihrer Ebene heraus.',
     veraltet: 'Die Eingabe hat sich geändert - angezeigt wird vorläufig der '
-            + 'Ersatzbalken, das Stabwerk rechnet gleich neu.',
+            + (sw?.knopf ? 'Ersatzbalken. Gerechnet wird auf Knopfdruck (Optionen).'
+                         : 'Ersatzbalken, das Stabwerk rechnet gleich neu.'),
     /*
      * Die Reihe zuerst: sie sagt, WAS gerechnet wurde. Die Kennzahlen
      * dahinter sagen, wie gross es war.
@@ -9614,9 +9616,19 @@ export function verfahrenHtml(werte) {
       </label>
       <p class="notiz">${esc(v.was)}</p>
     </div>`).join('')
-    + `<p class="notiz">Das Stabwerk rechnet <b>nicht bei jeder Eingabe</b>
-      mit — es läuft auf Knopfdruck, oben in den Ergebnissen. Bis dahin
-      zeigt die Anwendung den Ersatzbalken und sagt es dazu.</p>`;
+    + `${abschnitt('Stabwerk rechnen')}
+    <p class="notiz">Gerechnet wird nur, wenn sich etwas ändert, das das
+      Ergebnis betrifft — Ansicht, Schrift, Masskette oder Mastnummer lösen
+      keine Rechnung aus.</p>`
+    + STABWERK_AUSLOESUNG.map((v) => `
+    <div class="nw-wahl">
+      <label>
+        <input type="radio" name="stabwerkAuslosung" data-auslosung="${esc(v.key)}"
+          ${stabwerkAuslosungVon(werte) === v.key ? 'checked' : ''}>
+        <span class="nw-titel">${esc(v.titel)}</span>
+      </label>
+      <p class="notiz">${esc(v.was)}.</p>
+    </div>`).join('');
 }
 
 export function nachweiseHtml(werte) {

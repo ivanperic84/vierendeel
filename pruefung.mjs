@@ -39059,6 +39059,37 @@ titel('240  Ungleiche Gurte: stehende Bleche von Spitze zu Spitze, ungleichschen
   }
 }
 
+titel('241  Stabwerk: neu rechnen nur, wenn sich das Ergebnis aendert; Echtzeit oder Knopf');
+/* ===========================================================================
+ * 6. Oktober: «Neu rechnen nur bei geometrieanpassungen. Sonst in Optionen
+ * Einstellung ermöglichen ob echtzeit oder mit button berchnung.»
+ * ========================================================================= */
+{
+  const SN241 = await import(J('core.stabnachweis.js'));
+  const C241 = await import(J('core.constants.js'));
+  const w = { ...standardwerte(), L: 20, twId: 'T1' };
+  const k0 = SN241.eingabeKennung(w);
+  for (const [feld, wert] of [['modellSchrift', 14], ['projektion', 'ortho'], ['erklaertexte', false],
+                              ['zeichnungDeckkraft', 20], ['mastAktiv', 'M2'], ['stabwerkAuslosung', 'knopf']]) {
+    wahr(`Kennung bleibt bei «${feld}»`, SN241.eingabeKennung({ ...w, [feld]: wert }) === k0);
+  }
+  const mitNr = { ...w, masten: [{ ...(w.masten?.[0] ?? { x: 0 }), mastNummer: '14' }, ...(w.masten ?? []).slice(1)] };
+  const ohneNr = { ...w, masten: [{ ...(w.masten?.[0] ?? { x: 0 }) }, ...(w.masten ?? []).slice(1)] };
+  wahr('Kennung bleibt bei der Mastnummer (in der Mastliste)',
+       SN241.eingabeKennung(mitNr) === SN241.eingabeKennung(ohneNr));
+  wahr('Kennung aendert sich mit der Jochlaenge', SN241.eingabeKennung({ ...w, L: 19.5 }) !== k0);
+  wahr('… mit der Windstufe', SN241.eingabeKennung({ ...w, windKlasse: 'EK3' }) !== k0);
+  wahr('… mit dem gewaehlten Tragwerk', SN241.eingabeKennung({ ...w, twId: 'T2' }) !== k0);
+  wahr('Vorgabe ist Echtzeit', SN241.stabwerkAuslosungVon({}) === 'echtzeit'
+       && SN241.stabwerkAuslosungVon({ stabwerkAuslosung: 'knopf' }) === 'knopf');
+  wahr('Einstellung gehoert dem Blatt', C241.BLATT_FELDER.includes('stabwerkAuslosung'));
+  const aq = APP_QUELLE();
+  wahr('planeStabwerk rechnet bei «Knopf» nicht von selbst',
+       /function planeStabwerk[\s\S]{0,400}stabwerkAuslosungVon\(werte\) === 'knopf'\) return/.test(aq));
+  const uq = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
+  wahr('Optionen zeigen die Wahl', /data-auslosung=/.test(uq));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -124,7 +124,7 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
-import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer,
+import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk, anteileFuer,
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenGewaehlt } from './core.reaktionen.js';
 import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js';
@@ -610,6 +610,8 @@ function planeStabwerk() {
   clearTimeout(stabwerkUhr);
   stabwerkUhr = null;
   if (!letzte || verfahrenVon(werte) !== 'stabwerk') return;
+  // Auf Knopfdruck (6. Oktober): die Leiste sagt «veraltet», gerechnet wird dort.
+  if (stabwerkAuslosungVon(werte) === 'knopf') return;
   const st = stabwerkStand(app);
   if (st !== 'fehlt' && st !== 'veraltet') return;
   stabwerkUhr = setTimeout(() => {
@@ -1760,6 +1762,7 @@ function zeichneAuswertung() {
          * wie am Joch.
          */
         stabwerk: { verfahren: verfahrenVon(werte), stand: stabwerkStand(app),
+                    knopf: stabwerkAuslosungVon(werte) === 'knopf',
                     grund: reiheOhneStabmodell(werte), ergebnis: stabwerk,
                     // Der gewählte Fall aus dem Stabwerk (4. Oktober).
                     ergebnisFall: anzeigeKombi === 'umhuellend' ? null : stabwerkAnsicht()?.h ?? null,
@@ -1822,6 +1825,7 @@ function zeichneAuswertung() {
                            beiFeld: (k, v) => aendern(k, v),
                            stabwerk: { verfahren: verfahrenVon(werte),
                                        stand: stabwerkStand(app),
+                                       knopf: stabwerkAuslosungVon(werte) === 'knopf',
                                        // Der Grund steht auch dann bereit,
                                        // wenn noch gar nicht gerechnet wurde -
                                        // und er gilt der ganzen Reihe,

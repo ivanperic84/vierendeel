@@ -1119,9 +1119,28 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
  * Gezaehlt wird der EINGABESATZ, nicht das fertige Modell: er ist klein,
  * und er ist das, was sich aendert.
  */
+/*
+ * >>> NUR WAS DAS ERGEBNIS AENDERT (6. Oktober). <<<
+ * Weisung: «Neu rechnen nur bei geometrieanpassungen.» Bisher zaehlte jedes
+ * Feld des Satzes - auch Ansicht, Schrift, Erklaertexte, Masskette, die
+ * angeklickte Mastkachel, die Mastnummer oder die Deckkraft der Zeichnung.
+ * Jede dieser Eingaben machte das Stabwerk «veraltet» und loeste eine
+ * Rechnung aus, die dasselbe ergab. Diese Felder zaehlen jetzt nicht mehr,
+ * in jeder Tiefe (die Mastnummer steht in der Mastliste). Die Richtung ist
+ * die sichere: ein hier vergessenes Feld rechnet hoechstens einmal zu viel.
+ * Lasten, Nachweisoptionen und das gewaehlte Tragwerk zaehlen weiter - sie
+ * aendern, was das Stabwerk zeigt.
+ */
+export const OHNE_RECHNUNG = new Set([
+  'projektion', 'blickwinkel', 'erklaertexte', 'tastenkuerzel', 'tasten',
+  'modellTransparenz', 'modellSchrift', 'modellSchriftLast', 'modellSchriftMass',
+  'zeichnungDeckkraft', 'masskette', 'mastAktiv', 'mastNummer', 'grundwerteFragen',
+  'linie', 'ortschaft', 'km', 'eigeneVorlagen', 'stabwerkAuslosung',
+]);
+
 export function eingabeKennung(satz) {
   let h = 5381;
-  const t = JSON.stringify(satz ?? null);
+  const t = JSON.stringify(satz ?? null, (k, v) => (OHNE_RECHNUNG.has(k) ? undefined : v));
   for (let i = 0; i < t.length; i += 1) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
   return `${t.length.toString(36)}-${h.toString(16)}`;
 }
@@ -1144,6 +1163,20 @@ export const RECHENVERFAHREN = [
 ];
 
 export const RECHENVERFAHREN_VORGABE = 'stabwerk';
+
+/*
+ * >>> ECHTZEIT ODER KNOPF (6. Oktober). <<< «Sonst in Optionen Einstellung
+ * ermöglichen ob echtzeit oder mit button berchnung.» Echtzeit ist der Weg
+ * seit dem 28. September (rund 1 s nach der letzten Eingabe); «Knopf»
+ * rechnet nur auf «Nochmals rechnen» - bis dahin steht das Stabwerk als
+ * veraltet da und die Zahl fehlt (wie bisher bei «veraltet»).
+ */
+export const STABWERK_AUSLOESUNG = [
+  { key: 'echtzeit', titel: 'Echtzeit', was: 'rechnet rund 1 s nach der letzten Eingabe von selbst' },
+  { key: 'knopf', titel: 'Auf Knopfdruck', was: 'rechnet nur mit «Rechnen» in der Stabwerksleiste' },
+];
+export const stabwerkAuslosungVon = (werte) =>
+  (werte?.stabwerkAuslosung === 'knopf' ? 'knopf' : 'echtzeit');
 
 /** Welches Verfahren gilt? Alte Staende kennen das Feld nicht. */
 export function verfahrenVon(werte) {

@@ -401,6 +401,14 @@ export function dialogOptionen(app) {
      * Er stellt nur um - gerechnet wird auf Knopfdruck in den Ergebnissen,
      * und bis dahin sagt die Leiste, dass noch kein Ergebnis vorliegt.
      */
+    // Echtzeit oder Knopf (6. Oktober).
+    rahmen.querySelectorAll('[data-auslosung]').forEach((inp) => {
+      inp.onchange = () => {
+        if (!inp.checked) return;
+        app.aendern('stabwerkAuslosung', inp.dataset.auslosung);
+        neu();
+      };
+    });
     rahmen.querySelectorAll('[data-verfahren]').forEach((inp) => {
       inp.onchange = () => {
         if (!inp.checked) return;
