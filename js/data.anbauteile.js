@@ -49,7 +49,7 @@ import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
-import { LEERE_KRAFT } from './core.anbauteile.js';
+import { LEERE_KRAFT, achsfolge } from './core.anbauteile.js';
 import { mastAnbauVon, mastenVon, einzelmastenAufgehen } from './core.constants.js';
 import { einzelmastLaenge } from './core.auflager.js';
 
@@ -557,6 +557,71 @@ export function neuesAnbauteil(vorlageId, x = 0) {
 
 /** Wie lang ein Streckenteil ohne eigene Angabe gerechnet wird [m]. */
 export const LAENGE_STANDARD = 1.0;
+
+/* ===========================================================================
+ * >>> GESAMTLÄNGE STATT ANGRIFFSPUNKT (7. Oktober). <<<
+ * Weisung: «was mehr sinn machen würde bei den tragenden anbauteilen, ist
+ * wenn man die gesamtlänge eingibt und der Lastangriffspunkt dann
+ * automatisch in der mitte des elements angesetzt wird, so muss man die mitte
+ * nicht mehr auf der zeichnung schätzen sonder kann die hängestütze /
+ * jochaufsatz / ausleger bis zum ende zihen und bekommt den richtigen
+ * angriffspunkt.» Auf Rückfrage: «Träger und Ausleger», alte Stände
+ * «Länge = 2 × Punkt».
+ *
+ * Welche Teile das sind, sagt die Lasttabelle (`laengsachse`: z für Stütze,
+ * Aufsatz, Rohr; x für Ausleger, Konsole, Traverse). Gespeichert bleibt der
+ * Angriffspunkt wie bisher - Kette, Kern und Stabmodell lesen ihn -, dazu die
+ * Länge; beide führt `teilLaengeSetzen` zusammen. Fehlt die Länge (alter
+ * Stand, Vorlage), ist sie 2 × |Punkt|: der Punkt bleibt, wo er war.
+ * Eine Traverse mitten auf der Achse (x = 0) steht beidseits aus: dort ist
+ * die Mitte die Achse, die Länge ändert nur die Last.
+ * ======================================================================== */
+export const laengsAchseVon = (b) =>
+  (b?.laengsachse === 'z' || b?.laengsachse === 'x' ? b.laengsachse : null);
+
+/** Gesamtlänge eines Länge-Teils [m], oder null, wenn es keines ist. */
+export function teilLaenge(m, b) {
+  const ax = laengsAchseVon(b);
+  if (!ax) return null;
+  const L = Number(m?.laenge);
+  if (L > 0) return L;
+  const c = Math.abs(Number(m?.[ax]) || 0);
+  return c > 1e-9 ? 2 * c : null;
+}
+
+/**
+ * Die Gesamtlänge des Moduls k setzen: der Angriffspunkt rückt in die Mitte,
+ * und was am alten Ende hängt oder darüber hinaus liegt (der Leiter an der
+ * Hängestütze, der Ausleger an ihrem Fuss, das Kettenwerk am Ausleger),
+ * wandert mit dem Ende. Gibt eine neue Modulliste zurück.
+ */
+export function teilLaengeSetzen(module, k, L, bauteilVon = getFlBauteil) {
+  const neu = (module ?? []).map((x) => ({ ...x }));
+  const m = neu[k];
+  if (!m || !(L > 0)) return neu;
+  let b = null;
+  try { b = bauteilVon(m.bauteil); } catch { b = null; }
+  const ax = laengsAchseVon(b);
+  if (!ax) { neu[k] = { ...m, laenge: L }; return neu; }
+  const c = Number(m[ax]) || 0;
+  if (ax === 'x' && Math.abs(c) < 1e-9) { neu[k] = { ...m, laenge: L }; return neu; }
+  const s = Math.abs(c) > 1e-9 ? Math.sign(c) : (ax === 'z' ? -1 : 1);
+  const Lalt = teilLaenge(m, b) ?? 0;
+  const start = c - s * Lalt / 2;
+  const endeAlt = start + s * Lalt, endeNeu = start + s * L;
+  const r = (v) => Math.round(v * 1e4) / 1e4;
+  const mitte = r(start + s * L / 2);
+  const folge = achsfolge(m.folge, ax, mitte);
+  neu[k] = { ...m, laenge: L, [ax]: mitte, ...(folge ? { folge } : { folge: undefined }) };
+  if (Lalt > 0) {
+    neu.forEach((x, j) => {
+      if (j === k) return;
+      const v = Number(x[ax]) || 0;
+      if (s * (v - endeAlt) >= -1e-6) neu[j] = { ...x, [ax]: r(v + endeNeu - endeAlt) };
+    });
+  }
+  return neu;
+}
 
 /**
  * Ein leeres Modul für die Baugruppe.
@@ -1260,8 +1325,10 @@ export function expandiereAnbauteile(liste, o = {}) {
       const einseitig = b.rolle === 'drahtwerk'
         && (wahlArt?.[leiterKennung(a, m, o.artIndex ?? i)]?.art
             ?? o.artVorgabe ?? ABFANG_VORGABE) === 'einseitig';
+      // Länge-Teile (7. Oktober): ihre Gesamtlänge, ohne Eintrag 2 × Punkt.
       const laenge = b.rolle === 'drahtwerk'
-        ? (m.laenge ?? spannweite) * (einseitig ? 0.5 : 1) : (m.laenge ?? LAENGE_STANDARD);
+        ? (m.laenge ?? spannweite) * (einseitig ? 0.5 : 1)
+        : (teilLaenge(m, b) ?? m.laenge ?? LAENGE_STANDARD);
       const n = m.anzahl ?? 1;
       // Freies Bauteil: nicht aus der Tabelle, sondern über die Angriffsfläche.
       // Beim Signal (30. Sept.) kommen Gewicht und Flächen aus der Auswahl.

@@ -39,7 +39,8 @@ import { querschnitt } from './geometry.js';
 import { STABWERK_FUSSNOTE, stabwerkFussnoteFall } from './render.stabwerk.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anbauKette, bezugsHoehe, istFahrdraht } from './core.anbauteile.js';
-import { ortVon, amMast } from './data.anbauteile.js';
+import { ortVon, amMast, laengsAchseVon } from './data.anbauteile.js';
+import { getFlBauteil } from './data.fl.js';
 import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
          ankerBindebleche, ankerBlechVersatz } from './data.anker.js';
 /*
@@ -1301,6 +1302,7 @@ export function erzeugeSzene(m, erg) {
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
       });
+      teilEndeMarke(marken, a, t, pAn, teilKey);
 
       // Kraftpfeile am Angriffspunkt dieses Teils, JE LASTART.
       //
@@ -1962,6 +1964,7 @@ function zeichneMastteil(ctx, a, k, ort) {
                   text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
+    teilEndeMarke(marken, a, t, pAn, teilKey);
     Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
       [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
        { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
@@ -2030,6 +2033,28 @@ export function mastTeileSzene(sz, anbauteile, flach, namen = {}) {
 }
 
 /** Was ein Angriffspunkt zum Ziehen mitbringt - Modul oder Lastblock. */
+/*
+ * >>> DAS ENDE EINES LÄNGE-TEILS ZUM ZIEHEN (7. Oktober). <<< Weisung: «sonder
+ * kann die hängestütze / jochaufsatz / ausleger bis zum ende zihen und bekommt
+ * den richtigen angriffspunkt.» Am Ende der Hängestütze, des Aufsatzes, des
+ * Auslegers steht ein Griff; gezogen ändert er die Gesamtlänge, der
+ * Angriffspunkt bleibt in der Mitte (`teilLaengeSetzen`, app.js).
+ */
+function teilEndeMarke(marken, a, t, pAn, teilKey) {
+  if (t?.art !== 'modul' || !Number.isInteger(t.modulIndex)) return;
+  const m = a?.module?.[t.modulIndex];
+  let b = null;
+  try { b = getFlBauteil(m?.bauteil); } catch { return; }
+  const ax = laengsAchseVon(b);
+  const c = Number(m?.[ax]) || 0;
+  if (!ax || Math.abs(c) < 1e-9) return;
+  const p = [...pAn];
+  p[ax === 'x' ? 0 : 2] += c;
+  marken.push({ gruppe: 'anbau', art: 'teilende', p, teil: teilKey,
+                titel: `${t.name} · Ende (Gesamtlänge ziehen)`,
+                zieh: { achse: ax, modul: t.modulIndex, last: null, ende: true } });
+}
+
 export function ziehAngabe(kette, t) {
   if (t?.art !== 'modul' && t?.art !== 'last') return null;
   if (t.art === 'modul' && armAmTraeger(kette, t)) {
@@ -3010,7 +3035,8 @@ export class Modellansicht {
       if (pt) {
         return { art: 'punkt', schluessel: `p|${pt.teil}|${pt.achse}|${pt.x}|${pt.y}`,
                  cursor: 'grab', px: pt.x, py: pt.y,
-                 text: `Angriffspunkt ziehen (${pt.achse ?? 'Achse'})` };
+                 text: pt.ende ? 'Ende ziehen · Gesamtlänge, Angriffspunkt in der Mitte'
+                   : `Angriffspunkt ziehen (${pt.achse ?? 'Achse'})` };
       }
     }
     if (this.opt.beiAnbauteilZiehen) {
@@ -3315,7 +3341,7 @@ export class Modellansicht {
           if (b && w0) {
             griff = { art: 'punkt', bewegt: false, start: [e.clientX, e.clientY],
                       teil: b.teil, index: b.index, w0, achse: pt.achse, arm: pt.arm === true,
-                      modul: pt.modul, last: pt.last, welt: pt.welt,
+                      modul: pt.modul, last: pt.last, welt: pt.welt, ende: pt.ende === true,
                       kopie: e.ctrlKey || e.metaKey };
           }
         }
@@ -3537,6 +3563,7 @@ export class Modellansicht {
         } else if (griff.bewegt && z && z.d) {
           this.opt.beiPunktZiehen(griff.index, { modul: griff.modul, last: griff.last,
                                                  achse: griff.achse, arm: griff.arm, d: z.d,
+                                                 ende: griff.ende,
                                                  kopie: z.kopie || e.ctrlKey || e.metaKey });
         } else if (griff.bewegt) {
           this.zeichne();
@@ -5409,7 +5436,7 @@ export class Modellansicht {
       // Orientierung im Bild.
       const rang = mk.art === 'auflager' || mk.art === 'auflagertext' ? 1e9
         : mk.art === 'anbau' ? 1e8 + (mk.p[0] ?? 0)
-        : mk.art === 'lastknoten' ? 1e7
+        : mk.art === 'lastknoten' || mk.art === 'teilende' ? 1e7
         : (mk.eta ?? 0);
       sammlung.push({ mk, p, rang });
     });
@@ -5456,6 +5483,14 @@ export class Modellansicht {
        * gezeichnet wird sie nicht.
        */
       if (mk.art === 'auflagertext') return;
+      if (mk.art === 'teilende') {
+        this._punktTreffer.push({ x: p[0], y: p[1], teil: mk.teil, welt: mk.p, ...mk.zieh });
+        const r2 = 3.2 * s;
+        c.strokeStyle = t.acc ?? t.on2; c.lineWidth = 1.4 * s; c.globalAlpha = 0.8;
+        c.strokeRect(p[0] - r2, p[1] - r2, 2 * r2, 2 * r2);
+        c.globalAlpha = 1;
+        return;
+      }
       if (mk.art === 'lastknoten') {
         // Ziehbar auf seiner Stabachse (x oder z; y steht quer zur Ebene
         // des Fangs und bleibt der Karte überlassen).

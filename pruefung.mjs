@@ -147,7 +147,29 @@ const mitPruefvorlagen = (d) => {
 };
 A.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
 const FL = await import(J('data.fl.js'));
-FL.setzeFlDB(JSON.parse(readFileSync(join(HIER, 'data', 'fl_bauteile.json'), 'utf8')));
+/*
+ * >>> PRÜFBAUTEILE (7. Oktober). <<< Seit der Weisung «Nutze für die
+ * Windeinwirkungen der leiter die vereinfachten Werte gemäss den hier
+ * aufgeführten dokumenten. nimm für die hängestütze die länge mit rein» trägt
+ * die Lasttabelle Hängestütze und Hängerohr mit Wind je Meter (0.18 / 0.22 /
+ * 0.26 bzw. 0.20 / 0.25 / 0.30 kN/m). Die Messwerte hier stehen auf den
+ * früheren festen Werten (0.55 / 0.70 / 0.80 kN); wie bei den Prüfvorlagen
+ * rechnet der Prüfstand mit ihnen weiter. Die Datei selbst prüft Abschnitt 251.
+ */
+const FL_KATALOG = JSON.parse(readFileSync(join(HIER, 'data', 'fl_bauteile.json'), 'utf8'));
+const PRUEFBAUTEILE = ['anbauteil-haengestuetze-od-haengerohr', 'anbauteil-lampenrohr'];
+const mitPruefbauteilen = (d) => {
+  const t = structuredClone(d);
+  (t.tabellen?.bauteile ?? []).forEach((b) => {
+    if (!PRUEFBAUTEILE.includes(b.id)) return;
+    [['EK1', 0.55], ['EK2', 0.7], ['EK3', 0.8]].forEach(([k, v]) => {
+      b[`windQuer/${k}`] = v; b[`windLaengs/${k}`] = v;
+    });
+    delete b.windJeMeter;
+  });
+  return t;
+};
+FL.setzeFlDB(mitPruefbauteilen(FL_KATALOG));
 const AJ = await import(J('data.abfangjoche.js'));
 // Die Szene des Abfangjochs - sie traegt die Lage jedes Bauteils.
 const R3D = await import(J('render.abfang.js'));
@@ -6342,7 +6364,8 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
     const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     wahr('Die Vorgabe je Modulfeld steht an EINER Stelle',
          uq.includes('const MODUL_VORGABE = {'));
-    wahr('Der Aufbau der Karte liest sie', /modFeld\(i, k, 'x', 'x', modWert\(m, 'x'\)/.test(uq));
+    // Seit dem 7. Oktober über die drei Achsen (Länge-Teile zeigen ihre Mitte).
+    wahr('Der Aufbau der Karte liest sie', uq.includes("modFeld(i, k, ax, ax, modWert(m, ax)"));
     wahr('Das Auffrischen liest dieselbe', /const v = modWert\(m, inp\.dataset\.mk\)/.test(uq));
     wahr('Und der Rueckweg legt sie ab statt null',
          uq.includes('leer ? (vorgabe === undefined ? null : vorgabe)'));
@@ -9498,7 +9521,8 @@ titel('37  Anbauteile am Masten');
     wahr('Jedes traegt Tragseil und Fahrdraht',
          kw.every((b) => /ts:/i.test(b.name) && /fd:/i.test(b.name)),
          kw.map((b) => b.name).join(' | '));
-    pruef('Acht einzelne Leiter daneben', einzeln.length, 8, 1e-12, 'Stk');
+    // Elf seit dem 7. Oktober (Cu 150, Cu 150 x2, Aldrey 300 nach Blatt Windlasten 2).
+    pruef('Elf einzelne Leiter daneben', einzeln.length, 11, 1e-12, 'Stk');
     wahr('Und keiner davon traegt beides',
          einzeln.every((b) => !(/ts:/i.test(b.name) && /fd:/i.test(b.name))));
 
@@ -34772,7 +34796,7 @@ titel('178  Sammelweisung 1. Oktober: Absetzen, Duplizieren, neues Joch, Zeichnu
        R178.achseZumPunkt(kette, hs.find((t) => t.rolle === 'drahtwerk')) === 'z');
   wahr('Angriffspunkt ziehen: Griff «punkt», die App schreibt die Modulkoordinate mit achsfolge',
        r3.includes("griff = { art: 'punkt'") && app.includes('beiPunktZiehen: (i, weg) => punktZiehen(i, weg)')
-       && /function punktZiehen[\s\S]{0,1400}achsfolge\(m\[modul\]\.folge, achse, neu\)/.test(app));
+       && /function punktZiehen[\s\S]{0,3200}achsfolge\(m\[modul\]\.folge, achse, neu\)/.test(app));
   wahr('Seitenleiste: das bediente Feld ist der Anker beim Neuaufbau',
        app.includes('function maskenAnkerHalten()') && (app.match(/maskenAnkerHalten\(\);/g) ?? []).length >= 2);
 }
@@ -39424,6 +39448,70 @@ titel('250  Stahlgüten Mast/Joch; Gruppe duplizieren; Drahtwerke je Leiter');
        && ui250.includes("dwWahl.has(e.key) ? typWahl("));
   wahr('Stückliste nennt im Stabwerk das Gewicht der Stäbe',
        ui250.includes('In der Rechnung (Stabwerk): das Gewicht der Stäbe selbst'));
+}
+
+titel('251  Wind der Hängestütze je Meter; Gesamtlänge statt Angriffspunkt; Leiter nach Blatt');
+/* 7. Oktober: «Nutze für die Windeinwirkungen der leiter die vereinfachten Werte
+ * gemäss den hier aufgeführten dokumenten. nimm für die hängestütze die länge mit
+ * rein für die bestimmung der lasten. was mehr sinn machen würde bei den tragenden
+ * anbauteilen, ist wenn man die gesamtlänge eingibt und der Lastangriffspunkt dann
+ * automatisch in der mitte des elements angesetzt wird». Rückfragen: Gewicht je
+ * Stück, Träger und Ausleger, alte Stände Länge = 2 × Punkt, Leiter ergänzen. */
+{
+  FL.setzeFlDB(FL_KATALOG);   // die Datei, wie sie ist
+  try {
+    const hs = FL.getFlBauteil('anbauteil-haengestuetze-od-haengerohr');
+    if (!hs.windJeMeter) {
+      wahr('Hängestütze mit Wind je Meter (Betreiberdaten)', true, 'Testdaten - übersprungen');
+    } else {
+      const w = FL.flLastwerte(hs.id, { ek: 'EK1', laenge: 2.7, anzahl: 1 });
+      pruef('Hängestütze 2.70 m, EK1: Wind 0.18 kN/m × 2.70 m', w.Qx, 0.486, 1e-9, 'kN');
+      pruef('… Gewicht je Stück, nicht je Meter', w.Gz, 0.5, 1e-9, 'kN');
+      pruef('Hängerohr 1.00 m, EK2: 0.25 kN/m', FL.flLastwerte('anbauteil-lampenrohr',
+        { ek: 'EK2', laenge: 1 }).Qx, 0.25, 1e-9, 'kN');
+      const neu = ['drahtwerk-cu-150', 'drahtwerk-cu-150-x2', 'drahtwerk-aldrey-300'].map((id) => FL.getFlBauteil(id));
+      const q1 = (id) => FL.flLastwerte(id, { ek: 'EK1', laenge: 1 }).Qx;
+      wahr('Leiter nach Blatt ergänzt: Cu 150 0.0107, 2×150 0.0214, Aldrey 300 0.0152 kN/m (EK1), mit Leiterzug',
+           Math.abs(q1(neu[0].id) - 0.0107) < 1e-12 && Math.abs(q1(neu[1].id) - 0.0214) < 1e-12
+           && Math.abs(q1(neu[2].id) - 0.0152) < 1e-12 && neu.every((b) => b.leiterzug > 0 && b.rolle === 'drahtwerk'),
+           neu.map((b) => `${b.name} Z ${b.leiterzug}`).join(' · '));
+      // Länge statt Punkt
+      const m0 = [{ bauteil: hs.id, z: -1.35 }, { bauteil: 'anbauteil-ausleger-typ-nt', z: -2.7, x: 1.25 },
+                  { bauteil: 'drahtwerk-r-fl-cu-107', z: -2.7, x: 2.5 }, { bauteil: 'drahtwerk-r-fl-cu-107', z: -4.3, x: 2.5 }];
+      pruef('Alter Stand: Gesamtlänge = 2 × Punkt', A.teilLaenge(m0[0], hs), 2.7, 1e-12, 'm');
+      const m1 = A.teilLaengeSetzen(m0, 0, 3.2);
+      wahr('Stütze 2.70 → 3.20 m: Punkt in die Mitte, Ausleger und Leiter am Ende wandern mit',
+           m1[0].z === -1.6 && m1[0].laenge === 3.2 && m1[1].z === -3.2 && m1[2].z === -3.2 && m1[3].z === -4.8,
+           m1.map((m) => m.z).join(' / '));
+      const m2 = A.teilLaengeSetzen(m1, 1, 3);
+      wahr('Ausleger 2.50 → 3.00 m: Punkt 1.50, das Kettenwerk am Ende rückt auf 3.00',
+           m2[1].x === 1.5 && m2[2].x === 3 && m2[3].x === 3 && m2[0].x === undefined,
+           m2.map((m) => m.x ?? 0).join(' / '));
+      const tr = A.teilLaengeSetzen([{ bauteil: 'anbauteil-leiter-traverse', z: 4, x: 0, laenge: 1.5 }], 0, 2);
+      wahr('Traverse auf der Achse (beidseits): nur die Länge', tr[0].x === 0 && tr[0].laenge === 2);
+      // Gemessen: J90/20 m, HEB 240, Hängestütze mit Fahrdrahtabzug in Feldmitte.
+      const V251 = await import(J('core.vierendeel.js'));
+      const eta = () => {
+        const w = { ...standardwerte(), anbauteile: [{ ...A.neuesAnbauteil('hs-nt-ausleger', 10), name: 'HS' }] };
+        const r = V251.vergleichKombinationen(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                                              T.getTragjoch(w.typ));
+        return Math.max(...r.lastfaelle.filter((x) => x.nachweis).map((x) => x.eta));
+      };
+      const neuEta = eta();
+      FL.setzeFlDB(mitPruefbauteilen(FL_KATALOG));
+      const altEta = eta();
+      wahr('J90/20 m mit Hängestütze und NT-Ausleger (Kern): Joch mit dem Wind je Meter',
+           neuEta > 0 && neuEta <= altEta + 1e-9, `${altEta.toFixed(4)} → ${neuEta.toFixed(4)}`);
+    }
+  } finally {
+    FL.setzeFlDB(mitPruefbauteilen(FL_KATALOG));
+  }
+  const ui251 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const r251 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const app251 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Karte: Feld «Gesamtlänge», die Mitte steht nur da; 3D: Griff am Ende; Ziehen ändert die Länge',
+       ui251.includes("modFeld(i, k, 'teilLaenge', 'Gesamtlänge'") && r251.includes("art: 'teilende'")
+       && app251.includes('teilLaengeSetzen(a.module, modul, Lneu)'));
 }
 
 console.log('\n' + '='.repeat(104));

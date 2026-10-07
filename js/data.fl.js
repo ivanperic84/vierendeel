@@ -321,9 +321,16 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
   // übrigen steht die fertige Einzellast in der Tabelle - dort wäre eine
   // Multiplikation schlicht falsch.
   const f = (istStreckenlast(b) ? (laenge ?? 0) : 1) * (anzahl ?? 1);
+  /*
+   * >>> WIND JE METER, GEWICHT JE STÜCK (7. Oktober). <<< Weisung: «nimm für
+   * die hängestütze die länge mit rein für die bestimmung der lasten». Das
+   * Blatt Windlasten nennt Hängestütze und Hängerohr in kN/m, das Blatt
+   * Gewichtslasten ihr Gewicht je Stück (0.5 kN) - auf Rückfrage so gewählt.
+   */
+  const fWind = b.windJeMeter === true ? (laenge ?? 0) * (anzahl ?? 1) : f;
   const wert = (feld) => {
     const v = windWert(b[feld], ek, tabellenBeiwert(b));
-    return Number.isFinite(v) ? v * f : 0;
+    return Number.isFinite(v) ? v * fWind : 0;
   };
   return {
     Gz: Number.isFinite(b.eigengewicht) ? b.eigengewicht * f : 0,

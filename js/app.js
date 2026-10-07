@@ -68,7 +68,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haeng
          setzeEigeneVorlagen, entdoppelteVorlagen,
          erzeugeGleislasten, neuesModul, MAST_GLEIS_VORGABE,
          baugruppeSumme, anbauteilDB,
-         setzeAnbauteilDB } from './data.anbauteile.js';
+         setzeAnbauteilDB, laengsAchseVon, teilLaenge, teilLaengeSetzen } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
          setzeFlDB } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
@@ -3890,7 +3890,7 @@ function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {
  * auf dieser Achse wandert um den Weg, das Ergebnis auf 0.10 m. Geschrieben
  * wird mit der Reihenfolge der Achsen (`achsfolge`), wie die Karte es tut.
  */
-function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false, arm = false }) {
+function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false, arm = false, ende = false }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a || !['x', 'z'].includes(achse) || !d) return;
@@ -3900,6 +3900,28 @@ function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false, ar
   const richtung = achse === 'x' && tragwerksart(t).key === 'tragausleger'
     && t.auslegerSeite === 'links' ? -1 : 1;
   let name = a.name ?? 'Anbauteil', alt, neu;
+  /*
+   * >>> LÄNGE-TEIL: DAS ENDE ZIEHEN (7. Oktober). <<< «bis zum ende zihen und
+   * bekommt den richtigen angriffspunkt». Am Ende-Griff ändert der Weg die
+   * Gesamtlänge; wer den Angriffspunkt selbst in seiner Achse zieht, zieht die
+   * Mitte - die Länge ändert sich um das Doppelte. Ohne Strg-Kopie.
+   */
+  if (Number.isInteger(modul) && a.module?.[modul] && !kopie) {
+    let b = null;
+    try { b = getFlBauteil(a.module[modul].bauteil); } catch { b = null; }
+    const ax = laengsAchseVon(b);
+    const c = Number(a.module[modul][ax]) || 0;
+    if (ax === achse && Math.abs(c) > 1e-9) {
+      const Lalt = teilLaenge(a.module[modul], b) ?? 0;
+      const Lneu = Math.max(0.1, r(Lalt + Math.sign(c) * richtung * d * (ende ? 1 : 2)));
+      if (Math.abs(Lneu - Lalt) < 1e-9) return;
+      liste[i] = { ...a, module: teilLaengeSetzen(a.module, modul, Lneu) };
+      setzeAnbauteile(liste);
+      meldeImBalken(`${name}: ${b?.name ?? 'Teil'} Gesamtlänge ${Lalt.toFixed(2)} → ${Lneu.toFixed(2)} m, `
+        + `Angriffspunkt in der Mitte · Strg+Z nimmt es zurück`, { dauer: 5000 });
+      return;
+    }
+  }
   if (Number.isInteger(modul) && a.module?.[modul]) {
     const m = a.module.map((x) => ({ ...x }));
     alt = Number(m[modul][achse]) || 0;

@@ -42,7 +42,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, anbauGruppe,
          leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
-         SIGNAL_CW, signalVorlage } from './data.anbauteile.js';
+         SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -962,6 +962,11 @@ export function aktualisiereMaske(container, werte, extras = {}) {
         const v = modWert(m, inp.dataset.mk);
         const soll = v === null || v === undefined ? '' : String(v);
         if (inp.value !== soll) inp.value = soll;
+      });
+      // Die Mitte eines Länge-Teils steht nur da - sie zieht mit (7. Oktober).
+      d.querySelectorAll('.at-feld.lesbar[data-feldname] b').forEach((el) => {
+        const ax = el.closest('[data-feldname]').dataset.feldname;
+        if (['x', 'y', 'z'].includes(ax)) el.textContent = f2(Number(m[ax]) || 0);
       });
       const l = baugruppeSumme({ ...a, module: [m], lasten: [] },
                                { ...trasse, artIndex: +d.dataset.modul });
@@ -3694,6 +3699,11 @@ function modulListeHtml(a, i, werte) {
     const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, { ...trasse, artIndex: k });
     const streckenlast = b && istStreckenlast(b);
     const drahtwerk = b?.rolle === 'drahtwerk';
+    // Traverse auf der Achse (x = 0) steht beidseits aus: ihre Länge ist nur Last.
+    const laengsAchse = (() => {
+      const ax = laengsAchseVon(b);
+      return ax === 'x' && Math.abs(Number(m.x) || 0) < 1e-9 ? null : ax;
+    })();
     // Beim Drahtwerk steht der ABLENKWINKEL zur Eingabe, nicht die Spannweite:
     // die Spannweite gilt global für die ganze Trasse, der Winkel ist das, was
     // sich am einzelnen Leiter unterscheidet. Leer heisst «aus R und L_FL».
@@ -3728,10 +3738,17 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
             >am selben Punkt wie ${esc(kt.zusammenMit.join(', '))}</span>` : ''}
       </div>` : ''}
       <div class="sec-klein">Angriffspunkt${bezugsHinweis(a)}</div>
+      ${/* Länge-Teil (7. Oktober): die Gesamtlänge steht zur Eingabe, der
+          Punkt in ihrer Achse ist die Mitte und steht nur da. */ ''}
+      ${laengsAchse ? `<div class="at-gitter">
+        ${modFeld(i, k, 'teilLaenge', 'Gesamtlänge', modWert(m, 'teilLaenge'), 'm', 0.05,
+                  `${laengsAchse === 'z' ? 'lotrecht' : 'waagrecht'} · Angriffspunkt in der Mitte`)}
+      </div>` : ''}
       <div class="at-gitter">
-        ${modFeld(i, k, 'x', 'x', modWert(m, 'x'), 'm', 0.1)}
-        ${modFeld(i, k, 'y', 'y', modWert(m, 'y'), 'm', 0.1)}
-        ${modFeld(i, k, 'z', 'z', modWert(m, 'z'), 'm', 0.05)}
+        ${['x', 'y', 'z'].map((ax) => (ax === laengsAchse
+          ? `<span class="at-feld lesbar" data-feldname="${ax}"><span>${ax} <i>m</i></span>
+               <b>${f2(Number(m[ax]) || 0)}</b><small class="hinweis">Mitte der Länge</small></span>`
+          : modFeld(i, k, ax, ax, modWert(m, ax), 'm', ax === 'z' ? 0.05 : 0.1))).join('')}
         ${modFeld(i, k, 'anzahl', 'Anzahl', modWert(m, 'anzahl'), '–', 1)}
       </div>
       ${/* =====================================================================
@@ -3819,7 +3836,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         return klapp(`at-abl-${i}-${k}`, 'Ablenkung',
           `<div class="at-gitter">${wahl}${feld}</div>`, ablenkDeckel(m, trasse), false);
       })()
-      : streckenlast ? `<div class="at-gitter">
+      : streckenlast && !laengsAchse ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
       ${b?.freieFlaeche && istSignalModul(m) ? (() => {
@@ -4120,6 +4137,13 @@ function modWert(m, feld) {
   // Die Spannweite eines Leiters: leer heisst «global» - nicht die 1 m,
   // die ein übriges Streckenteil ohne Angabe bekommt.
   if (feld === 'laengeFl') return m?.laenge ?? undefined;
+  // Gesamtlänge eines Länge-Teils (7. Oktober): ohne Eintrag 2 × Punkt.
+  if (feld === 'teilLaenge') {
+    let b = null;
+    try { b = getFlBauteil(m?.bauteil); } catch { b = null; }
+    const L = teilLaenge(m, b);
+    return L === null ? undefined : Math.round(L * 1000) / 1000;
+  }
   const v = m?.[feld];
   return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
 }
@@ -5444,6 +5468,13 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
      * Paarung, wird sie genommen; gibt es sie nicht, gilt der neue Leiter
      * allein, und das Partnerfeld steht danach leer da.
      */
+    // Gesamtlänge (7. Oktober): Punkt in die Mitte, was am Ende hängt, wandert mit.
+    if (feld === 'teilLaenge') {
+      if (!(wert > 0)) return;
+      l[idx] = { ...l[idx], module: teilLaengeSetzen(m, mod, wert) };
+      onAnbau(l);
+      return;
+    }
     if (feld === 'bauteil') {
       let alt = null;
       try { alt = getFlBauteil(m[mod].bauteil); } catch { /* neu */ }

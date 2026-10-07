@@ -796,6 +796,18 @@ export const ABSCHNITTE = [
           liste('vals', 'Leiterzug', 'kN'),
         ]),
       ], { notiz: 'Nur fix abgefangene Leiter.' }),
+      /*
+       * >>> LÄNGE STATT PUNKT (7. Oktober). <<< Weisung: «was mehr sinn machen
+       * würde bei den tragenden anbauteilen, ist wenn man die gesamtlänge
+       * eingibt und der Lastangriffspunkt dann automatisch in der mitte des
+       * elements angesetzt wird». Auf Rückfrage «Träger und Ausleger».
+       */
+      f('laengsachse', 'Länge in Achse', 'wahl', { wahl: ['', 'z', 'x'],
+        notiz: 'Leer: Angriffspunkt von Hand. z (Stütze, Aufsatz, Rohr) bzw. x (Ausleger, '
+             + 'Konsole, Traverse): man gibt die Gesamtlänge ein, der Angriffspunkt liegt in der Mitte.' }),
+      bool('windJeMeter', 'Wind je Meter',
+        { notiz: 'Wind in kN/m × Gesamtlänge, Gewicht je Stück (Hängestütze, Hängerohr '
+               + 'nach den Blättern Windlasten / Gewichtslasten).' }),
       bool('freieFlaeche', 'über freie Fläche',
         { notiz: 'Gerechnet über die Angriffsfläche: w = A · q_ref(EK) · c.' }),
       text('bemerkung', 'Bemerkung'),
