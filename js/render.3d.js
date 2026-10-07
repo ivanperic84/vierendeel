@@ -5445,6 +5445,32 @@ export class Modellansicht {
     });
     c.restore();
 
+    // Havarie (7. Oktober): alle Leiter der Liste, ohne Klick - die
+    // angehakten («kann reissen») in der Warnfarbe, die übrigen leiser.
+    if (this.havarieLeiter?.size) {
+      this.szene.marken.forEach((mk) => {
+        if (mk.art !== 'lastknoten' || mk.modul == null) return;
+        const reisst = this.havarieLeiter.get(`${mk.teil}#${mk.modul}`);
+        if (reisst === undefined || !this._imFokus(mk.p[0])) return;
+        const p = proj(mk.p);
+        const p0 = proj([mk.p[0], mk.p[1] - 2, mk.p[2]]);
+        const p1 = proj([mk.p[0], mk.p[1] + 2, mk.p[2]]);
+        if (!p) return;
+        const farbe = reisst ? (t.warn ?? '#e0a030') : (t.acc ?? '#4aa3df');
+        c.save();
+        c.strokeStyle = farbe; c.lineCap = 'round';
+        if (p0 && p1) {
+          c.globalAlpha = reisst ? 0.3 : 0.18; c.lineWidth = 6 * s;
+          c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
+          c.globalAlpha = reisst ? 0.9 : 0.6; c.lineWidth = 1.8 * s;
+          c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
+        }
+        c.globalAlpha = reisst ? 1 : 0.7; c.fillStyle = farbe;
+        c.beginPath(); c.arc(p[0], p[1], (reisst ? 4 : 3) * s, 0, Math.PI * 2); c.fill();
+        c.restore();
+      });
+    }
+
     if (this.hervorTeile?.size) {
       const acc = t.acc ?? '#4aa3df';
       this.szene.marken.forEach((mk) => {

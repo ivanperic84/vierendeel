@@ -544,6 +544,23 @@ export function gitterWindflaeche(G, z, richtung = 'a') {
   return { cA: As, As, phi: breite > 0 ? As / breite : 1, breite };
 }
 
+/*
+ * >>> DAS GRÖSSTE ÜBER DIE HÖHE (7. Oktober). <<< Gemeldet mit Bild: «ein
+ * gittermast i 30 ist asymetrisch in der grundform die windlasten sind hier
+ * die gleichen in x und y. ist bei allen gittermasten zu checken.» Das
+ * Stabwerk rechnet je Höhe mit der Fläche dieser Höhe (I 30: Wind in a
+ * 0.155, in b 0.232 m²/m im Unterteil) - die Maske zeigte aber den Wert am
+ * KOPF, und dort ist der I 30 quadratisch (0.161 / 0.161). Das Ersatzprofil
+ * führt jetzt je Richtung das Grösste über die Höhe: die Maske zeigt den
+ * Unterschied, der vorläufige Kern liegt auf der sicheren Seite, und das
+ * Stabwerk skaliert je Höhe auf denselben Bezug (Ergebnis unverändert).
+ */
+export function gitterWindflaecheMax(G, richtung = 'a') {
+  const zs = [...new Set([...(G.stationen ?? []).map((s) => s.z), G.hUnten - 1e-6, G.hoehe])]
+    .filter((z) => Number.isFinite(z) && z >= 0 && z <= G.hoehe + 1e-9);
+  return Math.max(0, ...zs.map((z) => gitterWindflaeche(G, z, richtung).cA));
+}
+
 /**
  * >>> DAS ROHR: FAKTOR 1.2 AUF DEN DURCHMESSER (3. Oktober). <<<
  * Weisung: «für rohre den faktor 1.2 ansetzen bezüglich des durchmessers.
@@ -648,7 +665,7 @@ export function gittermastProfil(g) {
   const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3', EINHEIT_EK]
     // Einheitswind: Gitter mit der hinteren Ebene 25 % (7. Oktober).
     .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? EINHEIT_Q * EINHEIT_EBENEN : (Number(druck[ek]) || 0))
-      * gitterWindflaeche(G, G.hoehe, richtung).cA * 1000) / 1000])) : null);
+      * gitterWindflaecheMax(G, richtung) * 1000) / 1000])) : null);
   const p = {
     name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,
     A, Iy, Iz, Wy: Iy / (h / 20), Wz: Iz / (b / 20),

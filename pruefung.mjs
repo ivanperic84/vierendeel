@@ -37031,8 +37031,9 @@ if (AJ.abfangDbDa()) {
   const gq = M209.gittermasten().find((g) => g.typ === 'II 45') ?? M209.gittermasten()[0];
   const Gq = M209.gittermastGeometrie(gq.typ);
   const pq = M209.gittermastProfil(gq);
+  // Seit 7. Oktober das Grösste der Angriffsfläche über die Höhe (Abschnitt 256).
   wahr('Gittermast: Einheitswind am Kopf = Angriffsfläche × 1.0 × 1.25 (hintere Ebene, 7. Oktober)',
-       Math.abs(pq.wind.quer.EK0 - 1.25 * M209.gitterWindflaeche(Gq, Gq.hoehe, 'a').As) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
+       Math.abs(pq.wind.quer.EK0 - 1.25 * M209.gitterWindflaecheMax(Gq, 'a')) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
   if (Gq.oben?.art === 'rohr') {
     pruef('… am Rohr der Durchmesser × 1.0, ohne den Faktor 1.2', M209.gitterWindOben(Gq, gq, 'EK0'), Gq.oben.d, 1e-12, 'kN/m');
   }
@@ -39702,7 +39703,10 @@ titel('255  Lastgenerator mit Delta, Havarie Punkt für Punkt, Drahtwerke nach L
   wahr('Havarie-Tabelle wie die Drahtwerke: Leiter, Typ, Lage, Überfahren zeigt den Leiter',
        UQ.includes('class="dt dw-tab hav-tab"') && UQ.includes('<th>Typ</th><th>Lage</th>')
        && UQ.includes("z.addEventListener('mouseenter', () => havZeigen(z))") && UQ.includes('`AT${k}#${t.modul}`'));
-  wahr("Drahtwerke: Gliederung Name, Lage x, Höhe z", UQ.includes("['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z']"));
+  // Name / x / z als ORDNUNG der Liste, nicht als Gliederung (Weisung am selben Abend).
+  wahr("Drahtwerke: ordnen nach Name, Lage x, Höhe z (in jeder Gliederung)",
+       UQ.includes("const DW_ORDNUNG = [['standard', '–'], ['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z']]")
+       && UQ.includes("const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']]"));
 
   // Wind Ts / Fd je die Hälfte der Fahrleitungszeile.
   ['n-fl', 'r-fl'].forEach((t) => {
@@ -39730,6 +39734,43 @@ titel('255  Lastgenerator mit Delta, Havarie Punkt für Punkt, Drahtwerke nach L
   wahr('Verläufe: der Gittermast über die Höhe (Gurt, Blech, Rohr)', RS.includes('Ausnutzung über die Höhe · Gittermast') && RS.includes("name: 'Gurt (grösste Ecke)'"));
   const SVq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
   wahr('Verformte Figur: Ketten rechtwinklig, Knickpunkte als Starrkörper', SVq.includes('[a.x, a.y, b.z], [a.x, b.y, b.z]') && SVq.includes('uA[0] + uA[4] * r[2] - uA[5] * r[1]'));
+}
+
+titel('256  Gittermast-Wind je Richtung; Havarie-Leiter ohne Klick; Statikbericht über COM');
+/* 7. Oktober: «ein gittermast i 30 ist asymetrisch in der grundform die
+ * windlasten sind hier die gleichen in x und y. ist bei allen gittermasten zu
+ * checken.» - «kannst du diese darstellung auch für den havariefall
+ * übernehmen, ohne das man daraufklicken muss» - «kannst du auch mit hilfe
+ * der abhandlung com ein template für einen statikbericht generieren lassen.» */
+{
+  const M256 = await import(J('data.masten.js'));
+  if (M256.gittermastenDa()) {
+    const g = M256.gittermasten().find((x) => x.fuss?.a !== x.fuss?.b);
+    if (g) {
+      const p = M256.gittermastProfil(g);
+      const G = M256.gittermastGeometrie(g);
+      wahr(`Rechteckiger Gittermast ${g.typ}: Wind je Richtung verschieden (Grösstes über die Höhe)`,
+           Math.abs(p.wind.quer.EK1 - p.wind.laengs.EK1) > 0.05
+           && M256.gitterWindflaecheMax(G, 'b') >= M256.gitterWindflaeche(G, 0, 'b').cA - 1e-12,
+           `${p.wind.quer.EK1} / ${p.wind.laengs.EK1} kN/m`);
+    }
+    const GX = readFileSync(join(HIER, 'js', 'export.axisvm.gitter.js'), 'utf8');
+    wahr('Stabwerk skaliert auf denselben Bezug (Ergebnis unverändert)', GX.includes("gitterWindflaecheMax(G, inA ? 'a' : 'b')"));
+  }
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const R3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Havarie: alle Leiter im 3D, solange Lasten offen (Warnfarbe = kann reissen)',
+       UQ.includes('export function havarieLeiterMarken') && R3.includes('this.havarieLeiter.get(`${mk.teil}#${mk.modul}`)')
+       && APP_QUELLE().includes("ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null"));
+  const PS = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('Brücke: -Bericht mit Fenster, Zeichnungsbibliothek, EMF und Bericht aus Vorlage',
+       ['[switch]$Bericht', '[string]$BerichtVorlage', 'function Bericht-Erzeugen', 'SetStaticDisplayParameters_V181',
+        'DrawingsLibrary', 'AddWindow(1, $name)', 'SaveWindowToMetafile', 'NewFromTemplateFile', 'AddRootFolder',
+        'AddDrawingFromLibrary', "'rc_lfMy'", "'rc_lsSomax'", "'rc_d_eR'", "'rc_nsfRz'"].every((k) => PS.includes(k)));
+  wahr('Brücke bleibt reines ASCII', /^[\x00-\x7F]*$/.test(PS));
+  wahr('App schreibt den Plan (massgebende Kombinationen) in die Modelldatei',
+       APP_QUELLE().includes('function berichtPlan(app)') && APP_QUELLE().includes('bericht: berichtPlan(app)')
+       && readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8').includes('if (opt.bericht) d.bericht = opt.bericht;'));
 }
 
 console.log('\n' + '='.repeat(104));

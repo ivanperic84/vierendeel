@@ -56,7 +56,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { gittermastGeometrie, gittermastenAlle, gitterWindflaeche, gittermastProfil } from './data.masten.js';
+import { gittermastGeometrie, gittermastenAlle, gitterWindflaeche, gitterWindflaecheMax, gittermastProfil } from './data.masten.js';
 import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -408,7 +408,9 @@ export function gittermastenEinsetzen(dat) {
       (alteLast.get(st.name) ?? []).forEach((l) => {
         if (/^EG_/.test(l.name)) { egFall = l.lastfall; return; }
         const wind = /^Wind/.test(String(l.lastfall)) && (l.richtung === 'X' || l.richtung === 'Y');
-        const bezug = wind ? cA(l.richtung, G.hoehe) : 1;
+        // Bezug = der Wert des Ersatzprofils: das Grösste über die Höhe (7. Oktober).
+        const inA = (l.richtung === 'X' && Math.abs(dirA[0]) > 0.5) || (l.richtung === 'Y' && Math.abs(dirA[1]) > 0.5);
+        const bezug = wind ? gitterWindflaecheMax(G, inA ? 'a' : 'b') : 1;
         gurtStaebe.forEach((g) => {
           const zm = (g.z0 + g.z1) / 2;
           if (zm < z0 || zm > z1) return;

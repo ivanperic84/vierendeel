@@ -46,7 +46,9 @@ param(
     [switch]$Rechnen,
     [string]$Zuordnung,
     [string]$Ziel,
-    [switch]$Unsichtbar
+    [switch]$Unsichtbar,
+    [switch]$Bericht,
+    [string]$BerichtVorlage
 )
 
 $ErrorActionPreference = 'Stop'
@@ -740,6 +742,187 @@ if ($Json) {
     }
 }
 
+<#  ===========================================================================
+    >>> 11 - STATIKBERICHT: ZEICHNUNGEN, BILDER, BERICHT (7. Oktober). <<<
+    Weisung: "kannst du auch mit hilfe der abhandlung com ein template fuer
+    einen statikbericht generieren lassen. so viel wie noetig an plots
+    generieren lassen." Nach der COM-Referenz (axisvm_com_18100.pdf):
+
+      IAxisVMWindows.SetStaticDisplayParameters_V181(Index, RExtended-
+        DisplayParameters_V153, LoadCaseOrCombinationId, LoadLevel, SectionIds)
+                                      Ergebnis im Fenster einstellen
+      IAxisVMDrawingsLibrary.AddWindow(WindowIndex, Name)
+                                      Fenster als Zeichnung in die Bibliothek
+      IAxisVMWindows.SaveWindowToMetafile(Index, FileName)
+                                      dasselbe als EMF-Bild
+      IAxisVMReports.NewFromTemplateFile(Name, .rep)   Bericht aus Vorlage
+      IAxisVMReports.AddRootFolder(ReportIndex, Name)  Kapitel
+      IAxisVMReports.AddDrawingFromLibrary(ReportIndex, DrawingIndex)
+
+    EINEN LEEREN BERICHT ANLEGEN KANN DIE SCHNITTSTELLE NICHT - nur aus einer
+    Vorlage (.rep). Ohne Vorlage stehen die Zeichnungen in der Bibliothek
+    (Berichtswerkzeug -> Zeichnungen) und die Bilder im Ordner
+    Images_<Modell> neben der .axs; mit -BerichtVorlage <datei.rep> wird
+    daraus der Bericht mit Kapiteln.
+
+    Welche Plots: das Modell (perspektivisch, vorn); je massgebende
+    Tragsicherheits-Kombination (aus der Anwendung, Feld `bericht`; sonst
+    die ersten vier) N, Vz, My, Mz, Tx und sigma_v; die Verformung eR unter
+    Betriebswind; die Auflagerkraefte unter den charakteristischen Faellen
+    "Staendig + Wind". Jeder Schritt sagt im Bericht, ob er ging.
+    =========================================================================== #>
+function Bericht-Erzeugen {
+    param($m, $d, $kbMap, [string]$bildOrdner, [string]$vorlage)
+    Abschnitt '11 - Statikbericht (Zeichnungen, Bilder, Bericht)'
+    $titel = 'Vierendeel Statikbericht'
+    if ($d.bericht -and $d.bericht.titel) { $titel = [string]$d.bericht.titel }
+
+    # Kombination -> Nummer in AxisVM (beim Aufbau gemerkt, sonst Reihenfolge)
+    $nrVon = @{}
+    $i = 0
+    foreach ($kb in @($d.kombinationen)) {
+        $i++
+        $n = $null
+        if ($kbMap -and $kbMap.ContainsKey([string]$kb.bez)) { $n = [int]$kbMap[[string]$kb.bez] }
+        if (-not $n) { $n = $i }
+        $nrVon[[string]$kb.key] = $n
+    }
+    $komb = @($d.kombinationen)
+    $uls = @()
+    if ($d.bericht -and $d.bericht.massgebend) {
+        foreach ($mg in @($d.bericht.massgebend)) {
+            $k = $komb | Where-Object { $_.key -eq $mg.key -or $_.bez -eq $mg.bez } | Select-Object -First 1
+            if ($k -and ($uls | Where-Object { $_.key -eq $k.key }).Count -eq 0) { $uls += $k }
+        }
+    }
+    if ($uls.Count -eq 0) { $uls = @($komb | Where-Object { $_.art -eq 'tragsicherheit' } | Select-Object -First 4) }
+    $gzg = @($komb | Where-Object { $_.art -eq 'gebrauchstauglichkeit' -and $_.bez -match 'Betriebswind' } | Select-Object -First 4)
+    $chr = @($komb | Where-Object { $_.art -eq 'charakteristisch' -and $_.bez -match 'Wind' -and $_.bez -match 'St' } | Select-Object -First 4)
+    Schreib ("  Plots: {0} Tragsicherheit, {1} Betriebswind, {2} charakteristisch" -f $uls.Count, $gzg.Count, $chr.Count)
+
+    if ($bildOrdner -and -not (Test-Path -LiteralPath $bildOrdner)) {
+        try { New-Item -ItemType Directory -Path $bildOrdner | Out-Null } catch { }
+    }
+
+    $w = $null; $bib = $null; $rep = $null
+    try { $w = $m.Windows } catch { }
+    try { $bib = $m.DrawingsLibrary } catch { }
+    try { $rep = $m.Reports } catch { }
+    if (-not $w -or -not $bib) {
+        Schreib '  >>> Windows oder DrawingsLibrary nicht erreichbar - kein Bericht.'
+        Mitglieder 'MODELL' $m
+        return
+    }
+    $vPersp = Aufzaehlung 'EView' 'vPerspective'; $vFront = Aufzaehlung 'EView' 'vFront'
+    $zeichnungen = New-Object System.Collections.Generic.List[object]
+    $nr = 0
+
+    $ansicht = {
+        param($v)
+        if ($null -eq $v) { return }
+        try { $m.View = $v } catch {
+            try { $w.GetType().InvokeMember('View', [Reflection.BindingFlags]::SetProperty, $null, $w, @(1, $v)) | Out-Null } catch { }
+        }
+    }
+    $ablegen = {
+        param([string]$kapitel, [string]$name)
+        $script:berichtNr++
+        $di = -1
+        try { $di = [int]$bib.AddWindow(1, $name) } catch { $di = -1 }
+        $bild = $null
+        if ($bildOrdner) {
+            $bild = Join-Path $bildOrdner ('{0:D2}_{1}.emf' -f $script:berichtNr, ($name -replace '[^A-Za-z0-9_.+-]+', '_'))
+            try { $null = $w.SaveWindowToMetafile(1, $bild) } catch { $bild = $null }
+        }
+        $zeichnungen.Add([pscustomobject]@{ kapitel = $kapitel; name = $name; index = $di; bild = $bild })
+        $wie = if ($di -gt 0) { "Zeichnung $di" } else { "Zeichnung NICHT angelegt ($di$(if (FehlerName $di) { ' = ' + (FehlerName $di) }))" }
+        Schreib ("    {0,-56} {1}" -f $name, $wie)
+    }
+    $ergebnis = {
+        param([int]$kombiNr, [string]$komp, [bool]$verformt, [string]$modus)
+        $par = NeuerSatz 'RExtendedDisplayParameters_V153'
+        $par = SatzSetzen $par @('BasicDispParams', 'ResultComponent') $komp
+        $par = SatzSetzen $par @('BasicDispParams', 'DisplayMode') $modus
+        $par = SatzSetzen $par @('BasicDispParams', 'DisplayShape') $(if ($verformt) { 'dsDeformed' } else { 'dsUndeformed' })
+        $par = SatzSetzen $par @('BasicDispParams', 'AutoScale') 'lbTrue'
+        $par = SatzSetzen $par @('BasicDispParams', 'Scale') 1.0
+        $par = SatzSetzen $par @('DisplayAnalysisType') 'datLinear'
+        $par = SatzSetzen $par @('ResultsType') 'rtLoadCombination'
+        $par = SatzSetzen $par @('MinMaxType') 'mtMinMax'
+        if ($null -eq $par) { return -1 }
+        $r = -1
+        try { $r = [int]$w.SetStaticDisplayParameters_V181(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
+        catch {
+            try { $r = [int]$w.SetStaticDisplayParameters_V153(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
+            catch { Schreib "    >>> SetStaticDisplayParameters: $($_.Exception.Message -replace "`r?`n", ' ')"; $r = -1 }
+        }
+        try { $m.Refresh() } catch { }
+        return $r
+    }
+    $script:berichtNr = 0
+
+    Schreib '  1 Modell'
+    & $ansicht $vPersp; & $ablegen '1 Modell' 'Modell perspektivisch'
+    & $ansicht $vFront; & $ablegen '1 Modell' 'Modell Ansicht vorn'
+    & $ansicht $vPersp
+
+    $komp = @(@('rc_lfNx', 'N'), @('rc_lfVz', 'Vz'), @('rc_lfMy', 'My'), @('rc_lfMz', 'Mz'), @('rc_lfTx', 'Tx'))
+    Schreib '  2 Schnittgroessen und Spannungen (Tragsicherheit)'
+    foreach ($kb in $uls) {
+        $kn = $nrVon[[string]$kb.key]
+        foreach ($k in $komp) {
+            $r = & $ergebnis $kn $k[0] $false 'dmDiagramFilled'
+            if ($r -le 0) { Schreib "    >>> $($k[1]) $($kb.bez): Anzeige nicht gesetzt ($r)"; continue }
+            & $ablegen '2 Schnittgroessen' ("{0} - {1}" -f $k[1], $kb.bez)
+        }
+        $r = & $ergebnis $kn 'rc_lsSomax' $false 'dmDiagramFilled'
+        if ($r -gt 0) { & $ablegen '3 Spannungen' ("sigma_v - {0}" -f $kb.bez) }
+    }
+    Schreib '  4 Verformung (Betriebswind)'
+    foreach ($kb in $gzg) {
+        $r = & $ergebnis $nrVon[[string]$kb.key] 'rc_d_eR' $true 'dmDiagram'
+        if ($r -gt 0) { & $ablegen '4 Verformung' ("eR - {0}" -f $kb.bez) }
+    }
+    Schreib '  5 Auflagerkraefte (charakteristisch)'
+    foreach ($kb in $chr) {
+        foreach ($k in @(@('rc_nsfRz', 'Rz'), @('rc_nsfRx', 'Rx'), @('rc_nsfRy', 'Ry'))) {
+            $r = & $ergebnis $nrVon[[string]$kb.key] $k[0] $false 'dmDiagram'
+            if ($r -gt 0) { & $ablegen '5 Auflagerkraefte' ("{0} - {1}" -f $k[1], $kb.bez) }
+        }
+    }
+    $ok = @($zeichnungen | Where-Object { $_.index -gt 0 })
+    Schreib ("  {0} von {1} Zeichnungen in der Bibliothek" -f $ok.Count, $zeichnungen.Count)
+    if ($bildOrdner) { Schreib "  Bilder (EMF): $bildOrdner" }
+
+    # Der Bericht: aus der Vorlage, sonst ein vorhandener gleichen Namens.
+    if (-not $rep) { Schreib '  >>> Reports nicht erreichbar.'; return }
+    $ri = -1
+    try { $ri = [int]$rep.IndexOf($titel) } catch { $ri = -1 }
+    if ($ri -le 0 -and $vorlage) {
+        $pfad = [IO.Path]::GetFullPath($vorlage)
+        if (Test-Path -LiteralPath $pfad) {
+            try { $ri = [int]$rep.NewFromTemplateFile($titel, $pfad) } catch { $ri = -1 }
+            Schreib "  Bericht aus Vorlage $pfad -> $ri$(if (FehlerName $ri) { ' = ' + (FehlerName $ri) })"
+        } else { Schreib "  >>> Vorlage nicht gefunden: $pfad" }
+    }
+    if ($ri -le 0) {
+        Schreib '  Kein Bericht angelegt: die Schnittstelle legt Berichte nur aus einer'
+        Schreib '  Vorlage (.rep) an. Die Zeichnungen stehen in der Bibliothek; einmal in'
+        Schreib '  AxisVM einen Bericht als Vorlage sichern und mit -BerichtVorlage angeben.'
+        return
+    }
+    $kap = ''
+    foreach ($z in $ok) {
+        if ($z.kapitel -ne $kap) {
+            $kap = $z.kapitel
+            try { $null = $rep.AddRootFolder($ri, $kap) } catch { Schreib "  >>> AddRootFolder: $($_.Exception.Message)" }
+        }
+        try { $null = $rep.AddDrawingFromLibrary($ri, $z.index) } catch { Schreib "  >>> AddDrawingFromLibrary: $($_.Exception.Message)" }
+    }
+    Schreib ("  Bericht '{0}' (Nr. {1}): {2} Zeichnungen in Kapiteln" -f $titel, $ri, $ok.Count)
+    $gefunden.Add('Bericht -> Windows.SetStaticDisplayParameters_V181, DrawingsLibrary.AddWindow, Reports.AddDrawingFromLibrary')
+}
+
 # --- 1 - Anwendung -----------------------------------------------------------
 Abschnitt '1 - AxisVM ansprechen'
 $app = $null
@@ -1281,6 +1464,17 @@ if ($Auslesen -and -not $Rechnen) {
              elseif ($Json) { NebenDatei $Json '_ergebnisse.json' }
              else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
     $n = Lies-Schnittgroessen $m $zielA
+    # Statikbericht am offenen, gerechneten Modell (7. Oktober).
+    if ($Bericht -and $d) {
+        $kbA = @{}
+        $zuA = if ($Zuordnung) { $Zuordnung } elseif ($Json) { NebenDatei $Json '_zuordnung.json' } else { $null }
+        if ($zuA -and (Test-Path -LiteralPath $zuA)) {
+            try { $z = Get-Content -LiteralPath $zuA -Raw -Encoding UTF8 | ConvertFrom-Json
+                  $z.kombinationen.PSObject.Properties | ForEach-Object { $kbA[$_.Name] = [int]$_.Value } } catch { }
+        }
+        $ordA = if ($Json) { Join-Path (Split-Path ([IO.Path]::GetFullPath($Json))) 'Images_Bericht' } else { $null }
+        Bericht-Erzeugen $m $d $kbA $ordA $BerichtVorlage
+    }
     Abschnitt 'Fertig'
     Schreib "  $zielA"
     Schreib "  $n Lastfaelle gelesen"
@@ -3235,6 +3429,13 @@ if ($Rechnen) {
         $nGel = Lies-Schnittgroessen $m $Ziel
         Schreib "  $nGel Lastfaelle nach $Ziel geschrieben."
     }
+}
+
+# Statikbericht (7. Oktober): nur mit Ergebnissen, also nach dem Rechnen.
+if ($Bericht -and $Rechnen) {
+    $bildOrdner = Join-Path (Split-Path $axs) ('Images_' + [IO.Path]::GetFileNameWithoutExtension($axs))
+    Bericht-Erzeugen $m $d $kbId $bildOrdner $BerichtVorlage
+    try { $null = $m.SaveToFile($axs, $lbFalsch) } catch { }
 }
 
 <#  UND JETZT LESEN - im selben Modell, das eben gerechnet hat.

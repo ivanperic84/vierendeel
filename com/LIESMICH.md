@@ -366,6 +366,34 @@ powershell -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -NurPruefen
 
 ---
 
+## Statikbericht (Schalter -Bericht, 7. Oktober 2026)
+
+Nach dem Rechnen legt die Brücke die Plots für einen Statikbericht an
+(nach der COM-Referenz `axisvm_com_18100.pdf`):
+
+```
+AxisVM_aufbauen.cmd -Json <modell.json> -Rechnen -Bericht [-BerichtVorlage <vorlage.rep>]
+AxisVM_aufbauen.cmd -Json <modell.json> -Auslesen -Bericht   (offenes, gerechnetes Modell)
+```
+
+- **Was gezeichnet wird:** das Modell (perspektivisch, vorn); je massgebende
+  Tragsicherheits-Kombination N, V_z, M_y, M_z, T_x und σ_v (welche das
+  sind, schreibt die Anwendung in die Modelldatei, Feld `bericht`; sonst die
+  ersten vier); die Verformung e_R unter Betriebswind; die Auflagerkräfte
+  R_x, R_y, R_z unter «Ständig + Wind» charakteristisch.
+- **Wohin:** jede Ansicht als Zeichnung in die Zeichnungsbibliothek des
+  Modells (`DrawingsLibrary.AddWindow`) und als EMF-Bild in den Ordner
+  `Images_<Modell>` neben der .axs.
+- **Bericht:** die Schnittstelle legt Berichte nur aus einer Vorlage an
+  (`Reports.NewFromTemplateFile`). Einmal in AxisVM einen Bericht als
+  Vorlage (.rep) sichern und mit `-BerichtVorlage` angeben - dann entsteht
+  «Vierendeel Statikbericht …» mit den Kapiteln 1 Modell, 2 Schnittgrössen,
+  3 Spannungen, 4 Verformung, 5 Auflagerkräfte. Ohne Vorlage stehen die
+  Zeichnungen in der Bibliothek und lassen sich im Berichtswerkzeug von Hand
+  einfügen.
+- ⚠ In AxisVM noch nicht erprobt (gerechnet wird nur auf Anweisung); jeder
+  Schritt meldet im Bericht, ob er ging.
+
 ## Warum nicht SAF, warum nicht DXF
 
 | Weg | was ankommt | Haken |

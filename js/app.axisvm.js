@@ -28,6 +28,29 @@ import { COM_SKRIPTE, comSkripte, zusammenAblegen } from './export.comskripte.js
  * auf den Schwerachsen oder am Anschnitt rechnet, und damit über die Momente,
  * die hinterher verglichen werden.
  */
+
+/*
+ * >>> PLAN FÜR DEN STATIKBERICHT IN AXISVM (7. Oktober). <<< Weisung: «kannst
+ * du auch mit hilfe der abhandlung com ein template für einen statikbericht
+ * generieren lassen. so viel wie nötig an plots generieren lassen.» Die
+ * Brücke (Schalter -Bericht) zeichnet je massgebende Kombination N, V, M, T
+ * und σ_v; welche das sind, weiss nur das Stabwerk der Anwendung - je
+ * Bauteil der Fall seines grössten η, höchstens vier, nach η geordnet.
+ */
+function berichtPlan(app) {
+  const teile = Object.values(app.stabwerk?.teile ?? {})
+    .filter((t) => t?.fall).sort((p, q) => (q.eta ?? 0) - (p.eta ?? 0));
+  const je = new Map();
+  teile.forEach((t) => {
+    const e = je.get(t.fall) ?? { key: t.fall, bez: t.bez, teile: [] };
+    e.teile.push(`${t.name ?? ''} ${t.teil ?? ''} η ${(t.eta ?? 0).toFixed(3)}`.trim());
+    je.set(t.fall, e);
+  });
+  const w = app.werte ?? {};
+  return { titel: `Statikbericht ${w.typ ?? ''} L ${(Number(w.L) || 0).toFixed(2)} m`.replace(/\s+/g, ' '),
+           massgebend: [...je.values()].slice(0, 4) };
+}
+
 export function dialogAxisvm(app, format = 'json') {
   if (!app.letzte) return;
   /*
@@ -327,6 +350,7 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
     if (auflagerModell === 'mast' && mastFuerAbfang(aktSatz)) {
       const blatt = () => {
         const d = stabwerkDatei(app.werte, app.letzte.erg, { knotenmodell });
+        d.bericht = berichtPlan(app);
         const text = JSON.stringify(d, null, 1);
         const name = `AxisVM_${typ}_L${jt.toFixed(1)}m_${knotenmodell}_blatt.json`;
         if (!skripte) {
@@ -405,7 +429,7 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
    * Sichtbare Tragwerke, denn nur die stehen im Modell: ein
    * ausgeblendetes brauchte einen Lastfall, den keine Last benutzt.
    */
-  const o = { knotenmodell, schottAusblenden, starrModell,
+  const o = { knotenmodell, schottAusblenden, starrModell, bericht: berichtPlan(app),
               eingaben: (sichtbareTragwerke(app.werte) ?? [])
                 .map((t) => tragwerkSatz(app.werte, t.id)),
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };

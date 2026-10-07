@@ -291,7 +291,7 @@ export function maskenSignatur(werte, tab) {
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
     // Die Markierung der Anbauteile (Strg+Klick, 7. Oktober) ändert die Liste.
     [...atMarkiert].join(','),
-    dwGliederung, [...dwWahl].join(','),
+    dwGliederung, dwOrdnung, [...dwWahl].join(','),
     /*
      * DIE EIGENEN VORLAGEN GEHOEREN DAZU (Befund vom 19. September: «Nach
      * dem abspeichern eines bauteils wir dieser nicht sofort in die liste
@@ -430,6 +430,30 @@ const feldSignatur = (werte) => (f) => (typeof f.optionenAus === 'function'
  * Hier stand bis dahin ein Haken «Bruch» je Baugruppe in der Karte - und
  * wer zwei setzte, liess beide im selben Fall reissen.
  */
+/*
+ * >>> DIE LEITER IM 3D OHNE KLICK (7. Oktober). <<< Weisung mit Bild der
+ * hervorgehobenen Leiter: «kannst du diese darstellung auch für den
+ * havariefall übernehmen, ohne das man daraufklicken muss um zu sehen wo die
+ * leiter sind.» Solange der Reiter Lasten mit eingeschaltetem Havariefall
+ * offen ist, stehen alle Leiter der Liste im 3D: Schlüssel `AT<i>#<k>` (bzw.
+ * `AT_<i+1>#<k>`) → kann reissen (ja/nein).
+ */
+export function havarieLeiterMarken(werte) {
+  if (werte?.havarieAus === true) return null;
+  let imSatz = [];
+  try { imSatz = rechensatz(werte).anbauteile ?? []; } catch { return null; }
+  const wahl = werte.havarie ?? {};
+  const m = new Map();
+  havarieLeiter(werte).forEach((l) => l.teile.forEach((t) => {
+    const k = imSatz.findIndex((a) => a.id === t.baugruppe);
+    if (k < 0) return;
+    const reisst = wahl[l.key]?.reisst === true;
+    m.set(`AT${k}#${t.modul}`, reisst);
+    m.set(`AT_${k + 1}#${t.modul}`, reisst);
+  }));
+  return m.size ? m : null;
+}
+
 export function havarieLeiter(werte) {
   // Mit den Teilen am Masten (rechensatz): auch ihre Leiter koennen reissen.
   try { return leiterListe(rechensatz(werte).anbauteile ?? []); } catch { return []; }
@@ -3318,7 +3342,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
  * Teile, an denen er hängt; ein Klick hebt diese Teile im 3D hervor, ein
  * zweiter Klick oder Esc nimmt es zurück.
  * ========================================================================= */
-export function drahtwerkUebersicht(liste, gliederung = 'typ') {
+export function drahtwerkUebersicht(liste, gliederung = 'typ', ordnung = 'standard') {
   /*
    * >>> GLIEDERUNG, MULTIPLIKATOR, ÄNDERN (7. Oktober). <<< Weisung: «hier
    * noch gliederungs filter angeben ob nach typ, abschnitt, bauteil und dann
@@ -3341,35 +3365,30 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
       // «Einzeln» (7. Oktober, «hier noch einzeln aufführen als auswahl»): je
       // Leiter eine Zeile; «Bauteil» fasst je Anbauteil und Typ zusammen.
       /*
-       * NAME, LAGE X, HÖHE Z (7. Oktober). Weisung: «Leiter nach name oder x
-       * bzw z abschnitt des tragwerks auflisten unter Drahtwerk». Name = die
-       * Kettenwerk-Bezeichnung, sonst der Typ; Lage x = die Stelle am Joch
-       * (am Masten der Mast mit seiner Höhe); Höhe z = z des Moduls ab der
-       * Jochachse bzw. die Höhe über dem Mastfuss.
+       * NAME, LAGE X, HÖHE Z ALS ORDNUNG (7. Oktober). Erst als eigene
+       * Gliederung gebaut, dann: «hier war mehr die idee das man die ordnung
+       * mit name / abschnitt x oder z vornemen kann in der liste und nicht
+       * als eigenständige filter.» Jede Zeile trägt den Namen (Kettenwerk-
+       * Bezeichnung, sonst der Typ), die kleinste Lage x (am Masten nach
+       * allen Jochstellen) und die tiefste Höhe z; danach wird geordnet.
        */
-      const lageX = amMast(a) ? `${a.mastId ?? 'Mast'} h ${(Number(a.hMast) || 0).toFixed(2)}`
-        : `x ${(Number(a.x) || 0).toFixed(2)}`;
       const hoeheZ = amMast(a) ? (Number(a.hMast) || 0) + (Number(m.z) || 0) : (Number(m.z) || 0);
-      const zText = amMast(a) ? `h ${hoeheZ.toFixed(2)} m (am Mast)` : `z ${hoeheZ >= 0 ? '+' : ''}${hoeheZ.toFixed(2)} m`;
+      const xOrd = amMast(a) ? 1e6 + (Number(a.hMast) || 0) : (Number(a.x) || 0) + (Number(m.x) || 0);
+      const zOrd = amMast(a) ? 1e6 + hoeheZ : hoeheZ;
       const nameL = String(m.kettenwerk ?? '').trim() || b.name;
       const key = gliederung === 'einzeln' ? `${i}|${k}`
         : gliederung === 'bauteil' ? `${i}|${m.bauteil}`
-        : gliederung === 'gruppe' ? `${gr}|${m.bauteil}`
-        : gliederung === 'name' ? nameL
-        : gliederung === 'x' ? `${lageX}|${m.bauteil}`
-        : gliederung === 'z' ? `${zText}|${m.bauteil}` : m.bauteil;
-      const titel = gliederung === 'name' ? nameL
-        : gliederung === 'x' ? lageX
-        : gliederung === 'z' ? zText
-        : gliederung === 'einzeln'
+        : gliederung === 'gruppe' ? `${gr}|${m.bauteil}` : m.bauteil;
+      const titel = gliederung === 'einzeln'
         ? `A${i + 1}.${k + 1} · ${amMast(a) ? `${a.hMast ?? 0} m am Mast` : `x ${(Number(a.x) || 0).toFixed(2)}`}`
           + ` · z ${(Number(m.z) || 0).toFixed(2)}${Math.abs(Number(m.x) || 0) > 1e-9 ? ` · x′ ${Number(m.x).toFixed(2)}` : ''}`
         : gliederung === 'bauteil' ? `A${i + 1} ${a.name ?? ''}`
         : gliederung === 'gruppe' ? (gr ? `#${gr}` : 'ohne Gruppe') : '';
-      const ord = gliederung === 'x' ? (amMast(a) ? 1e6 + (Number(a.hMast) || 0) : (Number(a.x) || 0))
-        : gliederung === 'z' ? (amMast(a) ? 1e6 + hoeheZ : hoeheZ) : 0;
-      const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0, ord,
+      const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0, nameL,
+                                 xOrd, zOrd, zText: amMast(a) ? `h ${hoeheZ.toFixed(2)}` : `${hoeheZ >= 0 ? '+' : ''}${hoeheZ.toFixed(2)}`,
                                  teile: [], lagen: [], stellen: [], mult: new Set() };
+      if (xOrd < e.xOrd) e.xOrd = xOrd;
+      if (zOrd < e.zOrd) { e.zOrd = zOrd; e.zText = amMast(a) ? `h ${hoeheZ.toFixed(2)}` : `${hoeheZ >= 0 ? '+' : ''}${hoeheZ.toFixed(2)}`; }
       const n = Math.max(1, Math.round(Number(m.anzahl) || 1));
       e.anzahl += n;
       e.mult.add(n);
@@ -3383,23 +3402,29 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
       je.set(key, e);
     });
   });
-  return [...je.values()].map((e) => ({ ...e, mult: [...e.mult].sort((p, q) => p - q) }))
-    .sort((p, q) => (gliederung === 'typ' ? q.anzahl - p.anzahl || p.name.localeCompare(q.name)
-      : gliederung === 'x' || gliederung === 'z' ? p.ord - q.ord || p.name.localeCompare(q.name)
-      : p.titel.localeCompare(q.titel, 'de', { numeric: true }) || p.name.localeCompare(q.name)));
+  const standard = (p, q) => (gliederung === 'typ' ? q.anzahl - p.anzahl || p.name.localeCompare(q.name)
+    : p.titel.localeCompare(q.titel, 'de', { numeric: true }) || p.name.localeCompare(q.name));
+  const nach = {
+    name: (p, q) => p.nameL.localeCompare(q.nameL, 'de', { numeric: true }) || standard(p, q),
+    x: (p, q) => p.xOrd - q.xOrd || standard(p, q),
+    z: (p, q) => p.zOrd - q.zOrd || standard(p, q),
+  }[ordnung] ?? standard;
+  return [...je.values()].map((e) => ({ ...e, mult: [...e.mult].sort((p, q) => p - q) })).sort(nach);
 }
 
 /* Gliederung und Auswahl der Übersicht - Ansichtssache, nicht im Stand. */
 let dwGliederung = 'typ';
+let dwOrdnung = 'standard';
 const dwWahl = new Set();
-const DW_GLIEDERUNG = [['typ', 'Typ'], ['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z'],
-  ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']];
+const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']];
+const DW_ORDNUNG = [['standard', '–'], ['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z']];
 /** Esc hebt die Auswahl auf (mit dem Hervorheben im 3D). */
 export function drahtwerkWahlAufheben() { const war = dwWahl.size > 0; dwWahl.clear(); return war; }
 
 function drahtwerkUebersichtHtml(liste) {
-  const d = drahtwerkUebersicht(liste, dwGliederung);
+  const d = drahtwerkUebersicht(liste, dwGliederung, dwOrdnung);
   if (!d.length) return '';
+  const xText = (e) => (e.xOrd >= 1e6 ? 'Mast' : e.xOrd.toFixed(2));
   [...dwWahl].forEach((k) => { if (!d.some((e) => e.key === k)) dwWahl.delete(k); });
   const summe = d.reduce((s, e) => s + e.anzahl, 0);
   const typen = (() => { try { return flBauteile().filter((b) => b.rolle === 'drahtwerk'); } catch { return []; } })();
@@ -3410,6 +3435,8 @@ function drahtwerkUebersichtHtml(liste) {
     <div class="dw-leiste">
       <div class="at-knopfreihe dw-gliederung" role="radiogroup" aria-label="Gliederung">${DW_GLIEDERUNG.map(([k, t]) => `<button type="button"
         class="at-knopf${k === dwGliederung ? ' an' : ''}" data-dw-gliederung="${k}">${t}</button>`).join('')}</div>
+      <div class="dw-ordnen"><span class="notiz">Ordnen nach</span>${DW_ORDNUNG.map(([k, t]) => `<button type="button"
+        class="btn btn-mini${k === dwOrdnung ? ' an' : ''}" data-dw-ordnung="${k}">${t}</button>`).join('')}</div>
       <span class="notiz">Überfahren zeigt den Leiter im 3D · Klick wählt und öffnet Typ / Anzahl · Strg+Klick mehrere</span>
     </div>
     ${gew.length ? `<div class="at-auswahl dw-auswahl"><b>${gew.length} gewählt</b>
@@ -3417,7 +3444,8 @@ function drahtwerkUebersichtHtml(liste) {
       <input type="number" min="1" step="1" data-dw-alle-anz placeholder="× je Stelle" title="Anzahl je Stelle für alle gewählten">
       <button class="btn btn-mini" type="button" data-dw-aufheben>Auswahl aufheben</button></div>` : ''}
     <div class="tabellenrahmen"><table class="dt dw-tab">
-      <thead><tr>${dwGliederung === 'typ' ? '' : `<th>${({ gruppe: 'Gruppe', bauteil: 'Bauteil', einzeln: 'Leiter', name: 'Name', x: 'Lage', z: 'Höhe' })[dwGliederung] ?? ''}</th>`}<th>Typ</th>
+      <thead><tr>${dwGliederung === 'typ' ? '' : `<th>${({ gruppe: 'Gruppe', bauteil: 'Bauteil', einzeln: 'Leiter' })[dwGliederung] ?? ''}</th>`}<th>Typ</th>
+        <th class="num" title="kleinste Lage x am Joch">x</th><th class="num" title="tiefste Höhe z (ab Jochachse; am Masten h über dem Fuss)">z</th>
         <th class="num" title="Stellen (Module)">Stellen</th>
         <th class="num" title="Anzahl je Stelle - der Multiplikator, z. B. Bündel 2×">× je Stelle</th>
         <th class="num">Summe</th><th>an</th></tr></thead>
@@ -3426,6 +3454,7 @@ function drahtwerkUebersichtHtml(liste) {
             title="Überfahren: Leiter im 3D · Klick: wählen und bearbeiten (Strg: mehrere, Esc: zurück)">
           ${dwGliederung === 'typ' ? '' : `<td>${esc(e.titel)}</td>`}
           <td>${dwWahl.has(e.key) ? typWahl(e.id, `data-dw-typ="${esc(e.key)}"`) : esc(e.name)}</td>
+          <td class="num">${xText(e)}</td><td class="num">${esc(e.zText)}</td>
           <td class="num">${e.stellen.length}</td>
           <td class="num">${dwWahl.has(e.key) ? `<input type="number" min="1" step="1" data-dw-anz="${esc(e.key)}"
             value="${e.mult.length === 1 ? e.mult[0] : ''}" placeholder="${e.mult.join('/')}"
@@ -5303,7 +5332,7 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   // Drahtwerke (7. Oktober): wählen wie die Anbauteile, im 3D hervorheben,
   // Typ und Anzahl je Zeile oder für die Auswahl ändern.
-  const dwZeilen = () => drahtwerkUebersicht(liste(), dwGliederung);
+  const dwZeilen = () => drahtwerkUebersicht(liste(), dwGliederung, dwOrdnung);
   /*
    * >>> DER LEITER LEUCHTET, NICHT DAS BAUTEIL (7. Oktober). <<< Weisung:
    * «dies reagiert nicht optimal wenn man mit der maus darüberfährt. wäre es
@@ -5328,6 +5357,9 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     zeilen.forEach((e) => e.stellen.forEach(({ i, k }) => { if (l[i]?.module?.[k]) fn(l[i].module[k]); }));
     onAnbau(l);
   };
+  container.querySelectorAll('[data-dw-ordnung]').forEach((b) => {
+    b.addEventListener('click', () => { dwOrdnung = b.dataset.dwOrdnung; beiAnbauNeu?.(); });
+  });
   container.querySelectorAll('[data-dw-gliederung]').forEach((b) => {
     b.addEventListener('click', () => {
       dwGliederung = b.dataset.dwGliederung; dwWahl.clear(); beiDrahtwerk?.(null); beiAnbauNeu?.();

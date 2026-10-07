@@ -1379,6 +1379,8 @@ function neuRechnen(neuZeichnen = true) {
     const rollAlt = maskeTabGezeichnet === tabEingabe ? mEl.scrollTop : 0;
     maskeTabGezeichnet = tabEingabe;
     ui.zeichneMaske(mEl, werte, tabEingabe, aendern, setzeAnbauteile, extras);
+    // Havarie: alle Leiter im 3D, solange der Reiter Lasten offen ist (7. Oktober).
+    if (ansicht) ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null;
     verdrahteExtras(app);
     mEl.scrollTop = rollAlt;
     maskenAnkerHalten();
