@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile } from './data.anbauteile.js';
+import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -50,7 +50,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          mastZeichenplan,
          gewaehlterMast,
          gitterLaengenFest } from './core.constants.js';
-import { passeTraegerAn, hatTraeger, achsfolge } from './core.anbauteile.js';
+import { passeTraegerAn, hatTraeger, achsfolge, befestigungsArt } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
 // zur Laufzeit nachladen liessen.
@@ -132,7 +132,7 @@ import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js'
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
-import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
+import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextAnbauSeite, kontextTrasse, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
@@ -220,6 +220,8 @@ const app = {
   ausrichtenStarten: (...a) => ausrichtenStarten(app, ...a),
   bildSchiebenStarten: (...a) => bildSchiebenStarten(app, ...a),
   setzeAnbauteile: (...a) => setzeAnbauteile(...a),
+  anbauAufTragwerk: (...a) => anbauAufTragwerk(...a),
+  anbauAuswahlBearbeiten: (...a) => anbauAuswahlBearbeiten(...a),
   setzenEnde: (...a) => setzenEnde(app, ...a),
   setzenStarten: (...a) => setzenStarten(app, ...a),
   zeichneAuswertung: (...a) => zeichneAuswertung(...a),
@@ -2587,8 +2589,28 @@ function aktualisiereModell(erg) {
    * des Schnitts; sie gilt aber fuer das ganze Tragwerk.
    */
   if (ui.el('pos-ek')) {
+    /*
+     * Mit den Grundwerten der Trasse (7. Oktober, «hier unten die globalen
+     * trasse parameter einblenden und durch anklicken bearbeitbar machen»).
+     */
     const ekAnz = ekVonWindklasse(werte.windKlasse);
-    ui.el('pos-ek').textContent = ekAnz === 'EK0' ? 'Einheitswind' : ekAnz;
+    const R = Number(werte.trasseRadius) || 0;
+    const teile = [ekAnz === 'EK0' ? 'Einheitswind' : ekAnz,
+      `L_FL ${(Number(werte.flSpannweite) || 0).toFixed(0)} m`,
+      Math.abs(R) < 1e-9 || Math.abs(R) >= 1e5 ? 'gerade' : `R ${R.toFixed(0)} m`];
+    if (werte.windReduktion) teile.push('Wind × 0.74');
+    if (werte.schneeAktiv) teile.push('Schnee');
+    const ek = ui.el('pos-ek');
+    ek.textContent = teile.join(' · ');
+    ek.title = 'Grundwerte des Querprofils - anklicken zum Bearbeiten';
+    if (!ek.dataset.verdrahtet) {
+      ek.dataset.verdrahtet = '1';
+      ek.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const r = ek.getBoundingClientRect();
+        kontextZeigen(app, [r.right - 300, r.top - 230], kontextTrasse(app));
+      });
+    }
   }
   // Die Masskette der Zeichnung: die Ansicht zeichnet daraus Fanglinien.
   ansicht.masskette = erg.modell.masskette ?? [];
@@ -6042,6 +6064,89 @@ function anbauteileAlleEntfernen() {
   if (j) j.onclick = () => weg(amMasten);
 }
 
+/**
+ * >>> AUF EIN ANDERES TRAGWERK KOPIEREN ODER VERSCHIEBEN (7. Oktober). <<<
+ * Aus dem Kontextfenster der Seitenleiste («verschieben oder kopieren auf
+ * ein anderes tragwerk»). Nur Teile am Joch: ein Teil am Masten gehört dem
+ * Masten an seiner Stelle, nicht einem Tragwerk. Die Lage x bleibt relativ
+ * zum Jochanfang und wird auf die Länge des Ziels begrenzt; die Kopie
+ * bekommt eine neue Kennung. Ein Schritt im Rückgängig.
+ */
+function anbauAufTragwerk(ids, zielId, kopieren) {
+  const ziel = (werte.weitere ?? []).find((t) => t.id === zielId);
+  if (!ziel) return;
+  const quelle = (werte.anbauteile ?? []).filter((a) => ids.includes(a.id));
+  if (!quelle.length) return;
+  const L = Number(ziel.L) || Infinity;
+  const neu = quelle.map((a) => ({
+    ...structuredClone(a),
+    id: `AT-${Math.random().toString(36).slice(2, 8)}`,
+    x: Math.min(Math.max(Number(a.x) || 0, 0), L),
+  }));
+  handlung(kopieren ? 'Anbauteile kopieren' : 'Anbauteile verschieben', () => {
+    werte = { ...werte, weitere: werte.weitere.map((t) => (t.id === zielId
+      ? { ...t, anbauteile: [...(t.anbauteile ?? []), ...neu] } : t)) };
+    ui.setzeAnbauMarkiert([]);
+    if (kopieren) neuRechnen();
+    else setzeAnbauteile((werte.anbauteile ?? []).filter((a) => !ids.includes(a.id)));
+  });
+  meldeImBalken(`${neu.length} Anbauteil(e) ${kopieren ? 'kopiert' : 'verschoben'} auf `
+    + `${tragwerkPos(werte, ziel)} · Strg+Z nimmt es zurück`, { dauer: 5000 });
+}
+
+/**
+ * >>> GEMEINSAME ANGABEN DER MARKIERTEN TEILE (7. Oktober). <<< «bearbeiten
+ * -> ein modal öffnet sich mit den gemeinsamen parameter die man dann auf
+ * die selektion übertragen kann». Gemeinsam heisst: was jedes Teil hat und
+ * was ohne seine Module Sinn ergibt - Gruppe, Befestigung am Joch,
+ * Verschieben in x, mitrechnen. Ein leeres Feld lässt den Wert der Teile.
+ */
+function anbauAuswahlBearbeiten(ids) {
+  const teile = (werte.anbauteile ?? []).filter((a) => ids.includes(a.id));
+  if (!teile.length) return;
+  const gleich = (f) => (teile.every((a) => f(a) === f(teile[0])) ? f(teile[0]) : null);
+  const tag = gleich((a) => anbauGruppe(a) ?? '');
+  const amJoch = teile.every((a) => (a.ort ?? 'joch') === 'joch');
+  const bef = amJoch ? gleich((a) => befestigungsArt(a)) : null;
+  const aktiv = gleich((a) => a.aktiv !== false);
+  const befOpt = [['', '– unverändert –'], ['unten', 'Untergurt'], ['oben', 'Obergurt'], ['durchgehend', 'beide']];
+  const d = dialog(`${teile.length} Anbauteile bearbeiten`, `
+    <p class="notiz">${esc(teile.map((a) => a.name ?? 'Anbauteil').join(' · '))}</p>
+    <div class="feld"><label for="ab-tag">Gruppe #</label>
+      <input id="ab-tag" type="text" value="${esc(tag ?? '')}"
+             placeholder="${tag === null ? 'verschieden - leer lassen behält' : 'ohne Gruppe'}" list="at-gruppen"></div>
+    ${amJoch ? `<div class="feld"><label for="ab-bef">Befestigung am Joch</label>
+      <select id="ab-bef">${befOpt.map(([k, t]) => `<option value="${k}"${k === '' ? ' selected' : ''}>${t}${k && k === bef ? ' (jetzt)' : ''}</option>`).join('')}</select></div>
+    <div class="feld"><label for="ab-dx">Verschieben in x [m]</label>
+      <input id="ab-dx" type="text" inputmode="decimal" value="" placeholder="0.00"></div>` : ''}
+    <div class="feld"><label><input id="ab-aktiv" type="checkbox"${aktiv !== false ? ' checked' : ''}>
+      mitrechnen${aktiv === null ? ' (jetzt verschieden)' : ''}</label></div>`,
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-ok>Übernehmen</button>`);
+  const q = (s) => d.node.querySelector(s);
+  // Verschieden: Kästchen halb, und nur ein Klick darauf ändert etwas.
+  let aktivBeruehrt = false;
+  q('#ab-aktiv').indeterminate = aktiv === null;
+  q('#ab-aktiv').onchange = () => { aktivBeruehrt = true; };
+  q('[data-ok]').onclick = () => {
+    const t = q('#ab-tag').value.replace(/^#+/, '').trim();
+    const b = q('#ab-bef')?.value ?? '';
+    const dx = parseFloat(String(q('#ab-dx')?.value ?? '').replace(',', '.')) || 0;
+    const an = q('#ab-aktiv').checked;
+    const L = Number(werte.L) || Infinity;
+    d.zu();
+    handlung('Anbauteile bearbeiten', () => setzeAnbauteile((werte.anbauteile ?? []).map((a) => {
+      if (!ids.includes(a.id)) return a;
+      const n = { ...a };
+      if (t || tag !== null) n.tag = t;
+      if (b) n.befestigung = b;
+      if (dx) n.x = Math.min(Math.max((Number(a.x) || 0) + dx, 0), L);
+      if (aktivBeruehrt) n.aktiv = an;
+      return n;
+    })));
+  };
+}
+
 function dialogSpeichern() {
   const d = dialog('In Ablage speichern', `
     <div class="feld"><label for="d-projekt">Projekt</label>
@@ -6654,7 +6759,10 @@ export async function start() {
     duplizieren: (i) => anbauteilDuplizieren(app, i),
     alleWeg: anbauteileAlleEntfernen,
     signal: () => signalZusammenstellen(app),
-    kontext: (i, bei) => kontextZeigen(app, bei, kontextAnbauteil(app, i)),
+    kontext: (i, bei) => kontextZeigen(app, bei, kontextAnbauSeite(app, i)),
+    // Mehrfachauswahl (7. Oktober): Strg+Klick zeichnet nur die Liste neu.
+    neuZeichnen: () => neuRechnen(),
+    auswahlBearbeiten: (ids) => anbauAuswahlBearbeiten(ids),
     oeffnen: (i) => {
       const a = (werte.anbauteile ?? [])[i];
       if (!a) return;

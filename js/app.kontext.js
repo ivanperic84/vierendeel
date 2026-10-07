@@ -12,6 +12,8 @@ import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
 import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
 import { flBauteile, getFlBauteil } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
+import { anbauGruppe } from './data.anbauteile.js';
+import { WIND_KLASSEN, SCHNEE_KLASSEN } from './core.lasten.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
 
@@ -58,7 +60,10 @@ export function kontextZeigen(app, bei, punkte) {
         ? `<select data-kf="${i}">${(f.optionen ?? []).map((o) =>
             `<option value="${esc(o.wert)}"${String(o.wert) === String(f.wert)
               ? ' selected' : ''}>${esc(o.text)}</option>`).join('')}</select>`
-        : `<input type="number" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
+        : f.art === 'text'
+          ? `<input type="text" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
+               placeholder="${esc(f.platzhalter ?? '')}">`
+          : `<input type="number" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
              step="${f.schritt ?? 0.1}">`;
       return `<label class="kontext-feld"><span>${esc(f.label)}</span>
         ${eingabe}${f.einheit ? `<i>${esc(f.einheit)}</i>` : ''}</label>`;
@@ -91,8 +96,8 @@ export function kontextZeigen(app, bei, punkte) {
     const p = echte[+el.dataset.kf];
     const ev = el.tagName === 'SELECT' ? 'change' : 'change';
     el.addEventListener(ev, () => {
-      const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
-      if (el.tagName !== 'SELECT' && !Number.isFinite(v)) return;
+      const v = el.tagName === 'SELECT' || el.type === 'text' ? el.value : parseFloat(el.value);
+      if (el.tagName !== 'SELECT' && el.type !== 'text' && !Number.isFinite(v)) return;
       // DAS MENUE BLEIBT OFFEN. Wer den Typ aendert, will oft gleich die
       // Laenge nachziehen - zweimal rechtsklicken waere eine Zumutung.
       p?.tun?.(v);
@@ -583,7 +588,7 @@ export function kontextAnbauteil(app, i) {
 
   p.push('-');
   p.push({ text: 'In der Seitenleiste bearbeiten', tun: () => app.zeigeAnbauteil(i) });
-  p.push({ text: 'Auf das Bauteil zoomen', tun: () => app.ansicht.zeigeAnbauteil(i) });
+  p.push({ text: 'Auf das Bauteil zoomen', tun: () => app.zeigeAnbauteil(i) });
   /*
    * ABSCHALTEN IST NICHT ENTFERNEN - dieselbe Trennung wie beim Tragwerk.
    * Ein abgeschaltetes Bauteil bleibt in der Liste und zaehlt nicht mit;
@@ -600,6 +605,93 @@ export function kontextAnbauteil(app, i) {
   p.push({ text: 'Entfernen', warn: true,
            tun: () => app.setzeAnbauteile(
              (app.werte.anbauteile ?? []).filter((_, j) => j !== i)) });
+  return p;
+}
+
+/**
+ * >>> DIE GRUNDWERTE DER TRASSE AN DER FUSSLEISTE DES MODELLS (7. Oktober). <<<
+ * Weisung, mit Bild der Marke «EK1» unten rechts: «hier unten die globalen
+ * trasse parameter einblenden und durch anklicken bearbeitbar machen.» Die
+ * Werte gelten dem ganzen Blatt (BLATT_FELDER); geschrieben wird über
+ * `aendern`, derselbe Weg wie aus der Maske - Rückgängig und Neurechnen
+ * inbegriffen. Das Fenster bleibt offen, bis man daneben klickt.
+ */
+export function kontextTrasse(app) {
+  const w = app.werte;
+  const ja = [{ wert: '1', text: 'ein' }, { wert: '', text: 'aus' }];
+  return [
+    { kopf: 'Grundwerte (ganzes Blatt)' },
+    { feld: { art: 'auswahl', label: 'Windbelastung', wert: w.windKlasse ?? '0.9',
+              optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
+                text: k.einheit ? 'Einheitswind 1.0' : `${k.ek} · q ${k.qp.toFixed(2)}` })) },
+      tun: (v) => app.aendern('windKlasse', v) },
+    { feld: { art: 'auswahl', label: 'Reduktion Wind 0.74', wert: w.windReduktion ? '1' : '',
+              optionen: ja },
+      tun: (v) => app.aendern('windReduktion', v === '1') },
+    { feld: { art: 'zahl', label: 'Spannweite L_FL', wert: w.flSpannweite ?? 40,
+              einheit: 'm', schritt: 1 },
+      tun: (v) => { if (v > 0) app.aendern('flSpannweite', v); } },
+    { feld: { art: 'zahl', label: 'Radius R (0 = gerade)', wert: w.trasseRadius ?? 0,
+              einheit: 'm', schritt: 50 },
+      tun: (v) => app.aendern('trasseRadius', v) },
+    { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? (w.schneeKlasse ?? '1.25') : '',
+              optionen: [{ wert: '', text: 'aus' },
+                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `s ${k.sk.toFixed(2)} kN/m²` }))] },
+      tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); } },
+  ];
+}
+
+/**
+ * >>> DAS KONTEXTFENSTER DER SEITENLEISTE (7. Oktober). <<< Weisung: «man
+ * könnte auch über rechtsklick auf ein anbauteil in der sidebar ein kleines
+ * kontextfenster einblenden mit (auswahl gleicher typ / hastag vergeben /
+ * verschieben auf ein andere gruppe / verschieben oder kopieren auf ein
+ * anderes tragwerk und weiter nützliche optionen).» Gilt der markierten
+ * Auswahl, wenn das Teil darin liegt, sonst dem Teil allein.
+ */
+export function kontextAnbauSeite(app, i) {
+  const liste = app.werte.anbauteile ?? [];
+  const a = liste[i];
+  if (!a) return [];
+  const markiert = ui.anbauMarkiert();
+  const ziele = markiert.includes(a.id) && markiert.length > 1 ? markiert : [a.id];
+  const setzAlle = (fn) => app.setzeAnbauteile(
+    (app.werte.anbauteile ?? []).map((x) => (ziele.includes(x.id) ? fn(x) : x)));
+  const gruppen = [...new Set(liste.map((x) => anbauGruppe(x)).filter(Boolean))];
+  const p = [{ kopf: ziele.length > 1 ? `${ziele.length} markierte Anbauteile` : (a.name ?? 'Anbauteil') }];
+  p.push({ text: 'Alle gleichen Typs markieren', tun: () => {
+    ui.setzeAnbauMarkiert(liste.filter((x) => x.vorlage && x.vorlage === a.vorlage).map((x) => x.id));
+    app.neuRechnen();
+  } });
+  p.push({ feld: { art: 'auswahl', label: 'In Gruppe', wert: anbauGruppe(a),
+                   optionen: [{ wert: '', text: 'ohne Gruppe' }, ...gruppen.map((g) => ({ wert: g, text: `#${g}` }))] },
+           tun: (v) => setzAlle((x) => ({ ...x, tag: v })) });
+  p.push({ feld: { art: 'text', label: 'Neue Gruppe #', wert: '', platzhalter: 'Name, Enter' },
+           tun: (v) => { const t = String(v).replace(/^#+/, '').trim(); if (t) setzAlle((x) => ({ ...x, tag: t })); } });
+  const andere = (app.werte.weitere ?? []).filter((t) => TRAGWERKSARTEN
+    .find((k) => k.key === (t.tragwerksart ?? 'joch'))?.traeger);
+  const amJoch = ziele.every((id) => (liste.find((x) => x.id === id)?.ort ?? 'joch') === 'joch');
+  if (andere.length && amJoch && app.anbauAufTragwerk) {
+    const opt = [{ wert: '', text: '–' }, ...andere.map((t) => ({ wert: t.id, text: tragwerkPos(app.werte, t) }))];
+    p.push('-');
+    p.push({ feld: { art: 'auswahl', label: 'Kopieren auf', wert: '', optionen: opt },
+             tun: (v) => { if (v) { kontextSchliessen(app); app.anbauAufTragwerk(ziele, v, true); } } });
+    p.push({ feld: { art: 'auswahl', label: 'Verschieben auf', wert: '', optionen: opt },
+             tun: (v) => { if (v) { kontextSchliessen(app); app.anbauAufTragwerk(ziele, v, false); } } });
+  }
+  p.push('-');
+  if (ziele.length === 1) {
+    p.push({ text: 'Duplizieren', tun: () => anbauteilDuplizieren(app, i) });
+    p.push({ text: 'Im Modell zeigen', tun: () => app.zeigeAnbauteil(i) });
+  } else {
+    p.push({ text: 'Gemeinsame Angaben bearbeiten …', tun: () => app.anbauAuswahlBearbeiten?.(ziele) });
+  }
+  const alleAn = liste.filter((x) => ziele.includes(x.id)).every((x) => x.aktiv !== false);
+  p.push({ text: alleAn ? 'Nicht mitrechnen' : 'Wieder mitrechnen',
+           tun: () => setzAlle((x) => ({ ...x, aktiv: !alleAn })) });
+  p.push({ text: ziele.length > 1 ? `${ziele.length} Teile löschen` : 'Löschen', warn: true,
+           tun: () => { ui.setzeAnbauMarkiert([]);
+             app.setzeAnbauteile((app.werte.anbauteile ?? []).filter((x) => !ziele.includes(x.id))); } });
   return p;
 }
 

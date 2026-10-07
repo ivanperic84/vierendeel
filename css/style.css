@@ -614,6 +614,13 @@ input[type=range].rng {
 }
 .at-zeile:hover { background: var(--s2); }
 .at-karte.offen .at-zeile { background: var(--acc-s); }
+/* Mehrfachauswahl (7. Oktober): markierte Zeilen mit Akzentrand, Leiste darüber. */
+.at-karte.markiert { box-shadow: inset 3px 0 0 var(--acc); }
+.at-karte.markiert .at-zeile { background: var(--acc-s); }
+.at-auswahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 8px; margin: 6px 0; border: 1px solid var(--acc);
+  border-radius: 6px; background: var(--acc-s); font-size: 12px; }
+.at-auswahl b { margin-right: auto; }
 .at-pos {
   font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
 }
@@ -2644,6 +2651,9 @@ body.datei-ueber::after {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .viewer-ek { margin-left: auto; flex: none; text-align: right; }
+/* Die Grundwerte der Trasse sind anklickbar (7. Oktober). */
+.viewer-fuss .viewer-ek { cursor: pointer; pointer-events: auto; white-space: nowrap; }
+.viewer-fuss .viewer-ek:hover { border-color: var(--acc); color: var(--on); }
 
 /* Ein ausgeblendetes Tragwerk steht als gestrichelter Umriss an seiner
    Stelle - es gehoert zum Blatt, zaehlt aber gerade nicht. Ganz zu
@@ -3221,6 +3231,9 @@ body.datei-ueber::after {
 .hav-tab td { padding: 3px 4px; border-top: 1px solid var(--ol); vertical-align: middle; }
 .hav-tab .num { text-align: right; font-variant-numeric: tabular-nums; }
 .hav-name { color: var(--on); }
+/* Klick auf den Leiter hebt ihn im 3D hervor (7. Oktober). */
+.hav-name.klick { cursor: pointer; text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
+.hav-name.klick:hover, .hav-name.klick.aktiv { color: var(--acc); }
 .hav-wo { display: block; font-size: 9.5px; color: var(--dim); }
 .hav-zahl { width: 54px; padding: 2px 4px; font-size: 11px; }
 .hav-tun { display: flex; gap: 4px; justify-content: flex-end; }

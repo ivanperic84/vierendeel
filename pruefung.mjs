@@ -39206,6 +39206,43 @@ titel('246  Drahtwerke nach Typ: Liste mit Anzahl, Hervorheben im 3D');
        && APP_QUELLE().includes('if (ansicht?.hervorTeile) { ansicht.hervorTeile = null;'));
 }
 
+titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste, Leerfeld, Havarie im 3D');
+/* 6./7. Oktober: «mit ctrl gedrückt ein markieren der anbauteile ermöglichen dann
+ * wird oben eine bearbeiten leiste eingeblendet …», «rechtsklick auf ein anbauteil in
+ * der sidebar …», «hier unten die globalen trasse parameter einblenden …», «wenn ich da
+ * die null lösche fliege ich aus dem feld raus …», «auch hier sollte man einen verweis
+ * zum 3d modell haben …». */
+{
+  const UI247 = await import(J('ui.js'));
+  const K247 = await import(J('app.kontext.js'));
+  const DA247 = await import(J('data.anbauteile.js'));
+  const liste = [DA247.neuesAnbauteil('hs-nt-ausleger', 8), DA247.neuesAnbauteil('hs-nt-ausleger', 12),
+                 DA247.neuesAnbauteil('hs-nur', 4)];
+  UI247.setzeAnbauMarkiert([liste[0].id, liste[1].id]);
+  wahr('Markierung nach Kennung', UI247.anbauMarkiert().length === 2);
+  let geschrieben = null;
+  const app = { werte: { anbauteile: liste, weitere: [{ id: 'T2', tragwerksart: 'joch', L: 15 }] },
+                setzeAnbauteile: (l) => { geschrieben = l; }, anbauAufTragwerk: () => {}, neuRechnen: () => {},
+                zeigeAnbauteil: () => {} };
+  const p = K247.kontextAnbauSeite(app, 0);
+  const texte = p.map((x) => x?.kopf ?? x?.text ?? x?.feld?.label ?? x).join(' | ');
+  wahr('Kontextfenster: Typ markieren, Gruppe, neue Gruppe, Kopieren/Verschieben, mitrechnen, loeschen',
+       ['Alle gleichen Typs markieren', 'In Gruppe', 'Neue Gruppe #', 'Kopieren auf', 'Verschieben auf', 'Nicht mitrechnen']
+         .every((t) => texte.includes(t)) && texte.includes('2 Teile löschen'), texte);
+  p.find((x) => x?.feld?.label === 'Neue Gruppe #').tun('#Gleis 9');
+  wahr('Neue Gruppe gilt beiden markierten, nicht dem dritten',
+       geschrieben.filter((a) => a.tag === 'Gleis 9').length === 2 && geschrieben[2].tag !== 'Gleis 9');
+  UI247.setzeAnbauMarkiert([]);
+  wahr('Ohne Markierung gilt das Fenster dem Teil allein', K247.kontextAnbauSeite(app, 2)[0].kopf !== '2 markierte Anbauteile');
+  const t = K247.kontextTrasse({ werte: { windKlasse: '0.9', flSpannweite: 40, trasseRadius: 600 }, aendern: () => {} });
+  wahr('Trassenfenster: Wind, Reduktion, Spannweite, Radius, Schnee', t.filter((x) => x.feld).length === 5);
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Leeres Zahlenfeld wird beim Tippen nicht geschrieben, erst beim Verlassen',
+       uq.includes('const leerBeimTippen') && (uq.match(/auchBeimVerlassen\(inp,/g) ?? []).length === 4);
+  wahr('Havarie-Tabelle: Name hebt die Teile im 3D hervor', uq.includes('data-hav-zeige') && uq.includes("beiDrahtwerk?.(an ? z.dataset.havZeige.split(',') : null)"));
+  wahr('Fussleiste: Grundwerte anklickbar', APP_QUELLE().includes('kontextTrasse(app)'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

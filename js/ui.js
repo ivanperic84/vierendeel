@@ -288,6 +288,8 @@ export function maskenSignatur(werte, tab) {
   const gruppen = gruppenFuer(tab, werte);
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
+    // Die Markierung der Anbauteile (Strg+Klick, 7. Oktober) ändert die Liste.
+    [...atMarkiert].join(','),
     /*
      * DIE EIGENEN VORLAGEN GEHOEREN DAZU (Befund vom 19. September: «Nach
      * dem abspeichern eines bauteils wir dieser nicht sofort in die liste
@@ -431,6 +433,19 @@ export function havarieLeiter(werte) {
 
 function havarieHtml(g, werte) {
   const leiter = havarieLeiter(werte);
+  /*
+   * >>> DER LEITER IM 3D (7. Oktober). <<< Mit Bild der Tabelle: «auch hier
+   * sollte man einen verweis zum 3d modell haben, sonst muss man sich über
+   * den text orientieren, wo der leiter am modell steht.» Ein Klick auf den
+   * Namen hebt die Teile hervor, an denen der Leiter hängt - derselbe Weg
+   * wie die Drahtwerk-Übersicht. Die Schlüssel des 3D (`AT<k>`) zählen über
+   * die Liste des Rechensatzes, aus der auch `havarieLeiter` liest.
+   */
+  let imSatz = [];
+  try { imSatz = rechensatz(werte).anbauteile ?? []; } catch { imSatz = []; }
+  const teilKeys = (l) => [...new Set(l.teile
+    .map((t) => imSatz.findIndex((a) => a.id === t.baugruppe))
+    .filter((k) => k >= 0).map((k) => `AT${k}`))];
   const wahl = werte.havarie ?? {};
   const n = leiter.filter((l) => wahl[l.key]?.reisst === true).length;
   const t0 = tragwerkeVon(werte)[0];
@@ -483,7 +498,9 @@ function havarieHtml(g, werte) {
       <td><input type="checkbox" data-hav-key="${esc(l.key)}" data-hav="reisst"
         data-hav-name="${esc(l.name)}"${e.reisst === true ? ' checked' : ''}
         title="Dieser Leiter kann reissen — er wird als eigener Havariefall gerechnet"></td>
-      <td class="hav-name">${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
+      <td class="hav-name${teilKeys(l).length ? ' klick' : ''}"${teilKeys(l).length
+        ? ` data-hav-zeige="${esc(teilKeys(l).join(','))}" title="Im 3D hervorheben (nochmals klicken oder Esc: zurück)"` : ''}
+        >${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
       ${/* >>> DIE ABFANGUNG WIRD BEIM BAUTEIL EINGEGEBEN (29. September). <<<
          * «wie gibt man bei einem joch leiter ein die abgefangen sind (nicht
          * durchgehend). die eingabe über die leiter sollte direkt bei den
@@ -550,6 +567,14 @@ function verdrahteHavarie(container, werte, onChange) {
   const wahl = () => ({ ...((aktuelleWerte ?? werte).havarie ?? {}) });
   container.querySelectorAll('[data-hav-an]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieAus', !inp.checked));
+  });
+  container.querySelectorAll('[data-hav-zeige]').forEach((z) => {
+    z.addEventListener('click', () => {
+      const an = !z.classList.contains('aktiv');
+      container.querySelectorAll('[data-hav-zeige]').forEach((x) => x.classList.remove('aktiv'));
+      if (an) z.classList.add('aktiv');
+      beiDrahtwerk?.(an ? z.dataset.havZeige.split(',') : null);
+    });
   });
   container.querySelectorAll('[data-hav-achse]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieInAchse', inp.checked));
@@ -2861,7 +2886,7 @@ function anbauteileHtml(g, werte) {
       : `x = ${f2(a.x)} m`;
     const suchtext = `${a.name} ${a.vorlage ?? ''} #${anbauGruppe(a)} ${amMasten
       ? `mast ${mEnde} ${a.hMast ?? 0}` : a.x}`.toLowerCase();
-    return `<div class="at-karte${a.aktiv === false ? ' aus' : ''}${offen ? ' offen' : ''}"
+    return `<div class="at-karte${a.aktiv === false ? ' aus' : ''}${offen ? ' offen' : ''}${atMarkiert.has(a.id) ? ' markiert' : ''}"
          data-idx="${i}" data-suche="${esc(suchtext)}">
       <div class="at-zeile" data-at-oeffnen="${i}" draggable="true"
            data-at-ziehen="${esc(a.id)}"
@@ -3250,7 +3275,8 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       ${liste.length > 1 ? `<button class="btn btn-mini" data-at-alle-weg type="button"
               title="Alle Anbauteile dieses Tragwerks entfernen (fragt nach, Rückgängig mit Strg+Z)"
               >Alle entfernen (${liste.length})</button>` : ''}</div>` +
-    `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`
+    auswahlLeisteHtml(liste)
+    + `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`
     + drahtwerkUebersichtHtml(liste);
 }
 
@@ -3297,6 +3323,55 @@ function drahtwerkUebersichtHtml(liste) {
           <td>${esc(e.teile.map((t, k) => `A${Number(t.slice(2)) + 1} ${e.lagen[k]}`).join(' · '))}</td></tr>`).join('')}
       </tbody></table></div>`, `${d.length} Typen · ${summe} Stück`, true);
 }
+
+/* ===========================================================================
+ * >>> MEHRFACHAUSWAHL DER ANBAUTEILE (7. Oktober). <<< Weisung: «mit ctrl
+ * gedrückt ein markieren der anbauteile ermöglichen dann wird oben eine
+ * bearbeiten leiste eingeblendet (bearbeiten -> ein modal öffnet sich mit
+ * den gemeinsamen parameter die man dann auf die selektion übertragen kann /
+ * löschen oder ausblenden und weiter wenn nützliche befehle ergänzen, aber
+ * nicht überladen)». Markiert wird nach Kennung (sie übersteht Umsortieren);
+ * die Leiste steht über der Liste, solange etwas markiert ist.
+ * ========================================================================= */
+const atMarkiert = new Set();
+export const anbauMarkiert = () => [...atMarkiert];
+export function setzeAnbauMarkiert(ids) { atMarkiert.clear(); (ids ?? []).forEach((id) => atMarkiert.add(id)); }
+
+function auswahlLeisteHtml(liste) {
+  const da = new Set((liste ?? []).map((a) => a.id));
+  [...atMarkiert].forEach((id) => { if (!da.has(id)) atMarkiert.delete(id); });
+  if (!atMarkiert.size) {
+    return liste?.length > 1 ? '<p class="notiz" style="margin:4px 0 0">Strg+Klick auf Zeilen markiert mehrere Teile; Rechtsklick öffnet die Befehle.</p>' : '';
+  }
+  const alleAn = liste.filter((a) => atMarkiert.has(a.id)).every((a) => a.aktiv !== false);
+  return `<div class="at-auswahl">
+    <b>${atMarkiert.size} markiert</b>
+    <button class="btn btn-mini btn-acc" data-atm="bearbeiten" type="button" title="Gemeinsame Angaben für alle markierten Teile setzen">Bearbeiten …</button>
+    <button class="btn btn-mini" data-atm="aktiv" type="button">${alleAn ? 'Ausschalten' : 'Einschalten'}</button>
+    <button class="btn btn-mini" data-atm="loeschen" type="button" title="Markierte Teile löschen (Rückgängig mit Strg+Z)">${icon('loeschen', 12)} Löschen</button>
+    <button class="btn btn-mini" data-atm="aufheben" type="button">Auswahl aufheben</button>
+  </div>`;
+}
+
+/**
+ * >>> EIN GELEERTES ZAHLENFELD WARTET (7. Oktober). <<< Gemeldet zum Feld
+ * «Winkel α»: «wenn ich da die null lösche fliege ich aus dem feld raus
+ * bevor ich dann eine zahl eingeben kann.» Leer geschrieben wurde 0 (oder
+ * die Vorgabe), die Karte baute neu, der Fokus war weg. Während des Tippens
+ * bleibt ein leeres Zahlenfeld deshalb ungeschrieben; erst beim Verlassen
+ * (`change`) gilt es - als Vorgabe bzw. 0 wie bisher.
+ */
+const leerBeimTippen = (inp, e) => e?.type === 'input' && inp.type === 'number'
+  && inp.value.trim() === '' && !inp.validity?.badInput;
+const auchBeimVerlassen = (inp, ev, fn) => {
+  inp.addEventListener(ev, fn);
+  // Nur das leere Feld wird beim Verlassen nachgeholt - eine Zahl ist beim
+  // Tippen schon geschrieben, ein zweiter Schreibvorgang wäre ein zweiter
+  // Schritt im Rückgängig.
+  if (ev === 'input' && inp.type === 'number') {
+    inp.addEventListener('change', (e) => { if (inp.value.trim() === '') fn(e); });
+  }
+};
 
 /** Rückruf für das Hervorheben im 3D; app.js setzt ihn beim Start. */
 let beiDrahtwerk = null;
@@ -4841,6 +4916,7 @@ let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
 let beiAnbauOeffnen = null, beiAnbauDuplizieren = null, beiAnbauKontext = null;
 let beiAnbauAlleWeg = null, beiSignalDirekt = null;
+let beiAnbauNeu = null, beiAnbauAuswahlBearbeiten = null;
 
 /** Rückrufe der Anbauteil-Oberfläche registrieren (einmalig beim Start). */
 export function setzeAnbauHandler(h) {
@@ -4850,6 +4926,7 @@ export function setzeAnbauHandler(h) {
   beiAnbauOeffnen = h.oeffnen;
   beiAnbauDuplizieren = h.duplizieren; beiAnbauKontext = h.kontext;
   beiAnbauAlleWeg = h.alleWeg; beiSignalDirekt = h.signal;
+  beiAnbauNeu = h.neuZeichnen; beiAnbauAuswahlBearbeiten = h.auswahlBearbeiten;
 }
 
 /**
@@ -5023,7 +5100,17 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   // Zeile anklicken: dieses Teil aufklappen, die übrigen zu. Ein zweiter Klick
   // auf die offene Zeile klappt sie wieder zu.
   container.querySelectorAll('[data-at-oeffnen]').forEach((z) => {
-    z.addEventListener('click', () => beiAnbauOeffnen?.(+z.dataset.atOeffnen));
+    z.addEventListener('click', (e) => {
+      // Strg / Cmd + Klick markiert, statt die Karte zu öffnen (7. Oktober).
+      if (e.ctrlKey || e.metaKey) {
+        const id = liste()[+z.dataset.atOeffnen]?.id;
+        if (!id) return;
+        if (atMarkiert.has(id)) atMarkiert.delete(id); else atMarkiert.add(id);
+        beiAnbauNeu?.();
+        return;
+      }
+      beiAnbauOeffnen?.(+z.dataset.atOeffnen);
+    });
   });
   // Filtern im Browser, ohne die Maske neu zu bauen.
   const suche = container.querySelector('#at-suche');
@@ -5064,6 +5151,24 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-dup]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
   });
+  // Die Auswahlleiste (7. Oktober).
+  container.querySelectorAll('[data-atm]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const ids = [...atMarkiert];
+      const l = liste();
+      if (b.dataset.atm === 'aufheben') { atMarkiert.clear(); beiAnbauNeu?.(); return; }
+      if (b.dataset.atm === 'bearbeiten') { beiAnbauAuswahlBearbeiten?.(ids); return; }
+      if (b.dataset.atm === 'aktiv') {
+        const ein = !l.filter((a) => atMarkiert.has(a.id)).every((a) => a.aktiv !== false);
+        onAnbau(l.map((a) => (atMarkiert.has(a.id) ? { ...a, aktiv: ein } : a)));
+        return;
+      }
+      if (b.dataset.atm === 'loeschen') {
+        atMarkiert.clear();
+        onAnbau(l.filter((a) => !ids.includes(a.id)));
+      }
+    });
+  });
   // Drahtwerke nach Typ: hervorheben im 3D (7. Oktober).
   container.querySelectorAll('[data-drahtwerk]').forEach((z) => {
     z.addEventListener('click', () => {
@@ -5100,8 +5205,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('.at').forEach((inp) => {
     // Ein Textfeld (Gruppe) erst beim Verlassen - sonst baut jede Taste die Karte neu.
     const ev = inp.type === 'checkbox' || inp.type === 'text' ? 'change' : 'input';
-    inp.addEventListener(ev, () => {
-      if (inp.validity?.badInput) return;   // «-» halb getippt (6. Oktober)
+    auchBeimVerlassen(inp, ev, (e) => {
+      if (inp.validity?.badInput || leerBeimTippen(inp, e)) return;   // halb getippt
       const karte = inp.closest('.at-karte');
       const idx = +karte.dataset.idx;
       const l = liste();
@@ -5363,7 +5468,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('.mod').forEach((inp) => {
     const ev = inp.tagName === 'SELECT' || inp.type === 'checkbox'
       ? 'change' : 'input';
-    inp.addEventListener(ev, () => {
+    auchBeimVerlassen(inp, ev, (e) => {
+      if (leerBeimTippen(inp, e)) return;
       /*
        * >>> HALBE EINGABE ABWARTEN (6. Oktober). <<< Gemeldet: «negative
        * werte lassen sich nicht bei der ablenkung innerhalb eines anbauteils
@@ -5430,7 +5536,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   // --- Freie Lastblöcke -----------------------------------------------------
   container.querySelectorAll('.lb').forEach((inp) => {
     const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
-    inp.addEventListener(ev, () => {
+    auchBeimVerlassen(inp, ev, (e) => {
+      if (inp.validity?.badInput || leerBeimTippen(inp, e)) return;
       const l = liste();
       const idx = +inp.dataset.idx, k = +inp.dataset.last;
       if (!l[idx]) return;
@@ -5467,8 +5574,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
    * zieht mit. Ein alter Block ohne Kennung ist sein eigener Punkt.
    */
   container.querySelectorAll('.lpunkt').forEach((inp) => {
-    inp.addEventListener('input', () => {
-      if (inp.validity?.badInput) return;   // «-» halb getippt (6. Oktober)
+    auchBeimVerlassen(inp, 'input', (e) => {
+      if (inp.validity?.badInput || leerBeimTippen(inp, e)) return;   // halb getippt
       const l = liste(); const idx = +inp.dataset.idx;
       if (!l[idx]) return;
       const wert = parseFloat(inp.value) || 0;
