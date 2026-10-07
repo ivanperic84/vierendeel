@@ -39321,6 +39321,52 @@ titel('248  Fundament: Ablauf der Fundamentbestimmung und Gelände über 14°');
   }
 }
 
+titel('249  Doppelanker auf Zug; nächste Stufe des Sortiments');
+/* 6. Oktober: «Doppelanker Zug als Funktion aufnehmen». Alte Maststatik-Mappe:
+ * Ankerstange → Zugstütze → Doppelanker → nicht zulässig. Der Doppelanker sind
+ * zwei Seile am selben Punkt: doppelte Fläche, doppelte zulässige Betriebslast. */
+{
+  const AK249 = await import(J('data.anker.js'));
+  const da = AK249.ankerTypen().find((t) => t.id === 'DA20');
+  const sa = AK249.ankerTypen().find((t) => t.id === 'SA20');
+  if (!da || !sa) {
+    wahr('Doppelanker im Ankerkatalog (Betreiberdaten)', true, 'Testdaten ohne Doppelanker - übersprungen');
+  } else {
+    wahr('Doppelanker = zwei Seile: doppelte Betriebslast und Fläche, nur Zug',
+         da.art === 'seil' && da.zugBetrieb === 2 * sa.zugBetrieb
+         && da.querschnitt.A === 2 * sa.querschnitt.A && da.querschnitt.anzahl === 2,
+         `${da.zugBetrieb} kN`);
+    wahr('Stufen auf Zug (Ankereisen): Seilanker → Stütze → Doppelanker → keiner',
+         AK249.ankerReichtZug(0.9 * sa.zugBetrieb, 'ankereisen')?.typ.id === 'SA20'
+         && AK249.ankerReichtZug(sa.zugBetrieb + 3, 'ankereisen')?.typ.art === 'stuetze'
+         && AK249.ankerReichtZug(100, 'ankereisen')?.typ.id === 'DA20'
+         && AK249.ankerReichtZug(da.zugBetrieb + 1, 'ankereisen') === null);
+    // Im Mastnachweis: derselbe Anker mit einem und mit zwei Seilen.
+    const MK249 = await import(J('core.mast.js'));
+    const { vergleichKombinationen: vgl249 } = await import(J('core.vierendeel.js'));
+    const A249 = await import(J('data.anbauteile.js'));
+    const basis = { ...standardwerte(), typ: 'J90', L: 15, mastVorhanden: true,
+      mastProfil: 'HEB 260', mastH: 8, trasseRadius: 600,
+      anbauteile: [{ ...A249.neuesAnbauteil('hs-fahrdraht', 7.5), name: 'FL' }] };
+    const kraft = (typ) => {
+      const w = { ...basis, mastAnkerA: { typ, h: 7.79, a: 4.5, richtung: 'y', seite: 'minus',
+                                          befestigung: 'ankerplatte' } };
+      const r = vgl249(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                       T.getTragjoch('J90'));
+      return r.ergebnisse.wyk?.mast?.A?.ankerkraft?.N;
+    };
+    const n1 = kraft('SA20'), n2 = kraft('DA20');
+    // Der Kern rechnet den Anker als starres Auflager: dieselbe Kraft, das halbe η.
+    wahr('Kern: gleiche Ankerkraft mit einem und zwei Seilen (starres Auflager)',
+         Math.abs(n2 - n1) < 1e-9 && n1 > 0, `${n1?.toFixed(2)} / ${n2?.toFixed(2)} kN`);
+    pruef('… und das halbe η', AK249.ankerNachweis('DA20', n1, 8, {}).eta,
+          AK249.ankerNachweis('SA20', n1, 8, {}).eta / 2, 1e-12, '');
+    const ui249 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Ankerkachel nennt bei Überschreitung auf Zug, was reicht',
+         ui249.includes("' · kein Anker des Sortiments reicht'") && ui249.includes('ankerReichtZug('));
+  }
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

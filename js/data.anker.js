@@ -158,6 +158,26 @@ export function ankerZulZug(id, befestigung = 'ankerplatte') {
 }
 
 /**
+ * >>> DIE NÄCHSTE STUFE AUF ZUG (7. Oktober). <<<
+ *
+ * Weisung vom 6. Oktober: «Doppelanker Zug als Funktion aufnehmen». Die alte
+ * Maststatik-Mappe führt die Stufen Ankerstange → Zugstütze → Doppelanker →
+ * «nicht zulässig». Hier aus dem Sortiment: der Typ mit der kleinsten
+ * zulässigen Zugkraft, die N trägt - oder null, wenn keiner reicht.
+ *
+ * @param {number} N  Zugkraft [kN], charakteristisch
+ * @returns {{typ:object, zul:number}|null}
+ */
+export function ankerReichtZug(N, befestigung = 'ankerplatte', ausser = null) {
+  const kand = ankerTypen()
+    .filter((t) => t.id !== ausser)
+    .map((t) => ({ typ: t, zul: ankerZulZug(t.id, befestigung) }))
+    .filter((k) => Number(k.zul) >= Math.abs(Number(N) || 0))
+    .sort((p, q) => p.zul - q.zul);
+  return kand[0] ?? null;
+}
+
+/**
  * DER NACHWEIS EINER STÜTZE ODER EINES ANKERS.
  *
  * @param {string} id    Typ aus dem Sortiment

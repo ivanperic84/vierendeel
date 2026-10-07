@@ -57,7 +57,7 @@ import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
 // Fuer die Profiluebersicht: die Querschnittswerte des Ankers und
 // die Stahlguete stehen in ihren eigenen Datenmodulen.
-import { ankerQuerschnitt } from './data.anker.js';
+import { ankerQuerschnitt, ankerReichtZug } from './data.anker.js';
 import { mastKlasse } from './core.mast.js';
 import { winkelIt } from './core.winkel.js';
 import { blechWerte } from './ui.profilblatt.js';
@@ -7100,7 +7100,19 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         return;
       }
       const fA = fz(e.lastfall, e.bez);
-      anker.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
+      /*
+       * >>> AUF ZUG ÜBERSCHRITTEN: WAS REICHT (7. Oktober). <<< «Doppelanker
+       * Zug als Funktion aufnehmen» - die Kachel nennt die nächste Stufe des
+       * Sortiments (Ankerstange → Zugstütze → Doppelanker), oder dass keine
+       * reicht.
+       */
+      let reicht = '';
+      if (zug && nw.eta > 1) {
+        let r = null;
+        try { r = ankerReichtZug(nw.N, e.kraft?.befestigung ?? e.befestigung ?? 'ankerplatte', e.kraft?.typ ?? e.typ ?? null); } catch { r = null; }
+        reicht = r ? ` · reicht: ${r.typ.name} (${f0(r.zul)} kN)` : ' · kein Anker des Sortiments reicht';
+      }
+      anker.push(kachel(`η Anker ${name}`, f3(nw.eta), wie + reicht, ampelU(nw.eta), {
         ...(fA ? { fall: fA.kurz } : {}),
         titel: `${fA ? `Massgebende Kombination: ${fA.voll}
 
