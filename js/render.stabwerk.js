@@ -523,6 +523,47 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
       }),
     };
   });
+  /*
+   * >>> DER GITTERMAST ÜBER DIE HÖHE (7. Oktober). <<< Weisung «Verläufe
+   * Gittermast»: seine Stäbe heissen nicht `MAST_<id>_S<n>` und fehlten
+   * hier. Je Mast über die Höhe ab dem Fuss: η der Gurte (das Grösste der
+   * vier Ecken), der Bindebleche (je Station, als schmale Stufe) und des
+   * Rohrs; dazu |N| der Gurte und |M| des Rohrs.
+   */
+  const gitter = {};
+  Object.values(jeStab).forEach((z) => {
+    const m = /(?:^|_)MAST_([^_]+)_(?:G[1-4]_S\d+|(BL)_[A-Za-z]+_\d+|(ROHR)_\w+)$/.exec(z.name);
+    if (!m || !Number.isFinite(z.z0)) return;
+    const g = (gitter[m[1]] ??= { gurt: [], blech: [], rohr: [] });
+    (m[2] ? g.blech : m[3] ? g.rohr : g.gurt).push(z);
+  });
+  Object.entries(gitter).sort(([a], [b]) => a.localeCompare(b)).forEach(([name, g]) => {
+    if (!g.gurt.length) return;
+    const fuss = Math.min(...g.gurt.map((z) => z.z0));
+    const lang = (l) => l.map((z) => ({ z, x0: z.z0 - fuss, x1: z.z1 - fuss }));
+    // Ein Blech liegt waagrecht: eine schmale Stufe um seine Station.
+    const kurz = (l) => l.map((z) => ({ z, x0: (z.z0 + z.z1) / 2 - fuss - 0.03, x1: (z.z0 + z.z1) / 2 - fuss + 0.03 }));
+    const lg = lang(g.gurt), lb = kurz(g.blech), lr = lang(g.rohr);
+    const grenzen = [...lg, ...lb, ...lr].flatMap((s) => [s.x0, s.x1]);
+    const tE = treppe(grenzen, [ueber(lg, 'eta'), ueber(lb, 'eta'), ueber(lr, 'eta')]);
+    const tS = treppe(grenzen, [ueber(lg, 'N'), ueber(lr, 'M')]);
+    mastDia.push({
+      name: `${name} (Gittermast)`,
+      eta: linienDiagramm({
+        titel: `Ausnutzung über die Höhe · Gittermast ${name}${zusatz}`, breite, hoehe: 210,
+        xLabel: 'z über Mastfuss [m]', yLabel: 'η [–]', punkte: tE.punkte, grenze: 1.0,
+        serien: [{ name: 'Gurt (grösste Ecke)', werte: tE.werte[0] },
+                 { name: 'Bindeblech', werte: tE.werte[1] },
+                 ...(lr.length ? [{ name: 'Rohr', werte: tE.werte[2] }] : [])],
+      }),
+      schnitt: linienDiagramm({
+        titel: `Kräfte über die Höhe · Gittermast ${name}${zusatz}`, breite, hoehe: 230,
+        xLabel: 'z über Mastfuss [m]', yLabel: 'N [kN] / M [kNm]', punkte: tS.punkte,
+        serien: [{ name: '|N| Gurt (grösste Ecke)', werte: tS.werte[0] },
+                 ...(lr.length ? [{ name: '|M| Rohr (grösseres)', werte: tS.werte[1] }] : [])],
+      }),
+    });
+  });
   if (js.ohneJoch && !mastDia.length) return null;
   return { gurt, blech, kraft, masten: mastDia };
 }

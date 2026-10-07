@@ -904,9 +904,55 @@ export function haengeTiefe(a) {
  * sagt der Lastfall (`havarieEinsetzen`). Die Bruchmerker der alten Form
  * (`bruch` an der Baugruppe) gelten nur noch, wo keine Auswahl steht.
  * ========================================================================= */
+/*
+ * >>> PUNKT FUER PUNKT (7. Oktober). <<< Weisung: «Ich habe noch einen
+ * eintrag der speziell aussiht, da dieser über verschiedene x abschnitte als
+ * ein packet zusammengenommen wurde. Wir sollen das punkt für punkt
+ * aufschlüsseln.» Ein Kettenwerk gilt seither nur an EINER Stelle als ein
+ * Leiter: gleiche Bezeichnung UND gleicher Ort (Joch an derselben Stelle x,
+ * bzw. derselbe Mast). Fahrdraht und Tragseil an derselben Stelle bleiben
+ * ein Leiter (Weisung 19. September); dieselbe Bezeichnung an einer anderen
+ * Stelle ist ein anderer Leiter.
+ */
+const kwStelle = (a) => {
+  const ort = ortVon(a);
+  if (ort !== 'joch') return `${ort}${a?.mastId ? `:${a.mastId}` : ''}`;
+  return `joch:${(Math.round((Number(a?.x) || 0) * 100) / 100).toFixed(2)}`;
+};
 export function leiterKennung(a, m, i) {
   const kw = String(m?.kettenwerk ?? '').trim();
-  return kw ? `kw:${kw}` : `${a?.id}#${i}`;
+  return kw ? `kw:${kw}@${kwStelle(a)}` : `${a?.id}#${i}`;
+}
+
+/** Bezeichnung eines Kettenwerk-Schlüssels (ohne Stelle), sonst null. */
+export const kettenwerkVon = (key) => (String(key ?? '').startsWith('kw:')
+  ? String(key).slice(3).replace(/@[^@]*$/, '') : null);
+
+/*
+ * DIE WAHL WANDERT MIT. Seit der Schlüssel eines Kettenwerks seine Stelle
+ * trägt, änderte ein Verschieben die Kennung - Abfangung und «kann reissen»
+ * fielen zurück. `havarieNachfuehren` trägt sie je Modul von der alten auf
+ * die neue Kennung, und ein Eintrag der alten Form (`kw:<Name>` ohne Stelle,
+ * vor dem 7. Oktober) gilt für jede Stelle dieses Namens.
+ */
+export function havarieNachfuehren(havarie, alt, neu) {
+  if (!havarie || !Object.keys(havarie).length) return havarie ?? {};
+  let h = null;
+  const setze = (k, v) => { h = h ?? { ...havarie }; h[k] = { ...v }; };
+  const altNach = new Map((alt ?? []).map((a) => [a?.id, a]));
+  (neu ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => {
+    const kNeu = leiterKennung(a, m, i);
+    if (!kNeu.startsWith('kw:') || (h ?? havarie)[kNeu]) return;
+    const a0 = altNach.get(a.id);
+    const kAlt = a0 ? leiterKennung(a0, (a0.module ?? [])[i] ?? m, i) : null;
+    const quelle = (kAlt && kAlt !== kNeu ? havarie[kAlt] : null)
+      ?? havarie[`kw:${kettenwerkVon(kNeu)}`];
+    if (quelle) setze(kNeu, quelle);
+  }));
+  if (!h) return havarie;
+  // Alte Schlüssel ohne Stelle sind damit aufgelöst.
+  Object.keys(h).forEach((k) => { if (/^kw:[^@]*$/.test(k)) delete h[k]; });
+  return h;
 }
 
 /**
@@ -955,7 +1001,7 @@ export function leiterListe(anbauteile) {
       const ort = ortVon(a);
       let z20 = null;
       try { z20 = abfangkraft(m.bauteil, { tempFall: 'havarie' }).Z; } catch { /* ohne Tabelle */ }
-      const e = liste.get(key) ?? { key, teile: [], kettenwerk: key.startsWith('kw:') ? key.slice(3) : null };
+      const e = liste.get(key) ?? { key, teile: [], kettenwerk: kettenwerkVon(key) };
       // `bauteilId` fuer die Karte: sie rechnet die Anteile mit derselben
       // Funktion wie der Kern und braucht dafuer den Tabelleneintrag.
       e.teile.push({ baugruppe: a.id, modul: i, name: a.name, bauteil: b.name,
@@ -1007,8 +1053,12 @@ export function havarieAnheben(w) {
     const hav = { ...(t?.havarie ?? {}) };
     const r = umsetzen(t?.anbauteile, hav);
     const z = zusatz ? umsetzen(zusatz, hav) : { neu: zusatz, geaendert: false };
-    if (!r.geaendert && !z.geaendert) return { t, mast: zusatz };
-    return { t: { ...t, anbauteile: r.neu, havarie: hav }, mast: z.neu };
+    // Kettenwerke der alten Form (`kw:<Name>`) Punkt für Punkt (7. Oktober).
+    const alle = [...(r.neu ?? []), ...((z.neu ?? []))];
+    const punktweise = Object.keys(hav).some((k) => /^kw:[^@]*$/.test(k))
+      ? havarieNachfuehren(hav, alle, alle) : hav;
+    if (!r.geaendert && !z.geaendert && punktweise === hav) return { t, mast: zusatz };
+    return { t: { ...t, anbauteile: r.neu, havarie: punktweise }, mast: z.neu };
   };
   const haupt = eins(w, w.mastAnbauteile ?? null);
   const erg = { ...haupt.t };
@@ -1679,24 +1729,56 @@ export function baugruppeSumme(a, o = {}) {
  */
 export const MAST_GLEIS_VORGABE = 3.5;
 
-export function erzeugeGleislasten({ L, gleise, abstand, vorlagen: ids, versatz = 0, start = null }) {
+/*
+ * >>> DELTA JE TEIL, JOCHAUFSAETZE OHNE GLEIS (7. Oktober). <<< Weisung:
+ * «Lastgenerator delta zu gleisachse angeben je anbauteil. Jochaufsatz nicht
+ * an gleis anbinden. Hier kann man eine auswahl machen wieviel und delta oder
+ * verhältniss, da man ja nicht weiss wie lang ein joch sein wird.» Auf
+ * Rückfrage «Anzahl + Wahl Δ/Verhältnis»: `delta` je Vorlage (m, + in
+ * Jochrichtung) verschiebt das Teil gegen die Gleisachse; Jochaufsätze
+ * stehen für sich - `aufsatz.art` 'verteilt' (bei L·i/(n+1), folgt der
+ * Länge) oder 'abstand' (Abstand Δ zueinander, symmetrisch zur Jochmitte).
+ */
+export const istJochaufsatzVorlage = (id) => {
+  try { return getVorlage(id).gruppe === 'jochaufsatz'; } catch { return false; }
+};
+
+export function aufsatzLagen(L, { n = 0, art = 'verteilt', abstand = 0 } = {}) {
+  const k = Math.max(0, Math.round(n));
+  return Array.from({ length: k }, (_, i) => (art === 'abstand'
+    ? L / 2 + (i - (k - 1) / 2) * Math.max(0, abstand)
+    : L * (i + 1) / (k + 1)));
+}
+
+export function erzeugeGleislasten({ L, gleise, abstand, vorlagen: ids, versatz = 0, start = null,
+                                     delta = {}, aufsatz = null }) {
   const n = Math.max(0, Math.round(gleise ?? 0));
   const a = Math.max(0, abstand ?? 0);
   const teile = [];
   const gleisX = [];
   let ausserhalb = 0;
+  const jeGleis = (ids ?? []).filter((id) => !istJochaufsatzVorlage(id));
+  const aufsaetze = (ids ?? []).filter((id) => istJochaufsatzVorlage(id));
+  const rund = (x) => Math.round(x * 100) / 100;
 
   for (let i = 0; i < n; i++) {
     const x = Number.isFinite(start) ? start + i * a
       : L / 2 + (i - (n - 1) / 2) * a + versatz;
     if (x < 0 || x > L) { ausserhalb++; continue; }
     gleisX.push(x);
-    (ids ?? []).forEach((id) => {
-      const t = neuesAnbauteil(id, Math.round(x * 100) / 100);
+    jeGleis.forEach((id) => {
+      const xt = x + (Number(delta?.[id]) || 0);
+      if (xt < 0 || xt > L) { ausserhalb++; return; }
+      const t = neuesAnbauteil(id, rund(xt));
       teile.push({ ...t, name: `${t.name} Gleis ${gleisX.length}`, gleis: gleisX.length });
     });
   }
-  return { teile, gleisX, ausserhalb };
+  const aufsatzX = aufsaetze.length ? aufsatzLagen(L, aufsatz ?? {}).filter((x) => x >= 0 && x <= L) : [];
+  aufsatzX.forEach((x, k) => aufsaetze.forEach((id) => {
+    const t = neuesAnbauteil(id, rund(x));
+    teile.push({ ...t, name: `${t.name} ${k + 1}`, tag: 'Jochaufsätze' });
+  }));
+  return { teile, gleisX, ausserhalb, aufsatzX };
 }
 
 /** Farbschlüssel eines Anbauteils für die 3D-Darstellung. */

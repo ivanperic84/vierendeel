@@ -447,9 +447,21 @@ function havarieHtml(g, werte) {
    */
   let imSatz = [];
   try { imSatz = rechensatz(werte).anbauteile ?? []; } catch { imSatz = []; }
-  const teilKeys = (l) => [...new Set(l.teile
-    .map((t) => imSatz.findIndex((a) => a.id === t.baugruppe))
-    .filter((k) => k >= 0).map((k) => `AT${k}`))];
+  /*
+   * >>> WIE DIE DRAHTWERKE UNTER ANBAUTEILE (7. Oktober). <<< Weisung: «Die
+   * anzeige der Leiterauswahl unter havarie gleich machen wie unter
+   * anbauteile.» Dieselbe Tabelle (Leiter, Typ, Lage), Überfahren zeigt den
+   * LEITER im 3D (Modulschlüssel `AT<i>#<k>`), nicht das ganze Bauteil.
+   */
+  const teilKeys = (l) => [...new Set(l.teile.flatMap((t) => {
+    const k = imSatz.findIndex((a) => a.id === t.baugruppe);
+    return k >= 0 ? [`AT${k}#${t.modul}`, `AT_${k + 1}#${t.modul}`] : [];
+  }))];
+  const leiterTitel = (l) => (l.kettenwerk ? `${l.kettenwerk}` : '')
+    + [...new Set(l.teile.map((t) => {
+      const k = imSatz.findIndex((a) => a.id === t.baugruppe);
+      return k >= 0 ? `A${k + 1}.${t.modul + 1}` : '';
+    }).filter(Boolean))].map((s, j) => (j === 0 && l.kettenwerk ? ` · ${s}` : (j ? ` ${s}` : s))).join('');
   const wahl = werte.havarie ?? {};
   const n = leiter.filter((l) => wahl[l.key]?.reisst === true).length;
   const t0 = tragwerkeVon(werte)[0];
@@ -498,13 +510,14 @@ function havarieHtml(g, werte) {
     }
     const kraft = (v) => (v === null || v === undefined || Math.abs(v) < 5e-3
       ? '<span class="dim">–</span>' : f2(v));
-    return `<tr>
+    return `<tr class="klick" data-hav-zeige="${esc(teilKeys(l).join(','))}"
+        title="Überfahren: Leiter im 3D · Klick: festhalten (nochmals oder Esc: zurück)">
       <td><input type="checkbox" data-hav-key="${esc(l.key)}" data-hav="reisst"
         data-hav-name="${esc(l.name)}"${e.reisst === true ? ' checked' : ''}
         title="Dieser Leiter kann reissen — er wird als eigener Havariefall gerechnet"></td>
-      <td class="hav-name${teilKeys(l).length ? ' klick' : ''}"${teilKeys(l).length
-        ? ` data-hav-zeige="${esc(teilKeys(l).join(','))}" title="Im 3D hervorheben (nochmals klicken oder Esc: zurück)"` : ''}
-        >${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
+      <td class="hav-name">${esc(leiterTitel(l) || l.name)}</td>
+      <td>${esc([...new Set(l.teile.map((t) => t.bauteil))].join(' + '))}</td>
+      <td class="hav-lage">${esc([...new Set(l.teile.map(wo))].join(' · '))}</td>
       ${/* >>> DIE ABFANGUNG WIRD BEIM BAUTEIL EINGEGEBEN (29. September). <<<
          * «wie gibt man bei einem joch leiter ein die abgefangen sind (nicht
          * durchgehend). die eingabe über die leiter sollte direkt bei den
@@ -546,8 +559,8 @@ function havarieHtml(g, werte) {
     <p class="notiz">Angehakte Leiter werden <b>einzeln</b> gerechnet — je Leiter ein Fall
       +y und −y, in dem nur er reisst; ein Kettenwerk (Fahrdraht + Tragseil) zählt als ein
       Leiter. Massgebend ist die Hülle. ${esc(regel)}</p>
-    <table class="hav-tab">
-      <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th>
+    <div class="tabellenrahmen"><table class="dt dw-tab hav-tab">
+      <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th><th>Typ</th><th>Lage</th>
         <th title="Wie der Leiter gefuehrt ist">Abfangung</th>
         <th title="Zugrichtung der einseitigen Abfangung">Ri.</th>
         <th title="Ständiger Längszug [kN]">G_y</th>
@@ -555,7 +568,7 @@ function havarieHtml(g, werte) {
         <th title="Leiterzugkraft bei −20 °C in +y [kN] – leer: aus der Reglagetabelle">Z +y</th>
         <th title="Leiterzugkraft bei −20 °C in −y [kN] – leer: aus der Reglagetabelle">Z −y</th></tr></thead>
       <tbody>${zeilen}</tbody>
-    </table>
+    </table></div>
     <div class="hav-tun">
       <button class="btn btn-mini" type="button" data-hav-alle="1">alle</button>
       <button class="btn btn-mini" type="button" data-hav-alle="0">keine</button>
@@ -572,12 +585,17 @@ function verdrahteHavarie(container, werte, onChange) {
   container.querySelectorAll('[data-hav-an]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieAus', !inp.checked));
   });
+  const havFest = () => container.querySelector('[data-hav-zeige].aktiv');
+  const havZeigen = (z) => beiDrahtwerk?.(z?.dataset.havZeige ? z.dataset.havZeige.split(',') : null);
   container.querySelectorAll('[data-hav-zeige]').forEach((z) => {
-    z.addEventListener('click', () => {
+    z.addEventListener('mouseenter', () => havZeigen(z));
+    z.addEventListener('mouseleave', () => havZeigen(havFest()));
+    z.addEventListener('click', (e) => {
+      if (e.target.closest('input, select')) return;
       const an = !z.classList.contains('aktiv');
       container.querySelectorAll('[data-hav-zeige]').forEach((x) => x.classList.remove('aktiv'));
       if (an) z.classList.add('aktiv');
-      beiDrahtwerk?.(an ? z.dataset.havZeige.split(',') : null);
+      havZeigen(an ? z : null);
     });
   });
   container.querySelectorAll('[data-hav-achse]').forEach((inp) => {
@@ -3322,15 +3340,35 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
       const gr = anbauGruppe(a) ?? '';
       // «Einzeln» (7. Oktober, «hier noch einzeln aufführen als auswahl»): je
       // Leiter eine Zeile; «Bauteil» fasst je Anbauteil und Typ zusammen.
+      /*
+       * NAME, LAGE X, HÖHE Z (7. Oktober). Weisung: «Leiter nach name oder x
+       * bzw z abschnitt des tragwerks auflisten unter Drahtwerk». Name = die
+       * Kettenwerk-Bezeichnung, sonst der Typ; Lage x = die Stelle am Joch
+       * (am Masten der Mast mit seiner Höhe); Höhe z = z des Moduls ab der
+       * Jochachse bzw. die Höhe über dem Mastfuss.
+       */
+      const lageX = amMast(a) ? `${a.mastId ?? 'Mast'} h ${(Number(a.hMast) || 0).toFixed(2)}`
+        : `x ${(Number(a.x) || 0).toFixed(2)}`;
+      const hoeheZ = amMast(a) ? (Number(a.hMast) || 0) + (Number(m.z) || 0) : (Number(m.z) || 0);
+      const zText = amMast(a) ? `h ${hoeheZ.toFixed(2)} m (am Mast)` : `z ${hoeheZ >= 0 ? '+' : ''}${hoeheZ.toFixed(2)} m`;
+      const nameL = String(m.kettenwerk ?? '').trim() || b.name;
       const key = gliederung === 'einzeln' ? `${i}|${k}`
         : gliederung === 'bauteil' ? `${i}|${m.bauteil}`
-        : gliederung === 'gruppe' ? `${gr}|${m.bauteil}` : m.bauteil;
-      const titel = gliederung === 'einzeln'
+        : gliederung === 'gruppe' ? `${gr}|${m.bauteil}`
+        : gliederung === 'name' ? nameL
+        : gliederung === 'x' ? `${lageX}|${m.bauteil}`
+        : gliederung === 'z' ? `${zText}|${m.bauteil}` : m.bauteil;
+      const titel = gliederung === 'name' ? nameL
+        : gliederung === 'x' ? lageX
+        : gliederung === 'z' ? zText
+        : gliederung === 'einzeln'
         ? `A${i + 1}.${k + 1} · ${amMast(a) ? `${a.hMast ?? 0} m am Mast` : `x ${(Number(a.x) || 0).toFixed(2)}`}`
           + ` · z ${(Number(m.z) || 0).toFixed(2)}${Math.abs(Number(m.x) || 0) > 1e-9 ? ` · x′ ${Number(m.x).toFixed(2)}` : ''}`
         : gliederung === 'bauteil' ? `A${i + 1} ${a.name ?? ''}`
         : gliederung === 'gruppe' ? (gr ? `#${gr}` : 'ohne Gruppe') : '';
-      const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0,
+      const ord = gliederung === 'x' ? (amMast(a) ? 1e6 + (Number(a.hMast) || 0) : (Number(a.x) || 0))
+        : gliederung === 'z' ? (amMast(a) ? 1e6 + hoeheZ : hoeheZ) : 0;
+      const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0, ord,
                                  teile: [], lagen: [], stellen: [], mult: new Set() };
       const n = Math.max(1, Math.round(Number(m.anzahl) || 1));
       e.anzahl += n;
@@ -3347,13 +3385,15 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
   });
   return [...je.values()].map((e) => ({ ...e, mult: [...e.mult].sort((p, q) => p - q) }))
     .sort((p, q) => (gliederung === 'typ' ? q.anzahl - p.anzahl || p.name.localeCompare(q.name)
+      : gliederung === 'x' || gliederung === 'z' ? p.ord - q.ord || p.name.localeCompare(q.name)
       : p.titel.localeCompare(q.titel, 'de', { numeric: true }) || p.name.localeCompare(q.name)));
 }
 
 /* Gliederung und Auswahl der Übersicht - Ansichtssache, nicht im Stand. */
 let dwGliederung = 'typ';
 const dwWahl = new Set();
-const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']];
+const DW_GLIEDERUNG = [['typ', 'Typ'], ['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z'],
+  ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']];
 /** Esc hebt die Auswahl auf (mit dem Hervorheben im 3D). */
 export function drahtwerkWahlAufheben() { const war = dwWahl.size > 0; dwWahl.clear(); return war; }
 
@@ -3377,7 +3417,7 @@ function drahtwerkUebersichtHtml(liste) {
       <input type="number" min="1" step="1" data-dw-alle-anz placeholder="× je Stelle" title="Anzahl je Stelle für alle gewählten">
       <button class="btn btn-mini" type="button" data-dw-aufheben>Auswahl aufheben</button></div>` : ''}
     <div class="tabellenrahmen"><table class="dt dw-tab">
-      <thead><tr>${dwGliederung === 'typ' ? '' : `<th>${({ gruppe: 'Gruppe', bauteil: 'Bauteil', einzeln: 'Leiter' })[dwGliederung] ?? ''}</th>`}<th>Typ</th>
+      <thead><tr>${dwGliederung === 'typ' ? '' : `<th>${({ gruppe: 'Gruppe', bauteil: 'Bauteil', einzeln: 'Leiter', name: 'Name', x: 'Lage', z: 'Höhe' })[dwGliederung] ?? ''}</th>`}<th>Typ</th>
         <th class="num" title="Stellen (Module)">Stellen</th>
         <th class="num" title="Anzahl je Stelle - der Multiplikator, z. B. Bündel 2×">× je Stelle</th>
         <th class="num">Summe</th><th>an</th></tr></thead>

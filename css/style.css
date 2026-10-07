@@ -703,6 +703,10 @@ input[type=range].rng {
 
 /* Lastgenerator */
 .gen-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gen-teile { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.gen-teile label { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.gen-teile .zahlfeld { display: inline-flex; align-items: center; gap: 4px; width: auto; }
+.gen-teile .zahlfeld input { width: 64px; flex: none; }
 
 /* --- Module einer Baugruppe ----------------------------------------------- */
 /* Ein Anbauteil ist modular: Träger, Aufbauten und Drahtwerke, jedes auf

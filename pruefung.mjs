@@ -7461,13 +7461,15 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     pruef('Der Leiterzug auch', kw.leiterzug,
           tsB.leiterzug + fdB.leiterzug, 1e-12, 'kN');
     const wq = (b, ek) => (b.windQuer ?? {})[ek];
+    /* GEAENDERT am 7. Oktober (Rueckfrage «Halb/halb»): Ts und Fd tragen
+     * einzeln je die HAELFTE der Fahrleitungszeile des Blatts Windlasten 2
+     * (vorher je der Wert des Leiterseils 95, zusammen 15 % zu wenig). Die
+     * Summe ist damit das Kettenwerk - wer einzeln setzt, rechnet gleich. */
     for (const ek of ['EK1', 'EK2', 'EK3']) {
       const summe = wq(tsB, ek) + wq(fdB, ek);
-      wahr(`Der Wind ${ek} ist MEHR als die Summe`, wq(kw, ek) > summe + 1e-9,
-           `${wq(kw, ek)} gegen ${Math.round(summe * 1e5) / 1e5}`);
+      pruef(`Der Wind ${ek}: Ts + Fd = Kettenwerk (je die Haelfte)`, summe, wq(kw, ek), 1e-9, 'kN/m');
     }
-    pruef('Und zwar um rund fuenfzehn Prozent',
-          wq(kw, 'EK2') / (wq(tsB, 'EK2') + wq(fdB, 'EK2')), 1.1538, 1e-3, '–');
+    pruef('Ts und Fd gleich', wq(tsB, 'EK2'), wq(fdB, 'EK2'), 1e-12, 'kN/m');
     /*
      * 5 - DIE VIELFACHEN SIND EXAKTE VIELFACHE. Das ist kein Zufall, und es
      * ist die Voraussetzung dafuer, dass man sie eines Tages durch das Feld
@@ -7608,9 +7610,9 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
           1e-12, 'kN');
     pruef('… die Ablenkung nur die des Tragseils', fdAbzug.Gx, ts.Gx,
           1e-9, 'kN');
-    wahr('… und der Wind traegt die Haenger mit',
-         fdAbzug.Qx > ts.Qx + 1e-9,
-         `${fdAbzug.Qx.toFixed(4)} gegen ${ts.Qx.toFixed(4)}`);
+    // Seit dem 7. Oktober ist die Haelfte des Kettenwerks der Wind des
+    // Tragseils allein (halb/halb), vorher trug es die Haenger mit.
+    pruef('… und der Wind die Haelfte des Kettenwerks', fdAbzug.Qx, ganz.Qx / 2, 1e-9, 'kN');
     /*
      * 3 - BEI EINEM EINZELNEN LEITER FAELLT ER GANZ WEG - wie bisher. Es
      * gibt keinen Fahrdraht-Anteil abzuziehen.
@@ -26561,7 +26563,8 @@ titel('101  Havarie je Leiter: nur einer reisst, Uebersicht, Ausleitung');
   const kw = A101.leiterListe([{ id: 'X', name: 'KW', aktiv: true, module: [
     { bauteil: leiter[0].teile.length ? w.anbauteile[0].module.find((m) => /^drahtwerk-/.test(m.bauteil)).bauteil : '', kettenwerk: 'KW1' },
     { bauteil: w.anbauteile[0].module.find((m) => /^drahtwerk-/.test(m.bauteil)).bauteil, kettenwerk: 'KW1' }] }]);
-  wahr('Ein Kettenwerk (gleiche Bezeichnung) zaehlt als EIN Leiter', kw.length === 1 && kw[0].key === 'kw:KW1');
+  // Seit 7. Oktober traegt die Kennung die Stelle (Punkt fuer Punkt), Abschnitt 255.
+  wahr('Ein Kettenwerk (gleiche Bezeichnung) zaehlt als EIN Leiter', kw.length === 1 && kw[0].key === 'kw:KW1@joch:0.00');
 
   w.havarie = Object.fromEntries(leiter.map((l, i) => [l.key, { reisst: true, name: l.name,
     ...(i === 1 ? { zugM: 30 } : {}) }]));
@@ -37718,8 +37721,9 @@ if (AJ.abfangDbDa()) {
   const lf = h.roh.faelle.find((l) => l.key === 'wxk');
   const fig = SV220.verformteFigur(h.roh.dat, h.roh.lsg, SN220.anteileFuer(lf, h.roh.dat));
   const ketten = fig.linien.filter((l) => l.anbau);
+  // Seit 7. Oktober rechtwinklig wie die Bauteile: 2 bis 4 Punkte je Glied (Abschnitt 255).
   wahr('Die Figur führt die Ketten der Anbauteile (starr, zwei Punkte je Glied) neben den echten Stäben',
-       ketten.length > 4 && ketten.every((l) => l.punkte.length === 2 && /(^|_)(ARM|AT)\d/.test(l.name))
+       ketten.length > 4 && ketten.every((l) => l.punkte.length >= 2 && l.punkte.length <= 4 && /(^|_)(ARM|AT)\d/.test(l.name))
        && fig.linien.some((l) => !l.anbau && l.punkte.length === 5), `${ketten.length} Glieder`);
   // Die Szene nennt die Fahrdrähte; je einer findet einen Kettenpunkt in der Nähe.
   const sz = R220.erzeugeSzene(erg.modell, erg);
@@ -39277,7 +39281,8 @@ titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Leeres Zahlenfeld wird beim Tippen nicht geschrieben, erst beim Verlassen',
        uq.includes('const leerBeimTippen') && (uq.match(/auchBeimVerlassen\(inp,/g) ?? []).length === 4);
-  wahr('Havarie-Tabelle: Name hebt die Teile im 3D hervor', uq.includes('data-hav-zeige') && uq.includes("beiDrahtwerk?.(an ? z.dataset.havZeige.split(',') : null)"));
+  // Seit 7. Oktober die ganze Zeile, beim Überfahren, mit dem Leiter (Abschnitt 255).
+  wahr('Havarie-Tabelle: Name hebt die Teile im 3D hervor', uq.includes('data-hav-zeige') && uq.includes("beiDrahtwerk?.(z?.dataset.havZeige ? z.dataset.havZeige.split(',') : null)"));
   wahr('Fussleiste: Grundwerte anklickbar', APP_QUELLE().includes('kontextTrasse(app)'));
 }
 
@@ -39648,6 +39653,83 @@ titel('254  Einheitswind mit hinterer Ebene 25 %; Bemessungsvorschlag mit Reserv
        AE254.AENDERUNGEN.length > 0 && AE254.AENDERUNGEN[0].datum >= AE254.AENDERUNGEN[1].datum
        && /Was sich geändert hat/.test(AE254.aenderungenHtml()) && app254.includes("vEl.addEventListener('click', protokoll)")
        && readFileSync(join(HIER, 'sw.js'), 'utf8').includes('doku.aenderungen.js'));
+}
+
+titel('255  Lastgenerator mit Delta, Havarie Punkt für Punkt, Drahtwerke nach Lage, Wind Ts/Fd halb/halb');
+/* 7. Oktober, Sammelliste. Im Wortlaut je Punkt im Commit-Text; hier die
+ * Kontrollen zu: Delta je Teil und Jochaufsätze ohne Gleis («Anzahl + Wahl
+ * Δ/Verhältnis»), Montagehöhe / Mastlänge im Generator, Havarie-Liste wie die
+ * Drahtwerke und Kettenwerke Punkt für Punkt, Gliederung Name / Lage x /
+ * Höhe z, Leiterstriche je Anzahl, Griffe nur in der Nähe, rechtwinklige
+ * Ketten in der verformten Figur, Reaktionen der alten Joche als
+ * Resultierende, Verläufe des Gittermasts, Wind Ts/Fd je die Hälfte. */
+{
+  const A255 = await import(J('data.anbauteile.js'));
+  const FL255 = await import(J('data.fl.js'));
+  const R255 = await import(J('core.reaktionen.js'));
+  const nahe = (a, b, t = 1e-9) => Math.abs(a - b) < t;
+  // Jochaufsätze: verteilt L·i/(n+1) bzw. Abstand Δ symmetrisch zur Mitte.
+  const v = A255.aufsatzLagen(20, { n: 3, art: 'verteilt' });
+  const d = A255.aufsatzLagen(20, { n: 2, art: 'abstand', abstand: 4 });
+  wahr('Jochaufsätze verteilt: 5 / 10 / 15 m bei L 20, n 3', v.length === 3 && nahe(v[0], 5) && nahe(v[1], 10) && nahe(v[2], 15), v.join(' '));
+  wahr('Jochaufsätze mit Abstand 4 m: 8 / 12 m', d.length === 2 && nahe(d[0], 8) && nahe(d[1], 12), d.join(' '));
+  const ja = A255.vorlagen().find((x) => x.gruppe === 'jochaufsatz');
+  const hs = A255.vorlagen().find((x) => x.gruppe === 'haengestuetze');
+  const r = A255.erzeugeGleislasten({ L: 20, gleise: 2, abstand: 4.5, vorlagen: [hs.id, ja.id],
+    delta: { [hs.id]: 0.6 }, aufsatz: { n: 1, art: 'verteilt' } });
+  const hsX = r.teile.filter((t) => t.vorlage === hs.id).map((t) => t.x);
+  const jaX = r.teile.filter((t) => t.vorlage === ja.id).map((t) => t.x);
+  wahr('Delta je Teil verschiebt gegen die Gleisachse (+0.60 m)',
+       hsX.length === 2 && nahe(hsX[0], r.gleisX[0] + 0.6, 1e-6) && nahe(hsX[1], r.gleisX[1] + 0.6, 1e-6), hsX.join(' '));
+  wahr('Jochaufsatz nicht ans Gleis gebunden: einer in Jochmitte, ohne Gleisnummer',
+       jaX.length === 1 && nahe(jaX[0], 10) && r.teile.filter((t) => t.vorlage === ja.id).every((t) => !t.gleis), jaX.join(' '));
+  wahr('Generator: Montagehöhe und Mastlänge, Delta- und Aufsatzfelder', ['id="gen-h"', 'id="gen-lm"', 'data-gen-d=', 'id="gen-aart"',
+       "aendern('mastH', montage)", "aendern('mastLaenge', mastL)"].every((k) => APP_QUELLE().includes(k)));
+
+  // Kettenwerk Punkt für Punkt.
+  const leiterB = A255.vorlagen().flatMap((x) => x.module ?? []).find((m) => /^drahtwerk-/.test(m.bauteil)).bauteil;
+  const teil = (id, x) => ({ id, name: id, aktiv: true, x, module: [{ bauteil: leiterB, kettenwerk: 'KW1' }] });
+  const zwei = A255.leiterListe([teil('A', 5), teil('B', 15)]);
+  const eins = A255.leiterListe([teil('A', 5), teil('B', 5)]);
+  wahr('Gleiche Bezeichnung an zwei Stellen x: zwei Leiter', zwei.length === 2, zwei.map((l) => l.key).join(' | '));
+  wahr('Gleiche Bezeichnung an derselben Stelle: ein Leiter (Fd + Ts)', eins.length === 1 && eins[0].teile.length === 2);
+  const alt = A255.havarieNachfuehren({ 'kw:KW1': { reisst: true, art: 'beidseitig' } }, [teil('A', 5), teil('B', 15)], [teil('A', 5), teil('B', 15)]);
+  wahr('Alte Wahl «kw:KW1» gilt danach für jede Stelle', alt['kw:KW1@joch:5.00']?.art === 'beidseitig'
+       && alt['kw:KW1@joch:15.00']?.reisst === true && !alt['kw:KW1']);
+  const mit = A255.havarieNachfuehren({ 'kw:KW1@joch:5.00': { art: 'einseitig' } }, [teil('A', 5)], [teil('A', 6.5)]);
+  wahr('Verschoben: die Abfangung wandert mit', mit['kw:KW1@joch:6.50']?.art === 'einseitig');
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Havarie-Tabelle wie die Drahtwerke: Leiter, Typ, Lage, Überfahren zeigt den Leiter',
+       UQ.includes('class="dt dw-tab hav-tab"') && UQ.includes('<th>Typ</th><th>Lage</th>')
+       && UQ.includes("z.addEventListener('mouseenter', () => havZeigen(z))") && UQ.includes('`AT${k}#${t.modul}`'));
+  wahr("Drahtwerke: Gliederung Name, Lage x, Höhe z", UQ.includes("['name', 'Name'], ['x', 'Lage x'], ['z', 'Höhe z']"));
+
+  // Wind Ts / Fd je die Hälfte der Fahrleitungszeile.
+  ['n-fl', 'r-fl'].forEach((t) => {
+    const ts = FL255.getFlBauteil(t === 'n-fl' ? 'drahtwerk-n-fl-stcu-50' : 'drahtwerk-r-fl-stcu-92');
+    const fd = FL255.getFlBauteil(`drahtwerk-${t}-cu-107`);
+    const kw = FL255.getFlBauteil(t === 'n-fl' ? 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107' : 'drahtwerk-r-fl-ts-stcu-92-fd-cu-107');
+    wahr(`${t.toUpperCase()}: Ts + Fd = Fahrleitung (EK1-EK3)`, ['EK1', 'EK2', 'EK3']
+      .every((ek) => nahe(ts.windQuer[ek] + fd.windQuer[ek], kw.windQuer[ek], 1e-9) && nahe(ts.windQuer[ek], fd.windQuer[ek])));
+  });
+
+  // Reaktionen der alten Joche als Resultierende.
+  const leer = () => new Map([['G', { ux: 1, uy: 0, uz: 2, fix: 0, fiy: 0, fiz: 0 }]]);
+  const zs = R255.jochendenZusammenfassen([
+    { knoten: 'T1_AUF_A_L', art: 'lager', x: 0, y: -0.17, z: 0.19, proFall: leer() },
+    { knoten: 'T1_AUF_A_R', art: 'lager', x: 0, y: 0.17, z: 0.19, proFall: leer() },
+    { knoten: 'T1_AUF_B_L', art: 'lager', x: 24, y: -0.17, z: 0.19, proFall: leer() },
+    { knoten: 'T1_AUF_B_R', art: 'lager', x: 24, y: 0.17, z: 0.19, proFall: leer() }]);
+  wahr('Alte Joche: AUF_A_L + AUF_A_R → «T1 · Ende A», Kräfte summiert',
+       zs.length === 2 && zs[0].id === 'T1 · Ende A' && nahe(zs[0].proFall.get('G').uz, 4), zs.map((z) => z.id).join(' | '));
+
+  const R3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Leiterstriche je Anzahl (Bündel zählt mit)', R3.includes('leiterN: leiterAnzahl(t)') && R3.includes("/-x(\\d+)$/"));
+  wahr('Griff am Ende nur in der Nähe (70 px) oder am gewählten Teil', R3.includes('if (!nah && this.auswahlTeil !== mk.teil) return;'));
+  const RS = readFileSync(join(HIER, 'js', 'render.stabwerk.js'), 'utf8');
+  wahr('Verläufe: der Gittermast über die Höhe (Gurt, Blech, Rohr)', RS.includes('Ausnutzung über die Höhe · Gittermast') && RS.includes("name: 'Gurt (grösste Ecke)'"));
+  const SVq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
+  wahr('Verformte Figur: Ketten rechtwinklig, Knickpunkte als Starrkörper', SVq.includes('[a.x, a.y, b.z], [a.x, b.y, b.z]') && SVq.includes('uA[0] + uA[4] * r[2] - uA[5] * r[1]'));
 }
 
 console.log('\n' + '='.repeat(104));

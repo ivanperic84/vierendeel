@@ -207,7 +207,33 @@ export function verformteFigur(dat, lsg, anteile, { teilung = 4 } = {}) {
     const a = kn.get(s.von), b = kn.get(s.bis);
     if (!a || !b) return;
     const punkte = [], wege = [];
-    const n = anbau ? 1 : teilung;
+    /*
+     * >>> WIE DIE BAUTEILE: RECHTWINKLIG (7. Oktober). <<< Weisung: «Bei der
+     * verformung die abbildung der hängestütze und ausleger aufzeigen so
+     * wie die bauteile sind.» Im Modell läuft ein Glied direkt (schräg) vom
+     * Anschluss zum Lastpunkt (4. Oktober, spart Elemente); die Figur zeigt
+     * den Weg der Kette wie das 3D - zuerst z, dann y, dann x (Vorgabe der
+     * Kette). Das Glied ist starr: die Knickpunkte folgen dem Anschluss als
+     * Starrkörper, u(P) = u_A + θ_A × (P − A).
+     */
+    if (anbau) {
+      const uA = knotenWeg(lsg, anteile, s.von, 6);
+      if (!uA) return;
+      const ecken = [[a.x, a.y, a.z], [a.x, a.y, b.z], [a.x, b.y, b.z], [b.x, b.y, b.z]]
+        .filter((p, i, l) => i === 0 || Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1], p[2] - l[i - 1][2]) > 1e-6);
+      ecken.forEach((p) => {
+        const r = [p[0] - a.x, p[1] - a.y, p[2] - a.z];
+        const u = [uA[0] + uA[4] * r[2] - uA[5] * r[1],
+                   uA[1] + uA[5] * r[0] - uA[3] * r[2],
+                   uA[2] + uA[3] * r[1] - uA[4] * r[0]];
+        punkte.push(p);
+        wege.push(u);
+        max = Math.max(max, Math.hypot(u[0], u[1], u[2]));
+      });
+      linien.push({ name: s.name, punkte, wege, anbau: true });
+      return;
+    }
+    const n = teilung;
     for (let i = 0; i <= n; i += 1) {
       const xi = i / n;
       const u = wegImStab(dat, lsg, anteile, s.name, xi);
@@ -216,7 +242,7 @@ export function verformteFigur(dat, lsg, anteile, { teilung = 4 } = {}) {
       wege.push(u);
       max = Math.max(max, Math.hypot(u[0], u[1], u[2]));
     }
-    linien.push({ name: s.name, punkte, wege, ...(anbau ? { anbau: true } : {}) });
+    linien.push({ name: s.name, punkte, wege });
   });
   return { linien, max };
 }

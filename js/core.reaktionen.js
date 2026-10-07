@@ -169,7 +169,14 @@ export function reaktionenGewaehlt(dat, lsg, lf, anteile, { zusammenfassen = tru
  * die Momente um den Mittelpunkt der vier Knoten (Jochachse am Ende) -
  * aus den Kräftepaaren der Gurte und den Knotenmomenten.
  */
-const GURTLAGER = /^(?:(.+)_)?(?:OG|UG)(?:L|R)_[-\d.]+$/;
+/*
+ * Auch die alten Fischbauchjoche (7. Oktober). Weisung: «Reaktionskräfte
+ * alte Fischbauchjoche (ohne maste und als jochreihe mit mehreren jochen)
+ * als resultierende.» Ihre Auflager heissen `AUF_<Ende>[_L|_R]` (der
+ * verjüngte Endbereich, export.axisvm.js) und fielen bisher durch - jedes
+ * stand für sich in der Tabelle.
+ */
+const GURTLAGER = /^(?:(.+)_)?(?:(?:OG|UG)(?:L|R)_[-\d.]+|AUF_[AB](?:_[LR])?)$/;
 
 export function jochendenZusammenfassen(liste) {
   const gruppen = new Map();

@@ -55,6 +55,13 @@ import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
 import { MM, prisma, prismaZ, platte, quader, stab, schraegerStab,
          iProfilPoly, mastKoerper } from './render.koerper.js';
 
+/** Wie viele Leiter ein Modul trägt: Anzahl × Bündel («… (x2)», id «-x2»). */
+const leiterAnzahl = (t) => {
+  const n = Math.max(1, Math.round(Number(t?.anzahl) || 1));
+  const m = /-x(\d+)$/.exec(String(t?.bauteil ?? ''));
+  return n * (m ? Number(m[1]) : 1);
+};
+
 /**
  * Kurzform eines Bauteilnamens für die Beschriftung im Modell.
  * «Hängestütze mit NT-Ausleger Gleis 2» wird zu «Hängestütze … Gleis 2»:
@@ -1297,7 +1304,7 @@ export function erzeugeSzene(m, erg) {
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
           gruppe: 'last', punkt: true }));
       marken.push({
-        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk',
+        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t),
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
@@ -1960,7 +1967,7 @@ function zeichneMastteil(ctx, a, k, ort) {
     flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
       { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
         gruppe: 'last', punkt: true }));
-    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk',
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t),
                   text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
@@ -3463,7 +3470,15 @@ export class Modellansicht {
             const gleich = (alt?.schluessel ?? null) === (z?.schluessel ?? null);
             this._hoverZiel = z;
             this.cv.style.cursor = z?.cursor ?? '';
-            if (!gleich || z) this.zeichne();
+            // Griffe am Ende nur in der Nähe (7. Oktober): neu zeichnen, wenn
+            // sich die Menge der nahen Griffe ändert.
+            this._mausPunkt = this._geraetePunkt(ev);
+            const s0 = this._s ?? 1, mp = this._mausPunkt;
+            const nahNeu = (this._endePunkte ?? []).filter((q) => Math.hypot(q.x - mp[0], q.y - mp[1]) < 70 * s0)
+              .map((q) => q.teil).join('|');
+            const nahWechsel = nahNeu !== (this._endeNah ?? '');
+            this._endeNah = nahNeu;
+            if (!gleich || z || nahWechsel) this.zeichne();
           });
         }
       }
@@ -5409,14 +5424,24 @@ export class Modellansicht {
      * strich sollte fein sein nicht so dick wie die anbauteile.» Je Leiter
      * ±0.6 m in y, 1 px, gedämpft - auch bei ausgeschalteter Lastebene.
      */
+    /*
+     * ANZAHL ALS STRICHE (7. Oktober). Weisung: «Anzahl Leiter mit
+     * zusätzlichen strichen im 3d abbilden.» Je Leiter (Modul × Anzahl, ein
+     * Bündel «x2» zählt doppelt) ein Strich, nebeneinander quer zum Gleis im
+     * Abstand von 0.12 m um den Angriffspunkt.
+     */
     c.save();
     c.strokeStyle = t.on; c.lineWidth = 1 * s; c.globalAlpha = 0.65;
     this.szene.marken.forEach((mk) => {
       if (!mk.leiter || !this._imFokus(mk.p[0])) return;
-      const q0 = proj([mk.p[0], mk.p[1] - 0.6, mk.p[2]]);
-      const q1 = proj([mk.p[0], mk.p[1] + 0.6, mk.p[2]]);
-      if (!q0 || !q1) return;
-      c.beginPath(); c.moveTo(q0[0], q0[1]); c.lineTo(q1[0], q1[1]); c.stroke();
+      const n = Math.max(1, Math.min(12, mk.leiterN ?? 1));
+      for (let j = 0; j < n; j += 1) {
+        const dx = (j - (n - 1) / 2) * 0.12;
+        const q0 = proj([mk.p[0] + dx, mk.p[1] - 0.6, mk.p[2]]);
+        const q1 = proj([mk.p[0] + dx, mk.p[1] + 0.6, mk.p[2]]);
+        if (!q0 || !q1) continue;
+        c.beginPath(); c.moveTo(q0[0], q0[1]); c.lineTo(q1[0], q1[1]); c.stroke();
+      }
     });
     c.restore();
 
@@ -5443,6 +5468,7 @@ export class Modellansicht {
       });
     }
 
+    this._endePunkte = [];
     const budget = this._markenBudget();
     const sammlung = [];
     this.szene.marken.forEach((mk) => {
@@ -5503,6 +5529,16 @@ export class Modellansicht {
       if (mk.art === 'auflagertext') return;
       if (mk.art === 'teilende') {
         this._punktTreffer.push({ x: p[0], y: p[1], teil: mk.teil, welt: mk.p, ...mk.zieh });
+        /*
+         * NUR IN DER NÄHE (7. Oktober). Weisung: «Drag and drop bereich nur
+         * einblenden im 3d wenn man im bereich der elemente.» Der Griff am
+         * Ende steht nur, wenn die Maus näher als rund 70 px ist oder das
+         * Teil gewählt ist; greifen lässt er sich wie bisher.
+         */
+        (this._endePunkte ??= []).push({ x: p[0], y: p[1], teil: mk.teil });
+        const m0 = this._mausPunkt;
+        const nah = m0 && Math.hypot(m0[0] - p[0], m0[1] - p[1]) < 70 * s;
+        if (!nah && this.auswahlTeil !== mk.teil) return;
         const r2 = 3.2 * s;
         c.strokeStyle = t.acc ?? t.on2; c.lineWidth = 1.4 * s; c.globalAlpha = 0.8;
         c.strokeRect(p[0] - r2, p[1] - r2, 2 * r2, 2 * r2);
