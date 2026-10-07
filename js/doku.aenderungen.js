@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-07',
     punkte: [
+      { text: 'COM-Brücke: scheitert das Anlegen eines neuen Modells (zweiter Aufbau in derselben AxisVM-Sitzung), wird das offene Modell zuerst neben die Modelldatei gesichert und dann neu angelegt; der Bericht nennt den Fehlercode beim Namen.' },
       { text: 'Einheitswind (alte Norm): die hintere Ebene zählt mit 25 % dazu - am Tragjoch, Abfangjoch, Tragausleger und am Gitter des Gittermasts. Rohr und Aufsatz über dem Gittermast bleiben einfach, die Leiter bleiben beim Formbeiwert 1.0.', rechnung: true },
       { text: '«Sortiment durchrechnen»: oben ein Bemessungsvorschlag je Teil - Jochtyp, Mastprofil je Mast, Fundament je Mast, Anker - mit einem Feld für die Reserve; je Zeile «übernehmen».' },
       { text: 'Eigene Vorlagen projektübergreifend: Sammlung in diesem Browser, Schalter und Verwaltung unter Optionen → Eigene Vorlagen, Sammlung als Datei sichern und laden.' },

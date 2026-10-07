@@ -312,8 +312,27 @@ function Aufzaehlung([string]$typ, [string]$name) {
     NICHT in der Anleitung im Netz - aber in der Typbibliothek, die wir
     ohnehin geladen haben. Also nachschlagen statt eine Liste von Hand
     pflegen: sie ist immer die der laufenden Fassung.                     #>
+<#  Allgemeine Fehlercodes nach der COM-Referenz (axisvm_com_18100.pdf,
+    EGeneralError). Sie stehen zuerst: die Typbibliothek kennt sie unter
+    mehreren Namen, und die eigentliche Bedeutung steht nur in der Referenz.
+    Null ist KEIN Fehlercode - frueher passte jede Aufzaehlung mit dem Wert 0,
+    und der Bericht fuehrte zweihundert Namen auf (Meldung 7. Oktober).    #>
+$script:allgFehler = @{
+    -101 = 'errDatabaseNotReady (Modelldatenbank nicht bereit)'
+    -102 = 'errNotFound (nicht gefunden)'
+    -103 = 'errIndexOutOfBounds (Index ungueltig)'
+    -104 = 'errReadOnly (nur lesbar)'
+    -105 = 'errInternalException (interner Fehler in AxisVM)'
+    -106 = 'errNotSupportedByNationalDesignCode'
+    -107 = 'errCOMServerInternalError'
+    -108 = 'errNotImplemented'
+    -109 = 'errEnvelopeIdOutOfBounds'
+    -110 = 'errMinMaxNotAllowed'
+    -111 = 'errNoLoadCaseInLoadGroups'
+}
 function FehlerName($code) {
-    if (($null -eq $code) -or ($code -gt 0)) { return $null }
+    if (($null -eq $code) -or ($code -ge 0)) { return $null }
+    if ($script:allgFehler.ContainsKey([int]$code)) { return $script:allgFehler[[int]$code] }
     $treffer = @()
     foreach ($t in $script:typen) {
         if (-not $t.IsEnum) { continue }
@@ -792,14 +811,57 @@ if ($Auslesen -and -not $Rechnen) {
                    'offen lassen und erneut starten.')
     }
 } else {
+    <#  MODELS.NEW KANN SCHEITERN (Meldung 7. Oktober).
+        Beim zweiten Aufbau in derselben AxisVM-Sitzung gab Models.New()
+        -105 zurueck (errInternalException). Ohne -Positiv galt das als
+        Modellnummer, Item(-105) war leer, und der Lauf brach erst beim
+        Material mit "Methode fuer NULL" ab - an der falschen Stelle.
+        Die COM-Referenz: "The number of opened models is limited to one",
+        Item nur mit Index 1. Ihr Beispiel sieht zuerst in Item(1) nach,
+        ob dort schon Knoten stehen. So auch hier:
+          - leeres offenes Modell -> es wird genommen;
+          - Modell mit Inhalt -> zuerst als .axs neben die Modelldatei
+            gesichert, dann ohne Rueckfrage ein zweites Mal New();
+          - laesst es sich nicht sichern, bleibt es unberuehrt, und der Lauf
+            sagt, was zu tun ist.                                         #>
     $r = Versuche 'Modell anlegen' @(
-        @{ name = 'Models.New()';        tu = { $app.Models.New() } },
-        @{ name = 'Models.Add()';        tu = { $app.Models.Add() } }
-    )
-    if (-not $r.ok) { Mitglieder 'Models' $app.Models; Beenden 2 'Kein Modell anlegbar.' }
+        @{ name = 'Models.New()';        tu = { $app.Models.New() } }
+    ) -Positiv
+    if (-not $r.ok) {
+        $alt = $null; $nAlt = -1
+        try { $alt = $app.Models.Item(1); $nAlt = [int]$alt.Nodes.Count } catch { }
+        if ($alt -and $nAlt -eq 0) {
+            Schreib '  Das offene Modell ist leer - es wird genommen (Models.Item(1)).'
+            $r = @{ ok = $true; wert = 1; name = 'Models.Item(1), leer' }
+        } elseif ($alt -and $nAlt -gt 0) {
+            $ordner = Split-Path ([IO.Path]::GetFullPath($Json))
+            $sich = Join-Path $ordner ('AxisVM_vorher_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.axs')
+            $gesichert = $false
+            try { $gesichert = ([int]$alt.SaveToFile($sich, 0)) -ne 0 } catch { }
+            if ($gesichert -and (Test-Path $sich)) {
+                Schreib "  Offen war ein Modell mit $nAlt Knoten - gesichert als"
+                Schreib "    $sich"
+                try { $app.AskCloseAll = 0 } catch { }
+                $r = Versuche 'Modell anlegen, 2. Versuch' @(
+                    @{ name = 'Models.New()'; tu = { $app.Models.New() } }
+                ) -Positiv
+                try { $app.AskCloseAll = $(if ($Stapel) { 0 } else { 1 }) } catch { }
+            } else {
+                Schreib "  Offen ist ein Modell mit $nAlt Knoten; es liess sich nicht sichern"
+                Schreib '  und bleibt deshalb unberuehrt.'
+            }
+        }
+    }
+    if (-not $r.ok) {
+        Mitglieder 'Models' $app.Models
+        Beenden 2 ('Kein neues Modell anlegbar (Models.New). In AxisVM das offene ' +
+                   'Modell speichern und schliessen (Datei > Neu) oder AxisVM beenden, dann erneut starten.')
+    }
 }
 $idx = $r.wert
-$m = $app.Models.Item($idx)
+$m = $null
+try { $m = $app.Models.Item($idx) } catch { }
+if ($null -eq $m) { Beenden 2 "Models.Item($idx) liefert kein Modell - AxisVM neu starten." }
 Schreib "  Modell $idx"
 
 # --- Typbibliothek -----------------------------------------------------------
