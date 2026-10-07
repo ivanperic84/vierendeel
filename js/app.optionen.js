@@ -24,6 +24,9 @@ import { handbuchDatei, handbuchHtml } from './doku.handbuch.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { typUebernehmen } from './ui.schema.js';
+import { mastenFuer, mastName, setzeMastAngabe, setzeMastAnker } from './core.constants.js';
+import { mastprofileWahl, fundamentKandidaten } from './data.masten.js';
+import { ankerTypen } from './data.anker.js';
 import { globaleVorlagen, globaleVorlagenAn, setzeGlobaleVorlagenAn, setzeGlobaleVorlagen,
          globaleVorlageAblegen, setzeEigeneVorlagen } from './data.anbauteile.js';
 import { profilBlattHtml } from './ui.profilblatt.js';
@@ -56,6 +59,102 @@ function dialogKlassen(app) {
  * kommen beim Typwechsel aus der Datenbank (typUebernehmen), die Lasten und
  * die Anbauteile bleiben unangetastet.
  */
+/* ===========================================================================
+ * >>> DER BEMESSUNGSVORSCHLAG FÜR ALLE TRAGWERKSTEILE (7. Oktober). <<<
+ * Weisung: «hier den bemessungvorschlag aufführen von allen relevanten
+ * tragwerksteilen», auf Rückfrage «Vorschlagsblock oben … wobei man auch ein
+ * feld haben sollte wo man die reserve eingeben kann.»
+ * Je Teil die leichteste Wahl, die mit der Reserve hält (η ≤ 1 − Reserve):
+ * der Jochtyp (aus der Liste darunter), je Mast das Walzprofil, das Fundament
+ * und - wo einer steht - der Anker. Variiert wird immer EIN Teil, alles
+ * Übrige bleibt, wie eingegeben. Gerechnet über `rechneTragwerk` (Kern mit
+ * Kombinationen, schnell); nach dem Übernehmen rechnet das Stabwerk, und
+ * dessen Zahl gilt. Nichts wechselt von selbst (Regel 1 oben).
+ * ======================================================================== */
+const RESERVE_SCHLUESSEL = 'tragjoch-vorschlag-reserve';
+function reserveLesen() {
+  try { const v = Number(localStorage.getItem(RESERVE_SCHLUESSEL)); return v >= 0 && v < 90 ? v : 0; }
+  catch { return 0; }
+}
+
+function vorschlagRechnen(app, jochZeilen, grenze) {
+  const kopie = (w) => JSON.parse(JSON.stringify(w));
+  const lauf = (w) => {
+    try { return app.rechneTragwerk(kopie(w), app.jochVonTyp(w)).bemessung; } catch { return null; }
+  };
+  const aus = [];
+  // 1. Jochtyp: der leichteste, der mit Reserve hält.
+  const jo = (jochZeilen ?? []).filter((z) => z.eta !== null && z.eta <= grenze)
+    .sort((a, b) => (a.gewicht ?? 1e9) - (b.gewicht ?? 1e9) || a.eta - b.eta)[0];
+  if (jochZeilen?.length) {
+    aus.push({ teil: 'Jochtyp', jetzt: app.werte.typ, wahl: jo?.typ ?? null, eta: jo?.eta ?? null,
+               art: 'typ', wert: jo?.typ, notiz: jo ? `${jo.gewicht ?? '–'} kg/m` : 'kein Typ des Sortiments hält' });
+  }
+  const masten = mastenFuer(app.werte, app.werte);
+  const namen = (b) => b?.modell?.federn?.namen ?? {};
+  ['A', 'B'].forEach((ende, i) => {
+    const m = masten[i];
+    if (!m) return;
+    const mName = mastName(app.werte, m) ?? m.id;
+    // 2. Mastprofil: Walzprofile nach Gewicht (der Gittermast hat sein eigenes Sortiment).
+    const profile = mastprofileWahl().filter((p) => !p.gitter).sort((a, b) => (a.g ?? 0) - (b.g ?? 0));
+    let best = null;
+    for (const p of profile) {
+      const b = lauf(setzeMastAngabe(app.werte, m.id, 'mastProfil', p.name));
+      const e = b?.mast?.[ende];
+      const eta = e ? (e.etaMitStabilitaet ?? e.eta) : null;
+      if (eta !== null && eta <= grenze) { best = { p, eta }; break; }
+    }
+    aus.push({ teil: `Mastprofil ${mName}`, jetzt: m.profil, wahl: best?.p.name ?? null, eta: best?.eta ?? null,
+               art: 'mast', mast: m.id, wert: best?.p.name,
+               notiz: best ? `${best.p.g ?? '–'} kg/m` : 'kein Walzprofil hält' });
+    // 3. Fundament: der kleinste, den das Sortiment dem Profil zuordnet und der hält.
+    const kand = fundamentKandidaten(m.profil, m.steg ?? app.werte.mastSteg, m.gelaende ?? app.werte.mastGelaende);
+    let fb = null;
+    for (const f of kand) {
+      const b = lauf(setzeMastAngabe(app.werte, m.id, 'mastFundament', f.typ));
+      const q = b?.fundament?.[ende];
+      if (q && !q.fehlt && q.eta <= grenze) { fb = { f, eta: q.eta }; break; }
+    }
+    if (kand.length) {
+      const jetzt = lauf(app.werte)?.fundament?.[ende]?.typ?.typ ?? m.fundament ?? '';
+      aus.push({ teil: `Fundament ${mName}`, jetzt, wahl: fb?.f.typ ?? null, eta: fb?.eta ?? null,
+                 art: 'fundament', mast: m.id, wert: fb?.f.typ,
+                 notiz: fb ? `für ${m.profil}` : `kein Fundament für ${m.profil} hält` });
+    }
+    // 4. Anker: wo einer steht, der erste Typ des Katalogs, der hält.
+    if (m.anker?.typ) {
+      let ab = null;
+      for (const t of ankerTypen()) {
+        const b = lauf(setzeMastAnker(app.werte, m.id, { ...m.anker, typ: t.id }));
+        const a = b?.anker?.[ende]?.nachweis;
+        if (a && a.grund !== 'schlaff' && a.lieferbar !== false && a.eta <= grenze) { ab = { t, eta: a.eta }; break; }
+      }
+      aus.push({ teil: `Anker ${mName}`, jetzt: m.anker.typ, wahl: ab?.t.id ?? null, eta: ab?.eta ?? null,
+                 art: 'anker', mast: m.id, wert: ab?.t.id, notiz: ab ? (ab.t.name ?? '') : 'kein Anker des Katalogs hält' });
+    }
+    void namen;
+  });
+  return aus;
+}
+
+function vorschlagHtml(liste, reserve, f3) {
+  return `${abschnitt('Bemessungsvorschlag', 'je Teil die leichteste Wahl, die hält')}
+    <div class="vs-reserve"><label for="vs-reserve">Reserve</label>
+      <input id="vs-reserve" type="number" min="0" max="50" step="5" value="${reserve}">
+      <span>% → gesucht η ≤ ${(1 - reserve / 100).toFixed(2)}</span></div>
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Teil</th><th>jetzt</th><th>Vorschlag</th><th class="num">η</th><th></th><th></th></tr></thead>
+      <tbody>${liste.map((z, i) => `<tr${z.wahl ? '' : ' class="nok"'}>
+        <td>${esc(z.teil)}</td><td>${esc(z.jetzt ?? '–')}</td>
+        <td><b>${esc(z.wahl ?? '–')}</b>${z.wahl && z.wahl === z.jetzt ? ' <span class="ablage-meta">wie jetzt</span>' : ''}</td>
+        <td class="num">${z.eta === null ? '–' : f3(z.eta)}</td><td>${esc(z.notiz ?? '')}</td>
+        <td>${z.wahl && z.wahl !== z.jetzt ? `<button class="btn btn-mini" data-vs-nimm="${i}">übernehmen</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div>
+    <p class="notiz">Gerechnet mit dem Kern über alle Kombinationen, je Teil eines verändert;
+      nach dem Übernehmen rechnet das Stabwerk, und seine Zahl gilt.</p>`;
+}
+
 export function dialogSortiment(app) {
   if (!app.letzte) return;
   const stahl = getStahl(app.werte.stahl);
@@ -124,16 +223,50 @@ export function dialogSortiment(app) {
       <thead><tr><th>Typ</th><th class="num">η</th><th>Masse · Gurtprofil</th></tr></thead>
       <tbody>${liste.map(zeile).join('')}</tbody></table></div>` : '');
 
+  const mitJoch = tragwerksart(app.werte).key === 'joch';
+  let reserve = reserveLesen();
+  let vorschlag = vorschlagRechnen(app, mitJoch ? zeilen : null, 1 - reserve / 100);
   app.dialog('Sortiment durchrechnen',
-    `<p class="notiz" style="margin-top:0">Dieselbe Geometrie, dieselben Lasten,
+    `<div id="vs-block">${vorschlagHtml(vorschlag, reserve, f3)}</div>
+     ${mitJoch ? `<p class="notiz">Dieselbe Geometrie, dieselben Lasten,
        dieselben Anbauteile, nur der Tragjoch-Typ wechselt. Profile, Bleche und
        Masse kommen dabei aus der Typendatenbank.
        <b>Der gewählte Typ ändert sich nicht von selbst:</b> eine Zeile
-       anklicken übernimmt ihn.</p>
-     ${block('Trägt', traegt)}
-     ${block('Zu klein', zuKlein)}
-     ${block('Nicht gerechnet', geht)}`,
+       anklicken übernimmt ihn.</p>` : ''}
+     ${mitJoch ? block('Trägt', traegt) : ''}
+     ${mitJoch ? block('Zu klein', zuKlein) : ''}
+     ${mitJoch ? block('Nicht gerechnet', geht) : ''}`,
     '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
+
+  const verdrahteVorschlag = () => {
+    const box = ui.el('vs-block');
+    const r = box.querySelector('#vs-reserve');
+    r.onchange = () => {
+      reserve = Math.min(50, Math.max(0, Number(r.value) || 0));
+      try { localStorage.setItem(RESERVE_SCHLUESSEL, String(reserve)); } catch { /* ohne Speicher */ }
+      vorschlag = vorschlagRechnen(app, mitJoch ? zeilen : null, 1 - reserve / 100);
+      box.innerHTML = vorschlagHtml(vorschlag, reserve, f3);
+      verdrahteVorschlag();
+    };
+    box.querySelectorAll('[data-vs-nimm]').forEach((b) => {
+      b.onclick = () => {
+        const z = vorschlag[+b.dataset.vsNimm];
+        if (!z) return;
+        if (z.art === 'typ') app.aendern('typ', z.wert);
+        else if (z.art === 'mast') { app.werte = setzeMastAngabe(app.werte, z.mast, 'mastProfil', z.wert); app.neuRechnen(); }
+        else if (z.art === 'fundament') { app.werte = setzeMastAngabe(app.werte, z.mast, 'mastFundament', z.wert); app.neuRechnen(); }
+        else if (z.art === 'anker') {
+          const m = mastenFuer(app.werte, app.werte).find((x) => x?.id === z.mast);
+          app.werte = setzeMastAnker(app.werte, z.mast, { ...(m?.anker ?? {}), typ: z.wert });
+          app.neuRechnen();
+        }
+        app.meldeImBalken(`${z.teil}: ${z.jetzt ?? '–'} → ${z.wert} übernommen · Strg+Z nimmt es zurück`);
+        b.closest('tr').classList.add('uebernommen');
+        b.remove();
+      };
+    });
+  };
+  verdrahteVorschlag();
 
   ui.el('ueberlagerung').querySelectorAll('[data-typ]').forEach((tr) => {
     tr.addEventListener('click', () => {

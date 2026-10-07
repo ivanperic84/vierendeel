@@ -37017,7 +37017,8 @@ if (AJ.abfangDbDa()) {
   const m10 = modell(w10, getProfil(w10.profOG), getProfil(w10.profUG), getStahl(w10.stahl), T.getTragjoch('J90'));
   const As209 = (m09.profOG.aV + m09.profUG.aV) / 1000
     + m09.stationsListe.filter((x) => x.vertikal).reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / 20;
-  pruef('Tragjoch J90/20 m: w_k = 1.0 kN/m² · Windangriffsfläche je Meter', m10.char.wk, As209, 1e-9, 'kN/m');
+  // Seit dem 7. Oktober mit der hinteren Ebene 25 % (vorher 0.2203 kN/m).
+  pruef('Tragjoch J90/20 m: w_k = 1.0 kN/m² · Windangriffsfläche je Meter × 1.25', m10.char.wk, As209 * 1.25, 1e-9, 'kN/m');
   wahr('… kleiner als der Tabellenwert EK1, und die Herkunft nennt den Einheitswind',
        m10.char.wk < m09.char.wk && /Einheitswind/.test(m10.char.herkunft.wind), `${m10.char.wk.toFixed(3)} gegen ${m09.char.wk}`);
   wahr('… Eigengewicht und Schnee bleiben', m10.char.gk === m09.char.gk && m10.char.sk === m09.char.sk);
@@ -37027,8 +37028,8 @@ if (AJ.abfangDbDa()) {
   const gq = M209.gittermasten().find((g) => g.typ === 'II 45') ?? M209.gittermasten()[0];
   const Gq = M209.gittermastGeometrie(gq.typ);
   const pq = M209.gittermastProfil(gq);
-  wahr('Gittermast: Einheitswind am Kopf = Angriffsfläche × 1.0 (auf drei Stellen)',
-       Math.abs(pq.wind.quer.EK0 - M209.gitterWindflaeche(Gq, Gq.hoehe, 'a').As) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
+  wahr('Gittermast: Einheitswind am Kopf = Angriffsfläche × 1.0 × 1.25 (hintere Ebene, 7. Oktober)',
+       Math.abs(pq.wind.quer.EK0 - 1.25 * M209.gitterWindflaeche(Gq, Gq.hoehe, 'a').As) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
   if (Gq.oben?.art === 'rohr') {
     pruef('… am Rohr der Durchmesser × 1.0, ohne den Faktor 1.2', M209.gitterWindOben(Gq, gq, 'EK0'), Gq.oben.d, 1e-12, 'kN/m');
   }
@@ -37193,7 +37194,8 @@ if (AJ.abfangDbDa()) {
 
   // Einheitswind am Abfangjoch: eine Ebene = Profilhöhe.
   const a160 = AJ.getAbfangjoch('A160');
-  pruef('Einheitswind am Abfangjoch A160: Profilhöhe × 1.0 kN/m² (eine Ebene)', AJ.abfangWind(a160, 'EK0'), 0.16, 1e-12, 'kN/m');
+  // Seit dem 7. Oktober mit dem zweiten Profil zu 25 % (vorher 0.16).
+  pruef('Einheitswind am Abfangjoch A160: Profilhöhe × 1.0 kN/m² × 1.25', AJ.abfangWind(a160, 'EK0'), 0.2, 1e-12, 'kN/m');
   wahr('… EK1-EK3 bleiben beim Tabellenwert', AJ.abfangWind(a160, 'EK1') === a160.wind['0.9']
        && AJ.abfangWind(a160, 'EK3') === a160.wind['1.3']);
 
@@ -39615,6 +39617,37 @@ titel('253  Leiterstrich im Modell; Drahtwerke einzeln; eigene Vorlagen projekt�
        (await import(J('ui.schema.js'))).OPTIONEN_THEMEN.some((t) => t.key === 'vorlagen')
        && ['data-vg-an', 'data-vg-global', 'data-vg-weg', 'data-vg-export', 'data-vg-import']
          .every((k) => opt253.includes(k)));
+}
+
+titel('254  Einheitswind mit hinterer Ebene 25 %; Bemessungsvorschlag mit Reserve');
+/* 7. Oktober: «addiere beim einheitswind (1.0 kN/m2 bei den jochen die hintere
+ * ebene mit 25% auf mach das auch bei den gittermasten.» - auf Rückfrage auch
+ * Abfangjoch und Tragausleger, die Leiter bleiben bei c = 1.0. «hier den
+ * bemessungvorschlag aufführen von allen relevanten tragwerksteilen» - mit
+ * einem Feld für die Reserve. */
+{
+  const FL254 = await import(J('data.fl.js'));
+  wahr('Ein Faktor für die hintere Ebene: 1.25', FL254.EINHEIT_EBENEN === 1.25);
+  const ta254 = readFileSync(join(HIER, 'js', 'export.axisvm.tragausleger.js'), 'utf8');
+  const la254 = readFileSync(join(HIER, 'js', 'core.lasten.js'), 'utf8');
+  wahr('Tragjoch, Abfangjoch, Gittermast und Tragausleger lesen ihn',
+       la254.includes('windflaeche * 1.0 * EINHEIT_EBENEN') && ta254.includes('p.h / 100 * EINHEIT_EBENEN')
+       && readFileSync(join(HIER, 'js', 'data.abfangjoche.js'), 'utf8').includes('EINHEIT_Q * EINHEIT_EBENEN * h')
+       && readFileSync(join(HIER, 'js', 'data.masten.js'), 'utf8').includes('EINHEIT_Q * EINHEIT_EBENEN : '));
+  wahr('Die Leiter bleiben beim Formbeiwert 1.0 (Rückfrage)',
+       FL254.tabellenBeiwert({ gruppe: 'drahtwerk' }) === 1.0 && FL254.tabellenBeiwert({ gruppe: 'anbauteil' }) === 1.4);
+  const op254 = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  wahr('Sortiment: Vorschlag je Teil (Jochtyp, Mastprofil, Fundament, Anker) mit Reserve und «übernehmen»',
+       ['function vorschlagRechnen', "teil: 'Jochtyp'", '`Mastprofil ${mName}`', '`Fundament ${mName}`',
+        '`Anker ${mName}`', 'id="vs-reserve"', 'data-vs-nimm', 'η ≤ ${(1 - reserve / 100).toFixed(2)}']
+         .every((k) => op254.includes(k)));
+  // «verfasse ein änderungsprotokoll wenn man auf die versionsnummer klickt unten rechts.»
+  const AE254 = await import(J('doku.aenderungen.js'));
+  const app254 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Änderungsprotokoll: Einträge neueste zuerst, Klick auf die Fassung öffnet es',
+       AE254.AENDERUNGEN.length > 0 && AE254.AENDERUNGEN[0].datum >= AE254.AENDERUNGEN[1].datum
+       && /Was sich geändert hat/.test(AE254.aenderungenHtml()) && app254.includes("vEl.addEventListener('click', protokoll)")
+       && readFileSync(join(HIER, 'sw.js'), 'utf8').includes('doku.aenderungen.js'));
 }
 
 console.log('\n' + '='.repeat(104));

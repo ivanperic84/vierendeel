@@ -257,6 +257,14 @@ export const staudruck = (ek) => (ek === EINHEIT_EK ? EINHEIT_Q
  * =========================================================================== */
 export const EINHEIT_EK = 'EK0';
 export const EINHEIT_Q = 1.0;
+/*
+ * >>> DIE HINTERE EBENE MIT 25 % (7. Oktober). <<< Weisung: «addiere beim
+ * einheitswind (1.0 kN/m2 bei den jochen die hintere ebene mit 25% auf mach
+ * das auch bei den gittermasten.» Auf Rückfrage auch Abfangjoch und
+ * Tragausleger. Ändert die Weisung vom 3. Oktober («die zweite eben wird
+ * nicht … mitgenommen»). Rohr und Aufsatz über dem Gittermast bleiben einfach.
+ */
+export const EINHEIT_EBENEN = 1.25;
 /** Formbeiwert, der in den Tabellenwerten steckt (Tragwerk, flächig). */
 export const TABELLEN_BEIWERT = 1.4;
 

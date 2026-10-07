@@ -50,6 +50,7 @@
  */
 
 import { U } from './core.constants.js';
+import { EINHEIT_EBENEN } from './data.fl.js';
 
 /**
  * Windstufen der Zeichnung, als Einwirkungsklassen bezeichnet.
@@ -125,7 +126,8 @@ export function charakteristischeLasten(inp, joch, windflaeche = null) {
    */
   const einheit = WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.einheit === true;
   const wk = einheit
-    ? (windflaeche > 0 ? windflaeche * 1.0 : joch.wind['0.9'] / (0.9 * 1.4))
+    // Hintere Ebene mit 25 % (7. Oktober, EINHEIT_EBENEN in data.fl.js).
+    ? (windflaeche > 0 ? windflaeche * 1.0 * EINHEIT_EBENEN : joch.wind['0.9'] / (0.9 * 1.4))
     : joch.wind[inp.windKlasse];
   const sk = joch.schnee[inp.schneeKlasse];
   if (wk === undefined) throw new Error(`Windklasse ${inp.windKlasse} nicht in Tabelle`);

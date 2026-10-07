@@ -60,7 +60,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
-import { windWertStufe, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
+import { windWertStufe, EINHEIT_EK, EINHEIT_Q, EINHEIT_EBENEN } from './data.fl.js';
 
 /**
  * Wind auf das Abfangjoch je Meter [kN/m] für die Klasse `ek`.
@@ -74,7 +74,7 @@ import { windWertStufe, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
 export function abfangWind(a, ek) {
   if (ek === EINHEIT_EK) {
     const h = Number(/(\d+)/.exec(String(a?.profil ?? ''))?.[1]);
-    if (h > 0) return EINHEIT_Q * h / 1000;
+    if (h > 0) return EINHEIT_Q * EINHEIT_EBENEN * h / 1000;   // + hintere Ebene 25 % (7. Okt.)
   }
   return windWertStufe(a?.wind, ek) ?? 0;
 }

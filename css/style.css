@@ -3551,3 +3551,17 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 
 /* Warnzeile in der Maske (Bügelschrauben, 7. Oktober). */
 .fail-text { color: var(--fail); }
+
+/* Bemessungsvorschlag im Fenster «Sortiment durchrechnen» (7. Oktober). */
+.vs-reserve { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; font-size: 12px; }
+.vs-reserve input { width: 64px; text-align: right; }
+.vs-reserve span { color: var(--dim); }
+#vs-block tr.uebernommen td { background: var(--acc-s); }
+
+/* Änderungsprotokoll hinter der Fassung in der Fussleiste (7. Oktober). */
+#st-version.klickbar { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+#st-version.klickbar:hover { color: var(--acc); }
+.aend-tag { margin: 14px 0 4px; font-size: 13px; }
+.aend-liste { margin: 0 0 6px 18px; padding: 0; line-height: 1.45; }
+.aend-liste li { margin: 2px 0; }
+.aend-rechnung { display: inline-block; min-width: 1.2em; text-align: center; color: var(--warn, #d9a441); font-weight: 600; }

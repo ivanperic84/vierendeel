@@ -27,7 +27,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
-import { windWert, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
+import { windWert, EINHEIT_EK, EINHEIT_Q, EINHEIT_EBENEN } from './data.fl.js';
 import { mastprofileNorm, winkelprofile } from './data.normen.js';
 
 let SORT = null;
@@ -579,7 +579,7 @@ export function gitterWindHerleitung(typ) {
     const f = gitterWindflaeche(G, z, r);
     zeilen.push({ stelle: name, z, richtung: r, As: f.As, breite: f.breite, phi: f.phi,
       w: { ...Object.fromEntries(eks.map((ek) => [ek, (Number(g.windJeFlaeche?.[ek]) || 0) * f.As])),
-           [EINHEIT_EK]: EINHEIT_Q * f.As } });
+           [EINHEIT_EK]: EINHEIT_Q * EINHEIT_EBENEN * f.As } });
   }));
   return { typ: g.typ, jeFlaeche: g.windJeFlaeche ?? null, staudruck: g.windStaudruck ?? null,
            zeilen, oben: G.oben ? { art: G.oben.art, mass: G.oben.d ?? G.oben.a,
@@ -646,7 +646,8 @@ export function gittermastProfil(g) {
   // gitterWindflaeche); das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
   const druck = g.windJeFlaeche ?? null;
   const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3', EINHEIT_EK]
-    .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? EINHEIT_Q : (Number(druck[ek]) || 0))
+    // Einheitswind: Gitter mit der hinteren Ebene 25 % (7. Oktober).
+    .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? EINHEIT_Q * EINHEIT_EBENEN : (Number(druck[ek]) || 0))
       * gitterWindflaeche(G, G.hoehe, richtung).cA * 1000) / 1000])) : null);
   const p = {
     name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,

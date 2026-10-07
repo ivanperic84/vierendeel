@@ -59,6 +59,7 @@ import { verkleinere, bildAusEreignis, kalibriere, kalibriereFrei,
          vorlaeufigeLage, bildNachWelt } from './bild.zeichnung.js';
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
+import { aenderungenHtml } from './doku.aenderungen.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
          setzeGrenzen, setzeFdAutomatik, FELDER, kragarmEnde, mastZuKurzFuerAufhaengung } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
@@ -6747,6 +6748,17 @@ export async function start() {
   };
   netzZustand(zeigeFuss);          // meldet künftige Wechsel
   zeigeFuss();
+  // Änderungsprotokoll hinter der Fassung (7. Oktober: «verfasse ein
+  // änderungsprotokoll wenn man auf die versionsnummer klickt unten rechts»).
+  const vEl = ui.el('st-version');
+  vEl.classList.add('klickbar');
+  vEl.title = 'Änderungsprotokoll anzeigen';
+  vEl.setAttribute('role', 'button');
+  vEl.tabIndex = 0;
+  const protokoll = () => dialog(`Änderungsprotokoll · ${APP_NAME} ${VERSION}`, aenderungenHtml(esc),
+    '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
+  vEl.addEventListener('click', protokoll);
+  vEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); protokoll(); } });
 
   ansicht = new Modellansicht(ui.el('canvas3d'), {
     beiAuswahl: (st) => {
