@@ -336,3 +336,82 @@ export function skizzeAusModell(dat) {
   return { linien, grenzen: { x0: Math.min(...xs), x1: Math.max(...xs),
                               z0: Math.min(...zs), z1: Math.max(...zs) } };
 }
+
+/* ===========================================================================
+ * >>> KRÄFTE AM JOCHANSCHLUSS (7. Oktober). <<< Frage: «wo kann man die
+ * auflagerreaktionen bei den jochbefestigungen herauslesen?», dann: «unter
+ * Auflager eine Tabelle zu Kräfte am Jochanschluss ergänzen.» Je Anschluss
+ * (Link `LINK_<Mast>_<OG|UG><L|R>`, vom Masten zum Gurt) die Kraft, die das
+ * Joch auf den Masten gibt - global, F_z nach oben (Druck auf den Masten
+ * negativ, wie am Mastfuss) -, charakteristisch über dieselben Zustände wie
+ * die Reaktionstabelle: das ganze G und G + Wind / Schnee; je Komponente
+ * das Kleinste und das Grösste mit seinem Fall.
+ * ========================================================================= */
+const ANSCHLUSS_LINK = /^(.*?)LINK_([^_]+)_(OG|UG)([LR])$/;
+
+export function anschlussKraefte(dat, lsg, faelle, anteile) {
+  const links = (lsg?.elemente ?? []).filter((e) => e.s.art === 'link' && ANSCHLUSS_LINK.test(e.s.name));
+  if (!links.length) return null;
+  const jeLf = new Map();
+  const vonLf = (lf) => {
+    if (jeLf.has(lf)) return jeLf.get(lf);
+    const uv = lsg.u.get(lf);
+    const m = new Map();
+    if (uv) {
+      links.forEach((e) => {
+        const f = [0, 0, 0];
+        for (let r = 0; r < 3; r += 1) {
+          let s = 0;
+          for (let b = 0; b < 12; b += 1) {
+            const dof = b < 6 ? e.i * 6 + b : e.j * 6 + (b - 6);
+            s += e.kG[r * 12 + b] * uv[dof];
+          }
+          f[r] = -s;                       // Kraft auf den Mastknoten (i)
+        }
+        m.set(e.s.name, f);
+      });
+    }
+    jeLf.set(lf, m);
+    return m;
+  };
+  const kombi = (lf) => {
+    const out = new Map();
+    anteile(lf, dat).forEach(({ lastfall, faktor }) => {
+      if (!faktor) return;
+      vonLf(lastfall).forEach((f, name) => {
+        const z = out.get(name) ?? [0, 0, 0];
+        for (let r = 0; r < 3; r += 1) z[r] += faktor * f[r];
+        out.set(name, z);
+      });
+    });
+    return out;
+  };
+  const haelften = faelle.filter(istStaendigHaelfte);
+  const zustaende = [];
+  if (haelften.length) {
+    const g = new Map();
+    haelften.forEach((lf) => kombi(lf).forEach((f, n) => {
+      const z = g.get(n) ?? [0, 0, 0];
+      for (let r = 0; r < 3; r += 1) z[r] += f[r];
+      g.set(n, z);
+    }));
+    zustaende.push({ bez: 'Ständig', f: g });
+  }
+  faelle.filter(istStaendigPlus).forEach((lf) => zustaende.push({ bez: lf.bez, f: kombi(lf) }));
+  return links.map((e) => {
+    const [, praefix, mast, gurt, seite] = ANSCHLUSS_LINK.exec(e.s.name);
+    const komp = ['Fx', 'Fy', 'Fz'].map((k, r) => {
+      let min = null, max = null;
+      zustaende.forEach((z) => {
+        const v = z.f.get(e.s.name)?.[r];
+        if (!Number.isFinite(v)) return;
+        if (!min || v < min.wert) min = { wert: v, bez: z.bez };
+        if (!max || v > max.wert) max = { wert: v, bez: z.bez };
+      });
+      return [k, { min, max }];
+    });
+    return { name: e.s.name, tw: praefix.replace(/_$/, '') || null, mast, gurt, seite,
+             ...Object.fromEntries(komp) };
+  }).sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast)
+    || a.gurt.localeCompare(b.gurt) || a.seite.localeCompare(b.seite));
+}

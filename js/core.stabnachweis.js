@@ -412,6 +412,19 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
       knotenEnde.set(st.name, i && j ? null : i ? 'i' : j ? 'j' : 'keins');
     });
   }
+  /*
+   * >>> AUCH AM GITTERMAST AM ANSCHNITT (7. Oktober). <<< Auf Rückfrage
+   * «Knotenbereich am Fuss weg»: der Gittermast führt keine steifen
+   * Abschnitte, seine Gurte laufen von Blechstation zu Blechstation und
+   * wurden in der Knotenmitte ausgewertet (I 30 am Fuss 1.07 am Knoten der
+   * ersten Station). Mit «Anschnitt» zählt der Gurt jetzt um die halbe
+   * Blechhöhe vom Knoten weg - am Rand des Blechs, wie am Joch.
+   */
+  const gitterAnschnitt = new Map();
+  if (amAnschnitt) {
+    (dat.gittermasten ?? []).forEach((g) => Object.entries(g.anschnitt ?? {})
+      .forEach(([k, h]) => { if (h > 0) gitterAnschnitt.set(k, h); }));
+  }
   const je = new Map();
   const gruppen = {};
   // Je Bauteil der Reihe (Joch T1, Mast M2 …) das grösste eta.
@@ -424,6 +437,19 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     const rolle = stabRolle(st.name, st.art);
     // Ein steifer Abschnitt ganz im Knoten (kein Ende am freien Gurt).
     if (knotenEnde.get(st.name) === 'keins') return;
+    /*
+     * >>> MIT «ANSCHNITT» ZÄHLT DER KNOTENBEREICH GAR NICHT (7. Oktober). <<<
+     * Gemeldet mit Bild der Verläufe: «hier sollte ohne die spannung in den
+     * knotenbereichen abgebildet werden». Befund: sitzt eine Klemme genau am
+     * Blechrand (J90/20 m, Hängestütze bei 8 m: Klemme auf dem Knoten bei
+     * 7.86), geht ihre Kraft in den steifen Abschnitt - an seinem Rand
+     * stand UG 0.686, im freien Gurt am selben Schnitt 0.512. Auf Rückfrage
+     * «Knotenbereich ganz draussen»: der steife Abschnitt ist ein Kunstgriff
+     * für Gurt + Blech im Knoten, massgebend ist der freie Gurt am Rand.
+     * «Schwerachsen» wertet wie bisher beide Enden aus.
+     */
+    // Er bleibt in der Liste (Kräfte, Wege, Bild), trägt aber kein η.
+    const imKnoten = amAnschnitt && knotenEnde.has(st.name);
     /*
      * >>> STARRELEMENTE UND LINKS WERDEN NICHT NACHGEWIESEN. <<<
      * Sie sind Kunstgriffe, keine Bauteile - dieselbe Regel wie beim
@@ -454,6 +480,20 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     let s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion,
                          knotenEnde.get(st.name) ?? null);
     if (!s) { ohneWert += 1; return; }
+    if (gitterAnschnitt.size && rolle === 'gurt'
+        && (gitterAnschnitt.has(st.von) || gitterAnschnitt.has(st.bis))) {
+      const a = knXYZ.get(st.von), b = knXYZ.get(st.bis);
+      const L = a && b ? Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) : 0;
+      if (L > 0) {
+        const xi = Math.min(0.5, (gitterAnschnitt.get(st.von) ?? 0) / L);
+        const xj = Math.max(0.5, 1 - (gitterAnschnitt.get(st.bis) ?? 0) / L);
+        const qs = qsMap.get(st.querschnitt);
+        const kand = [[xi, 'i'], [xj, 'j']]
+          .map(([x, e]) => ({ ...stabSpannung(qs, schnittImStab(f, L, x), rolle), ende: e, xi: x }))
+          .filter((k) => Number.isFinite(k.sig));
+        if (kand.length) s = kand.reduce((p, q) => (q.sig > p.sig ? q : p));
+      }
+    }
     /*
      * Am Masten auch zwischen den Enden (2. Oktober, siehe `schnittImStab`):
      * für den Verlauf über die Höhe und, falls eine Stelle im Feld grösser
@@ -485,8 +525,10 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     // Masten mit ihrer eigenen Güte (7. Oktober).
     const fydR = rolle === 'mast' && opt.fydMast > 0 ? opt.fydMast : fyd;
     const eta = fydR > 0 ? s.sig / fydR : null;
-    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta, detail: s, verlauf };
+    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta: imKnoten ? null : eta,
+                      detail: s, verlauf, ...(imKnoten ? { imKnoten: true } : {}) };
     je.set(st.name, eintrag);
+    if (imKnoten) return;
     const g = gruppen[rolle] ?? (gruppen[rolle] = { anzahl: 0, sig: 0, eta: 0, wo: null });
     g.anzahl += 1;
     if (s.sig > g.sig) { g.sig = s.sig; g.eta = eta; g.wo = st.name; }
@@ -764,11 +806,19 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
       }
       const vorS = jeStab[s.name];
       if (!vorS || s.sig > vorS.sig) {
+        if (s.imKnoten) {
+          const fK = kraefte.get(s.name);
+          jeStab[s.name] = { name: s.name, rolle: s.rolle, teil: stabTeil(s.name, s.rolle),
+                             sig: s.sig, eta: null, imKnoten: true, ende: s.ende,
+                             fall: lf.key, bez: lf.bez, f: fK ? Array.from(fK) : null };
+          return;
+        }
         const f = kraefte.get(s.name);
         jeStab[s.name] = { name: s.name, rolle: s.rolle, teil: stabTeil(s.name, s.rolle),
                            sig: s.sig, eta: s.eta, ende: s.ende,
                            fall: lf.key, bez: lf.bez, f: f ? Array.from(f) : null };
       }
+      if (s.imKnoten) return;
       const teil = stabTeil(s.name, s.rolle);
       if (!teil) return;
       const zu = stabZuordnung(s.name);

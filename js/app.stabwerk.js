@@ -50,7 +50,7 @@ import { linkBedingung } from './core.auflager.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { anteileFuer } from './core.stabnachweis.js';
-import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
+import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte } from './core.reaktionen.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -602,6 +602,8 @@ export function rechneStabwerk(app, aufruf = {}) {
     verformung,
     reaktionen,
     reaktionenEinzeln,
+    // Kräfte am Jochanschluss, charakteristisch (7. Oktober).
+    anschluss: anschlussKraefte(dat, lsg, alleFaelleS, anteileFuer),
     // Die Übersichtsskizze des Blattes der Reaktionskräfte (x–z).
     skizze: skizzeAusModell(dat),
     ausleger,

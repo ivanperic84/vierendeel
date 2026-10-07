@@ -14,6 +14,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-07',
     punkte: [
+      { text: 'Reiter Auflager: Tabelle «Kräfte am Jochanschluss» aus dem Stabwerk - je Mast und Gurt F_x, F_y, F_z (Joch auf den Masten, charakteristisch, min / max).' },
+      { text: 'Gurt mit «Anschnitt»: der Knotenbereich (steifer Abschnitt) zählt nicht mehr - massgebend ist der freie Gurt am Blechrand; am Gittermast der Gurt um die halbe Blechhöhe vom Knoten. Verläufe und Bild ohne Knotenbereich, die Bleche des Gittermasts als Stufe je Feld.', rechnung: true },
+      { text: 'Signalbauer: abstrakte Symbole für die 26 Signale und Tafeln.' },
       { text: 'Leiter-Traverse am Masten einseitig auskragend: Kraft der Traverse in der Mitte (0.50 m), Zusatzleiter am Ende (1.00 m); das Ende lässt sich im 3D ziehen, der Leiter wandert mit. Bereits gesetzte Traversen bleiben, wie sie sind.', rechnung: true },
       { text: 'Gittermast: der Wind im Ersatzprofil (Maske, vorläufige Anzeige) ist je Richtung das Grösste über die Höhe - am I 30 jetzt 0.305 / 0.441 statt 0.305 / 0.305 kN/m (EK1). Das Stabwerk rechnete schon je Höhe mit der richtigen Fläche und bleibt gleich.' },
       { text: 'Havarie: solange der Reiter Lasten offen ist, stehen alle Leiter im 3D - die angehakten («kann reissen») in der Warnfarbe.' },

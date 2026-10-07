@@ -3475,6 +3475,9 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
    Stile (export.reaktionen.js).
    --------------------------------------------------------------------------- */
 .rk-block { margin-bottom: 14px; }
+.rk-anschluss { table-layout: fixed; width: 100%; font-size: 11px; }
+.rk-anschluss th, .rk-anschluss td { padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-anschluss td { line-height: 1.3; }
 .rk-block .btn { margin-top: 6px; }
 .rk-tabelle { font-size: 11px; }
 .rk-tabelle th, .rk-tabelle td { padding: 3px 5px; }

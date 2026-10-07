@@ -499,3 +499,22 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
   <p class="fuss">${esc(daten?.fassung ?? '')}</p>
   </body></html>`;
 }
+
+/**
+ * Kräfte am Jochanschluss (7. Oktober, «unter Auflager eine Tabelle zu
+ * Kräfte am Jochanschluss ergänzen»): je Mast und Gurt die Kraft des Jochs
+ * auf den Masten, charakteristisch, min / max je Komponente.
+ */
+export function anschlussKurzHtml(liste, mastName = (m) => m) {
+  if (!liste?.length) return '';
+  const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
+    k.min ? `${f2(k.min.wert)}<br>${f2(k.max.wert)}` : '–'}</td>`;
+  return `<table class="dt rk-anschluss">
+    <colgroup><col style="width:31%"><col style="width:23%"><col style="width:23%"><col style="width:23%"></colgroup>
+    <thead><tr><th>Anschluss<br><span class="rk-einheit">min / max [kN]</span></th>
+      <th class="num">F_x<br><span class="rk-einheit">quer</span></th>
+      <th class="num">F_y<br><span class="rk-einheit">längs</span></th>
+      <th class="num">F_z ↑<br><span class="rk-einheit">lotrecht</span></th></tr></thead>
+    <tbody>${liste.map((a) => `<tr><th title="${esc(`${a.tw ? `${a.tw} · ` : ''}Mast ${mastName(a.mast)} · ${a.gurt === 'OG' ? 'Obergurt' : 'Untergurt'} ${a.seite === 'L' ? 'links' : 'rechts'}`)}">${esc(`${a.tw ? `${a.tw} ` : ''}${mastName(a.mast)} ${a.gurt} ${a.seite}`)}</th>
+      ${zelle(a.Fx)}${zelle(a.Fy)}${zelle(a.Fz)}</tr>`).join('')}</tbody></table>`;
+}

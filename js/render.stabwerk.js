@@ -63,7 +63,8 @@ export function plotWerte(z) {
   if (!z) return null;
   const h = z.huelle ?? {};
   return {
-    eta: z.eta, sig_v: z.sig, sig: h.sigN ?? null,
+    // Knotenbereich mit «Anschnitt» (7. Oktober): ohne η und σ_v.
+    eta: z.eta, sig_v: z.imKnoten ? null : z.sig, sig: h.sigN ?? null,
     N: h.N ?? null, V: h.V ?? null, M: h.M ?? null, T: h.T ?? null,
   };
 }
@@ -414,8 +415,12 @@ function treppe(grenzen, serien) {
   for (let i = 0; i < b.length - 1; i += 1) {
     if (b[i + 1] - b[i] < 1e-6) continue;
     const xm = (b[i] + b[i + 1]) / 2;
+    // Eine Stelle, die kein Stab abdeckt (Knotenbereich mit «Anschnitt»,
+    // 7. Oktober), wird ausgelassen statt mit 0 aufgetragen.
+    const vs = serien.map((f) => f(xm));
+    if (vs.every((v) => v === null)) continue;
     punkte.push(b[i], b[i + 1]);
-    serien.forEach((f, k) => { const v = f(xm); werte[k].push(v, v); });
+    vs.forEach((v, k) => { werte[k].push(v ?? 0, v ?? 0); });
   }
   return { punkte, werte };
 }
@@ -434,11 +439,12 @@ function verlaufLinie(liste, fuss, felder) {
 /** Das Grösste der Stäbe, die x überdecken (Feld `feld` der Hülle bzw. η). */
 function ueber(liste, feld) {
   return (x) => {
-    let m = 0;
+    let m = null;
     liste.forEach((s) => {
       if (x < s.x0 - 1e-9 || x > s.x1 + 1e-9) return;
+      if (s.z.imKnoten) return;          // Knotenbereich mit «Anschnitt»
       const v = feld === 'eta' ? s.z.eta : s.z.huelle?.[feld];
-      if (Number.isFinite(v)) m = Math.max(m, v);
+      if (Number.isFinite(v)) m = Math.max(m ?? 0, v);
     });
     return m;
   };
@@ -541,8 +547,15 @@ export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900)
     if (!g.gurt.length) return;
     const fuss = Math.min(...g.gurt.map((z) => z.z0));
     const lang = (l) => l.map((z) => ({ z, x0: z.z0 - fuss, x1: z.z1 - fuss }));
-    // Ein Blech liegt waagrecht: eine schmale Stufe um seine Station.
-    const kurz = (l) => l.map((z) => ({ z, x0: (z.z0 + z.z1) / 2 - fuss - 0.03, x1: (z.z0 + z.z1) / 2 - fuss + 0.03 }));
+    // Ein Blech liegt waagrecht. Auf Rückfrage «Bleche als Stufen je Feld»
+    // hält es seinen Wert über sein Feld - bis zur nächsten Blechstation.
+    const stat = [...new Set(g.blech.map((z) => Math.round(((z.z0 + z.z1) / 2 - fuss) * 1e4) / 1e4))].sort((p, q) => p - q);
+    const kurz = (l) => l.map((z) => {
+      const x0 = Math.round(((z.z0 + z.z1) / 2 - fuss) * 1e4) / 1e4;
+      const k = stat.indexOf(x0);
+      const x1 = k >= 0 && k < stat.length - 1 ? stat[k + 1] : x0 + (k > 0 ? x0 - stat[k - 1] : 0.3);
+      return { z, x0, x1 };
+    });
     const lg = lang(g.gurt), lb = kurz(g.blech), lr = lang(g.rohr);
     const grenzen = [...lg, ...lb, ...lr].flatMap((s) => [s.x0, s.x1]);
     const tE = treppe(grenzen, [ueber(lg, 'eta'), ueber(lb, 'eta'), ueber(lr, 'eta')]);

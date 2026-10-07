@@ -301,9 +301,12 @@ export function gittermastenEinsetzen(dat) {
 
     // --- Bindebleche an den Stationen ---------------------------------------
     const blechStaebe = [];
+    // Halbe Blechhöhe je Gurtknoten: dort ist der Anschnitt (7. Oktober).
+    const anschnitt = {};
     hoehen.forEach((h, i) => {
       const s = h.station;
       if (!s?.blech) return;
+      ECKEN.forEach((e) => { anschnitt[gurtName(e.k, i)] = r6(Number(s.blech.b) / 2); });
       const w = s.teil === 'unten' ? wU : wO;
       const tW = w.t / 1000;
       SEITEN.forEach((se) => {
@@ -441,7 +444,7 @@ export function gittermastenEinsetzen(dat) {
       achse: achse.map((k) => k.name),
       gurte: gurtStaebe.map((g) => g.name), bleche: blechStaebe.map((b) => b.name),
       oben: obenStaebe.map((o) => o.name), obenArt: G.oben?.art ?? null,
-      gurtUnten: G.gurtUnten, gurtOben: G.gurtOben,
+      gurtUnten: G.gurtUnten, gurtOben: G.gurtOben, anschnitt,
     });
   });
 

@@ -27,7 +27,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten } from './app.bericht.js';
-import { reaktionenKurzHtml, reaktionenBlattHtml } from './export.reaktionen.js';
+import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml } from './export.reaktionen.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -1729,6 +1729,27 @@ function reaktionsBlockEinfuegen(node) {
   }));
 }
 
+/*
+ * >>> KRÄFTE AM JOCHANSCHLUSS (7. Oktober). <<< «unter Auflager eine Tabelle
+ * zu Kräfte am Jochanschluss ergänzen.» Unter den Reaktionskräften, nur mit
+ * gültigem Stabwerk (dort stehen die Anschlüsse als Links).
+ */
+function anschlussBlockEinfuegen(node) {
+  const liste = stabwerkGilt() ? stabwerk?.anschluss : null;
+  if (!liste?.length) return;
+  const html = `<div class="rk-block">
+    ${abschnitt('Kräfte am Jochanschluss, charakteristisch',
+      'Joch auf den Masten · global · F_z nach oben · aus dem Stabwerk')}
+    ${anschlussKurzHtml(liste)}
+    <p class="notiz" style="margin:4px 0 0">Je Gurtanschluss die Kraft, die das Joch auf den
+      Masten gibt; Hülle über «Ständig» und «Ständig + Wind / Schnee», ohne Abminderung
+      des Winds. Der massgebende Zustand steht im Titel der Zelle.</p>
+  </div>`;
+  const rk = node.querySelector('.rk-block');
+  if (rk) rk.insertAdjacentHTML('afterend', html);
+  else node.insertAdjacentHTML('afterbegin', html);
+}
+
 function zeichneAuswertung() {
   if (!letzte) return;
   /*
@@ -1931,6 +1952,7 @@ function zeichneAuswertung() {
     // weg (2. Oktober, «Hülle bleibt, dazu der gewählte Fall»).
     else ui.zeichneAuflager(node, letzte.auflager, erg, { stabwerk: Boolean(stabwerkGilt()) });
     reaktionsBlockEinfuegen(node);
+    anschlussBlockEinfuegen(node);
   } else {
     /*
      * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN VERLAEUFE. <<<

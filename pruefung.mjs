@@ -39820,6 +39820,54 @@ titel('257  Traverse und Konsole am Masten: Kraft in der Mitte, Leiter am Ende, 
   }
 }
 
+titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jochanschluss');
+/* 7. Oktober: «hier sollte ohne die spannung in den knotenbereichen
+ * abgebildet werden» - Rückfrage «Knotenbereich ganz draussen», «Bleche als
+ * Stufen je Feld», «Knotenbereich am Fuss weg»; «unter Auflager eine Tabelle
+ * zu Kräfte am Jochanschluss ergänzen». */
+{
+  const N258 = await import(J('core.nachbarn.js'));
+  const AS258 = await import(J('app.stabwerk.js'));
+  const R258 = await import(J('core.reaktionen.js'));
+  const SN258 = await import(J('core.stabnachweis.js'));
+  const w0 = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const rechne = (o) => {
+    const w1 = { ...w0, ...o };
+    const w = N258.rechensatzMitNachbarn(w1);
+    const erg = berechne(w, ...N258.kernArgumente(w));
+    return AS258.rechneStabwerk({ werte: w1, letzte: { erg }, stabwerk: null });
+  };
+  const an = rechne({ knotenbereich: 'anschnitt' });
+  const sw = rechne({ knotenbereich: 'schwerachsen' });
+  const steif = new Set(an.roh.dat.staebe.filter((s) => s.steifesMaterial).map((s) => s.name));
+  const zA = Object.values(an.jeStab).filter((z) => steif.has(z.name));
+  wahr('Anschnitt: steife Abschnitte ohne η, mit Kräften, nie massgebend',
+       zA.length > 0 && zA.every((z) => z.imKnoten && z.eta === null && z.f?.length === 12)
+       && Object.values(an.teile).every((t) => !steif.has(t.wo)), `${zA.length} Abschnitte`);
+  wahr('Schwerachsen: steife Abschnitte wie bisher mit η',
+       Object.values(sw.jeStab).filter((z) => steif.has(z.name)).every((z) => !z.imKnoten && Number.isFinite(z.eta)));
+  const RSq = readFileSync(join(HIER, 'js', 'render.stabwerk.js'), 'utf8');
+  wahr('Verläufe lassen den Knotenbereich aus (keine Null-Zacke), Bleche des Gittermasts als Stufe je Feld',
+       RSq.includes('if (s.z.imKnoten) return;') && RSq.includes('if (vs.every((v) => v === null)) continue;')
+       && RSq.includes('stat[k + 1]'));
+  const SNq = readFileSync(join(HIER, 'js', 'core.stabnachweis.js'), 'utf8');
+  wahr('Gittermast: Gurt mit «Anschnitt» um die halbe Blechhöhe vom Knoten',
+       SNq.includes('gitterAnschnitt.get(st.von)') && readFileSync(join(HIER, 'js', 'export.axisvm.gitter.js'), 'utf8').includes('anschnitt[gurtName(e.k, i)]'));
+
+  // Kräfte am Jochanschluss: Summe F_z unter «Ständig» = Gewicht des Jochs.
+  const nurG = an.roh.faelle.filter((l) => l.art === 'charakteristisch' && Math.abs(Number(l.beiwerte?.G) || 0) > 1e-12 && !l.leit);
+  const a = R258.anschlussKraefte(an.roh.dat, an.roh.lsg, nurG, SN258.anteileFuer);
+  pruef('Jochanschluss: Σ F_z unter «Ständig» = Joch J90/20 m (nach unten)',
+        a.reduce((s, x) => s + x.Fz.min.wert, 0), -11.773, 2e-3, 'kN');
+  wahr('Jochanschluss: Obergurt ohne F_z, Untergurt ohne F_x (Lagerung OG x y, UG y z)',
+       a.filter((x) => x.gurt === 'OG').every((x) => Math.abs(x.Fz.max.wert) < 1e-6 && Math.abs(x.Fz.min.wert) < 1e-6)
+       && a.filter((x) => x.gurt === 'UG').every((x) => Math.abs(x.Fx.max.wert) < 1e-6 && Math.abs(x.Fx.min.wert) < 1e-6));
+  wahr('Jochanschluss: je Mast vier Zeilen im Ergebnis des Stabwerks', an.anschluss?.length === 8, `${an.anschluss?.length}`);
+  wahr('Reiter Auflager: Block «Kräfte am Jochanschluss»', APP_QUELLE().includes('function anschlussBlockEinfuegen(node)')
+       && APP_QUELLE().includes('anschlussBlockEinfuegen(node);'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
