@@ -384,6 +384,10 @@ export function rechneStabwerk(app, aufruf = {}) {
   const stahl = getStahl(satz.stahl);
   const gammaM0 = Number(satz.gammaM0) > 0 ? Number(satz.gammaM0) : 1.05;
   const fyd = (stahl?.fy ?? 235) / gammaM0;
+  // Die Masten mit ihrer eigenen Güte (7. Oktober); ohne Eintrag die des Jochs.
+  let stahlM = stahl;
+  try { stahlM = String(satz.stahlMast ?? '').trim() ? getStahl(satz.stahlMast) : stahl; } catch { stahlM = stahl; }
+  const fydMast = (stahlM?.fy ?? 235) / gammaM0;
 
   /*
    * Die Kombinationen aller Saetze, gleiche Schluessel einmal - dieselbe
@@ -407,7 +411,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   // Option wie beim Ersatzbalken.
   const knotenbereich = satz.knotenbereich ?? 'anschnitt';
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
-    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich });
+    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast });
   /*
    * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
    * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
@@ -607,7 +611,7 @@ export function rechneStabwerk(app, aufruf = {}) {
     ankerJe,
     seile: seile.length,
     kennung: eingabeKennung(app.werte),
-    fyd,
+    fyd, fydMast,
     knoten: dat.knoten.length,
     staebe: dat.staebe.length,
     freiheitsgrade: lsg.n,
@@ -671,7 +675,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   Object.defineProperty(ergebnis, 'imFall', { enumerable: false, value: (key) => {
     const lf = alleFaelleS.find((l) => l.key === key);
     if (!lf) return null;
-    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich });
+    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich, fydMast });
     let kn = null;
     if (knick) {
       kn = {};

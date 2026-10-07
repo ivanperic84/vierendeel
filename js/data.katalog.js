@@ -131,7 +131,8 @@ export const ABSCHNITTE = [
   {
     key: 'stahlgueten', db: 'normen', tabelle: 'stahlgueten', liste: 'stahlgueten',
     titel: 'Stahlgüten', herkunft: 'norm', schluessel: 'name',
-    notiz: 'Nach SIA 263, Erzeugnisdicke t ≤ 40 mm.',
+    notiz: 'Nach SIA 263 / EN 1993-1-1 Tabelle 3.1, Erzeugnisdicke t ≤ 40 mm. '
+         + 'S450 (EN 10025-2) mit f_y 440, S460 als N/M-Güte (EN 10025-3/-4).',
     felder: [
       text('name', 'Bezeichnung', { pflicht: true }),
       zahl('fy', 'Fliessgrenze f_y', 'N/mm²', { pflicht: true, von: 200, bis: 500 }),

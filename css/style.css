@@ -664,6 +664,19 @@ input[type=range].rng {
 .at-knopf.an { background: var(--acc-s); color: var(--acc); font-weight: 600; }
 .at-knopf input { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
 .at-knopf:focus-within { outline: 1px solid var(--acc); outline-offset: -1px; }
+/* Drahtwerke (7. Oktober): Gliederung, Auswahl, Typ und Anzahl in der Zeile. */
+.dw-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 6px; }
+.dw-gliederung { flex: 0 0 auto; }
+.dw-gliederung .at-knopf { background: none; border-top: 0; border-bottom: 0; border-left: 0; padding: 4px 10px; }
+.dw-tab select { min-width: 110px; max-width: 150px; font-size: 11px; padding: 1px 2px; }
+.dw-tab input[type=number] { width: 46px; text-align: right; font-size: 11px; padding: 1px 3px; }
+.dw-tab tr.klick { cursor: pointer; }
+.dw-tab td { white-space: nowrap; }
+.dw-tab td:last-child { white-space: normal; min-width: 120px; font-size: 10.5px; color: var(--dim); }
+.dw-tab tr.klick:hover td { background: var(--s2); }
+.dw-tab tr.aktiv td { background: var(--acc-s); }
+.dw-auswahl select { font-size: 11px; }
+.dw-auswahl input { width: 80px; font-size: 11px; }
 /* Oben ausgerichtet (17. September): ein Nachbar mit zweizeiligem Hinweis
    streckte sonst die Zeilen, und die Eingabe stand hoeher als das Feld
    daneben («die beiden felder auf gleicher höhe anordnen»). */
@@ -2730,12 +2743,15 @@ body.datei-ueber::after {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .kontext-feld {
-  display: flex; align-items: center; gap: 6px; padding: 3px 8px;
+  /* Feste Spalten (7. Oktober, «kannst du die felder ordnen»): Beschriftung,
+     Feld, Einheit - alle Felder gleich breit, die Einheit hat immer Platz. */
+  display: grid; grid-template-columns: 104px 132px 18px;
+  align-items: center; gap: 6px; padding: 3px 8px;
   font-size: 10.5px; color: var(--dim);
 }
-.kontext-feld > span { flex: 0 0 62px; }
+.kontext-feld > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kontext-feld select, .kontext-feld input {
-  flex: 1; min-width: 0; max-width: 132px;
+  width: 100%; min-width: 0; box-sizing: border-box;
   background: var(--s2); border: 1px solid var(--ol);
   border-radius: var(--m-r1); color: var(--on2);
   font-family: inherit; font-size: 10.5px; padding: 2px 4px;

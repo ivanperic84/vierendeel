@@ -138,7 +138,7 @@ import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeich
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, seiteAusklappen } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
-         setzWahlZeigen, setzWahlWeg, signalZusammenstellen } from './app.setzen.js';
+         setzWahlZeigen, setzWahlWeg, signalZusammenstellen, gruppenKopie } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -1301,7 +1301,7 @@ function neuRechnen(neuZeichnen = true) {
             geo: ui.hebelarmUebersicht(letzte.anzeige ?? letzte.erg),
 
             blech: ui.blechUebersichtHtml(letzte.erg),
-            stueck: ui.stuecklisteHtml(letzte.anzeige),
+            stueck: ui.stuecklisteHtml(letzte.anzeige, { stabwerk: verfahrenVon(werte) === 'stabwerk' }),
           } : {}),
           // Die Masten stehen bei JEDER Tragwerksart - sie sind das
           // Grundelement, nicht ein Zubehoer des Jochs.
@@ -4853,13 +4853,31 @@ function abbrechen() {
   if (dlg) { dlg.querySelector('[data-zu]')?.click(); return; }
   if (schubladeIstOffen()) { schubladeSchliessen(app); return; }
   /*
+   * >>> ESC KLAPPT DIE OFFENE BAUTEILKARTE ZU (7. Oktober). <<< Weisung, mit
+   * Bild der offenen Karte A1: «wenn ich hier esc drücke, dann zuklappen».
+   * Wie der zweite Klick auf die Zeile: zu, und der Blick zurück. Eine
+   * Markierung (Strg+Klick) hebt Esc danach auf.
+   */
+  const offenAT = (werte.anbauteile ?? []).filter((a) => ui.klappOffen(`at-${a.id}`));
+  if (offenAT.length) {
+    offenAT.forEach((a) => ui.setzeKlapp(`at-${a.id}`, false));
+    neuRechnen();
+    anbauteilBlickZurueck();
+    return;
+  }
+  if (ui.anbauMarkiert().length) { ui.setzeAnbauMarkiert([]); neuRechnen(); return; }
+  /*
    * >>> ESC ZOOMT NICHT HERAUS (30. September). <<<
    * «Beim Esc nach der bauteileingabe nicht herauszoomen.» Nach dem Setzen
    * steht der Blick auf dem neuen Teil (Einzelheitsblick); Esc hob ihn auf
    * UND fuhr aufs ganze Joch zurück. Jetzt nur noch die Auswahl - wer das
    * Ganze sehen will, hat «Ganzes Querprofil» unten links.
    */
-  if (ansicht?.hervorTeile) { ansicht.hervorTeile = null; ansicht.zeichne(); return; }
+  if (ansicht?.hervorTeile) {
+    ansicht.hervorTeile = null; ansicht.zeichne();
+    if (ui.drahtwerkWahlAufheben()) neuRechnen();
+    return;
+  }
   if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }
   /*
    * DIE MARKIERUNG DES MASSGEBENDEN STABES (30. September: «mit esc die
@@ -6147,6 +6165,52 @@ function anbauAuswahlBearbeiten(ids) {
   };
 }
 
+/**
+ * >>> GRUPPE DUPLIZIEREN: Δx oder antippen (7. Oktober). <<< Siehe
+ * `gruppenKopie` (app.setzen.js).
+ */
+function gruppeDuplizierenDialog(name) {
+  const teile = (werte.anbauteile ?? []).filter((a) => anbauGruppe(a) === name);
+  const amJoch = teile.filter((a) => (a.ort ?? 'joch') === 'joch');
+  if (!amJoch.length) {
+    meldeImBalken(`#${name}: keine Teile am Joch - Teile am Masten werden nicht dupliziert.`);
+    return;
+  }
+  const xs = amJoch.map((a) => Number(a.x) || 0);
+  const d = dialog(`Gruppe #${name} duplizieren`, `
+    <p class="notiz">${amJoch.length} Teil(e) am Joch, x ${Math.min(...xs).toFixed(2)} … ${Math.max(...xs).toFixed(2)} m${
+      teile.length > amJoch.length ? ` · ${teile.length - amJoch.length} Teil(e) am Masten bleiben einfach` : ''}.
+      Die Kopie behält die Abstände untereinander.</p>
+    <div class="feld"><label for="gd-dx">Versetzen um Δx [m]</label>
+      <input id="gd-dx" type="text" inputmode="decimal" value="" placeholder="z. B. 4.50"></div>`,
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn" data-tippen>Im Modell antippen</button>
+     <button class="btn btn-acc" data-ok>Versetzt einfügen</button>`);
+  const q = (s) => d.node.querySelector(s);
+  setTimeout(() => q('#gd-dx')?.focus(), 30);
+  q('[data-tippen]').onclick = () => {
+    d.zu();
+    if (ansicht) zoomAufTragwerk(werte.twId ?? 'T1');
+    setzenStarten(app, { art: 'gruppe', name });
+    meldeImBalken(`#${name}: ins Modell klicken, wo das erste Teil der Kopie hin soll - Esc bricht ab.`);
+  };
+  const ok = () => {
+    const dx = parseFloat(String(q('#gd-dx').value).replace(',', '.'));
+    if (!Number.isFinite(dx) || dx === 0) { q('#gd-dx').focus(); return; }
+    const r = gruppenKopie(app, name, dx);
+    d.zu();
+    if (!r) return;
+    handlung('Gruppe duplizieren', () => {
+      werte.havarie = r.havarie;
+      setzeAnbauteile([...(werte.anbauteile ?? []), ...r.kopien]);
+    });
+    meldeImBalken(`#${name} dupliziert als #${r.tag} (${r.kopien.length} Teile, Δx ${dx.toFixed(2)} m)`
+      + ' · Strg+Z nimmt es zurück', { dauer: 6000 });
+  };
+  q('[data-ok]').onclick = ok;
+  q('#gd-dx').onkeydown = (e) => { if (e.key === 'Enter') ok(); };
+}
+
 function dialogSpeichern() {
   const d = dialog('In Ablage speichern', `
     <div class="feld"><label for="d-projekt">Projekt</label>
@@ -6763,6 +6827,7 @@ export async function start() {
     // Mehrfachauswahl (7. Oktober): Strg+Klick zeichnet nur die Liste neu.
     neuZeichnen: () => neuRechnen(),
     auswahlBearbeiten: (ids) => anbauAuswahlBearbeiten(ids),
+    gruppeDuplizieren: (name) => gruppeDuplizierenDialog(name),
     oeffnen: (i) => {
       const a = (werte.anbauteile ?? [])[i];
       if (!a) return;

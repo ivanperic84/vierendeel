@@ -18,6 +18,19 @@ import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, 
 import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
 import { mastWindBeide } from './data.masten.js';
+import { getStahl } from './data.profiles.js';
+
+/**
+ * >>> DIE STAHLGÜTE DER MASTEN (7. Oktober). <<< Weisung: «kannst du die
+ * stahlgüte mit S450 und 460 ergänzen und eine unterteilung machen zwischen
+ * masten / joche». Ohne Eintrag gilt die Güte des Jochs - so rechnet jeder
+ * ältere Stand wie bisher.
+ */
+export function stahlMastVon(inp, stahl) {
+  const n = String(inp?.stahlMast ?? '').trim();
+  if (!n) return stahl;
+  try { return getStahl(n) ?? stahl; } catch { return stahl; }
+}
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile, amMast, ortVon, havarieEinsetzen } from './data.anbauteile.js';
@@ -393,7 +406,8 @@ export function modellEinzelmast(inp, stahl) {
     // Durchdringung, kein Auflager. Der Hinweis nennt sie.
     mastKollisionen: mastKollisionen(inp),
     qsErsatz,
-    stahl, beiwerte,
+    // Der Einzelmast IST ein Mast: seine Güte ist die der Masten.
+    stahl: stahlMastVon(inp, stahl), stahlMast: stahlMastVon(inp, stahl), beiwerte,
     federn: { ...federnRoh, namen: { A: inp.mastNameA || 'M1', B: '' } },
     mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),
     anbauMast: amMasten.map((a) => ({ ...a, ort: 'mastA' })),
@@ -893,7 +907,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     schiefeBiegung: inp.schiefeBiegung !== false,
 
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
-    profOG, profUG, stahl, joch,
+    profOG, profUG, stahl, joch, stahlMast: stahlMastVon(inp, stahl),
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,
     eps: Math.sqrt(235 / stahl.fy),
     // Die Beiwerte des gewaehlten Lastfalls. Der Mastnachweis braucht sie:

@@ -2534,6 +2534,92 @@ ihr lässt es sich längs verschieben (Strg = Kopie); ein Klick in der Liste
 fährt das Bild heran.</p>
 `,
 },
+{
+  id: 'fundamentablauf',
+  titel: '21 · Fundamentbestimmung: der Ablauf',
+  html: `
+${q(`Weisung vom 7. Oktober: «bei den zulässigen standardlasten gibt es einen
+flow der bei einer überschreitung der einzelnen werte die kompensation infolge
+der abminderung der übrigen werte vornimmt» - «fundamentflow und gelände >14°
+einbauen» - «Bilde den fundamentflow im handbuch ab für die
+nachvollziehbarkeit.»`)}
+
+<p>Die zulässigen Standardlasten eines Mastfundaments stehen je Geländefall
+(bis 14°, 14°–33° horizontales Terrain, 14°–33° Richtung fallende Böschung)
+als <b>Basiswerte</b> für den ständigen Anteil (st), den veränderlichen (ver)
+und beide zusammen (tot), dazu V und T. Ist ein Basiswert überschritten, ist
+das Fundament nicht schon unzulässig: der Ablauf gleicht aus, indem er einen
+<b>anderen</b> zulässigen Wert abmindert. Er läuft <b>quer und längs zum
+Gleis getrennt</b>; beide müssen zulässig sein. Gerechnet in
+<code>core.fundament.js</code> (<code>fundamentAblauf</code>), die Werte in
+der Tabelle <i>Fundamentlasten je Gelände</i> des Masten-Sortiments.</p>
+
+<svg viewBox="0 0 680 560" class="hb-bild" role="img"
+     aria-label="Ablauf der Fundamentbestimmung, 19 Schritte"
+     style="max-width:680px;width:100%;font-family:var(--f-mono);font-size:10.5px">
+  <defs>
+    <marker id="hbPf" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-width="1" opacity=".55" marker-end="url(#hbPf)">
+    <path d="M120,48 V70"/><path d="M120,118 V140"/><path d="M120,188 V210"/>
+    <path d="M120,258 V280"/><path d="M120,328 V350"/><path d="M120,398 V420"/>
+    <path d="M240,234 H420"/><path d="M240,304 H300 V350 H420"/>
+    <path d="M540,258 V280"/><path d="M540,328 V350"/><path d="M540,398 V420"/>
+    <path d="M540,468 V490"/>
+  </g>
+  ${[
+    // Hauptweg
+    [0, 10, '1  alle Basiswerte eingehalten?', 'ja → ZULÄSSIG (Basis)  ·  nein → 2'],
+    [0, 80, '2  V, M_tot oder T über zul.?', 'ja → GRÖSSERES FUNDAMENT  ·  nein → 3'],
+    [0, 150, '3  M_ver über seiner Grenze?', 'ja → GRÖSSERES FUNDAMENT  ·  nein → 4'],
+    [0, 220, '4  H_tot über zul.?', 'ja → 9  ·  nein → 5'],
+    [0, 290, '5  H_ver über zul.?', 'ja → 10/11  ·  nein → 6'],
+    [0, 360, '6  M_ver über zul.?', 'nein → ZULÄSSIG  ·  ja → 7/8'],
+    [0, 430, '7  M_st,zul,neu1 = M_st,zul − ΔM_ver · red_M', '8  M_st > neu1 → GRÖSSER, sonst ZULÄSSIG'],
+    // Weg über die Horizontalkraft
+    [420, 220, '9  H_ver über zul.?', 'ja → 12/14  ·  nein → 13'],
+    [420, 290, '10  H_st,zul,neu = H_st,zul − ΔH_ver · red_M', '11  H_st > neu → 12/14, sonst → 6'],
+    [420, 360, '12  H_fikt = H_tot + ΔH_ver·red_M + ΔH_st', '13/14  M_tot,zul,neu = M_tot,zul − ΔH · red_H'],
+    [420, 430, '15  M_tot > M_tot,zul,neu → GRÖSSER', '16  Anteile st / ver von M_tot,zul,neu'],
+    [420, 500, '17  M_ver ≤ M_ver,neu → ZULÄSSIG', '18/19  M_st,neu2 = neu1 − ΔM_ver·red_M; M_st > neu2 → GRÖSSER'],
+  ].map(([x, y, a, b]) => `<g transform="translate(${x},${y})">
+      <rect width="${x ? 260 : 240}" height="38" rx="5" fill="var(--s2)" stroke="var(--ol)"/>
+      <text x="8" y="15" fill="var(--on)">${a}</text>
+      <text x="8" y="30" fill="var(--dim)">${b}</text></g>`).join('')}
+</svg>
+
+<h4>21.1 Die beiden Abminderungen</h4>
+<table class="dt">
+<tr><th>Wert</th><th>Bedeutung</th><th>wirkt in Schritt</th></tr>
+<tr><td>red_M</td><td>kNm zulässiges <b>ständiges</b> Moment weniger je kNm
+  Überschreitung des veränderlichen</td><td>7, 10, 12, 18</td></tr>
+<tr><td>red_H</td><td>kNm zulässiges <b>Gesamtmoment</b> weniger je kN
+  Überschreitung der Horizontalkraft</td><td>13, 14</td></tr>
+</table>
+<p>Hart bleiben V, T, das Gesamtmoment (Schritt 2) und die Grenze des
+veränderlichen Moments (Schritt 3) - sie werden nie ausgeglichen. Das
+ständige Moment allein muss nicht eingehalten sein, solange veränderliches
+und Gesamtmoment im Rahmen bleiben (Schritt 6).</p>
+
+<h4>21.2 Ergebnis und η</h4>
+<p>Drei Stufen: <i>alle Basiswerte eingehalten</i>, <i>zulässig mit
+abgeminderten Werten</i> (der Schritt steht dabei), <i>grösseres Fundament
+nötig</i>. Das η ist das grösste Verhältnis der Prüfungen, die auf dem
+gegangenen Weg eingehalten sein müssen; eine Überschreitung, die der Ablauf
+ausgleicht, zählt nicht - sie ist der Grund der Abminderung. In der Tabelle
+des Berichts steht sie deshalb als «ausgeglichen».</p>
+<p>Beispiel (DP22 auf DP1a / 2.1, 14°–33° horizontal): M_st 41.1 kNm über
+seinem Basiswert, M_ver 27.4 und M_tot 68.5 kNm im Rahmen → <b>zulässig in
+Schritt 6</b>, wie die alte Maststatik-Mappe.</p>
+
+<h4>21.3 Zwei Stellen wie die Mappe rechnet</h4>
+<p>Die Formeltafel der Mappe und ihre Zellen weichen an zwei Stellen ab; der
+Ablauf rechnet wie die <b>Zellen</b>: Schritt 12 <b>addiert</b> den
+Überschuss des veränderlichen Anteils (sichere Seite), und Schritt 10 mindert
+mit red_M. So vom Auftraggeber bestätigt (7. Oktober).</p>
+`,
+},
 ];
 
 /** Das ganze Handbuch als HTML, mit Inhaltsverzeichnis. */

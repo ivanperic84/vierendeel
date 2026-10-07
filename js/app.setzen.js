@@ -14,7 +14,7 @@ import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangVorgabeFuer } from './core.lasten.js';
-import { getVorlage, havarieKopieren, istSignalModul, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { anbauGruppe, getVorlage, havarieKopieren, istSignalModul, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -429,6 +429,7 @@ export function vorwahlName(app, vw) {
   if (vw.art === 'kopie') {
     return (app.werte.anbauteile ?? []).find((a) => a.id === vw.id)?.name ?? null;
   }
+  if (vw.art === 'gruppe') return `Gruppe #${vw.name}`;
   try { return getVorlage(vw.id)?.name ?? null; } catch { return null; }
 }
 
@@ -611,11 +612,74 @@ export function setzeKopieAnStelle(app, id) {
   setzeBaugruppeAnStelle(app, kopie);
 }
 
+/* ===========================================================================
+ * >>> EINE GRUPPE DUPLIZIEREN (7. Oktober). <<<
+ * Weisung: «möglichkeit geben eine definierte gruppe der anbauteile zu
+ * duplizieren mit der anfrage x, wert oder antippen, ähnlich wie bei den
+ * einzelnen anbauteilen.» Kopiert werden die Teile der Gruppe AM JOCH - ein
+ * Teil am Masten stünde nach dem Versatz an derselben Stelle doppelt. Die
+ * Kopie behält die Abstände untereinander; ihre Gruppe heisst wie die
+ * Quelle mit der nächsten freien Nummer («Gleis 1» → «Gleis 2»).
+ * ======================================================================== */
+export function gruppenKopie(app, name, dx) {
+  const alle = app.werte.anbauteile ?? [];
+  const quelle = alle.filter((a) => anbauGruppe(a) === name && (a.ort ?? 'joch') === 'joch');
+  if (!quelle.length) return null;
+  const vergeben = new Set(alle.map((a) => anbauGruppe(a)).filter(Boolean));
+  const m = /^(.*?)(\d+)$/.exec(name);
+  let neu = null;
+  for (let k = m ? Number(m[2]) + 1 : 2; k < 1000 && !neu; k += 1) {
+    const kand = m ? `${m[1]}${k}` : `${name} ${k}`;
+    if (!vergeben.has(kand)) neu = kand;
+  }
+  const L = Number(app.werte.L) || Infinity;
+  let havarie = app.werte.havarie;
+  const kopien = quelle.map((q) => {
+    const k = JSON.parse(JSON.stringify(q));
+    k.id = `AT-${Math.random().toString(36).slice(2, 8)}`;
+    k.aktiv = true;
+    k.tag = neu ?? `${name} Kopie`;
+    k.x = Math.min(Math.max((Number(q.x) || 0) + dx, 0), L);
+    havarie = havarieKopieren(havarie, q, k);
+    if (hatTraeger(k.module, (id) => getFlBauteil(id).rolle)) {
+      const an = passeTraegerAn(k.x, rasterNormVon(k), app.letzte?.erg?.modell);
+      return { ...rasterGesetzt(k, an), x: an.x };
+    }
+    return k;
+  });
+  return { kopien, havarie, tag: kopien[0].tag, ohneMast: alle.filter((a) => anbauGruppe(a) === name).length - quelle.length };
+}
+
+/** Die Gruppe an die angetippte Stelle: das erste Teil (kleinstes x) dorthin. */
+export function setzeGruppeAnStelle(app, name) {
+  const st = app.setzen?.stelle;
+  if (!st) return;
+  if (st.ort !== 'joch') {
+    app.setzen = { stelle: null, vorwahl: app.setzen.vorwahl,
+                   hinweis: 'Eine Gruppe wird ans Joch gesetzt - dort antippen, oder abbrechen.' };
+    app.zeichneBalken();
+    return;
+  }
+  const teile = (app.werte.anbauteile ?? []).filter((a) => anbauGruppe(a) === name && (a.ort ?? 'joch') === 'joch');
+  const x0 = Math.min(...teile.map((a) => Number(a.x) || 0));
+  const r = gruppenKopie(app, name, st.x - x0);
+  setzenEnde(app);
+  if (!r) return;
+  app.handlung('Gruppe duplizieren', () => {
+    app.werte.havarie = r.havarie;
+    app.setzeAnbauteile([...(app.werte.anbauteile ?? []), ...r.kopien]);
+  });
+  app.meldeImBalken(`#${name} dupliziert als #${r.tag} (${r.kopien.length} Teile, `
+    + `Δx ${(st.x - x0).toFixed(2)} m)${r.ohneMast ? ` · ${r.ohneMast} Teil(e) am Masten nicht kopiert` : ''}`
+    + ' · Strg+Z nimmt es zurück', { dauer: 6000 });
+}
+
 /** Die Vorwahl - Vorlage oder Kopie - an die gemerkte Stelle setzen. */
 export function setzeVorwahlAnStelle(app) {
   const v = app.setzen?.vorwahl;
   if (!v) return;
-  if (v.art === 'kopie') setzeKopieAnStelle(app, v.id);
+  if (v.art === 'gruppe') setzeGruppeAnStelle(app, v.name);
+  else if (v.art === 'kopie') setzeKopieAnStelle(app, v.id);
   else if (v.art === 'signal') {
     zuletztMerken(v.id);
     setzeBaugruppeAnStelle(app, mitSignalAuswahl(neuesAnbauteil(v.id, 0), v.signal));

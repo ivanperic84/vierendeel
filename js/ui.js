@@ -291,6 +291,7 @@ export function maskenSignatur(werte, tab) {
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
     // Die Markierung der Anbauteile (Strg+Klick, 7. Oktober) ändert die Liste.
     [...atMarkiert].join(','),
+    dwGliederung, [...dwWahl].join(','),
     /*
      * DIE EIGENEN VORLAGEN GEHOEREN DAZU (Befund vom 19. September: «Nach
      * dem abspeichern eines bauteils wir dieser nicht sofort in die liste
@@ -3105,6 +3106,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
     return `
     <div class="at-gruppe${zu ? ' verborgen' : ''}">
       <div class="sec">${name ? `#${esc(name)}` : 'Ohne Gruppe'}<span class="sec-r">${teile.length} Stück
+        ${name ? `<button type="button" class="btn-icon at-auge" data-at-gruppe-dup="${esc(name)}"
+          aria-label="Gruppe duplizieren"
+          title="Gruppe duplizieren - um Δx versetzen oder im Modell antippen">${icon('kopie', 13)}</button>` : ''}
         <button type="button" class="btn-icon at-auge${zu ? ' aus' : ''}" data-at-gruppe-auge="${esc(name)}"
           aria-label="${zu ? 'Einschalten' : 'Ausschalten'}"
           title="${zu ? 'Gruppe wieder einschalten (rechnen und zeichnen)' : 'Gruppe ausschalten - nicht gerechnet, nicht gezeichnet, die Eingaben bleiben'}">${icon('auge', 13)}</button></span></div>
@@ -3289,40 +3293,94 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
  * Teile, an denen er hängt; ein Klick hebt diese Teile im 3D hervor, ein
  * zweiter Klick oder Esc nimmt es zurück.
  * ========================================================================= */
-export function drahtwerkUebersicht(liste) {
+export function drahtwerkUebersicht(liste, gliederung = 'typ') {
+  /*
+   * >>> GLIEDERUNG, MULTIPLIKATOR, ÄNDERN (7. Oktober). <<< Weisung: «hier
+   * noch gliederungs filter angeben ob nach typ, abschnitt, bauteil und dann
+   * angeben ob ein multiplikator drin ist, das auswählen und im 3d anzeigen
+   * gleich behandeln. zudem noch ermöglichen einzen oder in einer selektion
+   * der typ oder die anzahl zu modifizieren. als startwert die tabelle
+   * zugeklappt lassen.» Gegliedert nach Typ, nach Gruppe (#Abschnitt) oder
+   * je Bauteil; jede Zeile kennt die Module, die sie zusammenfasst
+   * (`stellen`: Anbauteil i, Modul k), damit Typ und Anzahl dort geändert
+   * werden können. Der Multiplikator ist die Anzahl je Stelle (Bündel 2×).
+   */
   const je = new Map();
   (liste ?? []).forEach((a, i) => {
     if (a?.aktiv === false) return;
-    (a.module ?? []).forEach((m) => {
+    (a.module ?? []).forEach((m, k) => {
       if (m?.aktiv === false || !m?.bauteil) return;
       let b; try { b = getFlBauteil(m.bauteil); } catch { return; }
       if (b.rolle !== 'drahtwerk') return;
-      const e = je.get(m.bauteil) ?? { id: m.bauteil, name: b.name, anzahl: 0, teile: [], lagen: [] };
-      e.anzahl += Math.max(1, Math.round(Number(m.anzahl) || 1));
+      const gr = anbauGruppe(a) ?? '';
+      const key = gliederung === 'bauteil' ? `${i}|${k}`
+        : gliederung === 'gruppe' ? `${gr}|${m.bauteil}` : m.bauteil;
+      const titel = gliederung === 'bauteil' ? `A${i + 1} ${a.name ?? ''}`
+        : gliederung === 'gruppe' ? (gr ? `#${gr}` : 'ohne Gruppe') : '';
+      const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0,
+                                 teile: [], lagen: [], stellen: [], mult: new Set() };
+      const n = Math.max(1, Math.round(Number(m.anzahl) || 1));
+      e.anzahl += n;
+      e.mult.add(n);
+      e.stellen.push({ i, k });
       // Schlüssel des 3D (`AT<Index>`, render.3d.js), angezeigt als A<Nummer>.
       const teil = `AT${i}`;
       if (!e.teile.includes(teil)) {
         e.teile.push(teil);
         e.lagen.push(amMast(a) ? `${a.hMast ?? 0} m am Mast` : `${(Number(a.x) || 0).toFixed(2)} m`);
       }
-      je.set(m.bauteil, e);
+      je.set(key, e);
     });
   });
-  return [...je.values()].sort((p, q) => q.anzahl - p.anzahl || p.name.localeCompare(q.name));
+  return [...je.values()].map((e) => ({ ...e, mult: [...e.mult].sort((p, q) => p - q) }))
+    .sort((p, q) => (gliederung === 'typ' ? q.anzahl - p.anzahl || p.name.localeCompare(q.name)
+      : p.titel.localeCompare(q.titel, 'de', { numeric: true }) || p.name.localeCompare(q.name)));
 }
 
+/* Gliederung und Auswahl der Übersicht - Ansichtssache, nicht im Stand. */
+let dwGliederung = 'typ';
+const dwWahl = new Set();
+const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil']];
+/** Esc hebt die Auswahl auf (mit dem Hervorheben im 3D). */
+export function drahtwerkWahlAufheben() { const war = dwWahl.size > 0; dwWahl.clear(); return war; }
+
 function drahtwerkUebersichtHtml(liste) {
-  const d = drahtwerkUebersicht(liste);
+  const d = drahtwerkUebersicht(liste, dwGliederung);
   if (!d.length) return '';
+  [...dwWahl].forEach((k) => { if (!d.some((e) => e.key === k)) dwWahl.delete(k); });
   const summe = d.reduce((s, e) => s + e.anzahl, 0);
-  return klapp('at-drahtwerke', 'Drahtwerke nach Typ', `
-    <div class="tabellenrahmen"><table class="dt">
-      <thead><tr><th>Typ</th><th class="num">Anzahl</th><th>an</th></tr></thead>
+  const typen = (() => { try { return flBauteile().filter((b) => b.rolle === 'drahtwerk'); } catch { return []; } })();
+  const typWahl = (wert, attr) => `<select ${attr}>${wert === null ? '<option value="">– Typ –</option>' : ''}${
+    typen.map((b) => `<option value="${esc(b.id)}"${b.id === wert ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}</select>`;
+  const gew = d.filter((e) => dwWahl.has(e.key));
+  return klapp('at-drahtwerke-v2', 'Drahtwerke', `
+    <div class="dw-leiste">
+      <div class="at-knopfreihe dw-gliederung" role="radiogroup" aria-label="Gliederung">${DW_GLIEDERUNG.map(([k, t]) => `<button type="button"
+        class="at-knopf${k === dwGliederung ? ' an' : ''}" data-dw-gliederung="${k}">${t}</button>`).join('')}</div>
+      <span class="notiz">Überfahren zeigt den Leiter im 3D · Klick wählt und öffnet Typ / Anzahl · Strg+Klick mehrere</span>
+    </div>
+    ${gew.length ? `<div class="at-auswahl dw-auswahl"><b>${gew.length} gewählt</b>
+      ${typWahl(null, 'data-dw-alle-typ')}
+      <input type="number" min="1" step="1" data-dw-alle-anz placeholder="× je Stelle" title="Anzahl je Stelle für alle gewählten">
+      <button class="btn btn-mini" type="button" data-dw-aufheben>Auswahl aufheben</button></div>` : ''}
+    <div class="tabellenrahmen"><table class="dt dw-tab">
+      <thead><tr>${dwGliederung === 'typ' ? '' : '<th>Abschnitt</th>'}<th>Typ</th>
+        <th class="num" title="Stellen (Module)">Stellen</th>
+        <th class="num" title="Anzahl je Stelle - der Multiplikator, z. B. Bündel 2×">× je Stelle</th>
+        <th class="num">Summe</th><th>an</th></tr></thead>
       <tbody>${d.map((e) => `
-        <tr class="klick" data-drahtwerk="${esc(e.teile.join(','))}" title="Im 3D hervorheben (nochmals klicken oder Esc: zurück)">
-          <td>${esc(e.name)}</td><td class="num">${e.anzahl}</td>
+        <tr class="klick${dwWahl.has(e.key) ? ' aktiv' : ''}" data-dw-zeile="${esc(e.key)}"
+            title="Überfahren: Leiter im 3D · Klick: wählen und bearbeiten (Strg: mehrere, Esc: zurück)">
+          ${dwGliederung === 'typ' ? '' : `<td>${esc(e.titel)}</td>`}
+          <td>${dwWahl.has(e.key) ? typWahl(e.id, `data-dw-typ="${esc(e.key)}"`) : esc(e.name)}</td>
+          <td class="num">${e.stellen.length}</td>
+          <td class="num">${dwWahl.has(e.key) ? `<input type="number" min="1" step="1" data-dw-anz="${esc(e.key)}"
+            value="${e.mult.length === 1 ? e.mult[0] : ''}" placeholder="${e.mult.join('/')}"
+            title="${e.mult.length === 1 ? 'Anzahl je Stelle' : `gemischt: ${e.mult.join(', ')} - ein Wert setzt alle`}">`
+            : esc(e.mult.join('/'))}</td>
+          <td class="num">${e.anzahl}</td>
           <td>${esc(e.teile.map((t, k) => `A${Number(t.slice(2)) + 1} ${e.lagen[k]}`).join(' · '))}</td></tr>`).join('')}
-      </tbody></table></div>`, `${d.length} Typen · ${summe} Stück`, true);
+      </tbody></table></div>`, `${d.length} Zeilen · ${summe} Stück`, false);
 }
 
 /* ===========================================================================
@@ -4917,7 +4975,7 @@ let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
 let beiAnbauOeffnen = null, beiAnbauDuplizieren = null, beiAnbauKontext = null;
 let beiAnbauAlleWeg = null, beiSignalDirekt = null;
-let beiAnbauNeu = null, beiAnbauAuswahlBearbeiten = null;
+let beiAnbauNeu = null, beiAnbauAuswahlBearbeiten = null, beiAnbauGruppeDup = null;
 
 /** Rückrufe der Anbauteil-Oberfläche registrieren (einmalig beim Start). */
 export function setzeAnbauHandler(h) {
@@ -4928,6 +4986,7 @@ export function setzeAnbauHandler(h) {
   beiAnbauDuplizieren = h.duplizieren; beiAnbauKontext = h.kontext;
   beiAnbauAlleWeg = h.alleWeg; beiSignalDirekt = h.signal;
   beiAnbauNeu = h.neuZeichnen; beiAnbauAuswahlBearbeiten = h.auswahlBearbeiten;
+  beiAnbauGruppeDup = h.gruppeDuplizieren;
 }
 
 /**
@@ -5170,16 +5229,80 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       }
     });
   });
-  // Drahtwerke nach Typ: hervorheben im 3D (7. Oktober).
-  container.querySelectorAll('[data-drahtwerk]').forEach((z) => {
-    z.addEventListener('click', () => {
-      const an = !z.classList.contains('aktiv');
-      container.querySelectorAll('[data-drahtwerk]').forEach((x) => x.classList.remove('aktiv'));
-      if (an) z.classList.add('aktiv');
-      beiDrahtwerk?.(an ? z.dataset.drahtwerk.split(',') : null);
+  // Drahtwerke (7. Oktober): wählen wie die Anbauteile, im 3D hervorheben,
+  // Typ und Anzahl je Zeile oder für die Auswahl ändern.
+  const dwZeilen = () => drahtwerkUebersicht(liste(), dwGliederung);
+  /*
+   * >>> DER LEITER LEUCHTET, NICHT DAS BAUTEIL (7. Oktober). <<< Weisung:
+   * «dies reagiert nicht optimal wenn man mit der maus darüberfährt. wäre es
+   * möglich die leiter und nicht das bauteil beim überfahren der positionen
+   * sichtbar zu machen und wenn man sie anklickt dann kommen die
+   * bearbeitunsauswahl. ähnlich wie bei den anbauteilen, durch ctrl mehrere
+   * positionen auswählbar machen.» Überfahren zeichnet nur das 3D neu (kein
+   * Neuaufbau der Leiste); die Schlüssel nennen das Modul (`AT<i>#<k>`,
+   * render.3d.js). Abfangjoch und Tragausleger zählen ihre Teile als
+   * `AT_<i+1>` - beide Formen gehen mit.
+   */
+  const leiterKeys = (zeilen) => [...new Set(zeilen.flatMap((e) => e.stellen
+    .flatMap(({ i, k }) => [`AT${i}#${k}`, `AT_${i + 1}#${k}`])))];
+  const dwHervor = (dazu = null) => {
+    const zeilen = dwZeilen().filter((e) => dwWahl.has(e.key) || e.key === dazu);
+    beiDrahtwerk?.(zeilen.length ? leiterKeys(zeilen) : null);
+  };
+  const dwAendern = (keys, fn) => {
+    const zeilen = dwZeilen().filter((e) => keys.includes(e.key));
+    if (!zeilen.length) return;
+    const l = liste().map((a) => ({ ...a, module: (a.module ?? []).map((m) => ({ ...m })) }));
+    zeilen.forEach((e) => e.stellen.forEach(({ i, k }) => { if (l[i]?.module?.[k]) fn(l[i].module[k]); }));
+    onAnbau(l);
+  };
+  container.querySelectorAll('[data-dw-gliederung]').forEach((b) => {
+    b.addEventListener('click', () => {
+      dwGliederung = b.dataset.dwGliederung; dwWahl.clear(); beiDrahtwerk?.(null); beiAnbauNeu?.();
     });
   });
+  container.querySelectorAll('[data-dw-zeile]').forEach((z) => {
+    z.addEventListener('mouseenter', () => dwHervor(z.dataset.dwZeile));
+    z.addEventListener('mouseleave', () => dwHervor());
+    z.addEventListener('click', (e) => {
+      if (e.target.closest('select, input')) return;
+      const k = z.dataset.dwZeile;
+      if (e.ctrlKey || e.metaKey) { if (dwWahl.has(k)) dwWahl.delete(k); else dwWahl.add(k); }
+      else if (dwWahl.has(k) && dwWahl.size === 1) dwWahl.clear();
+      else { dwWahl.clear(); dwWahl.add(k); }
+      dwHervor();
+      beiAnbauNeu?.();
+    });
+  });
+  container.querySelectorAll('[data-dw-typ]').forEach((s) => {
+    s.addEventListener('change', () => {
+      const keys = dwWahl.has(s.dataset.dwTyp) && dwWahl.size > 1 ? [...dwWahl] : [s.dataset.dwTyp];
+      dwAendern(keys, (m) => { m.bauteil = s.value; });
+    });
+  });
+  container.querySelectorAll('[data-dw-anz]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const n = Math.round(Number(inp.value));
+      if (!(n >= 1)) return;
+      const keys = dwWahl.has(inp.dataset.dwAnz) && dwWahl.size > 1 ? [...dwWahl] : [inp.dataset.dwAnz];
+      dwAendern(keys, (m) => { m.anzahl = n; });
+    });
+  });
+  container.querySelector('[data-dw-alle-typ]')?.addEventListener('change', (e) => {
+    if (e.target.value) dwAendern([...dwWahl], (m) => { m.bauteil = e.target.value; });
+  });
+  container.querySelector('[data-dw-alle-anz]')?.addEventListener('change', (e) => {
+    const n = Math.round(Number(e.target.value));
+    if (n >= 1) dwAendern([...dwWahl], (m) => { m.anzahl = n; });
+  });
+  container.querySelector('[data-dw-aufheben]')?.addEventListener('click', () => {
+    dwWahl.clear(); beiDrahtwerk?.(null); beiAnbauNeu?.();
+  });
   // Gruppe ein-/ausschalten (6. Oktober), wie das Häkchen je Teil.
+  // Gruppe duplizieren (7. Oktober).
+  container.querySelectorAll('[data-at-gruppe-dup]').forEach((b) => {
+    b.addEventListener('click', (e) => { e.stopPropagation(); beiAnbauGruppeDup?.(b.dataset.atGruppeDup); });
+  });
   container.querySelectorAll('[data-at-gruppe-auge]').forEach((b) => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -9775,7 +9898,7 @@ function mastblattHtml(erg) {
  * eine PLAUSIBILITÄTSANGABE, kein Nachweis: die Tabelle enthält Anschlüsse,
  * Laschen und Verschraubung, die hier nicht einzeln modelliert sind.
  */
-export function stuecklisteHtml(erg) {
+export function stuecklisteHtml(erg, opt = {}) {
   const m = erg.modell;
   const RHO = 7850;   // kg/m3
 
@@ -9836,12 +9959,20 @@ export function stuecklisteHtml(erg) {
     </div>
     ${klapp('stueckliste-hinweis', 'Zum Abgleich mit der Sortimentstabelle', `
     <div class="infobox" style="margin:0">
-      Nur Gurtwinkel und Bindebleche sind erfasst. Der Tabellenwert der
+      Erfasst sind Gurtwinkel und Bindebleche. Der Tabellenwert der
       Sortimentszeichnung enthält zusätzlich Stosslaschen, Anschlusswinkel und
-      Verschraubung, eine Unterschreitung von rund 10 bis 20 % ist deshalb zu
-      erwarten. <b>Nur Information, kein Nachweis.</b>
-      ${m.char?.herkunft?.eigengewicht
-        ? `<br>In der Rechnung angesetzt: ${esc(m.char.herkunft.eigengewicht)}.` : ''}
+      Verschraubung - die Stückliste liegt deshalb meist etwas darunter
+      (gemessen: J90/20 m gleich, J130/30 m rund 5 %). <b>Nur Information,
+      kein Nachweis.</b>
+      ${/* 7. Oktober, «stimmt dieser text noch?»: seit dem 6. Oktober wiegt
+          das Stabwerk die Stäbe selbst - der Tabellenwert gilt nur noch im
+          Ersatzbalken. */ ''}
+      ${opt.stabwerk
+        ? `<br>In der Rechnung (Stabwerk): das Gewicht der Stäbe selbst, A · ρ je Gurt,
+           Blech und Mast wie AxisVM, dazu der Zuschlag g_Zusatz der Karte Lasten.
+           Der Tabellenwert dient nur diesem Abgleich.`
+        : m.char?.herkunft?.eigengewicht
+          ? `<br>In der Rechnung (Ersatzbalken) angesetzt: ${esc(m.char.herkunft.eigengewicht)}.` : ''}
     </div>`)}`;
 }
 

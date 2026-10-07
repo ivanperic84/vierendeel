@@ -64,9 +64,10 @@ export function kontextZeigen(app, bei, punkte) {
           ? `<input type="text" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
                placeholder="${esc(f.platzhalter ?? '')}">`
           : `<input type="number" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
-             step="${f.schritt ?? 0.1}">`;
+             step="${f.schritt ?? 0.1}"${f.platzhalter ? ` placeholder="${esc(f.platzhalter)}"
+             title="${esc(f.platzhalter)}"` : ''}>`;
       return `<label class="kontext-feld"><span>${esc(f.label)}</span>
-        ${eingabe}${f.einheit ? `<i>${esc(f.einheit)}</i>` : ''}</label>`;
+        ${eingabe}<i>${esc(f.einheit ?? '')}</i></label>`;
     }
     return `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
          data-k="${i}">${esc(p.text)}</button>`;
@@ -621,18 +622,18 @@ export function kontextTrasse(app) {
   const ja = [{ wert: '1', text: 'ein' }, { wert: '', text: 'aus' }];
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
-    { feld: { art: 'auswahl', label: 'Windbelastung', wert: w.windKlasse ?? '0.9',
+    { feld: { art: 'auswahl', label: 'Wind', wert: w.windKlasse ?? '0.9',
               optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
                 text: k.einheit ? 'Einheitswind 1.0' : `${k.ek} · q ${k.qp.toFixed(2)}` })) },
       tun: (v) => app.aendern('windKlasse', v) },
-    { feld: { art: 'auswahl', label: 'Reduktion Wind 0.74', wert: w.windReduktion ? '1' : '',
+    { feld: { art: 'auswahl', label: 'Reduktion × 0.74', wert: w.windReduktion ? '1' : '',
               optionen: ja },
       tun: (v) => app.aendern('windReduktion', v === '1') },
     { feld: { art: 'zahl', label: 'Spannweite L_FL', wert: w.flSpannweite ?? 40,
               einheit: 'm', schritt: 1 },
       tun: (v) => { if (v > 0) app.aendern('flSpannweite', v); } },
-    { feld: { art: 'zahl', label: 'Radius R (0 = gerade)', wert: w.trasseRadius ?? 0,
-              einheit: 'm', schritt: 50 },
+    { feld: { art: 'zahl', label: 'Radius R', wert: w.trasseRadius ?? 0,
+              einheit: 'm', schritt: 50, platzhalter: '0 = gerade' },
       tun: (v) => app.aendern('trasseRadius', v) },
     { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? (w.schneeKlasse ?? '1.25') : '',
               optionen: [{ wert: '', text: 'aus' },

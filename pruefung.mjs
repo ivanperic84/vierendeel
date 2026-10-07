@@ -2237,7 +2237,8 @@ titel('29  Handbuch');
    *
    * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
    */
-  wahr('Handbuch hat alle zwanzig Abschnitte', HB.HANDBUCH.length === 20,
+  // 21 seit dem 7. Oktober (Fundamentbestimmung: der Ablauf).
+  wahr('Handbuch hat alle einundzwanzig Abschnitte', HB.HANDBUCH.length === 21,
        `${HB.HANDBUCH.length} Abschnitte`);
   /*
    * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
@@ -15959,9 +15960,11 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          feldGilt('profOG', jo) === true
          && feldGilt('profOG', em) === false
          && feldGilt('profOG', { tragwerksart: 'abfangjoch' }) === false);
-    wahr('… und die Stahlguete ueberall',
-         ['joch', 'einzelmast', 'abfangjoch']
-           .every((a) => feldGilt('stahl', { tragwerksart: a }) === true));
+    // Seit dem 7. Oktober: Joch und Masten getrennt; am Einzelmasten steht nur
+    // die Guete der Masten.
+    wahr('… und eine Stahlguete ueberall (am Einzelmasten die der Masten)',
+         ['joch', 'abfangjoch'].every((a) => feldGilt('stahl', { tragwerksart: a }) === true)
+         && feldGilt('stahl', em) === false && feldGilt('stahlMast', em) === true);
   }
   /*
    * >>> DAS AUFLAGER GEHT UEBER DIE FELDER, NICHT UEBER DIE GRUPPE. <<<
@@ -39211,7 +39214,7 @@ titel('246  Drahtwerke nach Typ: Liste mit Anzahl, Hervorheben im 3D');
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Das 3D hebt eine Menge von Teilen hervor, Esc nimmt es zurueck',
        /this\.hervorTeile\?\.size/.test(r3) && /auswahlAufheben\(\) \{\s*this\.hervorTeile = null;/.test(r3)
-       && APP_QUELLE().includes('if (ansicht?.hervorTeile) { ansicht.hervorTeile = null;'));
+       && APP_QUELLE().includes('ansicht.hervorTeile = null; ansicht.zeichne();'));
 }
 
 titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste, Leerfeld, Havarie im 3D');
@@ -39365,6 +39368,62 @@ titel('249  Doppelanker auf Zug; nächste Stufe des Sortiments');
     wahr('Die Ankerkachel nennt bei Überschreitung auf Zug, was reicht',
          ui249.includes("' · kein Anker des Sortiments reicht'") && ui249.includes('ankerReichtZug('));
   }
+}
+
+titel('250  Stahlgüten Mast/Joch; Gruppe duplizieren; Drahtwerke je Leiter');
+/* 7. Oktober: «stahlgüte mit S450 und 460 ergänzen und eine unterteilung machen
+ * zwischen masten / joche», «möglichkeit geben eine definierte gruppe der
+ * anbauteile zu duplizieren …», «die leiter und nicht das bauteil beim überfahren
+ * der positionen sichtbar zu machen … durch ctrl mehrere positionen auswählbar». */
+{
+  const V250 = await import(J('core.vierendeel.js'));
+  const st = getStahl('S235');
+  wahr('S450 und S460 in den Normwerten', getStahl('S450')?.fy === 440 && getStahl('S460')?.fy === 460);
+  wahr('Mastgüte leer = Güte des Jochs, sonst die eigene',
+       V250.stahlMastVon({}, st) === st && V250.stahlMastVon({ stahlMast: 'S460' }, st)?.fy === 460);
+  const mastEta = (sm) => {
+    const w = { ...standardwerte(), stahlMast: sm };
+    const r = V250.vergleichKombinationen(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                                         T.getTragjoch(w.typ));
+    return Math.max(...Object.values(r.ergebnisse ?? {}).map((e) => e?.mast?.A?.eta ?? 0));
+  };
+  const e235 = mastEta(''), e460 = mastEta('S460');
+  wahr('Mast S460 rechnet mit seiner Güte (η kleiner)', e235 > 0 && e460 < e235,
+       `${e235?.toFixed(4)} → ${e460?.toFixed(4)}`);
+  const fS = FELDER.find((x) => x.key === 'stahlMast');
+  wahr('Feld «Stahlgüte Mast» mit «wie Joch» als erste Wahl', Boolean(fS) && fS.optionenAus({ stahl: 'S235' })?.[0]?.wert === '');
+
+  // Gruppe duplizieren: nur Teile am Joch, nächste freie Nummer, Abstände bleiben.
+  const AS250 = await import(J('app.setzen.js'));
+  const A250 = await import(J('data.anbauteile.js'));
+  const t1 = { ...A250.neuesAnbauteil('hs-fahrdraht', 4), tag: 'Gleis 1' };
+  const t2 = { ...A250.neuesAnbauteil('hs-fahrdraht', 6), tag: 'Gleis 1' };
+  const app250 = { werte: { L: 20, anbauteile: [t1, t2], havarie: {} }, letzte: null };
+  const r250 = AS250.gruppenKopie(app250, 'Gleis 1', 5);
+  wahr('Gruppe kopiert als «Gleis 2», um Δx versetzt, Abstand bleibt',
+       r250?.tag === 'Gleis 2' && r250.kopien.length === 2
+       && Math.abs((r250.kopien[1].x - r250.kopien[0].x) - 2) < 0.2 && r250.kopien[0].x > 8,
+       r250?.kopien.map((k) => k.x).join(' / '));
+
+  // Drahtwerke: Gliederung, Multiplikator, Stellen je Modul.
+  const UI250 = await import(J('ui.js'));
+  const liste = [{ ...A250.neuesAnbauteil('hs-fahrdraht', 4), tag: 'A' },
+                 { ...A250.neuesAnbauteil('hs-fahrdraht', 9), tag: 'B' }];
+  const typ = UI250.drahtwerkUebersicht(liste, 'typ');
+  const bt = UI250.drahtwerkUebersicht(liste, 'bauteil');
+  const gr = UI250.drahtwerkUebersicht(liste, 'gruppe');
+  wahr('Drahtwerke nach Typ / Gruppe / Bauteil, jede Zeile mit ihren Stellen',
+       typ.length >= 1 && bt.length >= typ.length && gr.length >= typ.length
+       && typ.every((e) => e.stellen.length >= 1 && Array.isArray(e.mult)),
+       `${typ.length} / ${gr.length} / ${bt.length}`);
+  const ui250 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Überfahren zeigt den Leiter (Modulschlüssel AT<i>#<k>), Klick öffnet Typ/Anzahl',
+       ui250.includes("z.addEventListener('mouseenter', () => dwHervor(z.dataset.dwZeile))")
+       && ui250.includes('`AT${i}#${k}`') && r3d.includes('this.hervorTeile.has(`${mk.teil}#${mk.modul}`)')
+       && ui250.includes("dwWahl.has(e.key) ? typWahl("));
+  wahr('Stückliste nennt im Stabwerk das Gewicht der Stäbe',
+       ui250.includes('In der Rechnung (Stabwerk): das Gewicht der Stäbe selbst'));
 }
 
 console.log('\n' + '='.repeat(104));

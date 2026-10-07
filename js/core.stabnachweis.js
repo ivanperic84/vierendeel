@@ -482,7 +482,9 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
         }
       }
     }
-    const eta = fyd > 0 ? s.sig / fyd : null;
+    // Masten mit ihrer eigenen Güte (7. Oktober).
+    const fydR = rolle === 'mast' && opt.fydMast > 0 ? opt.fydMast : fyd;
+    const eta = fydR > 0 ? s.sig / fydR : null;
     const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta, detail: s, verlauf };
     je.set(st.name, eintrag);
     const g = gruppen[rolle] ?? (gruppen[rolle] = { anzahl: 0, sig: 0, eta: 0, wo: null });
@@ -818,7 +820,8 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
       // Der Verlauf im Stab mit η, über die Höhe (Masten).
       if (h.verlauf) {
         z.verlauf = h.verlauf.map((p) => ({
-          ...p, eta: fyd > 0 ? p.sig / fyd : null,
+          ...p, eta: (opt.fydMast > 0 ? opt.fydMast : fyd) > 0
+            ? p.sig / (opt.fydMast > 0 ? opt.fydMast : fyd) : null,
           z: a.z + (b.z - a.z) * p.xi }));
       }
     }

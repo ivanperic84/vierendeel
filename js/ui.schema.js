@@ -1719,8 +1719,31 @@ export const FELDER = [
     label: 'Ausrichtung Obergurt', standard: 'LA_SI', optionen: opt(AUSRICHTUNGEN) },
   { key: 'ausrUG', optionenDialog: true, gruppe: 'prof', typ: 'auswahl',
     label: 'Ausrichtung Untergurt', standard: 'LA_SI', optionen: opt(AUSRICHTUNGEN) },
-  { key: 'stahl', gruppe: 'prof', typ: 'auswahl', label: 'Stahlgüte',
-    standard: 'S235', optionenAus: () => opt(STAHLGUETEN(), 'name', 'name') },
+  /*
+   * >>> STAHLGÜTE JOCH / MASTEN (7. Oktober). <<< Weisung: «kannst du die
+   * stahlgüte mit S450 und 460 ergänzen und eine unterteilung machen zwischen
+   * masten / joche». Die Masten haben ein eigenes Feld; ohne Eintrag gilt die
+   * Güte des Jochs (so rechnet jeder ältere Stand wie bisher). Am Einzelmasten
+   * gibt es kein Joch - dort steht nur die Güte der Masten.
+   */
+  { key: 'stahl', gruppe: 'prof', typ: 'auswahl',
+    label: (w) => (tragwerksart(w).key === 'einzelmast' ? 'Stahlgüte' : 'Stahlgüte Joch'),
+    standard: 'S235', optionenAus: () => opt(STAHLGUETEN(), 'name', 'name'),
+    sichtbar: (w) => tragwerksart(w).key !== 'einzelmast',
+    hinweis: 'EN 1993-1-1 Tab. 3.1, t ≤ 40 mm: S235 f_y 235, S275 275, S355 355, '
+           + 'S450 440, S460 460 N/mm².' },
+  { key: 'stahlMast', gruppe: 'prof', typ: 'auswahl',
+    label: (w) => (tragwerksart(w).key === 'einzelmast' ? 'Stahlgüte Mast' : 'Stahlgüte Masten'),
+    standard: '',
+    optionenAus: (w) => [
+      ...(tragwerksart(w).key === 'einzelmast' ? []
+        : [{ wert: '', text: `wie Joch (${w?.stahl ?? 'S235'})` }]),
+      ...opt(STAHLGUETEN(), 'name', 'name')],
+    wertAus: (w) => (tragwerksart(w).key === 'einzelmast'
+      ? (w.stahlMast || w.stahl || 'S235') : (w.stahlMast ?? '')),
+    sichtbar: (w) => mastDa(w) || tragwerksart(w).key === 'einzelmast',
+    hinweis: 'Gilt für Querschnitt, Klasse und Knicken der Masten (Kern und Stabwerk). '
+           + 'Der Gittermast und die Anker haben ihre eigene Güte im Sortiment.' },
   { key: 'gammaM0', optionenDialog: true, gruppe: 'prof', typ: 'zahl', label: 'Teilsicherheitsbeiwert',
     sym: 'γ_M0', einheit: '–', standard: 1.05, schritt: 0.05, min: 1 },
 

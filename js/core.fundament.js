@@ -174,11 +174,11 @@ function nurStaendig(lf) {
  * zulässigen Moments (red_H, kNm je kN). V, T, M_tot und die Grenze des
  * veränderlichen Moments bleiben hart.
  *
- * ⚠ Zwei Stellen übernommen, wie die Zellen der Mappe rechnen (nicht wie
+ * Zwei Stellen übernommen, wie die Zellen der Mappe rechnen (nicht wie
  * ihre Formeltafel schreibt): Schritt 12 ADDIERT den Überschuss des
  * veränderlichen Anteils (sichere Seite), und Schritt 10 mindert mit dem
- * Abminderungswert der Momente (red_M). Dem Auftraggeber zur Bestätigung
- * vorgelegt.
+ * Abminderungswert der Momente (red_M). Bestätigt am 7. Oktober: «schritt
+ * 12 und 10 so belassen wie angenommen.»
  *
  * Das η des Ablaufs ist das grösste Verhältnis der Prüfungen, die auf dem
  * Weg EINGEHALTEN sein müssen. Eine Überschreitung, die der Ablauf

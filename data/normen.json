@@ -6,7 +6,9 @@
   "stahlgueten": [
    {"name":"S235","fy":235,"fu":360},
    {"name":"S275","fy":275,"fu":430},
-   {"name":"S355","fy":355,"fu":490}
+   {"name":"S355","fy":355,"fu":490},
+   {"name":"S450","fy":440,"fu":550},
+   {"name":"S460","fy":460,"fu":540}
   ],
   "winkelprofile": [
    {"name":"L 45x45x5","form":"gleichschenklig","aH":45,"aV":45,"t":5,"r1":7,"r2":3.5,"g":3.38,"A":4.3,"iy":1.35,"iz":1.35,"imin":0.87,"zsH":1.28,"zsV":1.28,"Wy":2.43,"Wz":2.43,"hinweis":"i_y, i_z, i_v, W_y, W_z am 2.10.2026 berichtigt (vorher i 1.38, i_v 0.88, W 2.53 - W lag 3.8 % auf der unsicheren Seite). Nachgerechnet aus dem Umriss mit r1 7 / r2 3.5 nach EN 10056-1: i 1.350, i_v 0.871, W 2.434."},

@@ -1296,7 +1296,7 @@ export function erzeugeSzene(m, erg) {
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
           gruppe: 'last', punkt: true }));
       marken.push({
-        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
+        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex,
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
@@ -1958,7 +1958,7 @@ function zeichneMastteil(ctx, a, k, ort) {
     flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
       { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
         gruppe: 'last', punkt: true }));
-    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex,
                   text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
@@ -5366,6 +5366,38 @@ export class Modellansicht {
     // setzen, wie das Bild verträgt. Ohne die Sortierung entschiede sonst die
     // Reihenfolge in der Szene, welche Marke überlebt - und das ist die
     // Reihenfolge des Zeichnens, nicht die der Bedeutung.
+    /*
+     * >>> DER LEITER, NICHT DAS BAUTEIL (7. Oktober). <<< Weisung: «wäre es
+     * möglich die leiter und nicht das bauteil beim überfahren der positionen
+     * sichtbar zu machen». Ein Schlüssel `AT<i>#<k>` in `hervorTeile` meint
+     * das Modul k des Anbauteils i: an seinem Angriffspunkt steht der Leiter
+     * als Strich in Gleisrichtung (±3 m) mit Ring, in der Akzentfarbe - auch
+     * wenn die Ebene der Lasten aus ist. Die Flächen des Bauteils bleiben,
+     * wie sie sind.
+     */
+    if (this.hervorTeile?.size) {
+      const acc = t.acc ?? '#4aa3df';
+      this.szene.marken.forEach((mk) => {
+        if (mk.art !== 'lastknoten' || mk.modul == null) return;
+        if (!this.hervorTeile.has(`${mk.teil}#${mk.modul}`)) return;
+        const p = proj(mk.p);
+        const p0 = proj([mk.p[0], mk.p[1] - 3, mk.p[2]]);
+        const p1 = proj([mk.p[0], mk.p[1] + 3, mk.p[2]]);
+        if (!p) return;
+        c.save();
+        c.strokeStyle = acc; c.lineCap = 'round';
+        if (p0 && p1) {
+          c.globalAlpha = 0.35; c.lineWidth = 7 * s;
+          c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
+          c.globalAlpha = 0.95; c.lineWidth = 2.4 * s;
+          c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
+        }
+        c.globalAlpha = 1; c.fillStyle = acc;
+        c.beginPath(); c.arc(p[0], p[1], 5 * s, 0, Math.PI * 2); c.fill();
+        c.restore();
+      });
+    }
+
     const budget = this._markenBudget();
     const sammlung = [];
     this.szene.marken.forEach((mk) => {

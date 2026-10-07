@@ -942,7 +942,7 @@ export function mastStabilitaet(s, m, o = {}) {
   // Kein Knicknachweis des Gittermasts als Vollstab (3. Oktober): seine
   // Gurte werden je Stab im Stabwerk nachgewiesen.
   if (p.gitter) return null;
-  const fy = m.stahl?.fy ?? 235;
+  const fy = (m.stahlMast ?? m.stahl)?.fy ?? 235;   // Mastgüte (7. Oktober)
   // 1.05 als letzter Rueckfall - SIA 263 fuer Stabilitaet, wie in der Maske.
   const gammaM1 = o.gammaM1 ?? m.gammaM1 ?? m.gammaM0 ?? 1.05;
   const beta = Number.isFinite(o.beta) ? o.beta : 2.0;
@@ -1461,7 +1461,7 @@ export function woelbtorsion(p, zO) {
 export function mastNachweis(m, ende = 'A', o = {}) {
   const s = mastSchnitt(m, ende);
   if (!s) return null;
-  const fy = m.stahl?.fy ?? 235;
+  const fy = (m.stahlMast ?? m.stahl)?.fy ?? 235;   // Mastgüte (7. Oktober)
   const fyd = fy / (m.gammaM0 ?? 1);
   const A = s.profil.A;                              // cm²
   const gewuenschtPlastisch = o.plastisch === true;
