@@ -134,6 +134,14 @@ const PRUEFVORLAGEN = {
   [{"bauteil": "anbauteil-ausleger-typ-nt", "z": 0, "x": 1.25}, {"bauteil": "drahtwerk-r-fl-ts-stcu-92-fd-cu-107", "z": 0, "x": 2.5, "umlenkung": true}]],
   'mast-rohrausleger': [{"id": "mast-rohrausleger", "name": "Rohrausleger am Mast", "farbe": "seitlich", "beschreibung": "Ausleger Typ Rohr waagrecht am Masten, die Fahrleitung am Ende. Geometrie wie am Joch: Ausleger 1.25 m, Fahrleitung 2.50 m.", "raster": 0, "befestigung": "unten", "gruppe": "mast", "rang": 1, "ort": "mast", "windAufTraeger": true, "windAnteil": 50},
   [{"bauteil": "anbauteil-ausleger-typ-rohr", "z": 0, "x": 1.25}, {"bauteil": "drahtwerk-n-fl-ts-stcu-50-fd-cu-107", "z": 0, "x": 2.5, "umlenkung": true}]],
+  /*
+   * Die Leiter-Traverse auf der Mastachse, wie sie gemessen wurde. Seit dem
+   * 7. Oktober (Rückfrage «Einseitig auskragend») steht sie in der Datei mit
+   * der Kraft in der Mitte (x 0.50) und dem Leiter am Ende (x 1.00);
+   * Abschnitt 257 prüft die Datei selbst.
+   */
+  'leiter-traverse': [{"id": "leiter-traverse", "name": "Leiter-Traverse", "farbe": "seitlich", "beschreibung": "Traverse mit Zusatzleitern – am Joch oder am Masten.", "raster": 0.6, "befestigung": "oben", "gruppe": "leiter", "rang": 3, "ort": "mast"},
+  [{"bauteil": "anbauteil-leiter-traverse", "z": 0.35, "laenge": 1}, {"bauteil": "drahtwerk-cu-95", "z": 0.35, "umlenkung": true}]],
 };
 const ANBAU_KATALOG = JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8'));
 const mitPruefvorlagen = (d) => {
@@ -39771,6 +39779,45 @@ titel('256  Gittermast-Wind je Richtung; Havarie-Leiter ohne Klick; Statikberich
   wahr('App schreibt den Plan (massgebende Kombinationen) in die Modelldatei',
        APP_QUELLE().includes('function berichtPlan(app)') && APP_QUELLE().includes('bericht: berichtPlan(app)')
        && readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8').includes('if (opt.bericht) d.bericht = opt.bericht;'));
+}
+
+titel('257  Traverse und Konsole am Masten: Kraft in der Mitte, Leiter am Ende, Ende ziehbar');
+/* 7. Oktober: «bei den traversen und konsolen an Mast die abhängigkeit kraft
+ * in stabmitte prüfen und ob es mit einem untergeordnetem leiter zusammen den
+ * endpunkt teilt um ihn nachträglich ziehen zu können per drag and drop, so
+ * wie bei den Auslegern oder hängestützen am Joch der fall ist.» Auf
+ * Rückfrage: Traverse «Einseitig auskragend», alte Stände «Belassen». */
+{
+  const A257 = await import(J('data.anbauteile.js'));
+  const R257 = await import(J('render.3d.js'));
+  const C257 = await import(J('core.constants.js'));
+  const N257 = await import(J('core.nachbarn.js'));
+  A257.setzeAnbauteilDB(ANBAU_KATALOG);   // die Datei selbst, ohne Prüfvorlagen
+  try {
+    const xs = (id) => A257.getVorlage(id).module.map((m) => Number(m.x) || 0);
+    const tr = xs('leiter-traverse'), ko = xs('mast-fd-abzug');
+    wahr('Leiter-Traverse: Kraft in der Mitte (0.50), Leiter am Ende (1.00)', tr[0] === 0.5 && tr[1] === 1, tr.join(' / '));
+    wahr('Konsole (Fahrdrahtabzug): Mitte 0.50, Fahrdraht am Ende 1.00', ko[0] === 0.5 && ko[1] === 1, ko.join(' / '));
+    for (const [id, L] of [['leiter-traverse', 1.6], ['mast-fd-abzug', 2]]) {
+      const neu = A257.teilLaengeSetzen(A257.getVorlage(id).module, 0, L);
+      wahr(`${id}: Länge ${L} m gezogen - Mitte ${L / 2}, der Leiter wandert ans neue Ende`,
+           Math.abs(neu[0].x - L / 2) < 1e-9 && Math.abs(neu[1].x - L) < 1e-9, neu.map((m) => m.x).join(' / '));
+    }
+    // Im Bild: der Endgriff der Traverse sitzt auf dem Angriffspunkt des Leiters.
+    let w0 = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+      L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [] };
+    w0 = C257.setzeAnbauteileAn(w0, [{ ...A257.neuesAnbauteil('leiter-traverse', null), ort: 'mastA', hMast: 8.0, x: null }]);
+    const w = N257.rechensatzMitNachbarn(w0);
+    const erg = berechne(w, ...N257.kernArgumente(w));
+    const sz = R257.erzeugeSzene(erg.modell, erg);
+    const ende = sz.marken.filter((m) => m.art === 'teilende');
+    const leiter = sz.marken.filter((m) => m.art === 'lastknoten' && m.leiter);
+    const deckt = ende.some((e) => leiter.some((l) => Math.hypot(e.p[0] - l.p[0], e.p[1] - l.p[1], e.p[2] - l.p[2]) < 1e-6));
+    wahr('Traverse am Masten: Endgriff (Länge ziehen) auf dem Leiterpunkt', ende.length >= 1 && deckt,
+         `${ende.length} Griff(e), ${leiter.length} Leiter`);
+  } finally {
+    A257.setzeAnbauteilDB(mitPruefvorlagen(ANBAU_KATALOG));
+  }
 }
 
 console.log('\n' + '='.repeat(104));

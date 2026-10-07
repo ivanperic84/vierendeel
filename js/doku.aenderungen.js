@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-07',
     punkte: [
+      { text: 'Leiter-Traverse am Masten einseitig auskragend: Kraft der Traverse in der Mitte (0.50 m), Zusatzleiter am Ende (1.00 m); das Ende lässt sich im 3D ziehen, der Leiter wandert mit. Bereits gesetzte Traversen bleiben, wie sie sind.', rechnung: true },
       { text: 'Gittermast: der Wind im Ersatzprofil (Maske, vorläufige Anzeige) ist je Richtung das Grösste über die Höhe - am I 30 jetzt 0.305 / 0.441 statt 0.305 / 0.305 kN/m (EK1). Das Stabwerk rechnete schon je Höhe mit der richtigen Fläche und bleibt gleich.' },
       { text: 'Havarie: solange der Reiter Lasten offen ist, stehen alle Leiter im 3D - die angehakten («kann reissen») in der Warnfarbe.' },
       { text: 'Drahtwerke: «Ordnen nach Name / Lage x / Höhe z» in jeder Gliederung, mit den Spalten x und z.' },
