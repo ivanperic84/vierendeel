@@ -33478,8 +33478,10 @@ titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner
   wahr('Die Skripte stehen in der Fassung des Dienstarbeiters',
        /COM_SKRIPTE if \(WURZEL \/ "com" \/ n\)\.is_file\(\)/.test(py));
   const ax = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
-  wahr('Der Dialog fragt - Kästchen, nur beim Format JSON',
-       /name="skripte"/.test(ax) && /skripteFeld\.hidden = f !== 'json'/.test(ax));
+  // 7. Oktober: das Kästchen ist weg (Windows-Schutzwarnung, IT-Vorgaben);
+  // der Dialog sagt nur noch, woher die Skripte kommen.
+  wahr('Kein Kästchen «Skriptdateien mitliefern» mehr, Hinweis nur beim Format JSON',
+       !/name="skripte"/.test(ax) && /const sk = false;/.test(ax) && /skripteFeld\.hidden = f !== 'json'/.test(ax));
   wahr('Tragjoch und Abfangjoch gehen beide über mitSkripten',
        /mitSkripten\(app, name, \(\) => exportiereJson\(satz, deps, \{ \.\.\.o, nurDaten: true \}\)\)/.test(ax)
        && /nurDaten: skripte/.test(ax));

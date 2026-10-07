@@ -19,8 +19,7 @@ import { mitTrasse } from './core.lasten.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { KNOTENMODELLE, auflagerAngebot, auflagerVorgabe, exportiereAxisvm, exportiereDxf, exportiereJson } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
-import { COM_SKRIPTE, comSkripte, skripteGewaehlt, skripteMerken,
-         zusammenAblegen } from './export.comskripte.js';
+import { COM_SKRIPTE, comSkripte, zusammenAblegen } from './export.comskripte.js';
 
 /**
  * AxisVM-Ausleitung (SAF).
@@ -125,8 +124,7 @@ export function dialogAxisvm(app, format = 'json') {
     <div class="feld"><label>Format</label>
       <label class="schalter"><input type="radio" name="fmt" value="json"${vorwahl === 'json' ? ' checked' : ''}>
         <span>JSON für die COM-Brücke, vollständig, ohne Zusatzmodul.
-              Datei neben <code>AxisVM_aufbauen.cmd</code> legen — oder die
-              Skripte gleich mitliefern (unten)</span></label>
+              Datei neben <code>AxisVM_aufbauen.cmd</code> legen (unten)</span></label>
       ${['saf', 'dxf', 'pynite'].map((f) => {
         const t = { saf: 'SAF-Mappe (.xlsx), vollständig, braucht aber das '
                        + 'SAF-Interface in AxisVM (kostenpflichtiges Modul)',
@@ -146,15 +144,24 @@ export function dialogAxisvm(app, format = 'json') {
         </label>`;
       }).join('')}
     </div>
+    ${/*
+       * >>> KEINE SKRIPTE AUS DEM BROWSER (7. Oktober). <<< «das abspeichern
+       * der com skriptdateien aus der app heraus gab probleme, wenn man diese
+       * öffnen wollte» - «es war die windows schutzwarnung, wir haben strickte
+       * IT security vorgaben». Was Chrome speichert, trägt die Markierung
+       * «aus dem Internet»; ein .cmd daraus öffnet Windows nur nach einer
+       * Schutzwarnung, die niemand wegklicken soll. Das Kästchen «Skriptdateien
+       * mitliefern» (29. September) ist deshalb weg: die Skripte liegen einmal
+       * in der internen Ablage, der Browser schreibt nur die Modelldatei.
+       */''}
     <div class="feld" id="feld-skripte">
       <label>COM-Brücke</label>
-      <label class="schalter"><input type="checkbox" name="skripte"${skripteGewaehlt() ? ' checked' : ''}>
-        <span>Skriptdateien mitliefern — ${COM_SKRIPTE.map((n) => `<code>${esc(n)}</code>`).join(', ')}
-              — in denselben Ordner wie die Modelldatei</span></label>
-      <p class="notiz">Der Browser fragt nach dem Ordner (Chrome, Edge); sonst
-         landen alle Dateien im Download-Ordner. Danach genügt ein
-         Doppelklick auf <code>AxisVM_aufbauen.cmd</code>: es baut die
-         jüngste Modelldatei daneben. Gerechnet wird nicht.</p>
+      <p class="notiz">Die Skripte (${COM_SKRIPTE.map((n) => `<code>${esc(n)}</code>`).join(', ')})
+         kommen aus der internen Ablage, nicht aus dem Browser - aus dem
+         Browser gespeichert hält Windows sie zurück (Schutzwarnung). Die
+         Modelldatei in den Ordner mit den Skripten legen und
+         <code>AxisVM_aufbauen.cmd</code> doppelklicken, oder die Datei auf
+         das Symbol ziehen. Gerechnet wird nicht.</p>
     </div>
     ${istAbfang ? '' : `<div class="feld"><label>Knotenmodell</label>${wahl}</div>`}
     <div class="feld"><label>Auflagermodell</label>${lager}
@@ -223,8 +230,7 @@ export function dialogAxisvm(app, format = 'json') {
     const aus = lies('schott', false);
     const am = lies('am', 'punkt');
     const sm = lies('starr', 'koerper');
-    const sk = fmt === 'json' && d.node.querySelector('input[name="skripte"]')?.checked === true;
-    if (fmt === 'json') skripteMerken(sk);
+    const sk = false;   // keine Skripte aus dem Browser (7. Oktober)
     d.zu();
     axisvmKlick(app, km, fmt, aus, am, sm, sk);
   };
