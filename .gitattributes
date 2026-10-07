@@ -1,0 +1,4 @@
+# COM-Bruecke: Windows-Skripte immer mit CR LF (7. Oktober) - cmd.exe findet
+# Sprungmarken (goto :ende) in reinen LF-Dateien nicht zuverlaessig.
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
