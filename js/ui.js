@@ -7,6 +7,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { gelaendeVon } from './data.masten.js';
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { verformungGrenzen } from './core.verformung.js';
 import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon, stabZuordnung,
@@ -7201,9 +7202,22 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         ? `\n\nABHEBEN: ${q.abheben.wert.toFixed(1)} kN in «${q.abheben.bez}». `
           + 'Die Tabelle gilt für V zwischen 0 und 150 kN — ein abhebendes '
           + 'Fundament ist darin nicht abgedeckt.' : '';
-      const fF = fz(q.massgebend.fall, q.massgebend.bez);
+      const fF = fz(q.massgebend.fall ?? q.massgebend.lastfall, q.massgebend.bez);
+      /*
+       * >>> DER ABLAUF IM TITEL (7. Oktober). <<< Je Richtung das Ergebnis
+       * und die Schritte - «zulässig mit abgeminderten Werten» heisst: eine
+       * Basisgrösse ist überschritten und ausgeglichen.
+       */
+      const abl = Object.values(q.ablauf ?? {}).map((r) => `${r.richtung}: `
+        + `${r.ergebnis === 'basis' ? 'alle Basiswerte eingehalten'
+          : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
+          : `nicht zulässig, grösseres Fundament (Schritt ${r.schritt})`}\n   `
+        + r.schritte.map((s) => `${s.nr} ${s.text}${s.wert != null ? ` ${s.wert.toFixed(2)}` : ''}`).join(' → '))
+        .join('\n');
       fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
-        `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'} · ${q.massgebend.kurz ?? q.massgebend.key}`,
+        `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
+          ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · abgemindert' : ''}`
+          + ` · ${q.massgebend.kurz ?? q.massgebend.key}`,
         ampelU(q.eta), {
           ...(fF ? { fall: fF.kurz } : {}),
           titel: `${fF ? `Massgebende Kombination: ${fF.voll}
@@ -7212,8 +7226,9 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
                + `Charakteristische Einwirkung am Fundamentkopf gegen die `
                + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
                + `beim Anker. Quer und längs zum Gleis werden EINZELN `
-               + `nachgewiesen, nicht überlagert. Gelände bis 14° Neigung.`
-               + `\n\n${alle}${hebt}`,
+               + `nachgewiesen, nicht überlagert. Gelände ${gelaendeVon(q.gelaende).text}.`
+               + `${abl ? `\n\nAblauf der Fundamentbestimmung:\n${abl}` : ''}`
+               + `\n\nBasiswerte:\n${alle}${hebt}`,
         }));
     });
   }

@@ -298,6 +298,54 @@ export const ABSCHNITTE = [
    * teil konisch ausgebildet ist.» Vier Winkelgurte, Bindebleche auf allen
    * vier Seiten; je Typ Gurte, Teilung und Aussenbreiten an den Stationen.
    * ---------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------
+   * >>> FUNDAMENTLASTEN JE GELÄNDE (7. Oktober). <<<
+   * Weisung: «fundamentflow und gelände >14° einbauen». Aus der alten
+   * Maststatik-Mappe: je Fundamenttyp und Geländefall die zulässigen Lasten
+   * (ständig / veränderlich / beides), die Grenzwerte und die beiden
+   * Abminderungswerte, mit denen eine Überschreitung ausgeglichen wird.
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'fundamentlasten', db: 'masten', tabelle: 'fundamentlasten', liste: 'fundamentlasten',
+    titel: 'Fundamentlasten je Gelände', herkunft: 'sortiment', schluessel: 'id',
+    notiz: 'Zulässige Lasten am Fundamentkopf je Fundamenttyp und Gelände '
+         + '(bis 14°, 14°–33° horizontales Terrain, 14°–33° fallende Böschung), '
+         + 'charakteristisch, mit Grenz- und Abminderungswerten für den Ablauf '
+         + 'der Fundamentbestimmung.',
+    felder: [
+      text('id', 'Kennung', { pflicht: true, notiz: 'Typ | Gelände' }),
+      text('typ', 'Fundamenttyp', { pflicht: true }),
+      text('gelaende', 'Gelände', { pflicht: true,
+        notiz: '«bis14», «ueber14» (horizontales Terrain) oder «ueber14fallend».' }),
+      text('masttypen', 'für Masttyp'),
+      text('profile', 'Profile', { notiz: 'Profilnamen der Anwendung, mehrere durch Komma.' }),
+      f('steg', 'Stegrichtung', 'text', { notiz: '«jochachse» oder «quer»; leer: beide.' }),
+      zahl('Vmax', 'Vertikalkraft V', 'kN', { von: 0, bis: 1000 }),
+      zahl('Mq_st', 'M_q ständig', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Mq_ver', 'M_q veränderlich', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Mq', 'M_q ständig + veränd.', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Ml_st', 'M_l ständig', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Ml_ver', 'M_l veränderlich', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Ml', 'M_l ständig + veränd.', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Hq_st', 'H_q ständig', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hq_ver', 'H_q veränderlich', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hq', 'H_q ständig + veränd.', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hl_st', 'H_l ständig', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hl_ver', 'H_l veränderlich', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hl', 'H_l ständig + veränd.', 'kN', { von: 0, bis: 1000 }),
+      zahl('T', 'Torsionsmoment T', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Mq_vermax', 'M_q veränderlich, Grenze', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Hq_vermax', 'H_q veränderlich, Grenze', 'kN', { von: 0, bis: 1000 }),
+      zahl('Ml_vermax', 'M_l veränderlich, Grenze', 'kNm', { von: 0, bis: 1000 }),
+      zahl('Hl_vermax', 'H_l veränderlich, Grenze', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hq_stmax', 'H_q ständig, Grenze', 'kN', { von: 0, bis: 1000 }),
+      zahl('Hl_stmax', 'H_l ständig, Grenze', 'kN', { von: 0, bis: 1000 }),
+      zahl('red_Mq', 'Abminderung M_q,ständig je M_q,veränd.', '–', { von: 0, bis: 1000 }),
+      zahl('red_Ml', 'Abminderung M_l,ständig je M_l,veränd.', '–', { von: 0, bis: 1000 }),
+      zahl('red_Hq', 'Abminderung M_q je kN H_q', 'kNm/kN', { von: 0, bis: 1000 }),
+      zahl('red_Hl', 'Abminderung M_l je kN H_l', 'kNm/kN', { von: 0, bis: 1000 }),
+    ],
+  },
   {
     key: 'gittermasten', db: 'masten', tabelle: 'gittermasten', liste: 'gittermasten',
     titel: 'Gittermasten', herkunft: 'sortiment', schluessel: 'typ',

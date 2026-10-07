@@ -716,7 +716,7 @@ function reaktionsDaten() {
     const fund = z.art === 'mast'
       ? fundamentVon({ profil: m?.profil ?? werte.mastProfil,
                        stegrichtung: m?.steg ?? werte.mastSteg ?? 'jochachse',
-                       fundament: m?.fundament ?? '' })?.typ ?? null
+                       fundament: m?.fundament ?? '', gelaende: m?.gelaende ?? '' })?.typ ?? null
       : null;
     // Die Lage des MASTEN, nicht die des Modells: in einer Reihe ist das
     // Stabwerk um die Luft der Endbleche entflochten (M2 bei 20.05 statt

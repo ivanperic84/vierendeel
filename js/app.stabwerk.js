@@ -499,7 +499,8 @@ export function rechneStabwerk(app, aufruf = {}) {
       }
       if (nwK.fundament) {
         const f = fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis,
-                                       { ...satz, mastFundament: m.fundament ?? '' });
+                                       { ...satz, mastFundament: m.fundament ?? '',
+                                         mastGelaende: m.gelaende ?? '' });
         if (f?.A) fundamentJe[id] = { ...f.A, quelle: 'stabwerk' };
       }
     });

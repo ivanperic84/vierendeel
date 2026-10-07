@@ -107,6 +107,53 @@ export const fundamenttypen = () => SORT?.fundamente ?? [];
 /** Ob die Fundamenttabelle geladen ist. */
 export const fundamenteDa = () => Boolean(SORT?.fundamente?.length);
 
+/* ===========================================================================
+ * >>> FUNDAMENTLASTEN JE GELÄNDE (7. Oktober). <<<
+ * ===========================================================================
+ *
+ * Weisung: «fundamentflow und gelände >14° einbauen». Die Mappe der alten
+ * Maststatik führt je Fundamenttyp drei Geländefälle - bis 14°, 14°–33° mit
+ * horizontalem Terrain und 14°–33° Richtung fallender Böschung - und je Fall
+ * eigene zulässige Lasten, Grenzwerte und Abminderungswerte. Steiler als 14°
+ * stehen andere (tiefere) Fundamente zur Wahl.
+ *
+ * Die Tabelle `fundamente` bleibt, wie sie ist (bis 14°, Abmessung, Neubau);
+ * ein Wert der neuen Tabelle geht ihr vor.
+ * ========================================================================= */
+export const GELAENDE = [
+  { key: 'bis14', text: 'bis 14°', kurz: '≤ 14°' },
+  { key: 'ueber14', text: '14°–33°, horizontales Terrain', kurz: '14°–33° horizontal' },
+  { key: 'ueber14fallend', text: '14°–33°, Richtung fallende Böschung', kurz: '14°–33° fallend' },
+];
+export const gelaendeVon = (key) => GELAENDE.find((g) => g.key === key) ?? GELAENDE[0];
+const ohneLeer = (t) => String(t ?? '').replace(/\s+/g, '');
+export const fundamentlasten = () => SORT?.fundamentlasten ?? [];
+export const fundamentlastenDa = () => Boolean(SORT?.fundamentlasten?.length);
+
+/** Zulässige Lasten eines Typs in einem Geländefall, oder null. */
+export function fundamentWerte(typ, gelaende = 'bis14') {
+  const n = ohneLeer(typ);
+  if (!n) return null;
+  const g = gelaendeVon(gelaende).key;
+  const basis = fundamenttypen().find((f) => ohneLeer(f.typ) === n) ?? null;
+  const z = fundamentlasten().find((f) => ohneLeer(f.typ) === n && f.gelaende === g) ?? null;
+  if (z) return { ...(basis ?? {}), ...z, gelaende: g };
+  return g === 'bis14' && basis ? { ...basis, gelaende: g } : null;
+}
+
+/** Die Fundamente, die das Sortiment einem Profil in diesem Gelände zuordnet. */
+export function fundamentKandidaten(profil, stegrichtung = 'jochachse', gelaende = 'bis14') {
+  const p = String(profil ?? '').trim();
+  // stegrichtung null: beide Lagen (die Auswahl bietet beim HEM 240 beide an).
+  const steg = stegrichtung === null ? null : String(stegrichtung ?? 'jochachse').trim() || 'jochachse';
+  const g = gelaendeVon(gelaende).key;
+  return fundamentlasten()
+    .filter((f) => f.gelaende === g && String(f.profile ?? '').split(',')
+      .map((x) => x.trim()).includes(p)
+      && (steg === null || !String(f.steg ?? '').trim() || String(f.steg).trim() === steg))
+    .map((f) => fundamentWerte(f.typ, g));
+}
+
 /** Ein Fundamenttyp nach Namen, oder null. */
 export function getFundament(typ) {
   const n = String(typ ?? '').trim();
@@ -125,10 +172,14 @@ export function getFundament(typ) {
  * Fehler: ein Profil ohne Standardfundament braucht ein Sonderfundament,
  * und das rechnet dieses Werkzeug nicht.
  */
-export function fundamentFuerMast(profil, stegrichtung = 'jochachse') {
+export function fundamentFuerMast(profil, stegrichtung = 'jochachse', gelaende = 'bis14') {
   const p = String(profil ?? '').trim();
   if (!p) return null;
   const steg = String(stegrichtung ?? 'jochachse').trim() || 'jochachse';
+  // Mit der Tabelle je Gelände (7. Oktober): der kleinste passende Typ.
+  if (fundamentlastenDa()) {
+    return fundamentKandidaten(p, steg, gelaende)[0] ?? null;
+  }
   const passt = fundamenttypen().filter((f) => String(f.profile ?? '')
     .split(',').map((x) => x.trim()).filter(Boolean).includes(p));
   if (!passt.length) return null;

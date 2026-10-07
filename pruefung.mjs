@@ -23556,7 +23556,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   // Dreizehn seit dem 26. September: der Tragausleger im Abfangjoch-Sortiment.
   // Vierzehn seit dem 30. September: die Signalteile (Signalbauer).
   // Fünfzehn seit dem 3. Oktober: die Gittermasten.
-  pruef('Fünfzehn Abschnitte', K.ABSCHNITTE.length, 15, 1e-12, 'Stk');
+  // Sechzehn seit dem 7. Oktober: die Fundamentlasten je Gelände.
+  pruef('Sechzehn Abschnitte', K.ABSCHNITTE.length, 16, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23640,7 +23641,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle fünfzehn Abschnitte', gesamt.abschnitte.length, 15, 1e-12, 'Stk');
+    pruef('… ueber alle sechzehn Abschnitte', gesamt.abschnitte.length, 16, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23757,9 +23758,10 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
      * der Tragausleger steht im Abfangjoch-Sortiment (gleiche Bauart).
      * ZEHN seit dem 30. September: die Signalteile bei den Anbauteilen.
      */
-    // Elf seit dem 3. Oktober: die Gittermasten bei den Masten.
-    wahr('Sortiment: elf Abschnitte in sechs Dateien',
-         sort.length === 11 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    // Elf seit dem 3. Oktober: die Gittermasten bei den Masten; zwoelf seit
+    // dem 7. Oktober: die Fundamentlasten je Gelaende.
+    wahr('Sortiment: zwoelf Abschnitte in sechs Dateien',
+         sort.length === 12 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -28951,7 +28953,9 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
     const { k, s2 } = kombi116({ ...standardwerte(), xLage: 0 });
     const r = F116.fundamentNachweis(k, s2);
     wahr('Der Nachweis steht da', Boolean(r?.A?.nachweise?.length));
-    pruef('Acht Einzelnachweise', r.A.nachweise.length, 8, 1e-12, 'Stk');
+    // Vierzehn seit dem 7. Oktober (Ablauf): dazu die staendigen Anteile und
+    // die veraenderlichen laengs - die Tabelle je Gelaende fuehrt sie.
+    pruef('Vierzehn Einzelnachweise', r.A.nachweise.length, 14, 1e-12, 'Stk');
     wahr('Der Typ wurde gefunden, nicht gewaehlt', r.A.gewaehlt === false);
     const nw = (key) => r.A.nachweise.find((x) => x.key === key);
 
@@ -32258,7 +32262,8 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
        knT.eta > hs.kombi.huellkurve.mast.A.stabil.eta,
        `Kern ${hs.kombi.huellkurve.mast.A.stabil.eta.toFixed(3)}`);
   pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 5.4213, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.445
-  wahr('… massgebend T', fT.A.massgebend.key === 'T', fT.A.massgebend.key);
+  // Seit dem Ablauf (7. Oktober) heisst die Stelle «quer: T» (Schritt 2, hart).
+  wahr('… massgebend T', /: T$/.test(fT.A.massgebend.was) && fT.A.stufe === 'nicht', fT.A.massgebend.was);
   const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
   // Seilwinkel 30°, Mastlänge H + b (28. September): 2.103 -> 2.1146.
   pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
@@ -32384,7 +32389,8 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
        `x ${mit.ausleger.laengsankerX}`);
   pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 1.0552, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.8498
   pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
-  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.6765, 1e-3, '');
+  // 7. Oktober: neu der staendige Anteil quer allein (M_q,st 51.4 von 67.5 kNm); vorher 0.6765 (H_q veraenderlich).
+  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.7613, 1e-3, '');
   wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
        mit.ausleger.fundament.A.massgebend.key);
   pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.2254, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.1723; Wind auf den Ausleger (30. Sept.): vorher 1.029
@@ -39243,6 +39249,76 @@ titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste
        uq.includes('const leerBeimTippen') && (uq.match(/auchBeimVerlassen\(inp,/g) ?? []).length === 4);
   wahr('Havarie-Tabelle: Name hebt die Teile im 3D hervor', uq.includes('data-hav-zeige') && uq.includes("beiDrahtwerk?.(an ? z.dataset.havZeige.split(',') : null)"));
   wahr('Fussleiste: Grundwerte anklickbar', APP_QUELLE().includes('kontextTrasse(app)'));
+}
+
+titel('248  Fundament: Ablauf der Fundamentbestimmung und Gelände über 14°');
+/* 7. Oktober: «bei den zulässigen standardlasten gibt es einen flow der bei einer
+ * überschreitung der einzelnen werte die kompensation infolge der abminderung der
+ * übrigen werte vornimmt», dann «fundamentflow und gelände >14° einbauen».
+ * Nachgebaut nach der alten Maststatik-Mappe (19 Schritte je Richtung). */
+{
+  const F248 = await import(J('core.fundament.js'));
+  const M248 = await import(J('data.masten.js'));
+  const V248 = await import(J('core.vierendeel.js'));
+  const N248 = await import(J('core.nachbarn.js'));
+  const C248 = await import(J('core.constants.js'));
+  if (!M248.fundamentlastenDa()) {
+    wahr('Fundamentlasten je Gelände im Sortiment (Betreiberdaten)', true, 'Testdaten ohne Tabelle - übersprungen');
+  } else {
+    const t = M248.fundamentWerte('DP1a / 2.1', 'ueber14');
+    wahr('DP1a / 2.1, 14°–33° horizontal: M_q,st 40, M_q 80, Abminderung 2.9 / 1.11, Grenze H_q,st 37.3',
+         t.Mq_st === 40 && t.Mq === 80 && t.red_Hq === 2.9 && t.red_Mq === 1.11 && t.Hq_stmax === 37.3,
+         JSON.stringify([t.Mq_st, t.Mq, t.red_Hq, t.red_Mq, t.Hq_stmax]));
+    wahr('Zuordnung über 14°: HEB 220 → DP1a / 2.1 (kleinster), HEM 240 quer fallend → HP2a / 2.4',
+         M248.fundamentFuerMast('HEB 220', 'jochachse', 'ueber14')?.typ === 'DP1a / 2.1'
+         && M248.fundamentFuerMast('HEM 240', 'quer', 'ueber14fallend')?.typ === 'HP2a / 2.4'
+         && M248.fundamentFuerMast('HEB 220', 'jochachse', 'bis14')?.typ === 'DP1a / 1.8');
+    wahr('Bis 14° dieselben Werte wie die bisherige Tabelle',
+         M248.fundamenttypen().every((f) => {
+           const w = M248.fundamentWerte(f.typ, 'bis14');
+           return w && ['Vmax', 'Mq', 'Mq_ver', 'Ml', 'Hq', 'Hq_ver', 'Hl', 'T'].every((k) => w[k] === f[k]);
+         }));
+    const z = (r) => ({ Mst: t[`M${r}_st`], Mver: t[`M${r}_ver`], Mtot: t[`M${r}`], Hst: t[`H${r}_st`],
+      Hver: t[`H${r}_ver`], Htot: t[`H${r}`], V: t.Vmax, T: t.T, Mvermax: t[`M${r}_vermax`],
+      redM: t[`red_M${r}`], redH: t[`red_H${r}`] });
+    // Das Beispiel der Mappe (DP22 auf DP1a/2.1): M_st 41.1 > 40, M_ver und M_tot im Rahmen.
+    const a = F248.fundamentAblauf({ Mst: 41.133, Mver: 27.364, Mtot: 68.498, Hst: 4.932,
+      Hver: 4.576, Htot: 9.508, V: 11.67, T: 0 }, z('q'));
+    wahr('Beispiel der Mappe: zulässig mit angepassten Werten in Schritt 6 (wie die Mappe)',
+         a.ergebnis === 'angepasst' && a.schritt === 6, `${a.ergebnis} ${a.schritt}`);
+    const b = F248.fundamentAblauf({ Mst: 35, Mver: 45, Mtot: 79, Hst: 4, Hver: 4, Htot: 8, V: 12, T: 0 }, z('q'));
+    pruef('M_ver über: M_st,zul,neu1 = 40 − 5 · 1.11', b.schritte.find((s) => s.nr === 7)?.wert, 34.45, 1e-9, 'kNm');
+    wahr('… M_st 35 darüber: grösseres Fundament in Schritt 8', b.ergebnis === 'nicht' && b.schritt === 8);
+    const c = F248.fundamentAblauf({ Mst: 30, Mver: 35, Mtot: 65, Hst: 6, Hver: 5.5, Htot: 11.5, V: 12, T: 0 }, z('q'));
+    pruef('H_tot und H_ver über: H_tot,fiktiv = 11.5 + 0.5·1.11 + (6 − 5)', c.schritte.find((s) => s.nr === 12)?.wert,
+          11.5 + 0.5 * 1.11 + 1, 1e-9, 'kN');
+    pruef('… M_tot,zul,neu = 80 − (H_fiktiv − 10) · 2.9', c.schritte.find((s) => s.nr === 14)?.wert,
+          80 - (13.055 - 10) * 2.9, 1e-9, 'kNm');
+    wahr('… zulässig in Schritt 17', c.ergebnis === 'angepasst' && c.schritt === 17,
+         c.schritte.map((s) => s.nr).join('>'));
+    const d = F248.fundamentAblauf({ Mst: 30, Mver: 30, Mtot: 85, Hst: 4, Hver: 4, Htot: 8, V: 12, T: 0 }, z('q'));
+    wahr('M_tot über: hart, grösseres Fundament in Schritt 2', d.ergebnis === 'nicht' && d.schritt === 2);
+    const e = F248.fundamentAblauf({ Mst: 2, Mver: 77, Mtot: 79, Hst: 4, Hver: 4, Htot: 8, V: 12, T: 0 }, z('q'));
+    wahr(`M_ver über seiner Grenze (${t.Mq_vermax}): Schritt 3`, t.Mq_vermax === 76 && e.ergebnis === 'nicht' && e.schritt === 3,
+         `${e.ergebnis} ${e.schritt}`);
+
+    // Im Kern: das Gelände am Masten wählt Typ und Werte.
+    const lauf = (gel) => {
+      const w = { ...standardwerte(), xLage: 0, mastGelaende: gel };
+      const s2 = N248.rechensatzMitNachbarn(w);
+      return F248.fundamentNachweis(V248.vergleichKombinationen(s2, ...N248.kernArgumente(s2)), s2);
+    };
+    const r0 = lauf('bis14'), r1 = lauf('ueber14'), r2 = lauf('ueber14fallend');
+    wahr('Ohne Gelände bis 14°, mit Ablauf je Richtung', r0.A.gelaende === 'bis14'
+         && Boolean(r0.A.ablauf.q && r0.A.ablauf.l), r0.A.typ.typ);
+    wahr('Über 14° ein tieferes Fundament nach Masttyp',
+         r1.A.gelaende === 'ueber14' && r1.A.typ.typ !== r0.A.typ.typ, `${r0.A.typ.typ} → ${r1.A.typ.typ}`);
+    wahr('Fallende Böschung: andere Werte quer, gleiche längs',
+         r2.A.typ.Ml === r1.A.typ.Ml && (r2.A.typ.Mq !== r1.A.typ.Mq || r2.A.typ.red_Hq !== r1.A.typ.red_Hq));
+    wahr('Das Gelände gehört dem Masten (Mastfeld)', C248.MASTFELDER.some((m) => m.am === 'gelaende'));
+    const fG = FELDER.find((x) => x.key === 'mastGelaende');
+    wahr('Feld «Gelände am Mastfuss» mit drei Fällen', fG?.optionen?.length === 3);
+  }
 }
 
 console.log('\n' + '='.repeat(104));

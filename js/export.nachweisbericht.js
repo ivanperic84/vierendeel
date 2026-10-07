@@ -22,6 +22,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { gelaendeVon } from './data.masten.js';
 import { verortung, tragwerksart } from './core.constants.js';
 import { NACHWEISGRUPPEN } from './core.checks.js';
 import { FELDER } from './ui.schema.js';
@@ -613,10 +614,24 @@ export const FUNDAMENT_TEXT = `<p>Charakteristische Einwirkung am Fundamentkopf 
 export function fundamentHtml(q, name, schluessel, bildHtml = '') {
   {
     const e = schluessel;
+    // Eine Basisgrösse, die der Ablauf ausgleicht, steht als «ausgeglichen» da
+    // (7. Oktober) - rot wäre sie ein Urteil, das nicht gilt.
+    const ausgeglichen = q.ok && q.stufe === 'angepasst';
     const zeilen = q.nachweise.map((n) => [
       esc(n.was), zahl(n.wert, 2), esc(n.einheit), zahl(n.zul, 2),
       `<span data-pruef="fund-${esc(e)}-${esc(n.key)}">${zahl(n.eta, 3)}</span>`,
-      esc(n.bez ?? ''), urteilMarke(n.eta)]);
+      esc(n.bez ?? ''), ausgeglichen && n.eta > 1 ? 'ausgeglichen' : urteilMarke(n.eta)]);
+    const ablauf = Object.values(q.ablauf ?? {});
+    const ablaufHtml = ablauf.length ? `<p class="klein"><b>Ablauf der Fundamentbestimmung</b>
+      (je Richtung; eine Überschreitung beim veränderlichen Anteil mindert den zulässigen
+      ständigen Anteil, eine der Horizontalkraft das zulässige Moment):</p>
+      ${tabelle(['Richtung', 'Ergebnis', 'Schritte', 'η'], ablauf.map((r) => [
+        esc(r.richtung),
+        esc(r.ergebnis === 'basis' ? 'alle Basiswerte eingehalten'
+          : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
+          : `nicht zulässig — grösseres Fundament (Schritt ${r.schritt})`),
+        esc(r.schritte.map((s) => `${s.nr}${s.wert != null ? ` (${s.wert.toFixed(2)})` : ''}`).join(' → ')),
+        `<span data-pruef="fund-${esc(e)}-ablauf-${esc(r.richtung)}">${zahl(r.eta, 3)}</span>`]), 'eng')}` : '';
     const heben = q.abheben
       ? `<p class="klein"><b>Abheben:</b> ${zahl(q.abheben.wert, 1)} kN in `
         + `«${esc(q.abheben.bez)}». Die zulässigen Lasten gelten für eine `
@@ -624,11 +639,12 @@ export function fundamentHtml(q, name, schluessel, bildHtml = '') {
         + `abhebendes Fundament ist darin nicht abgedeckt.</p>` : '';
     return `<h4>Mast ${esc(name)} — ${esc(q.typ.typ)}`
          + `${q.gewaehlt ? ' (gewählt)' : ' (nach Masttyp)'}</h4>
-      <p class="klein">Fundamentkörper ${esc(q.typ.abmessung ?? '—')} m`
+      <p class="klein">Gelände ${esc(gelaendeVon(q.gelaende).text)} · Fundamentkörper ${esc(q.typ.abmessung ?? '—')} m`
          + `${q.typ.masttypen ? ` · Sortiment: ${esc(q.typ.masttypen)}` : ''}`
          + `${q.typ.neubau === false ? ' · nur für Spezialfälle' : ''}</p>
       ${tabelle(['Nachweis', 'Einwirkung', '', 'zulässig', 'η', 'massgebender Lastfall', ''],
                 zeilen, 'eng')}
+      ${ablaufHtml}
       ${bildHtml}
       ${heben}`;
   }

@@ -107,7 +107,15 @@ export const AUFBAU = {
      */
     listen: [{ name: 'typen', pfad: 'typen', schluessel: 'profil' },
              { name: 'fundamente', pfad: 'fundamente', schluessel: 'typ' },
-             { name: 'gittermasten', pfad: 'gittermasten', schluessel: 'typ' }],
+             { name: 'gittermasten', pfad: 'gittermasten', schluessel: 'typ' },
+             /*
+              * >>> DIE FUNDAMENTLASTEN JE GELÄNDE (7. Oktober). <<<
+              * Weisung: «fundamentflow und gelände >14° einbauen». Je
+              * Fundamenttyp und Geländefall eine Zeile: Basiswerte, Grenzwerte
+              * und die beiden Abminderungswerte, aus denen der Ablauf eine
+              * Überschreitung ausgleicht (core.fundament.js).
+              */
+             { name: 'fundamentlasten', pfad: 'fundamentlasten', schluessel: 'id' }],
   },
   tragjoche: {
     titel: 'Tragjochtypen',

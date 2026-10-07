@@ -32,7 +32,8 @@ import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          TA_SPREIZUNG_VORGABE } from './data.abfangjoche.js';
 import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
-         fundamentFuerMast, istGittermast } from './data.masten.js';
+         fundamentFuerMast, istGittermast, GELAENDE, gelaendeVon,
+         fundamentKandidaten, fundamentlastenDa } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp } from './data.anker.js';
@@ -1239,6 +1240,24 @@ export const FELDER = [
    * Der Hinweis nennt, WAS die Automatik nimmt - sonst wäre «nach
    * Masttyp» eine Angabe, die man nicht nachprüfen kann.
    */
+  /*
+   * >>> DAS GELÄNDE AM MASTFUSS (7. Oktober). <<< Weisung: «fundamentflow
+   * und gelände >14° einbauen». Es wählt die Tabelle der zulässigen Lasten
+   * und die Fundamenttypen, die dort zur Wahl stehen. «Fallende Böschung»
+   * heisst: das Moment quer wirkt Richtung fallende Seite - die Mappe lässt
+   * es ebenso wählen.
+   */
+  { key: 'mastGelaende', gruppe: 'mast', typ: 'auswahl',
+    label: 'Gelände am Mastfuss', standard: 'bis14',
+    optionen: GELAENDE.map((g) => ({ wert: g.key, text: g.text })),
+    wertAus: amMast('gelaende', 'mastGelaende'),
+    sichtbar: (w) => mastDa(w) && fundamenteDa() && fundamentlastenDa()
+      && !istGittermast(gewaehlterMast(w)?.profil ?? w.mastProfil),
+    hinweis: 'Neigung des Geländes am Fundament. Über 14° gelten andere Fundamenttypen '
+           + 'und kleinere zulässige Lasten; «fallende Böschung», wenn das Moment quer '
+           + 'zum Gleis Richtung fallende Seite wirkt.' },
+  { key: 'mastGelaendeB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
+    label: 'Gelände Ende B', standard: '' },
   { key: 'mastFundament', gruppe: 'mast', typ: 'auswahl',
     label: 'Fundament', standard: '',
     /*
@@ -1260,13 +1279,17 @@ export const FELDER = [
       if (istGittermast(p)) {
         return fremd([{ wert: '', text: 'Typ spez. (alt) — kein Standardfundament' }]);
       }
-      const auto = fundamentFuerMast(p, m?.steg ?? w?.mastSteg);
-      const passend = fundamenttypen().filter((f) => String(f.profile ?? '')
-        .split(',').map((x) => x.trim()).includes(p));
+      // Mit dem Gelände (7. Oktober): angeboten wird, was die Tabelle dort führt.
+      const gel = gelaendeVon(m?.gelaende ?? w?.mastGelaende).key;
+      const auto = fundamentFuerMast(p, m?.steg ?? w?.mastSteg, gel);
+      const passend = fundamentlastenDa()
+        ? fundamentKandidaten(p, null, gel)
+        : fundamenttypen().filter((f) => String(f.profile ?? '')
+          .split(',').map((x) => x.trim()).includes(p));
       return fremd([
         { wert: '', text: auto ? `${auto.typ} (nach Masttyp)` : 'kein Standardfundament für dieses Profil' },
         ...passend.filter((f) => f.typ !== auto?.typ).map((f) => ({ wert: f.typ,
-          text: `${f.typ}${f.neubau ? '' : ' — Spezialfall'}` })),
+          text: `${f.typ}${f.neubau === false ? ' — Spezialfall' : ''}` })),
       ]);
     },
     wertAus: amMast('fundament', 'mastFundament'),
@@ -1277,10 +1300,13 @@ export const FELDER = [
         return 'Gittermast (alte Bauweise): Fundament nach Typ spezifisch - das Sortiment '
              + 'führt kein Standardfundament, der Fundamentnachweis wird nicht geführt.';
       }
+      const gel = gelaendeVon(m?.gelaende ?? w.mastGelaende);
       const f = fundamentFuerMast(m?.profil ?? w.mastProfil,
-                                  m?.steg ?? w.mastSteg);
+                                  m?.steg ?? w.mastSteg, gel.key);
       return `Zulässige Lasten am Fundamentkopf, charakteristisch — `
-           + `quer und längs einzeln nachgewiesen, Gelände bis 14°. `
+           + `quer und längs einzeln nachgewiesen, Gelände ${gel.text}. `
+           + (fundamentlastenDa() ? 'Überschreitungen gleicht der Ablauf der '
+             + 'Fundamentbestimmung über die Abminderungswerte aus. ' : '')
            + (f ? `Nach Masttyp: ${f.typ} (M_q ${f.Mq} / M_l ${f.Ml} kNm, `
                 + `H_q ${f.Hq} / H_l ${f.Hl} kN).`
                 : 'Für dieses Profil führt das Sortiment kein '

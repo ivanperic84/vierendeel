@@ -1003,6 +1003,8 @@ export const MASTFELDER = [
    * Sonderfälle.
    */
   { flach: 'mastFundament', flachB: 'mastFundamentB', am: 'fundament' },
+  // Das Gelände am Fundament (7. Oktober) - gehört dem Masten wie sein Fundament.
+  { flach: 'mastGelaende', flachB: 'mastGelaendeB', am: 'gelaende' },
   /*
    * >>> DIE REALE MASTNUMMER (30. September). <<<
    * Weisung: «bei den Masten die möglichkeit geben, anstatt m1 eine reale

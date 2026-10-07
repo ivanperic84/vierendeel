@@ -20,6 +20,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { gelaendeVon } from './data.masten.js';
 import { esc } from './design.js';
 import { REAKTION_SPALTEN } from './core.reaktionen.js';
 
@@ -140,7 +141,7 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
       <td class="num">${f0(zul.Ml)}</td><td class="num">${f0(zul.Hl)}</td>
       <td class="num">${f0(zul.T)}</td>
       <td class="num">${Number(zul.Mq) > 0 ? `${Math.round(100 - 100 * zul.Mq_ver / zul.Mq)} / ${Math.round(100 * zul.Mq_ver / zul.Mq)}` : '–'}</td>
-      ${kurz ? '' : '<td class="rk-anm">zulässig, Gelände bis 14°</td>'}</tr>`);
+      ${kurz ? '' : `<td class="rk-anm">zulässig, Gelände ${esc(gelaendeVon(zul.gelaende).text)}</td>`}</tr>`);
   }
   return zeilen.join('');
 }

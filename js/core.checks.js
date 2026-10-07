@@ -236,7 +236,9 @@ export const NACHWEISGRUPPEN = [
        + 'Horizontalkraft je quer und längs zum Gleis, Torsion. Quer und '
        + 'längs werden EINZELN nachgewiesen, nicht überlagert (so die '
        + 'Quelle). Der Typ folgt Profil und Stegrichtung des Masten, '
-       + 'lässt sich aber wählen. Gerechnet ist Gelände bis 14° Neigung' },
+       + 'lässt sich aber wählen. Das Gelände (bis 14°, 14°–33° horizontal oder '
+       + 'fallend) wählt man je Mast; Überschreitungen gleicht der Ablauf der '
+       + 'Fundamentbestimmung über die Abminderungswerte aus (7. Oktober)' },
   { key: 'torsionMast', titel: 'Torsion Mast', vorhanden: true, standard: true,
     was: 'Wölbkrafttorsion des offenen Profils — Bimoment am '
        + 'wölbeingespannten Fuss, σ_ω = B/(h_m·W_f) als Normalspannung im '
