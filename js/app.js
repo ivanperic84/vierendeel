@@ -112,7 +112,7 @@ import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT, PAKET_SPEICHER } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB,
-         mastenDbDa } from './data.masten.js';
+         mastenDbDa, gitterOhneObenName } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe, einzelmastLaenge,
          mastLaengeFuer } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
@@ -2963,6 +2963,11 @@ function aendern(key, wert) {
    * (4. Oktober) schreibt in die Nachweisauswahl - dieselbe Stelle wie die
    * Optionen. Kein eigenes Feld `bestandesschutz` im Stand.
    */
+  // Gittermast ohne Rohr / Aufsatz (7. Oktober): schreibt den Profilnamen.
+  if (key === 'mastGitterOhne') {
+    const alt = gewaehlterMast(werte)?.profil ?? werte.mastProfil;
+    return aendern('mastProfil', gitterOhneObenName(alt, wert === true));
+  }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });
   }

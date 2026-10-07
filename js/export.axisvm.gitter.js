@@ -56,7 +56,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { gittermastGeometrie, gittermasten, gitterWindflaeche, gittermastProfil } from './data.masten.js';
+import { gittermastGeometrie, gittermastenAlle, gitterWindflaeche, gittermastProfil } from './data.masten.js';
 import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -205,7 +205,7 @@ export function gittermastenEinsetzen(dat) {
 
   zuege.forEach((zug) => {
     const { id } = zug;
-    const G = gittermastGeometrie(gittermasten().find((g) => g.typ === zug.qs.gitter));
+    const G = gittermastGeometrie(gittermastenAlle().find((g) => g.typ === zug.qs.gitter));
     const wU = G.winkelUnten, wO = G.winkelOben;
     zug.staebe.forEach((st) => weg.add(st.name));
     // Die Achsknoten, von unten nach oben.
@@ -393,7 +393,7 @@ export function gittermastenEinsetzen(dat) {
      * hängt an der Einwirkungsklasse. Die Last des Achsstabs (kN/m am Kopf)
      * sagt, welche es ist: sie steht im Ersatzprofil je Klasse.
      */
-    const pG = gittermastProfil(gittermasten().find((x) => x.typ === G.typ));
+    const pG = gittermastProfil(gittermastenAlle().find((x) => x.typ === G.typ));
     const obenFaktor = (wert) => {
       const ek = ['EK1', 'EK2', 'EK3', 'EK0'].find((k) => ['quer', 'laengs']
         .some((r) => Math.abs((pG?.wind?.[r]?.[k] ?? NaN) - Math.abs(wert)) < 1e-9)) ?? 'EK1';

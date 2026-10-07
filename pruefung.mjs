@@ -36596,7 +36596,8 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
     console.log('  (kein Gittermast-Sortiment in diesem Datenordner - übersprungen)');
   } else {
     const typen = M207.gittermasten().map((g) => g.typ);
-    const profile = M207.mastprofile().filter((p) => p.gitter);
+    // Die Varianten ohne Rohr / Aufsatz (7. Oktober) prüft Abschnitt 252.
+    const profile = M207.mastprofile().filter((p) => p.gitter && typen.includes(p.gitter));
     wahr('Jeder Gittermast steht als Mastprofil im Wähler (hinter den Walzprofilen)',
          profile.length === typen.length && profile.every((p) => p.name === M207.GITTER_PRAEFIX + p.gitter),
          profile.map((p) => p.name).join(', '));
@@ -39512,6 +39513,62 @@ titel('251  Wind der Hängestütze je Meter; Gesamtlänge statt Angriffspunkt; L
   wahr('Karte: Feld «Gesamtlänge», die Mitte steht nur da; 3D: Griff am Ende; Ziehen ändert die Länge',
        ui251.includes("modFeld(i, k, 'teilLaenge', 'Gesamtlänge'") && r251.includes("art: 'teilende'")
        && app251.includes('teilLaengeSetzen(a.module, modul, Lneu)'));
+}
+
+titel('252  Gittermast ohne Rohr bzw. Mastaufsatz');
+/* 7. Oktober: «biete die möglichkeit beim gittermasten, das rohr bzw. den
+ * mastaufsatz wegzulassen.» */
+{
+  const M252 = await import(J('data.masten.js'));
+  const C252 = await import(J('core.constants.js'));
+  const N252 = await import(J('core.nachbarn.js'));
+  const AS252 = await import(J('app.stabwerk.js'));
+  if (!M252.gittermastenDa()) {
+    wahr('Gittermasten im Sortiment (Betreiberdaten)', true, 'Testdaten ohne Gittermast - übersprungen');
+  } else {
+    const roh = M252.gittermasten();
+    const alle = M252.gittermastenAlle();
+    const mitOben = roh.filter((g) => g.rohr?.d > 0 || g.aufsatz?.a > 0);
+    wahr('Je Typ mit Rohr oder Aufsatz eine Variante ohne, das Sortiment bleibt, wie es ist',
+         alle.length === roh.length + mitOben.length && M252.gittermasten() === roh
+         && mitOben.every((g) => alle.some((v) => v.basis === g.typ)),
+         alle.filter((v) => v.basis).map((v) => v.typ).join(', '));
+    const p = M252.mastprofile().filter((x) => x.gitter && alle.some((v) => v.basis && v.typ === x.gitter));
+    wahr('Als Mastprofil gerechnet: Länge = Höhe des Gitters, kein Wind über dem Kopf',
+         p.length === mitOben.length && p.every((x) => Math.abs(x.laenge - x.hoehe) < 1e-9
+           && Object.values(x.windOben).every((v) => v === 0)), p.map((x) => `${x.name} ${x.laenge} m`).join(' · '));
+    // «nicht im mastwähler sondern als separate checkbox»
+    const nm = M252.GITTER_PRAEFIX + roh.find((g) => g.rohr?.d > 0).typ;
+    const fK = FELDER.find((x) => x.key === 'mastGitterOhne');
+    wahr('Nicht im Mastwähler, sondern als Kästchen «Rohr weglassen» / «Mastaufsatz weglassen»',
+         !M252.mastprofileWahl().some((x) => M252.gitterOhneOben(x.name))
+         && M252.gitterOhneObenName(nm, true) === nm + M252.OHNE_ROHR
+         && M252.gitterOhneObenName(nm + M252.OHNE_ROHR, false) === nm
+         && fK?.typ === 'schalter' && FELDER.find((x) => x.key === 'mastProfil')
+           .wertAus({ ...standardwerte(), mastProfil: nm + M252.OHNE_ROHR }) === nm);
+    const g0 = roh.find((g) => g.rohr?.d > 0);
+    const stab = (w0) => {
+      const w = N252.rechensatzMitNachbarn(w0);
+      const erg = berechne(w, ...N252.kernArgumente(w));
+      return AS252.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
+    };
+    const jochW = (o = {}) => ({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+      L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', ...o });
+    const einzel = (typ) => C252.gitterLaengenFest(C252.tragwerkWeg(C252.tragwerkHinzu(jochW(), 'einzelmast',
+      { mastProfil: M252.GITTER_PRAEFIX + typ, mastH: 8, mastLaenge: 0 }), 'T1'));
+    if (g0) {
+      const mit = stab(einzel(g0.typ)), ohne = stab(einzel(g0.typ + M252.OHNE_ROHR));
+      const etaG = (h) => Math.max(...Object.entries(h.teile).filter(([k]) => /\|gurt$/.test(k)).map(([, v]) => v.eta));
+      wahr(`Einzelmast ${g0.typ} ohne Rohr: kein Rohrstab, Gurt gerechnet`,
+           ohne && !ohne.fehler && !ohne.roh.dat.staebe.some((s) => /ROHR/.test(s.name))
+           && Number.isFinite(etaG(ohne)),
+           `Gurt mit Rohr ${etaG(mit).toFixed(4)} → ohne ${etaG(ohne).toFixed(4)}`);
+      const hJ = stab(jochW({ mastProfil: M252.GITTER_PRAEFIX + g0.typ + M252.OHNE_ROHR, mastH: 7.3 }));
+      wahr('Tragjoch J90/20 m auf zwei Gittermasten ohne Rohr: ein Stabwerk',
+           hJ && !hJ.fehler && hJ.roh.dat.gittermasten.length === 2 && Number.isFinite(hJ.bauteile.tragwerk?.eta),
+           hJ?.fehler ?? `Gurt M1 ${hJ.teile['mast:M1|gurt']?.eta?.toFixed(4)}`);
+    }
+  }
 }
 
 console.log('\n' + '='.repeat(104));

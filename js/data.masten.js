@@ -227,7 +227,7 @@ export function mastprofile() {
     if (p) aus.push({ ...p, wind: t.wind ?? null });
   }
   // Die Gittermasten hinter den Walzprofilen (3. Oktober).
-  const gitter = gittermasten().map(gittermastProfil).filter(Boolean);
+  const gitter = gittermastenAlle().map(gittermastProfil).filter(Boolean);
   return [...(aus.length ? aus : norm), ...gitter];
 }
 
@@ -307,8 +307,65 @@ export function mastWindBeide(name, ek = 'EK2', steg = 'jochachse') {
 export const gittermasten = () => SORT?.gittermasten ?? [];
 export const gittermastenDa = () => gittermasten().length > 0;
 
+/*
+ * >>> OHNE ROHR BZW. MASTAUFSATZ (7. Oktober). <<< Weisung: «biete die
+ * möglichkeit beim gittermasten, das rohr bzw. den mastaufsatz wegzulassen.»
+ * Je Typ mit Rohr oder Aufsatz steht im Mastwähler ein zweiter Eintrag
+ * «… ohne Rohr» / «… ohne Aufsatz»: dasselbe Gitter, das Rohr fällt ganz weg
+ * (auch sein Stück im Gitter und die Halte an den Rippen), der Aufsatz
+ * ebenso; die Länge ist dann die Höhe des Gitters. Die Varianten stehen
+ * nicht im Sortiment (die Datenbasis bleibt, wie sie ist), sie werden hier
+ * abgeleitet - einmal je Sortiment, damit die Zwischenspeicher halten.
+ * Das Gewicht der Tabelle (`gewicht`) gilt dem Typ samt Oberteil und bleibt
+ * stehen (sichere Seite); das Stabwerk wiegt ohnehin seine Stäbe.
+ */
+export const OHNE_ROHR = ' ohne Rohr', OHNE_AUFSATZ = ' ohne Aufsatz';
+const variantenSpeicher = new WeakMap();
+export function gittermastenAlle() {
+  const roh = gittermasten();
+  if (!roh.length) return roh;
+  if (variantenSpeicher.has(roh)) return variantenSpeicher.get(roh);
+  const aus = [];
+  roh.forEach((g) => {
+    aus.push(g);
+    const mitRohr = Number(g.rohr?.d) > 0, mitAufsatz = Number(g.aufsatz?.a) > 0;
+    if (!mitRohr && !mitAufsatz) return;
+    aus.push({ ...g, typ: g.typ + (mitRohr ? OHNE_ROHR : OHNE_AUFSATZ), basis: g.typ,
+               rohr: null, aufsatz: null });
+  });
+  variantenSpeicher.set(roh, aus);
+  return aus;
+}
+
+/*
+ * Als KÄSTCHEN, nicht im Mastwähler (Weisung, gleich danach: «nicht im
+ * mastwähler sondern als separate checkbox»). Der Wähler zeigt die
+ * Grundtypen (`mastprofileWahl`), das Kästchen schaltet den Namen des Mastes
+ * zwischen Grundtyp und Variante um - gerechnet wird über denselben Namen.
+ */
+const OHNE_RE = new RegExp(`(${OHNE_ROHR}|${OHNE_AUFSATZ})$`);
+/** Grundtyp eines Profilnamens (ohne «… ohne Rohr»). */
+export const gitterBasisName = (name) => (typeof name === 'string' ? name.replace(OHNE_RE, '') : name);
+/** Steht der Gittermast ohne Rohr / Aufsatz? */
+export const gitterOhneOben = (name) => typeof name === 'string' && OHNE_RE.test(name);
+/** Was der Grundtyp über dem Kopf trägt: 'rohr', 'aufsatz' oder null. */
+export function gitterObenArt(name) {
+  const typ = gitterTyp(gitterBasisName(name));
+  const g = typ ? gittermasten().find((x) => x.typ === typ) : null;
+  return Number(g?.rohr?.d) > 0 ? 'rohr' : Number(g?.aufsatz?.a) > 0 ? 'aufsatz' : null;
+}
+/** Profilname mit bzw. ohne Rohr / Aufsatz. */
+export function gitterOhneObenName(name, ohne) {
+  const basis = gitterBasisName(name);
+  const art = gitterObenArt(basis);
+  if (!art || !ohne) return basis;
+  return basis + (art === 'rohr' ? OHNE_ROHR : OHNE_AUFSATZ);
+}
+/** Die Profile für den Mastwähler: ohne die Varianten. */
+export const mastprofileWahl = () => mastprofile().filter((p) => !gitterOhneOben(p.name));
+
 export function getGittermast(typ) {
-  const g = gittermasten().find((x) => x.typ === typ);
+  const g = gittermastenAlle().find((x) => x.typ === typ);
   if (!g) throw new Error(`Unbekannter Gittermast: ${typ}`);
   return g;
 }

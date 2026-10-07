@@ -30,7 +30,8 @@ import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangMasse, getTragausleger,
          tragauslegerAufhaengung, tragauslegerSpreizung,
          TA_SPREIZUNG_VORGABE } from './data.abfangjoche.js';
-import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
+import { mastprofile, mastprofileWahl, gitterBasisName, gitterOhneOben, gitterObenArt,
+         STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
          fundamentFuerMast, istGittermast, GELAENDE, gelaendeVon,
          fundamentKandidaten, fundamentlastenDa } from './data.masten.js';
@@ -886,9 +887,24 @@ export const FELDER = [
            + 'Anzeige, Bericht und Excel; gerechnet und ausgeleitet wird '
            + 'weiter unter M1. Leer: M1.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
-    standard: 'HEB 260', optionenAus: () => opt(mastprofile(), 'name', 'name'),
-    wertAus: amMast('profil', 'mastProfil'),
+    standard: 'HEB 260', optionenAus: () => opt(mastprofileWahl(), 'name', 'name'),
+    // Der Wähler zeigt den Grundtyp; «ohne Rohr» steht im Kästchen darunter.
+    wertAus: (w) => gitterBasisName(amMast('profil', 'mastProfil')(w)),
     sichtbar: (w) => mastDa(w) },
+  /*
+   * >>> GITTERMAST OHNE ROHR BZW. MASTAUFSATZ (7. Oktober). <<< «biete die
+   * möglichkeit beim gittermasten, das rohr bzw. den mastaufsatz
+   * wegzulassen», dann «nicht im mastwähler sondern als separate checkbox».
+   * Kein eigenes Feld im Stand: `aendern` schreibt den Profilnamen des
+   * Mastes (Grundtyp oder Variante, data.masten.js).
+   */
+  { key: 'mastGitterOhne', gruppe: 'mast', typ: 'schalter',
+    label: (w) => (gitterObenArt(amMast('profil', 'mastProfil')(w)) === 'aufsatz'
+      ? 'Mastaufsatz weglassen' : 'Rohr weglassen'),
+    wertAus: (w) => gitterOhneOben(amMast('profil', 'mastProfil')(w)),
+    hinweis: 'Nur das Gitter: das Rohr entfällt ganz (auch sein Stück im Gitter), '
+      + 'der Aufsatz ebenso; die Mastlänge ist die Höhe des Gitters.',
+    sichtbar: (w) => mastDa(w) && Boolean(gitterObenArt(amMast('profil', 'mastProfil')(w))) },
   /*
    * MIT SCHIEBER (Weisung, 28. August). Masthöhe und Mastlänge sind die
    * beiden Zahlen, die man beim Einpassen einer Zeichnung nachzieht, bis

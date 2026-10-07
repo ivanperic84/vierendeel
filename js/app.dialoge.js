@@ -13,7 +13,7 @@ import { TRAGWERKSARTEN, anschlusshoehe, gewaehlterMast, lageVon, mastName, mast
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
-import { STEGRICHTUNGEN, mastprofile } from './data.masten.js';
+import { STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
 import { getTragjoch, laengenbereich, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
@@ -333,8 +333,8 @@ export function dialogMast(app, mastId) {
 
   const koerper = () => `
     <div class="feld"><label for="dlg-m-profil">Mastprofil</label>
-      <select id="dlg-m-profil">${mastprofile().map((p) =>
-        `<option value="${esc(p.name)}"${p.name === e.profil ? ' selected' : ''}
+      <select id="dlg-m-profil">${mastprofileWahl().map((p) =>
+        `<option value="${esc(p.name)}"${p.name === gitterBasisName(e.profil) ? ' selected' : ''}
           >${esc(p.name)}</option>`).join('')}</select>
       <small class="hinweis">Er bestimmt die Drehfeder am Jochende und trägt
         den Nachweis über die ganze Höhe.</small></div>
@@ -398,7 +398,9 @@ export function dialogMast(app, mastId) {
       };
     });
     const s = n.querySelector('#dlg-m-profil');
-    if (s) s.onchange = () => { e = { ...e, profil: s.value }; };
+    // Der Wähler führt den Grundtyp (7. Oktober); ein anderer Typ kommt mit
+    // Rohr bzw. Aufsatz - das Kästchen in der Seitenleiste nimmt es weg.
+    if (s) s.onchange = () => { e = { ...e, profil: s.value === gitterBasisName(e.profil) ? e.profil : s.value }; };
     const zahl = (sel, feld) => {
       const el = n.querySelector(sel);
       if (!el) return;
