@@ -24,6 +24,8 @@ import { handbuchDatei, handbuchHtml } from './doku.handbuch.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { typUebernehmen } from './ui.schema.js';
+import { globaleVorlagen, globaleVorlagenAn, setzeGlobaleVorlagenAn, setzeGlobaleVorlagen,
+         globaleVorlageAblegen, setzeEigeneVorlagen } from './data.anbauteile.js';
 import { profilBlattHtml } from './ui.profilblatt.js';
 
 function dialogKlassen(app) {
@@ -316,10 +318,122 @@ export function dialogHandbuch(app) {
  */
 let optThema = 'modell';
 
+/* ===========================================================================
+ * >>> EIGENE VORLAGEN VERWALTEN (7. Oktober). <<< Weisung: «biete die
+ * möglichkeit die selbs abgespeicherten anbauteile global zu verwalten. diese
+ * sollten projektübergreifend angezeigt werden, in optionen festlegen.»
+ * Eine Liste über beide Orte - dieses Projekt (reist mit der Datei) und die
+ * Sammlung dieses Browsers (projektübergreifend) - mit Name, Ort und den
+ * Handgriffen; dazu Sichern / Laden der Sammlung als Datei für einen anderen
+ * Rechner.
+ * ======================================================================== */
+function vorlagenVerwaltungHtml(app) {
+  const proj = app.werte.eigeneVorlagen ?? [];
+  const glob = globaleVorlagen();
+  const ids = [...new Set([...proj.map((v) => v.id), ...glob.map((v) => v.id)])];
+  const zeilen = ids.map((id) => {
+    const p = proj.find((v) => v.id === id), g = glob.find((v) => v.id === id);
+    const v = p ?? g;
+    return `<tr data-vg-id="${esc(id)}">
+      <td><input type="text" class="vg-name" data-vg-name value="${esc(v.name ?? '')}"></td>
+      <td class="num">${(v.module ?? []).length}</td>
+      <td class="zentriert">${p ? '✓' : ''}</td><td class="zentriert">${g ? '✓' : ''}</td>
+      <td class="vg-knoepfe">
+        ${g ? '<button class="btn btn-mini" data-vg-ausglobal>aus Sammlung</button>'
+            : '<button class="btn btn-mini" data-vg-global>in Sammlung</button>'}
+        ${p ? '' : '<button class="btn btn-mini" data-vg-projekt>ins Projekt</button>'}
+        <button class="btn btn-mini btn-fail" data-vg-weg title="Aus Projekt und Sammlung löschen">löschen</button>
+      </td></tr>`;
+  }).join('');
+  return `${abschnitt('Projektübergreifend')}
+    <label class="schalter-zeile"><input type="checkbox" data-vg-an${globaleVorlagenAn() ? ' checked' : ''}>
+      Eigene Vorlagen projektübergreifend anzeigen und neue dort ablegen</label>
+    <p class="notiz">Die Sammlung liegt in diesem Browser. Vorlagen des Projekts reisen mit der
+      Projektdatei; ein gesetztes Anbauteil trägt seine Bausteine selbst und rechnet auch ohne Sammlung gleich.</p>
+    ${abschnitt(`Vorlagen (${ids.length})`)}
+    ${ids.length ? `<div class="tabellenrahmen"><table class="dt vg-tab">
+      <thead><tr><th>Name</th><th class="num">Bausteine</th><th>Projekt</th><th>Sammlung</th><th></th></tr></thead>
+      <tbody>${zeilen}</tbody></table></div>`
+      : '<p class="notiz">Noch keine eigene Vorlage. Eine Bauteilkarte bietet «Als Vorlage speichern».</p>'}
+    <div class="knopfzeile">
+      <button class="btn" data-vg-export>Sammlung sichern (.json)</button>
+      <button class="btn" data-vg-import>Sammlung laden …</button>
+      <input type="file" accept=".json,application/json" data-vg-datei hidden>
+    </div>`;
+}
+
+function vorlagenVerwaltungVerdrahten(app, rahmen, neu) {
+  const projektSetzen = (liste) => {
+    app.werte = { ...app.werte, eigeneVorlagen: liste };
+    setzeEigeneVorlagen(liste);
+    app.neuRechnen();
+  };
+  const an = rahmen.querySelector('[data-vg-an]');
+  if (an) an.onchange = () => { setzeGlobaleVorlagenAn(an.checked); app.neuRechnen(); neu(); };
+  rahmen.querySelectorAll('[data-vg-id]').forEach((tr) => {
+    const id = tr.dataset.vgId;
+    const proj = () => app.werte.eigeneVorlagen ?? [];
+    const finde = () => proj().find((v) => v.id === id) ?? globaleVorlagen().find((v) => v.id === id);
+    const q = (s) => tr.querySelector(s);
+    q('[data-vg-name]').onchange = (e) => {
+      const name = String(e.target.value).trim();
+      if (!name) { neu(); return; }
+      if (globaleVorlagen().some((v) => v.id === id)) {
+        setzeGlobaleVorlagen(globaleVorlagen().map((v) => (v.id === id ? { ...v, name } : v)));
+      }
+      projektSetzen(proj().map((v) => (v.id === id ? { ...v, name } : v)));
+      neu();
+    };
+    q('[data-vg-global]')?.addEventListener('click', () => { globaleVorlageAblegen(finde()); app.neuRechnen(); neu(); });
+    q('[data-vg-ausglobal]')?.addEventListener('click', () => {
+      setzeGlobaleVorlagen(globaleVorlagen().filter((v) => v.id !== id)); app.neuRechnen(); neu();
+    });
+    q('[data-vg-projekt]')?.addEventListener('click', () => { projektSetzen([...proj(), finde()]); neu(); });
+    q('[data-vg-weg]').onclick = () => {
+      setzeGlobaleVorlagen(globaleVorlagen().filter((v) => v.id !== id));
+      projektSetzen(proj().filter((v) => v.id !== id));
+      neu();
+    };
+  });
+  const ex = rahmen.querySelector('[data-vg-export]');
+  if (ex) ex.onclick = () => {
+    const blob = new Blob([JSON.stringify({ format: 'tragjoch-vorlagen', version: 1,
+      vorlagen: globaleVorlagen() }, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Vierendeel_Vorlagen_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const datei = rahmen.querySelector('[data-vg-datei]');
+  const im = rahmen.querySelector('[data-vg-import]');
+  if (im && datei) {
+    im.onclick = () => datei.click();
+    datei.onchange = async () => {
+      const f = datei.files?.[0];
+      if (!f) return;
+      try {
+        const d = JSON.parse(await f.text());
+        const liste = Array.isArray(d) ? d : d?.vorlagen;
+        if (!Array.isArray(liste)) throw new Error('keine Vorlagenliste');
+        const vorher = globaleVorlagen().length;
+        const neuL = setzeGlobaleVorlagen([...globaleVorlagen(),
+          ...liste.filter((v) => v && v.id && Array.isArray(v.module))]);
+        app.meldeImBalken(`Sammlung: ${neuL.length - vorher} Vorlage(n) dazu, ${neuL.length} insgesamt.`);
+        app.neuRechnen();
+        neu();
+      } catch (e) {
+        app.meldeImBalken(`Sammlung nicht geladen: ${e.message}`);
+      }
+    };
+  }
+}
+
 export function dialogOptionen(app) {
   const koerper = () =>
     ui.optionenReiterHtml(app.werte, optThema)
-    + `<div id="opt-koerper">${ui.optionenHtml(app.werte, optThema)}</div>`;
+    + `<div id="opt-koerper">${optThema === 'vorlagen' ? vorlagenVerwaltungHtml(app)
+      : ui.optionenHtml(app.werte, optThema)}</div>`;
   // FESTE HOEHE (Weisung, 1. September): sechs Reiter mit sehr verschieden
   // viel Inhalt, und der Scrim zentriert. Ohne feste Hoehe sprang das Fenster
   // bei jedem Reiterwechsel.
@@ -360,6 +474,7 @@ export function dialogOptionen(app) {
      */
     const fenster = rahmen.querySelector('[data-daten-fenster]');
     if (fenster) fenster.onclick = () => app.dialogBauteildaten();
+    if (optThema === 'vorlagen') vorlagenVerwaltungVerdrahten(app, rahmen, neu);
 
     // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
     // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.

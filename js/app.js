@@ -68,7 +68,9 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haeng
          setzeEigeneVorlagen, entdoppelteVorlagen,
          erzeugeGleislasten, neuesModul, MAST_GLEIS_VORGABE,
          baugruppeSumme, anbauteilDB,
-         setzeAnbauteilDB, laengsAchseVon, teilLaenge, teilLaengeSetzen } from './data.anbauteile.js';
+         setzeAnbauteilDB, laengsAchseVon, teilLaenge, teilLaengeSetzen,
+         globaleVorlagenLaden, globaleVorlagen, globaleVorlagenAn, globaleVorlageAblegen,
+         setzeGlobaleVorlagen } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
          setzeFlDB } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
@@ -4669,7 +4671,9 @@ function vorlageSichern(i) {
   const a = (werte.anbauteile ?? [])[i];
   if (!a) return;
   const alt = werte.eigeneVorlagen ?? [];
-  const herkunft = alt.find((v) => v.id === a.vorlage) ?? null;
+  // Auch eine Vorlage der Sammlung lässt sich überschreiben (7. Oktober).
+  const herkunft = alt.find((v) => v.id === a.vorlage)
+    ?? (globaleVorlagenAn() ? globaleVorlagen().find((v) => v.id === a.vorlage) : null) ?? null;
   const html = `
     ${herkunft ? `<div class="feld"><label>Was soll geschehen?</label>
       <div class="dlg-wahl dlg-wahl-spalte">
@@ -4694,8 +4698,9 @@ function vorlageSichern(i) {
   n.querySelector('[data-vs-ok]').onclick = () => {
     let liste;
     if (herkunft && art() === 'ueber') {
-      const v = alsVorlage(a, herkunft.name);
-      liste = alt.map((x) => (x.id === herkunft.id ? { ...v, id: herkunft.id } : x));
+      const v = { ...alsVorlage(a, herkunft.name), id: herkunft.id };
+      liste = alt.map((x) => (x.id === herkunft.id ? v : x));
+      if (globaleVorlagen().some((x) => x.id === herkunft.id) || globaleVorlagenAn()) globaleVorlageAblegen(v);
       meldeImBalken(`Vorlage «${herkunft.name}» überschrieben.`);
     } else {
       const name = String(n.querySelector('#vs-name')?.value ?? '').trim();
@@ -4703,8 +4708,10 @@ function vorlageSichern(i) {
       const vergeben = (x) => alt.some((v) => String(v.name ?? '').trim() === x);
       let frei = name;
       for (let k = 2; vergeben(frei); k++) frei = `${name} (${k})`;
-      liste = [...alt, alsVorlage(a, frei)];
-      meldeImBalken(`Neue Vorlage «${frei}» angelegt.`);
+      const v = alsVorlage(a, frei);
+      liste = [...alt, v];
+      if (globaleVorlagenAn()) globaleVorlageAblegen(v);
+      meldeImBalken(`Neue Vorlage «${frei}» angelegt${globaleVorlagenAn() ? ' (auch projektübergreifend)' : ''}.`);
     }
     d.zu();
     werte = { ...werte, eigeneVorlagen: liste };
@@ -4714,6 +4721,12 @@ function vorlageSichern(i) {
 }
 
 function vorlageEntfernen(id) {
+  // Eine Kachel der Sammlung allein (nicht im Blatt) geht aus der Sammlung (7. Oktober).
+  if (!(werte.eigeneVorlagen ?? []).some((v) => v.id === id)
+      && globaleVorlagen().some((v) => v.id === id)) {
+    setzeGlobaleVorlagen(globaleVorlagen().filter((v) => v.id !== id));
+    meldeImBalken('Vorlage aus der projektübergreifenden Sammlung entfernt.');
+  }
   const liste = (werte.eigeneVorlagen ?? []).filter((v) => v.id !== id);
   werte = { ...werte, eigeneVorlagen: liste };
   setzeEigeneVorlagen(liste);
@@ -4797,6 +4810,7 @@ function dialogVorlageBearbeiten(id) {
     const liste = entdoppelteVorlagen(istKopie
       ? [...(werte.eigeneVorlagen ?? []), eintrag]
       : (werte.eigeneVorlagen ?? []).map((x) => (x.id === v.id ? eintrag : x)));
+    if (globaleVorlagenAn() || globaleVorlagen().some((x) => x.id === eintrag.id)) globaleVorlageAblegen(eintrag);
     werte = { ...werte, eigeneVorlagen: liste };
     setzeEigeneVorlagen(liste);
     d.zu();
@@ -6718,6 +6732,7 @@ export async function start() {
   mastNachfuehrenGlobal();
   werte.eigeneVorlagen = vorlagenZusammenfuehren(werte);
   setzeEigeneVorlagen(werte.eigeneVorlagen);
+  globaleVorlagenLaden();   // die Sammlung dieses Browsers (7. Oktober)
   uebertrageTokens(thema);
 
   const dbFehler = pruefeDatenbank(getProfil);

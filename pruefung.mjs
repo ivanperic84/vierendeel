@@ -39571,6 +39571,52 @@ titel('252  Gittermast ohne Rohr bzw. Mastaufsatz');
   }
 }
 
+titel('253  Leiterstrich im Modell; Drahtwerke einzeln; eigene Vorlagen projektübergreifend');
+/* 7. Oktober: «deute die leiter mit einem kurzen strich in Gleislängsrichtung an
+ * im modell … der strich sollte fein sein», «hier noch einzeln aufführen als
+ * auswahl», «biete die möglichkeit die selbs abgespeicherten anbauteile global zu
+ * verwalten. diese sollten projektübergreifend angezeigt werden, in optionen
+ * festlegen.» */
+{
+  const r253 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Leiter: Marke mit `leiter`, feiner Strich ±0.6 m in y, 1 px, auch ohne Lastebene',
+       (r253.match(/leiter: t\.rolle === 'drahtwerk'/g) ?? []).length === 2
+       && r253.includes('if (!mk.leiter || !this._imFokus(mk.p[0])) return;')
+       && r253.includes('c.lineWidth = 1 * s; c.globalAlpha = 0.65;'));
+  const UI253 = await import(J('ui.js'));
+  const zwei = A.neuesAnbauteil('leiter-traverse', 4);
+  zwei.module = [...zwei.module, { ...zwei.module.find((m) => /drahtwerk/.test(m.bauteil)), x: 0.8 }];
+  const liste = [{ ...zwei, tag: 'A' }, { ...A.neuesAnbauteil('hs-nt-ausleger', 9), tag: 'A' }];
+  const ein = UI253.drahtwerkUebersicht(liste, 'einzeln');
+  const bt = UI253.drahtwerkUebersicht(liste, 'bauteil');
+  const anz = liste.flatMap((a) => a.module).filter((m) => FL.getFlBauteil(m.bauteil).rolle === 'drahtwerk').length;
+  wahr('«Einzeln»: je Leiter eine Zeile; «Bauteil» je Anbauteil und Typ',
+       ein.length === anz && ein.every((e) => e.stellen.length === 1) && bt.length < ein.length,
+       `${ein.length} einzeln / ${bt.length} je Bauteil`);
+  // Eigene Vorlagen: die Sammlung erscheint in jedem Projekt, das Blatt geht vor.
+  const vorher = A.globaleVorlagen();
+  try {
+    const v = { ...A.getVorlage('hs-nur'), id: 'EV-test253', name: 'Prüfvorlage global 253' };
+    A.setzeGlobaleVorlagen([v]);
+    A.setzeEigeneVorlagen([]);
+    const da = A.vorlagen().find((x) => x.id === 'EV-test253');
+    wahr('Sammlung: Vorlage in einem Projekt ohne eigene Vorlagen sichtbar, als «global» markiert',
+         da?.global === true && da.eigen === true);
+    A.setzeEigeneVorlagen([{ ...v, name: 'Im Blatt 253' }]);
+    wahr('Dieselbe Vorlage im Blatt geht vor (eine Kachel)',
+         A.vorlagen().filter((x) => x.id === 'EV-test253').length === 1
+         && A.vorlagen().find((x) => x.id === 'EV-test253').name === 'Im Blatt 253');
+  } finally {
+    A.setzeGlobaleVorlagen(vorher);
+    A.setzeEigeneVorlagen([]);
+  }
+  const opt253 = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  wahr('Optionen: Reiter «Eigene Vorlagen» mit Schalter, Liste, Sichern und Laden',
+       (await import(J('ui.schema.js'))).OPTIONEN_THEMEN.some((t) => t.key === 'vorlagen')
+       && ['data-vg-an', 'data-vg-global', 'data-vg-weg', 'data-vg-export', 'data-vg-import']
+         .every((k) => opt253.includes(k)));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

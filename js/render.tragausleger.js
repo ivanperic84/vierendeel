@@ -231,7 +231,7 @@ export function auslegerSzene(satz, opt = {}) {
        * Marke trägt jetzt die Achse ihres Kettenglieds (`ziehAngabe`); das
        * Ziehen schreibt `punktZiehen` (app.js), das die Seite schon kennt.
        */
-      marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil, modul: tp.modulIndex, text: '',
+      marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil, modul: tp.modulIndex, leiter: tp.rolle === 'drahtwerk', text: '',
                     fahrdraht: istFahrdraht(tp), titel: `${tp.name ?? ''} · Angriffspunkt`,
                     zieh: ziehAngabe(kette, tp) });
       Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k]) => {

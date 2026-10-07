@@ -230,11 +230,53 @@ export function setzeEigeneVorlagen(liste) {
   return EIGENE;
 }
 
+/* ===========================================================================
+ * >>> EIGENE VORLAGEN PROJEKTÜBERGREIFEND (7. Oktober). <<< Weisung: «biete
+ * die möglichkeit die selbs abgespeicherten anbauteile global zu verwalten.
+ * diese sollten projektübergreifend angezeigt werden, in optionen festlegen.»
+ * Neben den Vorlagen des Blattes (`eigeneVorlagen`, sie reisen mit dem
+ * Projekt) eine Sammlung dieses Browsers (localStorage, Präfix tragjoch-).
+ * Der Schalter in den Optionen (Vorgabe an) zeigt sie in jedem Projekt und
+ * legt neu gesicherte Vorlagen auch dort ab. Ein Anbauteil trägt seine
+ * Module selbst - ein Projekt rechnet auch ohne die Sammlung gleich.
+ * ======================================================================== */
+const GLOBAL_SCHLUESSEL = 'tragjoch-vorlagen-global';
+const GLOBAL_AN_SCHLUESSEL = 'tragjoch-vorlagen-global-an';
+let GLOBAL = [];
+const speicher = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
+export function globaleVorlagenAn() {
+  try { return speicher()?.getItem(GLOBAL_AN_SCHLUESSEL) !== 'aus'; } catch { return true; }
+}
+export function setzeGlobaleVorlagenAn(an) {
+  try { speicher()?.setItem(GLOBAL_AN_SCHLUESSEL, an ? 'an' : 'aus'); } catch { /* ohne Speicher */ }
+}
+export function globaleVorlagenLaden() {
+  try {
+    const roh = JSON.parse(speicher()?.getItem(GLOBAL_SCHLUESSEL) ?? '[]');
+    GLOBAL = Array.isArray(roh) ? entdoppelteVorlagen(roh).map((v) => ({ ...v, eigen: true })) : [];
+  } catch { GLOBAL = []; }
+  return GLOBAL;
+}
+export function globaleVorlagen() { return GLOBAL; }
+export function setzeGlobaleVorlagen(liste) {
+  GLOBAL = entdoppelteVorlagen(liste ?? []).map((v) => ({ ...v, eigen: true }));
+  try { speicher()?.setItem(GLOBAL_SCHLUESSEL, JSON.stringify(GLOBAL)); } catch { /* ohne Speicher */ }
+  return GLOBAL;
+}
+/** Eine Vorlage in der Sammlung ersetzen (gleiche id) oder anfügen. */
+export function globaleVorlageAblegen(v) {
+  const da = GLOBAL.some((x) => x.id === v.id);
+  return setzeGlobaleVorlagen(da ? GLOBAL.map((x) => (x.id === v.id ? v : x)) : [...GLOBAL, v]);
+}
+
 /** Die ganze Datenbank – für Prüfstand und Ausleitung. */
 export const anbauteilDB = () => db();
 
 export function vorlagen() {
-  return [...db().vorlagen, ...EIGENE];
+  // Die des Blattes zuerst; die Sammlung nur, wenn eingeschaltet (7. Oktober).
+  const glob = globaleVorlagenAn()
+    ? GLOBAL.filter((g) => !EIGENE.some((e) => e.id === g.id)).map((g) => ({ ...g, global: true })) : [];
+  return [...db().vorlagen, ...entdoppelteVorlagen([...EIGENE, ...glob])];
 }
 
 /* ===========================================================================

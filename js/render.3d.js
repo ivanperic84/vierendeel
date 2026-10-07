@@ -1297,7 +1297,7 @@ export function erzeugeSzene(m, erg) {
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
           gruppe: 'last', punkt: true }));
       marken.push({
-        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex,
+        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk',
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
@@ -1960,7 +1960,7 @@ function zeichneMastteil(ctx, a, k, ort) {
     flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
       { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
         gruppe: 'last', punkt: true }));
-    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex,
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk',
                   text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
@@ -5402,6 +5402,24 @@ export class Modellansicht {
      * wenn die Ebene der Lasten aus ist. Die Flächen des Bauteils bleiben,
      * wie sie sind.
      */
+    /*
+     * >>> DER LEITER ALS FEINER STRICH (7. Oktober). <<< Weisung: «deute die
+     * leiter mit einem kurzen strich in Gleislängsrichtung an im modell, so
+     * kann man diese besser erkennen wo sie stehen bei den anbauteilen. der
+     * strich sollte fein sein nicht so dick wie die anbauteile.» Je Leiter
+     * ±0.6 m in y, 1 px, gedämpft - auch bei ausgeschalteter Lastebene.
+     */
+    c.save();
+    c.strokeStyle = t.on; c.lineWidth = 1 * s; c.globalAlpha = 0.65;
+    this.szene.marken.forEach((mk) => {
+      if (!mk.leiter || !this._imFokus(mk.p[0])) return;
+      const q0 = proj([mk.p[0], mk.p[1] - 0.6, mk.p[2]]);
+      const q1 = proj([mk.p[0], mk.p[1] + 0.6, mk.p[2]]);
+      if (!q0 || !q1) return;
+      c.beginPath(); c.moveTo(q0[0], q0[1]); c.lineTo(q1[0], q1[1]); c.stroke();
+    });
+    c.restore();
+
     if (this.hervorTeile?.size) {
       const acc = t.acc ?? '#4aa3df';
       this.szene.marken.forEach((mk) => {

@@ -584,7 +584,7 @@ export function abfangSzene(typ, jt, opt = {}) {
       flaechen.push(...quader(pP, [0.07, 0.07, 0.07],
         { ...opt2, label: `${tp.name ?? ''} · Angriffspunkt`, gruppe: 'last', punkt: true }));
       // Ziehbar auf der Achse seines Kettenglieds wie am Tragjoch (6. Oktober).
-      marken.push({ gruppe: 'last', art: 'lastknoten', p: pP, teil, modul: tp.modulIndex, text: '',
+      marken.push({ gruppe: 'last', art: 'lastknoten', p: pP, teil, modul: tp.modulIndex, leiter: tp.rolle === 'drahtwerk', text: '',
                     fahrdraht: istFahrdraht(tp), titel: `${tp.name ?? ''} · Angriffspunkt`,
                     zieh: ziehAngabe(kette, tp) });
       [['staendig', 'G', 'Fz', [0, 0, -1], 'F_z'], ['windX', 'WindX', 'Fx', [1, 0, 0], 'F_x'],

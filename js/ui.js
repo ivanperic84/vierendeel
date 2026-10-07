@@ -300,6 +300,8 @@ export function maskenSignatur(werte, tab) {
      * Kachel erst mit dem naechsten Neubau.
      */
     (werte.eigeneVorlagen ?? []).map((v) => `${v.id}:${v.name}`),
+    // Dazu die Sammlung dieses Browsers (7. Oktober).
+    vorlagen().filter((v) => v.global).map((v) => `${v.id}:${v.name}`),
     /*
      * Die Havarie-Uebersicht: welche Leiter es gibt, welche reissen - und
      * seit dem 24. September die ABFANGART. Sie aendert die Struktur der
@@ -3318,9 +3320,15 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
       let b; try { b = getFlBauteil(m.bauteil); } catch { return; }
       if (b.rolle !== 'drahtwerk') return;
       const gr = anbauGruppe(a) ?? '';
-      const key = gliederung === 'bauteil' ? `${i}|${k}`
+      // «Einzeln» (7. Oktober, «hier noch einzeln aufführen als auswahl»): je
+      // Leiter eine Zeile; «Bauteil» fasst je Anbauteil und Typ zusammen.
+      const key = gliederung === 'einzeln' ? `${i}|${k}`
+        : gliederung === 'bauteil' ? `${i}|${m.bauteil}`
         : gliederung === 'gruppe' ? `${gr}|${m.bauteil}` : m.bauteil;
-      const titel = gliederung === 'bauteil' ? `A${i + 1} ${a.name ?? ''}`
+      const titel = gliederung === 'einzeln'
+        ? `A${i + 1}.${k + 1} · ${amMast(a) ? `${a.hMast ?? 0} m am Mast` : `x ${(Number(a.x) || 0).toFixed(2)}`}`
+          + ` · z ${(Number(m.z) || 0).toFixed(2)}${Math.abs(Number(m.x) || 0) > 1e-9 ? ` · x′ ${Number(m.x).toFixed(2)}` : ''}`
+        : gliederung === 'bauteil' ? `A${i + 1} ${a.name ?? ''}`
         : gliederung === 'gruppe' ? (gr ? `#${gr}` : 'ohne Gruppe') : '';
       const e = je.get(key) ?? { key, id: m.bauteil, name: b.name, titel, anzahl: 0,
                                  teile: [], lagen: [], stellen: [], mult: new Set() };
@@ -3345,7 +3353,7 @@ export function drahtwerkUebersicht(liste, gliederung = 'typ') {
 /* Gliederung und Auswahl der Übersicht - Ansichtssache, nicht im Stand. */
 let dwGliederung = 'typ';
 const dwWahl = new Set();
-const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil']];
+const DW_GLIEDERUNG = [['typ', 'Typ'], ['gruppe', 'Gruppe'], ['bauteil', 'Bauteil'], ['einzeln', 'Einzeln']];
 /** Esc hebt die Auswahl auf (mit dem Hervorheben im 3D). */
 export function drahtwerkWahlAufheben() { const war = dwWahl.size > 0; dwWahl.clear(); return war; }
 
@@ -3369,7 +3377,7 @@ function drahtwerkUebersichtHtml(liste) {
       <input type="number" min="1" step="1" data-dw-alle-anz placeholder="× je Stelle" title="Anzahl je Stelle für alle gewählten">
       <button class="btn btn-mini" type="button" data-dw-aufheben>Auswahl aufheben</button></div>` : ''}
     <div class="tabellenrahmen"><table class="dt dw-tab">
-      <thead><tr>${dwGliederung === 'typ' ? '' : '<th>Abschnitt</th>'}<th>Typ</th>
+      <thead><tr>${dwGliederung === 'typ' ? '' : `<th>${({ gruppe: 'Gruppe', bauteil: 'Bauteil', einzeln: 'Leiter' })[dwGliederung] ?? ''}</th>`}<th>Typ</th>
         <th class="num" title="Stellen (Module)">Stellen</th>
         <th class="num" title="Anzahl je Stelle - der Multiplikator, z. B. Bündel 2×">× je Stelle</th>
         <th class="num">Summe</th><th>an</th></tr></thead>

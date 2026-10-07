@@ -2427,6 +2427,9 @@ export const OPTIONEN_THEMEN = [
   // Feldart.
   { key: 'nachweise', titel: 'Nachweise', eigen: true },
   { key: 'ansicht', titel: 'Darstellung' },
+  // Eigene Vorlagen projektübergreifend (7. Oktober): Liste und Schalter,
+  // verdrahtet in app.optionen.js.
+  { key: 'vorlagen', titel: 'Eigene Vorlagen', eigen: true },
   /*
    * DIE DATENBASIS GEHOERT HIERHER (Weisung, 1. September).
    *
