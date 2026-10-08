@@ -6976,6 +6976,9 @@ export function bestandBlockHtml(sw) {
     + `<td class="num">${z.d >= 0 ? '+' : '−'}${Math.abs(z.d).toFixed(3)}</td>`
     + `<td class="num">${Number.isFinite(z.zul) ? z.zul.toFixed(3) : '–'}</td></tr>`).join('');
   return `${kopf}<div class="kennzahlen">${k}</div>
+    <button class="btn btn-mini btn-acc" type="button" data-bestand-blatt
+      title="Blatt Bestandesschutz: Übersicht mit den neuen Bauteilen in Rot, Ausnutzung im Bestand und mit den neuen Teilen">Blatt
+      Bestandesschutz …</button>
     ${klapp('bestand-tabelle', `Je Bauteil · ${b.anzahl} neue(s) Teil(e)`,
       `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Bauteil</th><th class="num">Bestand</th>`
       + `<th class="num">mit neuen</th><th class="num">Δη</th><th class="num">zul.</th></tr></thead><tbody>${zeilen}</tbody></table></div>`)}`;

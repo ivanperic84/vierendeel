@@ -337,6 +337,49 @@ export function skizzeAusModell(dat) {
                               z0: Math.min(...zs), z1: Math.max(...zs) } };
 }
 
+/**
+ * >>> DIE NEUEN BAUTEILE IN DER SKIZZE (8. Oktober, Bestandesschutz). <<<
+ * «markiere die neuen Bauteile Rot in der Übersicht». Neu ist, was das
+ * Stabmodell MIT den neuen Teilen an Anbauteil-Stäben und -Knoten führt und
+ * das Modell des Bestands nicht (die ausgeschalteten Teile bleiben in der
+ * Liste, die Namen der übrigen sind in beiden Modellen dieselben). Nur
+ * Namen der Anbauteile (ARM…, ARMM…, AT…, AL…) - die Gurte sind im Modell
+ * mit den neuen Teilen feiner geteilt und wären sonst alle «neu».
+ *
+ * @returns {{linien: number[][], punkte: number[][]}} in x–z, Modellkoordinaten
+ */
+const ANBAU_NAME = /(^|_)(ARMM?|AT|AL)\d/;
+export function neueTeileSkizze(dat, datBestand) {
+  if (!dat || !datBestand) return { linien: [], punkte: [] };
+  const kn = new Map((dat.knoten ?? []).map((k) => [k.name, k]));
+  const altS = new Set((datBestand.staebe ?? []).map((s) => s.name));
+  const altK = new Set((datBestand.knoten ?? []).map((k) => k.name));
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const gesehen = new Set();
+  const linien = [];
+  (dat.staebe ?? []).forEach((s) => {
+    if (altS.has(s.name) || !ANBAU_NAME.test(s.name)) return;
+    const a = kn.get(s.von), b = kn.get(s.bis);
+    if (!a || !b) return;
+    const p = [r2(a.x), r2(a.z), r2(b.x), r2(b.z)];
+    if (p[0] === p[2] && p[1] === p[3]) return;
+    const k = p.join('|');
+    if (gesehen.has(k)) return;
+    gesehen.add(k);
+    linien.push(p);
+  });
+  const punkte = [];
+  const gesehenP = new Set();
+  (dat.knoten ?? []).forEach((k) => {
+    if (altK.has(k.name) || !ANBAU_NAME.test(k.name)) return;
+    const p = [r2(k.x), r2(k.z)];
+    if (gesehenP.has(p.join('|'))) return;
+    gesehenP.add(p.join('|'));
+    punkte.push(p);
+  });
+  return { linien, punkte };
+}
+
 /* ===========================================================================
  * >>> KRÄFTE AM JOCHANSCHLUSS (7. Oktober). <<< Frage: «wo kann man die
  * auflagerreaktionen bei den jochbefestigungen herauslesen?», dann: «unter
@@ -359,8 +402,9 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     const m = new Map();
     if (uv) {
       links.forEach((e) => {
-        const f = [0, 0, 0];
-        for (let r = 0; r < 3; r += 1) {
+        // Drei Kräfte und drei Momente am Mastknoten (die Momente für die Resultierende).
+        const f = [0, 0, 0, 0, 0, 0];
+        for (let r = 0; r < 6; r += 1) {
           let s = 0;
           for (let b = 0; b < 12; b += 1) {
             const dof = b < 6 ? e.i * 6 + b : e.j * 6 + (b - 6);
@@ -379,8 +423,8 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     anteile(lf, dat).forEach(({ lastfall, faktor }) => {
       if (!faktor) return;
       vonLf(lastfall).forEach((f, name) => {
-        const z = out.get(name) ?? [0, 0, 0];
-        for (let r = 0; r < 3; r += 1) z[r] += faktor * f[r];
+        const z = out.get(name) ?? [0, 0, 0, 0, 0, 0];
+        for (let r = 0; r < 6; r += 1) z[r] += faktor * f[r];
         out.set(name, z);
       });
     });
@@ -391,14 +435,59 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
   if (haelften.length) {
     const g = new Map();
     haelften.forEach((lf) => kombi(lf).forEach((f, n) => {
-      const z = g.get(n) ?? [0, 0, 0];
-      for (let r = 0; r < 3; r += 1) z[r] += f[r];
+      const z = g.get(n) ?? [0, 0, 0, 0, 0, 0];
+      for (let r = 0; r < 6; r += 1) z[r] += f[r];
       g.set(n, z);
     }));
     zustaende.push({ bez: 'Ständig', f: g });
   }
   faelle.filter(istStaendigPlus).forEach((lf) => zustaende.push({ bez: lf.bez, f: kombi(lf) }));
-  return links.map((e) => {
+  /*
+   * >>> RESULTIERENDE JE JOCHENDE (8. Oktober). <<< Weisung: «mach bei den
+   * jochreaktionen einen schalter wo man entweder die einzelnen gurte sieht
+   * oder die summe davon als resultierende». Summiert wird JE ZUSTAND, dann
+   * die Hülle - die Summe der Hüllwerte der vier Gurte wäre zu gross (ihre
+   * Grösstwerte fallen nicht in denselben Zustand). Die Momente stehen um
+   * die Mitte der Anschlusspunkte am Masten: Σ (r − r0) × F + Knotenmomente,
+   * global, rechte Hand.
+   */
+  const knotenVon = new Map(dat.knoten.map((k) => [k.name, k]));
+  const gruppen = new Map();
+  links.forEach((e) => {
+    const [, praefix, mast] = ANSCHLUSS_LINK.exec(e.s.name);
+    const k = `${praefix}|${mast}`;
+    if (!gruppen.has(k)) gruppen.set(k, { tw: praefix.replace(/_$/, '') || null, mast, links: [] });
+    gruppen.get(k).links.push(e);
+  });
+  const resultierende = [...gruppen.values()].map((g) => {
+    const pkt = g.links.map((e) => knotenVon.get(e.s.von));
+    const r0 = ['x', 'y', 'z'].map((a) => pkt.reduce((s, p) => s + p[a], 0) / pkt.length);
+    const namen = ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'];
+    const huelle = namen.map(() => ({ min: null, max: null }));
+    zustaende.forEach((z) => {
+      const s = [0, 0, 0, 0, 0, 0];
+      let da = false;
+      g.links.forEach((e, n) => {
+        const f = z.f.get(e.s.name);
+        if (!f) return;
+        da = true;
+        const r = [pkt[n].x - r0[0], pkt[n].y - r0[1], pkt[n].z - r0[2]];
+        for (let c = 0; c < 3; c += 1) s[c] += f[c];
+        s[3] += f[3] + r[1] * f[2] - r[2] * f[1];
+        s[4] += f[4] + r[2] * f[0] - r[0] * f[2];
+        s[5] += f[5] + r[0] * f[1] - r[1] * f[0];
+      });
+      if (!da) return;
+      s.forEach((v, c) => {
+        const h = huelle[c];
+        if (!h.min || v < h.min.wert) h.min = { wert: v, bez: z.bez };
+        if (!h.max || v > h.max.wert) h.max = { wert: v, bez: z.bez };
+      });
+    });
+    return { tw: g.tw, mast: g.mast, anzahl: g.links.length, bezug: { x: r0[0], y: r0[1], z: r0[2] },
+             ...Object.fromEntries(namen.map((n, c) => [n, huelle[c]])) };
+  }).sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast));
+  const liste = links.map((e) => {
     const [, praefix, mast, gurt, seite] = ANSCHLUSS_LINK.exec(e.s.name);
     const komp = ['Fx', 'Fy', 'Fz'].map((k, r) => {
       let min = null, max = null;
@@ -414,4 +503,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
              ...Object.fromEntries(komp) };
   }).sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast)
     || a.gurt.localeCompare(b.gurt) || a.seite.localeCompare(b.seite));
+  // Die Liste bleibt die der Gurte (bisherige Leser); die Summe hängt daran.
+  Object.defineProperty(liste, 'resultierende', { value: resultierende, enumerable: false });
+  return liste;
 }

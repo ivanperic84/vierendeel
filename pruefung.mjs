@@ -24516,9 +24516,9 @@ titel('68  Das Menueband und der Name der Anwendung');
   const menue = app.slice(app.indexOf('function exportMenue()'),
                           app.indexOf('function exportMenueVerdrahten'));
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
-  // Seit dem 30. September dazu das Blatt der Reaktionskraefte (acht Eintraege).
+  // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
   wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Drucken',
-       eintraege.length === 8 && /COM/.test(eintraege[0])
+       eintraege.length === 9 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
            'reaktionsBlatt', 'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
        eintraege.join(' · '));
@@ -38388,6 +38388,48 @@ titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
   const html = UI228.bestandBlockHtml(hN);
   wahr('Der Block zeigt Kachel und Tabelle je Bauteil', html.includes('Δη Bestandesschutz')
        && html.includes('Je Bauteil') && html.includes(hN.bestand.dMax.toFixed(3)));
+  /*
+   * DAS BLATT BESTANDESSCHUTZ (8. Oktober): «Führe noch ein Auswertung für den
+   * Bestandesschutz als Output, so wie bei den Auflagerreaktionen, markiere
+   * die neuen Bauteile Rot in der Übersicht und gib eine Auswahl welche
+   * Ausnutzungen man plotten will (Gesamt / Joch / Mast / Fundamente)».
+   */
+  {
+    const EB = await import(J('export.bestand.js'));
+    const b = hN.bestand;
+    wahr('Blatt: jede Zeile des Vergleichs trägt ihre Gruppe (joch / mast / fundament)',
+         b.zeilen.every((z) => ['joch', 'mast', 'fundament'].includes(z.gruppe))
+         && b.zeilen.some((z) => z.gruppe === 'joch') && b.zeilen.some((z) => z.gruppe === 'mast')
+         && b.zeilen.filter((z) => z.gruppe === 'fundament').every((z) => z.name.startsWith('Fundament')),
+         b.zeilen.map((z) => `${z.name}:${z.gruppe}`).join(' · '));
+    // Rot ist genau das neue Teil: seine Stäbe liegen bei x = 5, keiner bei x = 10.
+    const xs = b.neu.linien.flatMap((l) => [l[0], l[2]]);
+    wahr('Blatt: die neuen Teile aus dem Unterschied der beiden Stabmodelle - nur das Teil bei x = 5 m',
+         b.neu.linien.length > 0 && xs.every((x) => Math.abs(x - 5) < 2.6) && !xs.some((x) => Math.abs(x - 10) < 0.5),
+         `${b.neu.linien.length} Linien, ${b.neu.punkte.length} Punkte, x ${Math.min(...xs).toFixed(2)} … ${Math.max(...xs).toFixed(2)}`);
+    wahr('… ohne neues Teil nichts Rotes; kein Gurtstab gilt als neu',
+         hB.bestand?.neu === undefined && b.neu.linien.every((l) => !(Math.abs(l[1] - l[3]) < 1e-9 && Math.abs(l[0] - l[2]) > 3)));
+    const ges = EB.bestandZeilenFuer(b, 'gesamt');
+    wahr('«Gesamt»: je Gruppe das massgebende Bauteil', ges.length === new Set(b.zeilen.map((z) => z.gruppe)).size
+         && ges.every((z) => { const g = b.zeilen.filter((x) => x.gruppe === z.gruppe); return z.q === Math.max(...g.map((x) => x.q)); }),
+         ges.map((z) => z.name).join(' · '));
+    pruef('«Joch» + «Mast» + «Fundamente» = alle Zeilen', ['joch', 'mast', 'fundament']
+      .reduce((s, g) => s + EB.bestandZeilenFuer(b, g).length, 0), b.zeilen.length, 1e-12, 'Zeilen');
+    const daten = { bestand: b, skizze: hN.skizze, zeilen: [], neu: b.neu, neueTeile: [{ name: 'Hängestütze', wo: 'T1 · x 5.00 m' }] };
+    const alles = EB.bestandBlattHtml(daten, {});
+    wahr('Blatt: Skizze mit roten Linien, Urteil, Liste der neuen Teile',
+         alles.includes('class="sk-neu"') && alles.includes('T1 · x 5.00 m')
+         && alles.includes(b.ok ? 'Kein vertiefter Nachweis nötig' : 'Vertiefter Nachweis nötig'));
+    const nurMast = EB.bestandBlattHtml(daten, { gesamt: false, joch: false, fundament: false });
+    wahr('Blatt: die Auswahl bestimmt, was geplottet wird (nur Mast)',
+         (alles.match(/class="bs-balken"/g) ?? []).length === 4 && (nurMast.match(/class="bs-balken"/g) ?? []).length === 1
+         && nurMast.includes('Masten (Querschnitt, Knicken, Anker)') && !nurMast.includes('<h2>Fundamente</h2>'));
+    const zm = b.zeilen.find((z) => z.gruppe === 'mast');
+    wahr('Blatt: die Zahlen sind die des Vergleichs', nurMast.includes(zm.alt.toFixed(3)) && nurMast.includes(zm.neu.toFixed(3)));
+    wahr('Knopf im Block, Blatt im Export', html.includes('data-bestand-blatt')
+         && APP_QUELLE().includes("{ text: 'Bestandesschutz (Blatt)', tun: bestandBlatt }")
+         && APP_QUELLE().includes("closest?.('[data-bestand-blatt]')"));
+  }
   const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Das Kennzeichen «neu» steht nur mit eingeschaltetem Nachweis in der Karte',
        /nachweiseAuswahl\(werte\.nachweise\)\.bestandesschutz\s*\n?\s*\? `<label class="at-neu/.test(ui));
@@ -39956,6 +39998,24 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
        a.filter((x) => x.gurt === 'OG').every((x) => Math.abs(x.Fz.max.wert) < 1e-6 && Math.abs(x.Fz.min.wert) < 1e-6)
        && a.filter((x) => x.gurt === 'UG').every((x) => Math.abs(x.Fx.max.wert) < 1e-6 && Math.abs(x.Fx.min.wert) < 1e-6));
   wahr('Jochanschluss: je Mast vier Zeilen im Ergebnis des Stabwerks', an.anschluss?.length === 8, `${an.anschluss?.length}`);
+  // Resultierende je Jochende (8. Oktober): je Zustand summiert, dann die Hülle.
+  {
+    const res = a.resultierende;
+    wahr('Jochanschluss: Resultierende je Jochende - zwei Zeilen, je vier Gurte',
+         res?.length === 2 && res.every((x) => x.anzahl === 4), JSON.stringify(res?.map((x) => [x.mast, x.anzahl])));
+    pruef('… Σ F_z beider Jochenden unter «Ständig» = Joch J90/20 m', res.reduce((s, x) => s + x.Fz.min.wert, 0), -11.773, 2e-3, 'kN');
+    res.forEach((x) => pruef(`… ${x.mast}: F_z der Resultierenden = Summe der vier Gurte (ein Zustand)`, x.Fz.min.wert,
+      a.filter((g) => g.mast === x.mast).reduce((s, g) => s + g.Fz.min.wert, 0), 1e-9, 'kN'));
+    const voll = an.anschluss.resultierende;
+    wahr('… über alle Zustände: die Hülle der Summe ist nie grösser als die Summe der Hüllen',
+         voll?.length === 2 && voll.every((x) => ['Fx', 'Fy', 'Fz'].every((k) =>
+           x[k].max.wert <= an.anschluss.filter((g) => g.mast === x.mast).reduce((s, g) => s + g[k].max.wert, 0) + 1e-9
+           && x[k].min.wert >= an.anschluss.filter((g) => g.mast === x.mast).reduce((s, g) => s + g[k].min.wert, 0) - 1e-9)));
+    wahr('… mit Momenten um die Mitte des Anschlusses', voll.every((x) => ['Mx', 'My', 'Mz'].every((k) => Number.isFinite(x[k].max.wert))),
+         voll.map((x) => `${x.mast}: Mx ${x.Mx.min.wert.toFixed(2)}/${x.Mx.max.wert.toFixed(2)} My ${x.My.min.wert.toFixed(2)}/${x.My.max.wert.toFixed(2)} Mz ${x.Mz.min.wert.toFixed(2)}/${x.Mz.max.wert.toFixed(2)}`).join(' · '));
+    wahr('Reiter Auflager: Schalter Resultierende / Einzelgurte am Jochanschluss',
+         APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln)'));
+  }
   wahr('Reiter Auflager: Block «Kräfte am Jochanschluss»', APP_QUELLE().includes('function anschlussBlockEinfuegen(node)')
        && APP_QUELLE().includes('anschlussBlockEinfuegen(node);'));
 }

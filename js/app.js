@@ -28,6 +28,7 @@ import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten } from './app.bericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml } from './export.reaktionen.js';
+import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -829,6 +830,60 @@ function reaktionsBlatt() {
     ],
   };
   berichtZeigen(wahl.bauen(reaktionsWahl), 'Reaktionskräfte', wahl);
+}
+
+/*
+ * >>> DAS BLATT BESTANDESSCHUTZ (8. Oktober). <<< «Führe noch ein Auswertung
+ * für den Bestandesschutz als Output, so wie bei den Auflagerreaktionen,
+ * markiere die neuen Bauteile Rot in der Übersicht und gib eine Auswahl
+ * welche Ausnutzungen man plotten will (Gesamt / Joch / Mast / Fundamente)».
+ * Derselbe Weg wie das Reaktionsblatt: Ebene des Berichts, Kästchen in der
+ * Leiste, druckbar. Die Zahlen sind die des Blocks «Bestandesschutz»
+ * (`stabwerk.bestand`), hier wird nichts gerechnet.
+ */
+let bestandWahl = { gesamt: true, joch: true, mast: true, fundament: true };
+function bestandBlatt() {
+  const g = stabwerkGilt();
+  const b = g?.h?.bestand ?? null;
+  const grund = !g ? 'das Stabwerk ist noch nicht gerechnet'
+    : !b ? 'der Bestandesschutz ist ausgeschaltet (Reiter Lasten oder über der Anbauteilliste)'
+    : !b.anzahl ? 'kein Anbauteil ist als «neu» gekennzeichnet'
+    : b.fehler ? `der Bestand liess sich nicht rechnen (${b.fehler})` : null;
+  if (grund) { meldeImBalken(`Bestandesschutz: ${grund}.`); return; }
+  const rd = reaktionsDaten();
+  // Die neuen Teile beim Namen: am Joch je Tragwerk, am Masten je Mast.
+  const neueTeile = [];
+  const gesehen = new Set();
+  const dazu = (a, wo) => {
+    if (a?.neu !== true || a.aktiv === false || gesehen.has(a.id ?? a)) return;
+    gesehen.add(a.id ?? a);
+    neueTeile.push({ name: a.name ?? a.vorlage ?? 'Anbauteil', wo });
+  };
+  sichtbareTragwerke(werte).forEach((t) => {
+    const satz = t.id === (werte.twId ?? null) ? werte : t;
+    (satz.anbauteile ?? []).filter((a) => !String(a.ort ?? '').startsWith('mast'))
+      .forEach((a) => dazu(a, `${tragwerkPos(werte, t)} · x ${(Number(a.x) || 0).toFixed(2)} m`));
+  });
+  (werte.mastAnbauteile ?? []).forEach((a) => {
+    const m = mastenVon(werte).find((mm) => mm.id === a.mastId);
+    dazu(a, `Mast ${m ? mastAnzeigeText(mastName(werte, m), anzeigeKarte) : ''} · Höhe ${(Number(a.hMast) || 0).toFixed(2)} m`);
+  });
+  (werte.anbauteile ?? []).forEach((a) => dazu(a, ''));
+  const ek = ekVonWindklasse(werte.windKlasse);
+  const d = { ...rd, bestand: b, neu: b.neu ?? null, neueTeile,
+              windstufe: ek === 'EK0' ? 'Einheitswind' : ek };
+  const wahl = {
+    optionen: BESTAND_GRUPPEN.map((x) => ({ key: x.key, label: x.label })),
+    zustand: bestandWahl,
+    bauen: (z) => { bestandWahl = z; return bestandBlattHtml(d, z); },
+  };
+  berichtZeigen(wahl.bauen(bestandWahl), 'Bestandesschutz', wahl);
+}
+// Der Knopf steht im Block der Seitenleiste (ui.js), der bei jeder Rechnung neu entsteht.
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    if (e.target?.closest?.('[data-bestand-blatt]')) bestandBlatt();
+  });
 }
 
 /**
@@ -1740,17 +1795,36 @@ function reaktionsBlockEinfuegen(node) {
 function anschlussBlockEinfuegen(node) {
   const liste = stabwerkGilt() ? stabwerk?.anschluss : null;
   if (!liste?.length) return;
-  const html = `<div class="rk-block">
+  /*
+   * Schalter Resultierende / Einzelgurte (8. Oktober, «mach bei den
+   * jochreaktionen einen schalter wo man entweder die einzelnen gurte sieht
+   * oder die summe davon als resultierende»). Dieselbe Ansichtswahl wie beim
+   * Joch ohne Masten (ein Merker im Browser), Vorgabe Resultierende.
+   */
+  const einzeln = rkEinzeln() || !liste.resultierende?.length;
+  const wahl = einzeln ? 'einzeln' : 'resultierende';
+  const html = `<div class="rk-block" data-anschluss-block>
     ${abschnitt('Kräfte am Jochanschluss, charakteristisch',
       'Joch auf den Masten · global · F_z nach oben · aus dem Stabwerk')}
-    ${anschlussKurzHtml(liste)}
-    <p class="notiz" style="margin:4px 0 0">Je Gurtanschluss die Kraft, die das Joch auf den
-      Masten gibt; Hülle über «Ständig» und «Ständig + Wind / Schnee», ohne Abminderung
+    <div class="rk-gurtwahl" role="radiogroup" aria-label="Jochanschluss">
+      ${[['resultierende', 'Resultierende je Jochende'], ['einzeln', 'Einzelgurte']].map(([k, t]) =>
+        `<label class="at-knopf${wahl === k ? ' an' : ''}"><input type="radio" name="rk-anschluss-gurte"
+          value="${k}"${wahl === k ? ' checked' : ''}>${t}</label>`).join('')}
+    </div>
+    ${anschlussKurzHtml(liste, (m) => m, !einzeln)}
+    <p class="notiz" style="margin:4px 0 0">${einzeln
+      ? 'Je Gurtanschluss die Kraft, die das Joch auf den Masten gibt'
+      : 'Je Jochende die Summe der Gurtanschlüsse: Kräfte und Momente um die Mitte des Anschlusses, '
+        + 'je Zustand summiert'}; Hülle über «Ständig» und «Ständig + Wind / Schnee», ohne Abminderung
       des Winds. Der massgebende Zustand steht im Titel der Zelle.</p>
   </div>`;
   const rk = node.querySelector('.rk-block');
   if (rk) rk.insertAdjacentHTML('afterend', html);
   else node.insertAdjacentHTML('afterbegin', html);
+  node.querySelectorAll('input[name="rk-anschluss-gurte"]').forEach((r) => r.addEventListener('change', () => {
+    try { localStorage.setItem(RK_GURTE, r.value); } catch { /* nur Ansicht */ }
+    zeichneAuswertung();
+  }));
 }
 
 function zeichneAuswertung() {
@@ -5313,6 +5387,7 @@ function exportMenue() {
     { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
     // Charakteristisch, alle Auflager des Blattes (30. September).
     { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
+    { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
   ];

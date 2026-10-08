@@ -306,17 +306,23 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
   }).join('');
+  // Die neuen Bauteile in Rot (8. Oktober, Blatt Bestandesschutz).
+  const neu = (daten?.neu?.linien ?? []).map((l) =>
+    `<line class="sk-neu" x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('')
+    + (daten?.neu?.punkte ?? []).map((p) =>
+      `<circle class="sk-neu-punkt" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="2.2"/>`).join('');
   return `<svg class="rk-skizze" viewBox="0 0 ${breite} ${hoehe}" width="${breite}" height="${hoehe}"
       xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Übersichtsskizze quer zum Gleis">
     <style>line{stroke:#444;stroke-width:0.7}.sk-boden{stroke:#aaa;stroke-dasharray:4 3}
       .sk-seil{stroke:#444;stroke-width:0.8;stroke-dasharray:5 3}
       .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}
+      .sk-neu{stroke:#c62828;stroke-width:2}.sk-neu-punkt{fill:#c62828}
       .sk-lager{stroke:#111;stroke-width:1.4}.sk-schraffur{stroke:#111;stroke-width:0.7}
       .sk-anker{stroke:#111;stroke-width:1.2}.sk-umgeklappt{stroke-dasharray:6 3}
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}</style>
-    ${linien}${marken}${titel}</svg>`;
+    ${linien}${neu}${marken}${titel}</svg>`;
 }
 
 /**
@@ -505,8 +511,9 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
  * Kräfte am Jochanschluss ergänzen»): je Mast und Gurt die Kraft des Jochs
  * auf den Masten, charakteristisch, min / max je Komponente.
  */
-export function anschlussKurzHtml(liste, mastName = (m) => m) {
+export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = false) {
   if (!liste?.length) return '';
+  if (resultierend && liste.resultierende?.length) return anschlussResultierendeHtml(liste.resultierende, mastName);
   const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
     k.min ? `${f2(k.min.wert)}<br>${f2(k.max.wert)}` : '–'}</td>`;
   return `<table class="dt rk-anschluss">
@@ -517,4 +524,29 @@ export function anschlussKurzHtml(liste, mastName = (m) => m) {
       <th class="num">F_z ↑<br><span class="rk-einheit">lotrecht</span></th></tr></thead>
     <tbody>${liste.map((a) => `<tr><th title="${esc(`${a.tw ? `${a.tw} · ` : ''}Mast ${mastName(a.mast)} · ${a.gurt === 'OG' ? 'Obergurt' : 'Untergurt'} ${a.seite === 'L' ? 'links' : 'rechts'}`)}">${esc(`${a.tw ? `${a.tw} ` : ''}${mastName(a.mast)} ${a.gurt} ${a.seite}`)}</th>
       ${zelle(a.Fx)}${zelle(a.Fy)}${zelle(a.Fz)}</tr>`).join('')}</tbody></table>`;
+}
+
+/*
+ * Resultierende je Jochende (8. Oktober): je Mast und Tragwerk eine Zeile
+ * mit den Kräften, darunter eine mit den Momenten um die Mitte des
+ * Anschlusses - in den drei Spalten x, y, z, damit die Tabelle so schmal
+ * bleibt wie die der Gurte.
+ */
+function anschlussResultierendeHtml(res, mastName) {
+  const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
+    k.min ? `${f2(k.min.wert)}<br>${f2(k.max.wert)}` : '–'}</td>`;
+  return `<table class="dt rk-anschluss">
+    <colgroup><col style="width:31%"><col style="width:23%"><col style="width:23%"><col style="width:23%"></colgroup>
+    <thead><tr><th>Jochende<br><span class="rk-einheit">min / max</span></th>
+      <th class="num">x<br><span class="rk-einheit">quer</span></th>
+      <th class="num">y<br><span class="rk-einheit">längs</span></th>
+      <th class="num">z ↑<br><span class="rk-einheit">lotrecht</span></th></tr></thead>
+    <tbody>${res.map((a) => {
+      const wer = `${a.tw ? `${a.tw} ` : ''}${mastName(a.mast)}`;
+      const titel = `${a.tw ? `${a.tw} · ` : ''}Mast ${mastName(a.mast)} · Summe von ${a.anzahl} Gurtanschlüssen`;
+      return `<tr><th title="${esc(titel)}">${esc(wer)} · F <span class="rk-einheit">[kN]</span></th>
+        ${zelle(a.Fx)}${zelle(a.Fy)}${zelle(a.Fz)}</tr>
+      <tr class="rk-moment"><th title="${esc(`${titel} · Momente um die Mitte des Anschlusses, global, rechte Hand`)}">${esc(wer)} · M <span class="rk-einheit">[kNm]</span></th>
+        ${zelle(a.Mx)}${zelle(a.My)}${zelle(a.Mz)}</tr>`;
+    }).join('')}</tbody></table>`;
 }

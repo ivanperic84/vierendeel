@@ -8,7 +8,7 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 8. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**7018** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**7034** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
 **Git:** `origin/main` steht auf `5dc0ef6`. Darüber liegen **zwei örtliche Commits** («Gespreizte Masten DGP», «Windlasten auf Joch und Mast von Hand»), die auf den
 Befehl zum Pushen wartet (Weisung 8. Oktober: «auf befehl push warten, ich will zuerst den stand der momentan
@@ -28,6 +28,9 @@ noch nicht fertig erprobt - siehe unten).
 
 **Gebaut am 8. Oktober, nicht gepusht:** unter *Lasten* sind mit «Werte bearbeiten» auch w_Mast,x / w_Mast,y frei - je Mast
 und Richtung in der Mastliste (`windX`, `windY`); «Tabellenwerte» setzt Joch und alle Masten auf die Datenbank zurück. Null ist eine gültige Eingabe; unten rechts im Bild steht «Lasten von Hand (…)».
+
+**Gebaut am 8. Oktober, nicht gepusht:** Blatt «Bestandesschutz» (Knopf im Block, Export; neue Teile rot, Auswahl Gesamt / Joch /
+Mast / Fundamente; `export.bestand.js`) und am Jochanschluss der Schalter Resultierende je Jochende / Einzelgurte.
 
 **Laufende Arbeit: Statikbericht über COM** (Weisungen 7./8. Oktober: «kannst du auch mit hilfe der
 abhandlung com ein template für einen statikbericht generieren lassen. so viel wie nötig an plots generieren
@@ -273,7 +276,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7018 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7034 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

@@ -50,7 +50,7 @@ import { linkBedingung } from './core.auflager.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { anteileFuer } from './core.stabnachweis.js';
-import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte } from './core.reaktionen.js';
+import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte, neueTeileSkizze } from './core.reaktionen.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -674,7 +674,9 @@ export function rechneStabwerk(app, aufruf = {}) {
         const hB = rechneStabwerk({ ...app, werte: wB, letzte: { ...app.letzte, erg: ergB } },
                                   { ohneBestand: true });
         ergebnis.bestand = hB?.teile
-          ? { anzahl, ...bestandVergleich(ergebnis, hB, app.werte) }
+          ? { anzahl, ...bestandVergleich(ergebnis, hB, app.werte),
+              // Für das Blatt (8. Oktober): die neuen Teile in der Skizze.
+              neu: neueTeileSkizze(dat, hB.roh?.dat ?? null) }
           : { anzahl, fehler: hB?.fehler ?? hB?.ohneModell ?? 'Bestand ohne Stabwerk' };
       } catch (e) {
         ergebnis.bestand = { anzahl, fehler: String(e?.message ?? e) };

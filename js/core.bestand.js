@@ -93,29 +93,30 @@ export function bestandVergleich(neu, bestand, regel = {}) {
     ? { prozent: regel * 100, bezug: 'grenzwert' } : bestandRegel(regel);
   const grenze = r.prozent / 100;
   const zeilen = [];
-  const dazu = (name, a, b) => {
+  const dazu = (name, a, b, gruppe = 'joch') => {
     if (!Number.isFinite(a) && !Number.isFinite(b)) return;
     const alt = Number.isFinite(a) ? a : 0;
     const nn = Number.isFinite(b) ? b : 0;
     const d = nn - alt;
     // Zulaessige Zunahme je Bauteil: fest oder anteilig an η(Bestand).
     const zul = r.bezug === 'ausnutzung' ? grenze * alt : grenze;
-    zeilen.push({ name, alt, neu: nn, d, zul, rel: alt > 1e-12 ? d / alt : null,
+    // `gruppe` (8. Oktober): joch / mast / fundament - für die Auswahl im Blatt.
+    zeilen.push({ name, gruppe, alt, neu: nn, d, zul, rel: alt > 1e-12 ? d / alt : null,
                   q: zul > 1e-12 ? d / zul : (d > 1e-12 ? Infinity : 0),
                   ok: d <= zul + 1e-12 });
   };
   const namen = new Set([...Object.keys(neu?.bauteile ?? {}), ...Object.keys(bestand?.bauteile ?? {})]);
   [...namen].forEach((k) => {
     const n = neu?.bauteile?.[k], b = bestand?.bauteile?.[k];
-    dazu(n?.name ?? b?.name ?? k, b?.eta, n?.eta);
+    dazu(n?.name ?? b?.name ?? k, b?.eta, n?.eta, k.startsWith('mast:') ? 'mast' : 'joch');
   });
-  const jeMast = (feld, titel) => {
+  const jeMast = (feld, titel, gruppe = 'mast') => {
     const ids = new Set([...Object.keys(neu?.[feld] ?? {}), ...Object.keys(bestand?.[feld] ?? {})]);
     const eta = (v) => v?.eta ?? v?.nachweis?.eta;
-    [...ids].forEach((id) => dazu(`${titel} ${id}`, eta(bestand?.[feld]?.[id]), eta(neu?.[feld]?.[id])));
+    [...ids].forEach((id) => dazu(`${titel} ${id}`, eta(bestand?.[feld]?.[id]), eta(neu?.[feld]?.[id]), gruppe));
   };
   jeMast('knick', 'Knicken');
-  jeMast('fundamentJe', 'Fundament');
+  jeMast('fundamentJe', 'Fundament', 'fundament');
   jeMast('ankerJe', 'Anker');
   if (neu?.ausleger?.aufhaengung || bestand?.ausleger?.aufhaengung) {
     dazu('Aufhängung', bestand?.ausleger?.aufhaengung?.eta, neu?.ausleger?.aufhaengung?.eta);
