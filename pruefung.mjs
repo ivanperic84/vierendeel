@@ -25112,7 +25112,7 @@ titel('77  Der Seilanker in Ergebnisfarben');
   const rk77 = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
   const zweig = rk77.slice(rk77.indexOf('DER SEILANKER TRAEGT SEINE AUSNUTZUNG'));
   wahr('Auch der Seilanker traegt sein η fuer die Einfaerbung',
-       /werte: \{ eta: o\.ankerEta \}/.test(zweig.slice(0, 600)));
+       /werte: \{ eta: o\.ankerEta \}/.test(zweig.slice(0, 1400)));
 }
 
 titel('78  Einzelmast: die Anbauteile stehen im Bild');
@@ -39575,8 +39575,17 @@ titel('249  Doppelanker auf Zug; nächste Stufe des Sortiments');
     };
     const n1 = kraft('SA20'), n2 = kraft('DA20');
     // Der Kern rechnet den Anker als starres Auflager: dieselbe Kraft, das halbe η.
-    wahr('Kern: gleiche Ankerkraft mit einem und zwei Seilen (starres Auflager)',
-         Math.abs(n2 - n1) < 1e-9 && n1 > 0, `${n1?.toFixed(2)} / ${n2?.toFixed(2)} kN`);
+    // Seit dem 9. Oktober setzt der Kern den Doppelanker auf der Höhe an, auf
+    // der die RESULTIERENDE der beiden Seile den Masten trifft (vorher: wie
+    // ein Seil auf h, gleiche Kraft 1:1 - alter Messwert n2 = n1).
+    const hRes249 = AK249.doppelankerGeometrie(7.79, 4.5).hRes;
+    const w249 = { ...basis, mastAnkerA: { typ: 'SA20', h: hRes249, a: 4.5, richtung: 'y', seite: 'minus',
+                                           befestigung: 'ankerplatte' } };
+    const nRes = vgl249(w249, getProfil(w249.profOG), getProfil(w249.profUG), getStahl(w249.stahl),
+                        T.getTragjoch('J90')).ergebnisse.wyk?.mast?.A?.ankerkraft?.N;
+    wahr('Kern: der Doppelanker wirkt wie ein Seil auf der Höhe seiner Resultierenden',
+         Math.abs(n2 - nRes) < 1e-9 && n1 > 0 && Math.abs(n2 - n1) > 1e-3,
+         `${n1?.toFixed(2)} / ${n2?.toFixed(2)} / ${nRes?.toFixed(2)} kN`);
     pruef('… und das halbe η', AK249.ankerNachweis('DA20', n1, 8, {}).eta,
           AK249.ankerNachweis('SA20', n1, 8, {}).eta / 2, 1e-12, '');
     const ui249 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
@@ -40570,6 +40579,88 @@ titel('262  Bugreport B3-B7: Gruppenname, «neu», Serie, Überstand, Vorschau')
   wahr('… ohne lesbaren Stand keine Vorschau; verdrahtet beim Überfahren der Zeile',
        AB.eintragVorschauHtml({ name: 'x' }) === '' && readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes("tr.addEventListener('mousemove', zeige);")
        && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.ab-vorschau {'));
+}
+
+titel('263  Doppelanker mit zwei Seilen; Gruppenkopf mit Summenkräften');
+/* Weisung vom 9. Oktober: «man sollte ein zusätzliches feld anfügen für die
+ * Anker wo man den abstand zum oberen anker anpassen kann und dann sollte der
+ * angegeben winkel sich auf die resultierende beziehen der beiden anker. die
+ * grenzlast auf 2x 67kN belassen.» Und zum Gruppenkopf: «buttongrösse und
+ * anordnung gleich … wie bei den einzelne bauteilen … zweizeiler … die
+ * resultierenden kräfte … für die gesamte gruppe». */
+{
+  const AK = await import(J('data.anker.js'));
+  const C263 = await import(J('core.constants.js'));
+  const AS263 = await import(J('app.stabwerk.js'));
+  const N263 = await import(J('core.nachbarn.js'));
+  const V263 = await import(J('core.vierendeel.js'));
+  wahr('DA20 ist ein Doppelanker, SA20 und U12 nicht',
+       AK.ankerIstDoppelt('DA20') && !AK.ankerIstDoppelt('SA20') && !AK.ankerIstDoppelt('U12'));
+  pruef('Die Grenzlast bleibt 2 × 67 kN', AK.ankerZulZug('DA20'), 134, 1e-12, 'kN');
+  const g = AK.doppelankerGeometrie(7.79, 4.5, 3);
+  pruef('Unterer Anschluss = oberer − Abstand', g.hU, 4.79, 1e-12, 'm');
+  // Winkelhalbierende: Mittel der beiden Seilwinkel.
+  pruef('Der Winkel der Resultierenden ist die Winkelhalbierende der Seile',
+        g.alphaRes, (g.alphaO + g.alphaU) / 2, 1e-9, '°');
+  pruef('… und ihre Wirkungslinie trifft den Masten auf a · tan α', g.hRes,
+        4.5 * Math.tan((g.alphaRes * Math.PI) / 180), 1e-12, 'm');
+  pruef('Ohne Eintrag gilt die Vorgabe des Abstands', AK.doppelankerGeometrie(7.79, 4.5).d,
+        AK.DOPPELANKER_ABSTAND_VOR, 1e-12, 'm');
+  wahr('Der untere Anschluss bleibt über dem Mastfuss', AK.doppelankerGeometrie(2, 4.5, 9).hU >= 0.3 - 1e-12);
+  const hZ = AK.ankerHoeheFuerNeigung({ typ: 'DA20', a: 4.5, d: 3 }, 60);
+  pruef('Winkel eingeben: die Höhe folgt so, dass die RESULTIERENDE ihn hat',
+        AK.doppelankerGeometrie(hZ, 4.5, 3).alphaRes, 60, 1e-6, '°');
+  pruef('… beim einfachen Anker wie bisher a · tan α',
+        AK.ankerHoeheFuerNeigung({ typ: 'SA20', a: 4.5 }, 60), 4.5 * Math.tan(Math.PI / 3), 1e-12, 'm');
+
+  // Stabwerk: J90/20 m, Anker längs an M1.
+  const w0 = { ...typUebernehmen({ ...standardwerteApp(), bearbeiten: false, typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [] };
+  const m1 = C263.mastenVon(w0)[0].id;
+  const lauf = (ak) => {
+    const ww = C263.setzeMastAnker(w0, m1, ak);
+    const rs = N263.rechensatzMitNachbarn(ww);
+    const erg = V263.berechne(rs, ...N263.kernArgumente(rs));
+    const h = AS263.rechneStabwerk({ werte: ww, letzte: { erg }, stabwerk: null });
+    const a = AS263.ankerFuerMast(h, 'M1', { typ: ak.typ, geo: AK.ankerWirkGeometrie(ak), befestigung: 'ankerplatte' }, rs);
+    return { h, a, dat: h.roh.dat };
+  };
+  const ein = lauf({ typ: 'SA20', h: 7, a: 4.5, richtung: 'y', seite: 'plus' });
+  const dop = lauf({ typ: 'DA20', h: 7, a: 4.5, d: 3, richtung: 'y', seite: 'plus' });
+  const name = (d, re) => d.staebe.filter((x) => re.test(x.name)).map((x) => x.name);
+  wahr('Das Stabmodell führt zwei Seilköpfe und zwei Seile', name(dop.dat, /^SEILKOPF_M1(_2)?$/).length === 2
+       && name(dop.dat, /^ANKER_M1(_2)?$/).length === 2, name(dop.dat, /^SEILKOPF/).join(','));
+  const kn = new Map(dop.dat.knoten.map((k) => [k.name, k]));
+  pruef('Der untere Anschluss liegt um d unter dem oberen', kn.get('MAST_M1_ANK').z - kn.get('MAST_M1_ANK2').z, 3, 1e-9, 'm');
+  wahr('Der Mast ist an BEIDEN Anschlüssen geteilt (je zwei Maststäbe enden dort)',
+       ['MAST_M1_ANK', 'MAST_M1_ANK2'].every((n) => dop.dat.staebe.filter((x) => /^MAST_M1_S\d+$/.test(x.name)
+         && (x.von === n || x.bis === n)).length === 2));
+  wahr('Beide Seile laufen auf EIN Fundament', dop.dat.auflager.filter((x) => /ANKER_M1_F$/.test(x.knoten)).length === 1
+       && dop.dat.knoten.filter((k) => /^ANKER_.*_F$/.test(k.name)).length === 1);
+  const qsS = (d) => d.querschnitte.find((q) => q.name === d.staebe.find((x) => x.name === 'ANKER_M1').querschnitt).A;
+  pruef('Jedes Seil trägt die Fläche EINES Seils (wie der einfache Anker)', qsS(dop.dat), qsS(ein.dat), 1e-12, 'm²');
+  wahr('Nachgewiesen wird die Resultierende gegen 134 kN', dop.a?.nachweis?.zul === 134 && dop.a.nachweis.N > 0,
+       `${dop.a?.nachweis?.N?.toFixed(2)} kN, η ${dop.a?.nachweis?.eta?.toFixed(3)}`);
+  wahr('Die Resultierende liegt zwischen der grösseren Seilkraft und der Summe beider',
+       dop.a.nachweis.N >= dop.a.einzel.N - 1e-9 && dop.a.nachweis.N <= dop.a.einzel.oben + dop.a.einzel.unten + 1e-9,
+       `oben ${dop.a.einzel.oben.toFixed(2)}, unten ${dop.a.einzel.unten.toFixed(2)} kN`);
+  pruef('Das einzelne Seil steht gegen die Hälfte (67 kN) daneben', dop.a.einzel.zul, 67, 1e-12, 'kN');
+  // Messwerte (J90/20 m, HEB 260, ohne Teile, Anker längs an M1, h 7.0 / a 4.5 / d 3.0):
+  pruef('Messwert: Seilanker einfach', ein.a.nachweis.N, 9.04, 0.02, 'kN');
+  pruef('Messwert: Doppelanker resultierend', dop.a.nachweis.N, 11.36, 0.02, 'kN');
+
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const schQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  const cssQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Maske: Feld «Abstand des unteren Ankers zum oberen», nur beim Doppelanker',
+       schQ.includes("key: 'ankerD'") && /key: 'ankerD'[\s\S]{0,700}ankerIstDoppelt\(gewaehlterMast\(w\)\?\.anker\?\.typ\)/.test(schQ)
+       && APP_QUELLE().includes("ankerD: 'd'"));
+  wahr('Gruppenkopf: zweizeilig, kleine Knöpfe wie die Bauteilzeile, Summe der Gruppe',
+       uiQ.includes('class="at-gkopf"') && uiQ.includes('class="at-kraft at-gkraft"')
+       && /class="btn btn-mini" data-at-gruppe-name=/.test(uiQ) && cssQ.includes('.at-gkopf {')
+       && uiQ.includes('function gruppeKraft(teile, trasse)'));
+  wahr('Die Summe im Gruppenkopf wird bei jeder Rechnung nachgeführt',
+       /querySelectorAll\('\.at-gruppe'\)\.forEach\(\(g\) => \{\s*const el = g\.querySelector\('\.at-gkraft'\);/.test(uiQ));
 }
 
 console.log('\n' + '='.repeat(104));

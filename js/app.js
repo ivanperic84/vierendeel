@@ -104,7 +104,8 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
 import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
          ankerKnicken,
          ankerTypen, ankerTraegtDruck,
-         ANKER_BEFESTIGUNGEN, ankerDB, setzeAnkerDB } from './data.anker.js';
+         ANKER_BEFESTIGUNGEN, ankerDB, setzeAnkerDB,
+         ankerHoeheFuerNeigung } from './data.anker.js';
 import { ladeNormen, normenDbDa, normen, setzeNormen } from './data.normen.js';
 import { zeichneDaten, ersteAnsicht, alsTabellen, zeichneAbgleich,
          blaetter as datenBlaetter } from './ui.daten.js';
@@ -3822,8 +3823,9 @@ function aendern(key, wert) {
                    : null;
     if (!alt?.typ) { neuRechnen(); return; }
     const g = Math.max(5, Math.min(85, Number(wert) || 0));
-    const h = Math.round((Number(alt.a) || 0)
-                         * Math.tan((g * Math.PI) / 180) * 100) / 100;
+    // Beim Doppelanker die Höhe des oberen Anschlusses, bei der die
+    // Resultierende diese Neigung hat (9. Oktober).
+    const h = Math.round(ankerHoeheFuerNeigung(alt, g) * 100) / 100;
     werte = setzeMastAnker(werte, id, { ...alt, h });
     neuRechnen();
     return;
@@ -4391,7 +4393,7 @@ function vorlagenZusammenfuehren(w) {
  * ueber alle Gruppen hinweg, das Bauteil kurze.
  */
 const ANKERFELDER = {
-  ankerTyp: 'typ', ankerH: 'h', ankerA: 'a',
+  ankerTyp: 'typ', ankerH: 'h', ankerA: 'a', ankerD: 'd',
   ankerRichtung: 'richtung', ankerSeite: 'seite', ankerBef: 'befestigung',
 };
 

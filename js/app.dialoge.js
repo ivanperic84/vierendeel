@@ -12,7 +12,8 @@ import { einzelmastLaenge } from './core.auflager.js';
 import { TRAGWERKSARTEN, anschlusshoehe, gewaehlterMast, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkPos, tragwerkeSortiert, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
-import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
+import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen, ankerIstDoppelt,
+         doppelankerGeometrie, DOPPELANKER_ABSTAND_VOR } from './data.anker.js';
 import { STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
 import { getTragjoch, laengenbereich, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
@@ -79,6 +80,15 @@ export function dialogAnker(app, mastId = null) {
   ];
 
   const folgeText = () => {
+    // Doppelanker (9. Oktober): der Winkel gilt der Resultierenden.
+    const dg = ankerIstDoppelt(e.typ) ? doppelankerGeometrie(e.h, e.a, e.d) : null;
+    if (dg) {
+      return `Daraus: Resultierende <b>${dg.alphaRes.toFixed(1)}°</b> gegen die Waagrechte `
+        + `· oberes Seil <b>${dg.LO.toFixed(2)} m</b> (${dg.alphaO.toFixed(1)}°) `
+        + `· unteres <b>${dg.LU.toFixed(2)} m</b> (${dg.alphaU.toFixed(1)}°), `
+        + `Anschluss auf ${dg.hU.toFixed(2)} m. Beide Seile hängen am selben Bolzen `
+        + 'des Fundaments; zulässig 2 × 67 kN resultierend.';
+    }
     const L = Math.sqrt((e.h || 0) ** 2 + (e.a || 0) ** 2);
     const al = (e.a > 0) ? (Math.atan2(e.h || 0, e.a) * 180) / Math.PI : 0;
     return `Daraus: Länge <b>${L.toFixed(2)} m</b> · Neigung gegen die `
@@ -132,7 +142,14 @@ export function dialogAnker(app, mastId = null) {
     <div class="feld"><label for="dlg-ank-h">Anschlusshöhe am Masten</label>
       <input id="dlg-ank-h" type="number" step="0.05" min="0.5" max="20"
              value="${(e.h ?? 0).toFixed(2)}">
-      <small class="hinweis">m über dem Mastfuss.</small></div>
+      <small class="hinweis">m über dem Mastfuss${ankerIstDoppelt(e.typ)
+        ? ' — beim Doppelanker der OBERE Anschluss' : ''}.</small></div>
+    ${ankerIstDoppelt(e.typ) ? `<div class="feld">
+      <label for="dlg-ank-d">Abstand des unteren Ankers zum oberen</label>
+      <input id="dlg-ank-d" type="number" step="0.05" min="0.1" max="12"
+             value="${(doppelankerGeometrie(e.h, e.a, e.d)?.d ?? DOPPELANKER_ABSTAND_VOR).toFixed(2)}">
+      <small class="hinweis">m — der untere Ankeranschluss sitzt um dieses
+        Mass unter dem oberen.</small></div>` : ''}
     <div class="feld"><label for="dlg-ank-a">Abstand des Fundaments</label>
       <input id="dlg-ank-a" type="number" step="0.05" min="0.5" max="20"
              value="${(e.a ?? 0).toFixed(2)}">
@@ -204,6 +221,7 @@ export function dialogAnker(app, mastId = null) {
     };
     zahl('#dlg-ank-h', 'h');
     zahl('#dlg-ank-a', 'a');
+    zahl('#dlg-ank-d', 'd');
     const bef = n.querySelector('#dlg-ank-bef');
     if (bef) bef.onchange = () => { e = { ...e, befestigung: bef.value }; };
     const weg = n.querySelector('[data-ank-weg]');

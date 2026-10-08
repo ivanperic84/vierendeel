@@ -979,6 +979,13 @@ export function aktualisiereMaske(container, werte, extras = {}) {
   // Spannweite und Einwirkungsklasse - sie müssen mitgefuehrt werden, auch wenn
   // sich an der Struktur der Maske nichts ändert.
   const trasse = trasseVon(werte);
+  // Die Summe im Gruppenkopf geht mit (9. Oktober).
+  container.querySelectorAll('.at-gruppe').forEach((g) => {
+    const el = g.querySelector('.at-gkraft');
+    if (!el) return;
+    el.textContent = `${gruppeKraft([...g.querySelectorAll('.at-karte')]
+      .map((k) => teilVon(+k.dataset.idx)), trasse)} kN`;
+  });
   container.querySelectorAll('.at-karte').forEach((karte) => {
     const a = teilVon(+karte.dataset.idx);
     if (!a) return;
@@ -990,7 +997,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
      * dort die Summe der Baugruppe statt des Winkels, und die Kraftzeile
      * oben blieb auf dem alten Wert (F_x 1.35 statt 2.00 bei α 2.5°).
      */
-    const kraftEl = karte.querySelector('.at-kraft');
+    const kraftEl = karte.querySelector('.at-zeile .at-kraft');
     if (kraftEl) kraftEl.textContent = `${baugruppeKraft(a, trasse)} kN`;
     karte.querySelectorAll('.modul[data-modul]').forEach((d) => {
       const m = (a.module ?? [])[+d.dataset.modul];
@@ -2401,7 +2408,8 @@ export function querprofilLeisteHtml(werte) {
     const laengs = ak.richtung === 'y';
     return { ak, laengs, vz: ak.seite === 'minus' ? -1 : 1,
              titel: `${ak.typ} · ${laengs ? 'längs' : 'quer'} · `
-               + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m` };
+               + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
+               + (Number(ak.d) > 0 ? ` · d_A ${Number(ak.d).toFixed(2)} m` : '') };
   };
   /* =========================================================================
    * >>> DER BAUM IST WEG, DAS BAND BLEIBT (30. September). <<<
@@ -3220,16 +3228,33 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
     const zu = teile.every(({ a }) => a.aktiv === false);
     return `
     <div class="at-gruppe${zu ? ' verborgen' : ''}">
-      <div class="sec">${name ? `#${esc(name)}` : 'Ohne Gruppe'}<span class="sec-r">${teile.length} Stück
-        <button type="button" class="btn-icon at-auge" data-at-gruppe-name="${esc(name)}"
-          aria-label="${name ? 'Gruppe umbenennen' : 'Gruppe benennen'}"
-          title="${name ? 'Gruppe umbenennen - gilt für alle Teile der Gruppe' : 'Diesen Teilen einen Gruppennamen geben'}">${icon('bearbeiten', 13)}</button>
-        ${name ? `<button type="button" class="btn-icon at-auge" data-at-gruppe-dup="${esc(name)}"
-          aria-label="Gruppe duplizieren"
-          title="Gruppe duplizieren - um Δx versetzen oder im Modell antippen">${icon('kopie', 13)}</button>` : ''}
-        <button type="button" class="btn-icon at-auge${zu ? ' aus' : ''}" data-at-gruppe-auge="${esc(name)}"
-          aria-label="${zu ? 'Einschalten' : 'Ausschalten'}"
-          title="${zu ? 'Gruppe wieder einschalten (rechnen und zeichnen)' : 'Gruppe ausschalten - nicht gerechnet, nicht gezeichnet, die Eingaben bleiben'}">${icon('auge', 13)}</button></span></div>
+      ${/*
+         * >>> DER GRUPPENKOPF WIE EINE BAUTEILZEILE (9. Oktober). <<< Im
+         * Wortlaut: «Kannst du die buttongrösse und anordnung gleich machen
+         * wir bei den einzelne bauteilen? und dafür einen zweizeiler machen
+         * und die resultierenden kräfte so wie beiden einzelnen anbauteilen
+         * einfach für die gesamte gruppe angeben.» Oben der Name, rechts die
+         * kleinen Knöpfe; darunter Stückzahl und die Summe F_x, F_y, F_z der
+         * EINGESCHALTETEN Teile (`gruppeKraft`). Ändert die Weisung vom
+         * 6. Oktober («hier die last weglassen, da wir sonst auch die fy und
+         * fx aufführen sollten») - jetzt stehen alle drei da.
+         */''}
+      <div class="at-gkopf" title="Summe der eingeschalteten Teile der Gruppe">
+        <span class="at-gname">${name ? `#${esc(name)}` : 'Ohne Gruppe'}</span>
+        <span class="at-x">${teile.length} Stück</span>
+        <span class="at-kraft at-gkraft">${esc(gruppeKraft(teile.map((t) => t.a), trasse))} kN</span>
+        <span class="at-tasten">
+          <button type="button" class="btn btn-mini" data-at-gruppe-name="${esc(name)}"
+            aria-label="${name ? 'Gruppe umbenennen' : 'Gruppe benennen'}"
+            title="${name ? 'Gruppe umbenennen - gilt für alle Teile der Gruppe' : 'Diesen Teilen einen Gruppennamen geben'}">${icon('bearbeiten', 12)}</button>
+          ${name ? `<button type="button" class="btn btn-mini" data-at-gruppe-dup="${esc(name)}"
+            aria-label="Gruppe duplizieren"
+            title="Gruppe duplizieren - um Δx versetzen oder im Modell antippen">${icon('kopie', 12)}</button>` : ''}
+          <button type="button" class="btn btn-mini at-auge${zu ? ' aus' : ''}" data-at-gruppe-auge="${esc(name)}"
+            aria-label="${zu ? 'Einschalten' : 'Ausschalten'}"
+            title="${zu ? 'Gruppe wieder einschalten (rechnen und zeichnen)' : 'Gruppe ausschalten - nicht gerechnet, nicht gezeichnet, die Eingaben bleiben'}">${icon('auge', 12)}</button>
+        </span>
+      </div>
       ${teile.map(zeile).join('')}
     </div>`;
   }).join('') + `<datalist id="at-gruppen">${[...new Set([...gruppen.keys()].filter(Boolean))]
@@ -4214,6 +4239,21 @@ function lastblockListeHtml(a, i) {
  * Bedeutungen für denselben Buchstaben in einer Zeile liest niemand richtig.
  * Eine Stelle für den Aufbau und das Nachführen (29. September).
  */
+/**
+ * Summe einer GRUPPE in derselben Form (9. Oktober): F_x, F_y, F_z der
+ * eingeschalteten Teile, ständig + veränderlich wie in der Zeile je Teil.
+ */
+function gruppeKraft(teile, trasse) {
+  const s = { x: 0, y: 0, z: 0 };
+  (teile ?? []).filter((a) => a && a.aktiv !== false).forEach((a) => {
+    const su = baugruppeSumme(a, trasse);
+    s.x += su.Gx + su.Qx; s.y += su.Gy + su.Qy; s.z -= su.Gz + su.Qz;
+  });
+  return [['F_x', s.x], ['F_y', s.y], ['F_z', s.z]]
+    .filter(([, v]) => Math.abs(v) > 0.005)
+    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
+}
+
 function baugruppeKraft(a, trasse) {
   const su = baugruppeSumme(a, trasse);
   // F_z nach oben (rechte Hand, 1. Oktober).
@@ -7410,8 +7450,17 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        */
       const schlaffAuch = !nw.schlaff && e.schlaffIn?.length
         ? ` · hängt durch in ${e.schlaffIn.length} Lastfall/-fällen` : '';
+      /*
+       * Doppelanker (9. Oktober): die Zahl ist die Resultierende beider
+       * Seile; das stärker gezogene Seil steht daneben, mit Warnung, wenn
+       * es allein über seiner Hälfte (67 kN) liegt.
+       */
+      const ez = e.einzel;
+      const einzelText = ez && Number.isFinite(ez.N)
+        ? ` · resultierend · Seil ${ez.seil} ${ez.N.toFixed(1)} kN`
+          + (ez.zul && ez.N > ez.zul + 1e-9 ? ` > ${ez.zul.toFixed(0)} kN je Seil!` : '') : '';
       const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
-        + `${Math.abs(nw.N).toFixed(1)} kN char.${schlaffAuch}`;
+        + `${Math.abs(nw.N).toFixed(1)} kN char.${einzelText}${schlaffAuch}`;
       /*
        * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
        * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.

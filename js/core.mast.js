@@ -76,7 +76,7 @@
  */
 
 import { mastSteifigkeit, jochAnteile, konsolLaenge, E_STAHL } from './core.auflager.js';
-import { ankerGeometrie, ankerTraegtDruck } from './data.anker.js';
+import { ankerWirkGeometrie, ankerTraegtDruck } from './data.anker.js';
 
 /** Erdbeschleunigung für das Eigengewicht des Mastes [m/s²]. */
 const G_ERD = 9.81;
@@ -789,14 +789,15 @@ export function mastSchnitt(m, ende = 'A') {
 function ankerImMast(g) {
   const a = g?.anker;
   if (!a?.typ) return null;
-  const geo = ankerGeometrie(a.h, a.a);
+  // Beim Doppelanker die Resultierende der beiden Seile (9. Oktober).
+  const geo = ankerWirkGeometrie(a);
   if (!geo) return null;
   /*
    * UEBER DEM MASTKOPF GIBT ES NICHTS ZU HALTEN. Wer die Anschlusshoehe
    * hoeher setzt als den Masten, bekommt die Halterung am Kopf - und den
    * Hinweis, dass die Angabe nicht zum Masten passt (core.checks.js).
    */
-  const zA = Math.min(a.h, g.zKopf);
+  const zA = Math.min(geo.doppel ? geo.h : a.h, g.zKopf);
   const ri = a.richtung === 'y' ? 'y' : 'x';
   const X = ankerHaltekraft(g, zA, ri);
   const k = ankerStabkraftAus(X, geo, a.seite, ri);

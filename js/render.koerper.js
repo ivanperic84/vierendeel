@@ -37,6 +37,7 @@
  */
 
 import { gittermastGeometrie, gespreiztGeometrie } from './data.masten.js';
+import { ankerIstDoppelt, doppelankerGeometrie } from './data.anker.js';
 
 export const MM = 1 / 1000;
 
@@ -708,6 +709,8 @@ function ankerTeile(o, halb, zFuss, zKopf) {
   const zA = zFuss + Math.min(ak.h, zKopf - zFuss);
   const xF = laengs ? x : x + vz * ak.a;
   const yF = laengs ? vz * ak.a : 0;
+  // Doppelanker (9. Oktober): zwei Seile vom selben Fundamentpunkt.
+  const dg = ankerIstDoppelt(ak.typ) ? doppelankerGeometrie(zA - zFuss, ak.a, ak.d) : null;
   /*
    * >>> DIE ANSCHRIFT NENNT DAS BAUTEIL, NICHT SEIN ERGEBNIS. <<<
    *
@@ -1021,12 +1024,23 @@ function ankerTeile(o, halb, zFuss, zKopf) {
      * der druckstütze»). Er blieb grau, weil nur der Stuetzenzweig `werte`
      * setzte.
      */
-    flaechen.push(...schraegerStab(pM, pF, dick, dick, {
-      gruppe: 'mast', teil: `ANKER_${name}`,
-      ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
-      label: `Anker ${name} · ${wie}`
-           + (Number.isFinite(o.ankerEta) ? ` · η ${o.ankerEta.toFixed(3)}` : ''),
-    }));
+    // Beim Doppelanker zwei schlankere Seile: oben und um d_A tiefer.
+    const seile = dg ? [pM, [x, 0, zA - dg.d]] : [pM];
+    const dickS = dg ? 0.7 * dick : dick;
+    seile.forEach((pOben, kS) => {
+      flaechen.push(...schraegerStab(pOben, pF, dickS, dickS, {
+        gruppe: 'mast', teil: `ANKER_${name}`,
+        ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
+        label: `Anker ${name} · ${wie}${dg ? (kS ? ' · unteres Seil' : ' · oberes Seil') : ''}`
+             + (Number.isFinite(o.ankerEta) ? ` · η ${o.ankerEta.toFixed(3)}` : ''),
+      }));
+      if (kS > 0) {
+        linien.push({ gruppe: 'mast', anker: true, stark: true, schwerachse: true,
+                      ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
+                      label: `Anker ${name} · ${wie}`,
+                      punkte: [pOben, [xF, yF, zFuss]] });
+      }
+    });
     [-0.5, +0.5].forEach((d) => {
       const dx = laengs ? d * halb : 0;
       const dy = laengs ? 0 : d * halb;
@@ -1095,7 +1109,11 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    * einem Bauteil, das zwei Angaben hat. Jetzt trägt die Anschrift Position,
    * Typ und Neigung, und der Bogen zeigt nur noch, was gemeint ist.
    */
-  const alphaGrad = (Math.atan2(ak.h, ak.a) * 180) / Math.PI;
+  /*
+   * DOPPELANKER (9. Oktober): zwei Seile vom selben Fundamentpunkt, der
+   * Winkel in Anschrift und Bogen gilt der Resultierenden.
+   */
+  const alphaGrad = dg ? dg.alphaRes : (Math.atan2(ak.h, ak.a) * 180) / Math.PI;
   bauteiltitel.push({
     p: [xF, yF + (laengs ? 0 : 0.35), zFuss + 0.55],
     text: `Anker ${name} · ${wie} · α = ${alphaGrad.toFixed(1)}°`,
@@ -1120,6 +1138,14 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     ab: laengs ? [0, -vz, 0] : [-vz, 0, 0], d: 0.6,
     text: `h_A = ${ak.h.toFixed(2)} m`,
   });
+  if (dg) {
+    masse.push({
+      feld: 'ankerD', tab: 'system', achse: 'z', mastEnde: name,
+      p0: [x, 0, zA - dg.d], p1: [x, 0, zA],
+      ab: laengs ? [0, -vz, 0] : [-vz, 0, 0], d: 1.1,
+      text: `d_A = ${dg.d.toFixed(2)} m`,
+    });
+  }
   masse.push({
     feld: 'ankerA', tab: 'system', achse: laengs ? 'y' : 'x', mastEnde: name,
     p0: [x, 0, zFuss], p1: [xF, yF, zFuss],
@@ -1145,7 +1171,7 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    * Vieleck aus acht Sehnen ist bei dieser Groesse nicht davon zu
    * unterscheiden. Dieselbe Loesung wie bei den Gelenkkreisen darueber.
    */
-  const alpha = Math.atan2(ak.h, ak.a);
+  const alpha = dg ? (dg.alphaRes * Math.PI) / 180 : Math.atan2(ak.h, ak.a);
   const rB = Math.max(0.45, 1.4 * halb);
   // Die Waagrechte zeigt vom Fundament zum Masten, die Lotrechte nach oben.
   const eH = laengs ? [0, -vz, 0] : [-vz, 0, 0];

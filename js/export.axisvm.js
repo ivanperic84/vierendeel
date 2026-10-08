@@ -54,7 +54,17 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, bezugsEbene, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
-import { ankerTraegtDruck } from './data.anker.js';
+import { ankerTraegtDruck, ankerIstDoppelt, doppelankerGeometrie } from './data.anker.js';
+
+/**
+ * Abstand des UNTEREN Anschlusses eines Doppelankers unter dem oberen [m],
+ * 0 beim einfachen Anker. `hOben` ist die (schon auf den Masten begrenzte)
+ * Höhe des oberen Anschlusses über dem Mastfuss.
+ */
+function doppelAbstand(ak, hOben) {
+  if (!ak?.typ || !ankerIstDoppelt(ak.typ)) return 0;
+  return doppelankerGeometrie(hOben, ak.a, ak.d)?.d ?? 0;
+}
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBindebleche, ankerBlechSatz,
          ankerBlechVersatz } from './data.anker.js';
@@ -825,9 +835,19 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
      * VERBUNDS ergibt. Damit sieht der Stab im Modell aus wie das, was
      * er traegt, und die Flaeche stimmt auf den Quadratmillimeter.
      */
-    const A_cm2 = Number(qw?.A) || 0;
     let seil = false;
     try { seil = !ankerTraegtDruck(ak.typ); } catch { seil = false; }
+    /*
+     * >>> DER DOPPELANKER STEHT ALS ZWEI SEILE DA (9. Oktober). <<< Jedes
+     * mit der Fläche EINES Seils; der zweite Zug wird unten im Seilzweig
+     * gebaut. `dDoppel` = 0 heisst: ein Seil.
+     */
+    const dDoppel = seil ? doppelAbstand(ak, zAnk - zFuss) : 0;
+    const zAnk2 = r6(zAnk - dDoppel);
+    if (dDoppel > 0 && !mastKn.has(zAnk2)) {
+      mastKn.set(zAnk2, s.kn(`MAST_${mn(ende)}_ANK2`, x, 0, zAnk2));
+    }
+    const A_cm2 = (Number(qw?.A) || 0) / (dDoppel > 0 ? 2 : 1);
     /*
      * DAS SEIL HAT KEINE PROFILHOEHE. Mit dem Rueckfall von 120 mm
      * wurde es ein Rechteck von 120 x 0.4 mm - die Flaeche stimmte, die
@@ -1079,6 +1099,35 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
       // Am Fuss das Gelenk als Link (1. Oktober, siehe `gelenkVor`).
       s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil,
              gelenkVor(`ANKER_${mn(ende)}_FG`, kSeil, kAnkF));
+      if (dDoppel > 0) {
+        /*
+         * DAS ZWEITE SEIL: vom selben Bolzen am Fundament zum unteren
+         * Ankeranschluss. Aufgebaut wie das erste - Konsole, Seilkopf «nur
+         * Zug», Seil, Gelenk am Fuss; jedes Seil fällt für sich aus.
+         */
+        const kKons2 = s.kn(`ANKER_${mn(ende)}_K2`,
+                            laengsA ? x : r6(x + vzA * ANKER_KONSOLE),
+                            laengsA ? r6(vzA * ANKER_KONSOLE) : 0, zAnk2);
+        s.stab(`ANKERKONSOLE_${mn(ende)}_2`, qsStarr, mastKn.get(zAnk2), kKons2,
+               { starrRolle: 'verbindung' });
+        const pK2 = s.knoten.get(kKons2);
+        const LS2 = Math.hypot(pF.x - pK2.x, pF.y - pK2.y, pF.z - pK2.z);
+        const sG2 = LS2 > 4 * ANKER_GELENK ? ANKER_GELENK / LS2 : 0.02;
+        const kSeil2 = s.kn(`ANKER_${mn(ende)}_S2`,
+                            r6(pK2.x + sG2 * (pF.x - pK2.x)),
+                            r6(pK2.y + sG2 * (pF.y - pK2.y)),
+                            r6(pK2.z + sG2 * (pF.z - pK2.z)));
+        s.stab(`SEILKOPF_${mn(ende)}_2`, qsStarr, kKons2, kSeil2, {
+          starrRolle: 'verbindung',
+          gelenkAnfang: 'M',
+          kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                   xx: 'Rigid', yy: 'Free', zz: 'Free' },
+          nichtlinear: { x: 'nurZug' },
+          linkSystem: 'lokal',
+        });
+        s.stab(`ANKER_${mn(ende)}_2`, qsAnker, kSeil2,
+               gelenkVor(`ANKER_${mn(ende)}_FG2`, kSeil2, kAnkF));
+      }
     } else if (!einzeln) {
       // Beide Enden als Link (1. Oktober): am Masten zur Konsole, am Fuss
       // zum Fundament.
@@ -1442,6 +1491,7 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
     ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
                     nurZug: seil,
                     h: ak.h, a: ak.a, qs: qw ?? null,
+                    ...(dDoppel > 0 ? { seile: 2, d: dDoppel } : {}),
                     spreiz: spreiz ?? null, zweiProfile: einzeln,
                     bleche: einzeln ? ankerBindebleche(ak.typ,
                       Math.hypot(xF - x, yF, zAnk - zFuss)).length : 0 });
@@ -1622,10 +1672,17 @@ function abfangAnkerAnbauen(bau, satz, opt = {}) {
     const kAnk = ort.knoten, x = ort.x, zFuss = ort.zFuss, zAnk = r6(zFuss + ak.h);
     const s = sammler(praefix);
     s.kn(kAnk, x, 0, zAnk);
+    const knAnk = new Map([[zAnk, kAnk]]);
+    // Doppelanker: der untere Anschluss als zweiter Mastknoten.
+    const dU = doppelAbstand(ak, ak.h);
+    if (dU > 0) {
+      const ort2 = mastKnotenAuf(bau, key, ak.h - dU, 'ANK2', 'AK2');
+      if (ort2) { const z2 = r6(zAnk - dU); s.kn(ort2.knoten, x, 0, z2); knAnk.set(z2, ort2.knoten); }
+    }
     const qsStarr = s.qs(rechteck(STARR));
     const auflager = [], ankerAus = [];
     ankerBauen({ s, md: { anker: ak }, ende, mn: () => key, x, h: 0, zFuss,
-                 zOben: zAnk + 1, mastKn: new Map([[zAnk, kAnk]]), qsStarr, auflager, ankerAus });
+                 zOben: zAnk + 1, mastKn: knAnk, qsStarr, auflager, ankerAus });
     s.knoten.forEach((k, name) => { if (!bau.knoten.has(name)) bau.knoten.set(name, k); });
     s.querschnitte.forEach((q, name) => { if (!bau.querschnitte.has(name)) bau.querschnitte.set(name, q); });
     bau.staebe.push(...s.staebe);
@@ -1800,6 +1857,10 @@ function stabmodellEinzelmast(m, opt = {}) {
   if (ak?.typ && ak.h > 0 && ak.a > 0) {
     const zAnk = r6(zFuss + Math.min(ak.h, zOberkante - zFuss));
     if (!mastKn.has(zAnk)) mastKn.set(zAnk, s.kn(`MAST_${mn('A')}_ANK`, x, 0, zAnk));
+    // Doppelanker: der untere Anschluss ist ebenfalls ein Knoten des Mastes.
+    const dU = doppelAbstand(ak, zAnk - zFuss);
+    const zAnk2 = r6(zAnk - dU);
+    if (dU > 0 && !mastKn.has(zAnk2)) mastKn.set(zAnk2, s.kn(`MAST_${mn('A')}_ANK2`, x, 0, zAnk2));
   }
   const zStufen = [...mastKn.keys()].sort((a, b) => a - b);
   for (let i = 0; i < zStufen.length - 1; i++) {
@@ -3398,6 +3459,14 @@ export function stabmodell(m, opt = {}) {
         ? r6(zFuss + Math.min(akV.h, zOben - h / 2 - zFuss)) : null;
       if (zAnkV !== null && !mastKn.has(zAnkV)) {
         mastKn.set(zAnkV, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnkV));
+      }
+      // Doppelanker (9. Oktober): auch der untere Anschluss teilt den Masten.
+      if (zAnkV !== null) {
+        const dU = doppelAbstand(akV, zAnkV - zFuss);
+        const zAnk2 = r6(zAnkV - dU);
+        if (dU > 0 && !mastKn.has(zAnk2)) {
+          mastKn.set(zAnk2, s.kn(`MAST_${mn(ende)}_ANK2`, x, 0, zAnk2));
+        }
       }
       /* =================================================================
        * >>> DER KONSOLANSATZ IST EIN KNOTEN DES MASTES. <<<

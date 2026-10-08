@@ -43,6 +43,9 @@
 
 import { anteileFuer } from './core.stabnachweis.js';
 
+// Dieselben Fallarten wie der Ankernachweis (core.anker.js, ANKER_FALLARTEN).
+const ANKER_FALLARTEN_SEIL = ['charakteristisch', 'aussergewoehnlich'];
+
 /** Vorsilbe der Hilfslastfälle - einer je Seil. */
 export const SEIL_AUS = 'SeilAus|';
 
@@ -206,10 +209,40 @@ export function ankerAusStabwerk(dat, lsg, faelle, mastId, meta, seilInfo, satz,
   // Ein Seil hat am Masten seinen Seilkopf (Link «nur Zug»).
   const seil = (dat.staebe ?? []).some((s) => s.name === `SEILKOPF_${mastId}`)
     ? `ANKER_${mastId}` : null;
+  /*
+   * >>> DOPPELANKER (9. Oktober): DIE RESULTIERENDE BEIDER SEILE. <<<
+   * «die grenzlast auf 2x 67kN belassen» - nachgewiesen wird der Betrag der
+   * Vektorsumme der beiden wirksamen Seilkräfte gegen die zulässige Kraft
+   * des Doppelankers. Die grösste Kraft EINES Seils steht daneben
+   * (`einzel`), gegen die Hälfte: der untere, kürzere und flachere Zug
+   * bekommt in der Regel mehr als die Hälfte.
+   */
+  const stabVon = (n) => (dat.staebe ?? []).find((s) => s.name === n);
+  const zweites = seil && stabVon(`SEILKOPF_${mastId}_2`) ? `ANKER_${mastId}_2` : null;
+  const achse = (n) => {
+    const st = stabVon(n), a = kn.get(st?.von), b = kn.get(st?.bis);
+    if (!a || !b) return null;
+    const v = [b.x - a.x, b.y - a.y, b.z - a.z], l = Math.hypot(...v);
+    return l > 0 ? v.map((w) => w / l) : null;
+  };
+  const e1 = zweites ? achse(seil) : null, e2 = zweites ? achse(zweites) : null;
+  let einzel = null;
   const ergebnisse = {};
   faelle.forEach((lf) => {
     let kraft;
-    if (seil) {
+    if (zweites && e1 && e2) {
+      const s1 = seilInfo.je.get(lf.key)?.get(seil), s2 = seilInfo.je.get(lf.key)?.get(zweites);
+      if (!s1 || !s2) return;
+      const n1 = s1.schlaff ? 0 : Math.max(0, s1.N), n2 = s2.schlaff ? 0 : Math.max(0, s2.N);
+      const R = Math.hypot(n1 * e1[0] + n2 * e2[0], n1 * e1[1] + n2 * e2[1], n1 * e1[2] + n2 * e2[2]);
+      const beide = s1.schlaff && s2.schlaff;
+      kraft = { ...meta, N: beide ? 0 : R, schlaff: beide, seile: [n1, n2],
+                NohneAusfall: beide ? Math.min(s1.NohneAusfall ?? 0, s2.NohneAusfall ?? 0) : undefined };
+      if (ANKER_FALLARTEN_SEIL.includes(lf.art) && (!einzel || Math.max(n1, n2) > einzel.N)) {
+        einzel = { N: Math.max(n1, n2), seil: n2 > n1 ? 'unten' : 'oben',
+                   oben: n1, unten: n2, lastfall: lf.key, bez: lf.bez };
+      }
+    } else if (seil) {
       const s = seilInfo.je.get(lf.key)?.get(seil);
       if (!s) return;
       kraft = { ...meta, N: s.schlaff ? 0 : s.N, schlaff: s.schlaff,
@@ -232,5 +265,10 @@ export function ankerAusStabwerk(dat, lsg, faelle, mastId, meta, seilInfo, satz,
     ergebnisse[lf.key] = { mast: { A: { ankerkraft: kraft } } };
   });
   const erg = auswertung({ lastfaelle: faelle, ergebnisse }, satz);
-  return erg?.A ? { ...erg.A, quelle: 'stabwerk' } : null;
+  if (!erg?.A) return null;
+  if (einzel) {
+    const zul = Number(erg.A.nachweis?.zul) > 0 ? erg.A.nachweis.zul / 2 : null;
+    einzel = { ...einzel, zul, eta: zul ? einzel.N / zul : null };
+  }
+  return { ...erg.A, quelle: 'stabwerk', ...(einzel ? { einzel } : {}) };
 }

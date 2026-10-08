@@ -37,7 +37,8 @@ import { mastprofile, mastprofileWahl, gitterBasisName, gitterOhneOben, gitterOb
          fundamentKandidaten, fundamentlastenDa } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
-         getAnkerTyp } from './data.anker.js';
+         getAnkerTyp, ankerIstDoppelt, doppelankerGeometrie, ankerNeigung,
+         DOPPELANKER_ABSTAND_VOR } from './data.anker.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -231,6 +232,17 @@ function ankerNotiz(w) {
   if (!g) return 'Höhe und Abstand eintragen — beide grösser als null.';
   let t;
   try { t = getAnkerTyp(a.typ); } catch { return ''; }
+  // Doppelanker (9. Oktober): zwei Seile, der Winkel gilt der Resultierenden.
+  if (ankerIstDoppelt(a.typ)) {
+    const dg = doppelankerGeometrie(a.h, a.a, a.d);
+    if (!dg) return 'Höhe und Abstand eintragen — beide grösser als null.';
+    const zul = ankerZulZug(a.typ);
+    return `Resultierende ${dg.alphaRes.toFixed(1)}° gegen die Waagrechte, trifft den `
+      + `Masten auf ${dg.hRes.toFixed(2)} m · oberes Seil ${dg.LO.toFixed(2)} m / `
+      + `${dg.alphaO.toFixed(1)}° · unteres ${dg.LU.toFixed(2)} m / ${dg.alphaU.toFixed(1)}° `
+      + `(auf ${dg.hU.toFixed(2)} m) · zulässig ${zul?.toFixed(0) ?? '–'} kN resultierend `
+      + `(2 × ${(zul / 2).toFixed(0)} kN), nur Zug`;
+  }
   const zD = ankerZulDruck(a.typ, g.L);
   const zZ = ankerZulZug(a.typ, a.befestigung ?? 'ankerplatte');
   const lang = g.L > (t.laengeMax ?? Infinity) + 1e-9;
@@ -1437,6 +1449,24 @@ export const FELDER = [
            + 'Angabe, die auf dem Plan steht: dort wird das Fundament '
            + 'gesetzt. Voreingestellt sind 4.50 m.' },
   /*
+   * >>> DOPPELANKER: ABSTAND ZUM OBEREN ANKER (9. Oktober). <<< Im Wortlaut:
+   * «man sollte ein zusätzliches feld anfügen für die Anker wo man den
+   * abstand zum oberen anker anpassen kann». Nur beim Typ mit zwei Seilen.
+   */
+  { key: 'ankerD', gruppe: 'mast', typ: 'schieber',
+    label: 'Abstand des unteren Ankers zum oberen',
+    sym: 'd_A', einheit: 'm', standard: DOPPELANKER_ABSTAND_VOR, schritt: 0.05, zugSchritt: 0.5,
+    min: 0.1, max: 12,
+    wertAus: (w) => {
+      const ak = gewaehlterMast(w)?.anker;
+      return doppelankerGeometrie(ak?.h, ak?.a, ak?.d)?.d ?? DOPPELANKER_ABSTAND_VOR;
+    },
+    sichtbar: (w) => ankerDa(w) && ankerIstDoppelt(gewaehlterMast(w)?.anker?.typ),
+    hinweis: 'Der Doppelanker führt zwei Seile von EINEM Bolzen am Fundament zu '
+           + 'zwei Ankeranschlüssen am Masten. Die Anschlusshöhe h_A gilt dem '
+           + 'oberen; der untere sitzt um dieses Mass tiefer. Die Zeichnung '
+           + 'vermasst es nicht — die Vorgabe ist abgegriffen.' },
+  /*
    * >>> DER WINKEL IST EINE EINGABE, ABER KEINE ANGABE. <<<
    *
    * Weisung vom 11. September: «der anker hat einen winkel von ca 60°.» So
@@ -1452,10 +1482,10 @@ export const FELDER = [
     sym: 'α', einheit: '°', standard: 60, schritt: 1, zugSchritt: 5,
     min: 5, max: 85,
     wertAus: (w) => {
+      // Beim Doppelanker die Neigung der RESULTIERENDEN (9. Oktober).
       const ak = gewaehlterMast(w)?.anker;
-      const h = Number(ak?.h) || 0, a = Number(ak?.a) || 0;
-      return a > 0 && h > 0
-        ? Math.round((Math.atan2(h, a) * 180) / Math.PI) : 60;
+      const n = ankerNeigung(ak);
+      return n > 0 ? Math.round(n) : 60;
     },
     sichtbar: ankerDa,
     notiz: ankerNotiz,

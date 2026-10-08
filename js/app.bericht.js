@@ -288,7 +288,7 @@ export function stabwerkBerichtDaten(app) {
       id, anzeige: anzeige(id), profil: m.profil ?? kern?.mast?.[ende]?.profil?.name,
       laenge: kern?.mast?.[ende]?.laenge ?? m.laenge, steg: steg?.label ?? m.steg,
       x: m.x, traegt: traegerName(m.traegt),
-      ankerText: m.anker?.typ ? `${m.anker.typ} · h ${Number(m.anker.h).toFixed(2)} m · a ${Number(m.anker.a).toFixed(2)} m` : null,
+      ankerText: m.anker?.typ ? `${m.anker.typ} · h ${Number(m.anker.h).toFixed(2)} m · a ${Number(m.anker.a).toFixed(2)} m${Number(m.anker.d) > 0 ? ` · d ${Number(m.anker.d).toFixed(2)} m` : ''}` : null,
       fundamentTyp: fundament?.typ?.typ ?? (m.fundament || null),
       knick: sw.knick?.[id] ?? (amAusleger ? sw.ausleger.knick : null) ?? null,
       fundament, anker,

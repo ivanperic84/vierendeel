@@ -309,6 +309,106 @@ export function ankerGeometrie(h, a) {
            cos: aa / L, sin: hh / L };
 }
 
+/* ===========================================================================
+ * >>> DER DOPPELANKER: ZWEI SEILE, EIN BOLZEN AM FUNDAMENT (9. Oktober). <<<
+ * ===========================================================================
+ *
+ * Weisung, im Wortlaut: «die grundlage zu den ankern findest du unter
+ * folgendem ordner man sollte ein zusätzliches feld anfügen für die Anker wo
+ * man den abstand zum oberen anker anpassen kann und dann sollte der
+ * angegeben winkel sich auf die resultierende beziehen der beiden anker. die
+ * grenzlast auf 2x 67kN belassen.»
+ *
+ * Nach der Übersicht der Seilankermontage: beide Seile hängen am Fundament
+ * über eine Dreiecklasche an EINEM Bolzen und laufen zu ZWEI Ankeranschlüssen
+ * am Masten - dem oberen auf der Anschlusshöhe h und einem unteren im Abstand
+ * d darunter. Die Zeichnung vermasst d nicht; die Vorgabe (3.00 m) ist aus
+ * der Übersicht abgegriffen und im Feld zu ändern.
+ *
+ * DER WINKEL gilt der RESULTIERENDEN: bei gleicher Kraft in beiden Seilen
+ * ist das die Winkelhalbierende der beiden Seilachsen am Fundament. `hRes`
+ * ist die Höhe, auf der ihre Wirkungslinie die Mastachse trifft - dort setzt
+ * der Kern (vorläufige Anzeige) den einen Ersatzanker an. Das Stabwerk baut
+ * beide Seile und bildet die Resultierende aus ihren wirklichen Kräften.
+ * ======================================================================== */
+export const DOPPELANKER_ABSTAND_VOR = 3.0;
+
+/** Führt dieser Typ zwei Seile (Doppelanker)? */
+export function ankerIstDoppelt(id) {
+  try {
+    const t = getAnkerTyp(id);
+    return t.art === 'seil' && Number(t.querschnitt?.anzahl) === 2;
+  } catch { return false; }
+}
+
+/**
+ * Die Geometrie des Doppelankers.
+ *
+ * @param {number} h  Höhe des OBEREN Anschlusses über dem Mastfuss [m]
+ * @param {number} a  waagrechter Abstand des Fundaments [m]
+ * @param {number} [d] Abstand des unteren Anschlusses unter dem oberen [m]
+ * @returns {{hO,hU,d,a,LO,LU,alphaO,alphaU,alphaRes,hRes}|null}
+ */
+export function doppelankerGeometrie(h, a, d) {
+  const hO = Number(h), aa = Number(a);
+  if (!(hO > 0) || !(aa > 0)) return null;
+  let dd = Number(d);
+  if (!Number.isFinite(dd) || dd <= 0) dd = DOPPELANKER_ABSTAND_VOR;
+  // Der untere Anschluss bleibt über dem Mastfuss und unter dem oberen.
+  dd = Math.max(0.1, Math.min(dd, hO - 0.3));
+  if (!(dd > 0)) return null;
+  const hU = hO - dd;
+  const LO = Math.hypot(aa, hO), LU = Math.hypot(aa, hU);
+  // Winkelhalbierende: Summe der Einheitsvektoren Fundament → Mast.
+  const bw = aa / LO + aa / LU, bh = hO / LO + hU / LU;
+  const alphaRes = Math.atan2(bh, bw);
+  const grad = (w) => (w * 180) / Math.PI;
+  return { hO, hU, d: dd, a: aa, LO, LU,
+           alphaO: grad(Math.atan2(hO, aa)), alphaU: grad(Math.atan2(hU, aa)),
+           alphaRes: grad(alphaRes), hRes: aa * Math.tan(alphaRes) };
+}
+
+/**
+ * Die Geometrie, mit der ein Anker WIRKT: beim Doppelanker die Resultierende
+ * (Höhe `hRes`, ihr Winkel), sonst der Stab selbst. `doppel` trägt die beiden
+ * Seile, wo es sie gibt.
+ */
+export function ankerWirkGeometrie(ak) {
+  if (!ak) return null;
+  if (ankerIstDoppelt(ak.typ)) {
+    const dg = doppelankerGeometrie(ak.h, ak.a, ak.d);
+    if (!dg) return null;
+    const g = ankerGeometrie(dg.hRes, dg.a);
+    return g ? { ...g, doppel: dg } : null;
+  }
+  return ankerGeometrie(ak.h, ak.a);
+}
+
+/** Neigung [°] gegen die Waagrechte - beim Doppelanker die der Resultierenden. */
+export function ankerNeigung(ak) {
+  const g = ankerWirkGeometrie(ak);
+  return g ? g.alpha : 0;
+}
+
+/**
+ * Die Anschlusshöhe, bei der die Neigung `grad` beträgt. Beim einfachen Anker
+ * a · tan α; beim Doppelanker die Höhe des oberen Anschlusses, bei der die
+ * RESULTIERENDE diese Neigung hat (Bisektion, d bleibt).
+ */
+export function ankerHoeheFuerNeigung(ak, grad) {
+  const a = Number(ak?.a) || 0;
+  const ziel = Math.max(5, Math.min(85, Number(grad) || 0));
+  const einfach = a * Math.tan((ziel * Math.PI) / 180);
+  if (!ankerIstDoppelt(ak?.typ)) return einfach;
+  let lo = einfach, hi = einfach + (Number(ak.d) > 0 ? Number(ak.d) : DOPPELANKER_ABSTAND_VOR) + 1;
+  for (let i = 0; i < 60; i += 1) {
+    const m = (lo + hi) / 2;
+    const g = doppelankerGeometrie(m, a, ak.d);
+    if (!g || g.alphaRes < ziel) lo = m; else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
 /**
  * DIE STABKRAFT AUS EINER WAAGRECHTEN KRAFT AM ANSCHLUSSPUNKT [kN].
  *
