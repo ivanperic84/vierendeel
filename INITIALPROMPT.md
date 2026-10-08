@@ -10,9 +10,11 @@ zu lesen, bevor etwas geändert wird.
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
 **6899** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
-**Git:** `origin/main` steht auf `0320fad` (gepusht). Darüber liegt **ein örtlicher Commit «Statikbericht
-über COM (Brücke) - in Arbeit»**, der **nicht gepusht werden darf** (Weisung 8. Oktober: «den neuen stand
-nach dem abchlusss des berichtbauers nicht pushen»). Erst pushen, wenn der Auftraggeber es sagt.
+**Git:** alles gepusht, auch der Stand zum Statikbericht über COM (Weisung 8. Oktober: «alles offene
+nachführen und dann pushen» - hebt «nicht pushen» vom selben Tag auf). Anlass: Bugreport eines Anwenders,
+die gepushte Brücke brach bei jedem Start ab (Schalter `-Bericht` gegen Variable `$bericht`; jetzt
+`-Statikbericht`). `Versand/COM_Bruecke` ist dem Anwender neu abzugeben; seine Modelldatei (`bugs/`, örtlich)
+ist in AxisVM nicht gebaut (nur auf Anweisung).
 
 **Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-07.json`
 ist aktuell (Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
@@ -212,8 +214,7 @@ mit falscher Linklage; PyNite-Links.
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
 > Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
-> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober) - **den örtlichen
-> Commit zum Statikbericht über COM nicht pushen**, bis ich es sage (8. Oktober);
+> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober);
 > `data/*.json` nie pushen, Änderungen daran als Datenpaket nach `Versand/`;
 > kein Projektmaterial des Betreibers in verfolgte Dateien (keine
 > Zeichnungs- oder Projektnummern, kein Betreibername, nicht `data/*.json`,
@@ -263,7 +264,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6735 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6899 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-10-08',
+    punkte: [
+      { text: 'COM-Brücke: der Aufbau brach seit dem 7. Oktober bei jedem Start ab («System.String kann nicht in SwitchParameter konvertiert werden», Zeile 70). Behoben - bitte die Skripte der Brücke neu aus der internen Ablage holen.' },
+    ],
+  },
+  {
     datum: '2026-10-07',
     punkte: [
       { text: 'Reiter Auflager: Tabelle «Kräfte am Jochanschluss» aus dem Stabwerk - je Mast und Gurt F_x, F_y, F_z (Joch auf den Masten, charakteristisch, min / max).' },
