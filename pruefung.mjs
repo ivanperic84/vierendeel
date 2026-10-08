@@ -40688,6 +40688,9 @@ titel('263  Doppelanker mit zwei Seilen; Gruppenkopf mit Summenkräften');
     wahr('3D: das Glied zum Drahtwerk ist fein, das tragende Teil reicht bis zu seinem Ende',
          r3.includes("g?.teil?.rolle === 'drahtwerk' ? 0.014") && (r3.match(/teilEndeKoerper\(flaechen, a, t, pAn, opt\);/g) ?? []).length === 2);
   }
+  wahr('Lageband: der zweite Klick auf den angewählten Masten öffnet das Mastfenster (wie am Joch)',
+       uiQ.includes("b.getAttribute('aria-pressed') === 'true' ? 'mastDialog' : 'mastAktiv', mastId));")
+       && /if \(key === 'mastDialog'\) \{[^}]*dialogMast\(app, wert\);/.test(APP_QUELLE()));
   wahr('Die Summe im Gruppenkopf wird bei jeder Rechnung nachgeführt',
        /querySelectorAll\('\.at-gruppe'\)\.forEach\(\(g\) => \{\s*const el = g\.querySelector\('\.at-gkraft'\);/.test(uiQ));
 }

@@ -3396,6 +3396,11 @@ function aendern(key, wert) {
    * einblenden und wenn man es anklickt.» `tragwerkNeu` legt weiter an - der
    * Dialog ruft es selbst, wenn seine drei Fragen beantwortet sind.
    */
+  if (key === 'mastDialog') {
+    // Zweiter Klick auf den angewählten Masten im Lageband (9. Oktober).
+    dialogMast(app, wert);
+    return;
+  }
   if (key === 'tragwerkDialog') {
     /*
      * ZWEI ABSENDER, ZWEI BEDEUTUNGEN. Das Menue «+ Tragwerk» schickt eine

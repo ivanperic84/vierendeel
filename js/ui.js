@@ -1809,7 +1809,15 @@ export function verdrahteLeiste(container, werte, onChange) {
    */
   container.querySelectorAll('[data-qp-mast]').forEach((b) => {
     const mastId = b.dataset.qpMast;
-    b.addEventListener('click', () => onChange('mastAktiv', mastId));
+    /*
+     * >>> AUCH DER MAST: ERSTER KLICK WÄHLT, ZWEITER ÖFFNET (9. Oktober). <<<
+     * Mit Bild des Lagebands, im Wortlaut: «wenn man hier auf den masten
+     * klickt das bearbeitungsmodal aufrufen ähnlich wie beim joch.» Wie am
+     * Joch öffnet erst der Klick auf den schon angewählten Masten das
+     * Fenster - sonst wäre das schnelle Umschalten zwischen zwei Masten dahin.
+     */
+    b.addEventListener('click', () => onChange(
+      b.getAttribute('aria-pressed') === 'true' ? 'mastDialog' : 'mastAktiv', mastId));
     b.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       onChange('kontextMast', { id: mastId, bei: [e.clientX, e.clientY] });
