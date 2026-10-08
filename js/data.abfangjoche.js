@@ -60,7 +60,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
-import { windWertStufe, EINHEIT_EK, EINHEIT_Q, EINHEIT_EBENEN } from './data.fl.js';
+import { windWertStufe, EINHEIT_EK, EINHEIT_Q } from './data.fl.js';
 
 /**
  * Wind auf das Abfangjoch je Meter [kN/m] für die Klasse `ek`.
@@ -78,7 +78,10 @@ export function abfangWind(a, ek) {
     const wMappe = Number(a?.wind?.['1.0']);
     if (wMappe > 0) return wMappe;
     const h = Number(/(\d+)/.exec(String(a?.profil ?? ''))?.[1]);
-    if (h > 0) return EINHEIT_Q * EINHEIT_EBENEN * h / 1000;   // + hintere Ebene 25 % (7. Okt.)
+    // Ohne Zuschlag für die hintere Ebene (8. Oktober): «alte abfangjoche den
+    // zuschlag von 1.25 weglassen und die werte der excel auf diese
+    // reinterpretieren» - die Mappe führt für A160-A360 genau die Profilhöhe.
+    if (h > 0) return EINHEIT_Q * h / 1000;
   }
   return windWertStufe(a?.wind, ek) ?? 0;
 }

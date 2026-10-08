@@ -36570,8 +36570,10 @@ titel('206  Gittermast (kombinierter Mast): Sortiment und Geometrie');
       }
     });
     const mitZ = alle.filter((g) => g.quelle === 'zeichnung').length;
-    wahr('Zwei Typen nach Detailzeichnung, die übrigen als «abgeleitet» gekennzeichnet',
-         mitZ === 2 && alle.every((g) => ['zeichnung', 'abgeleitet'].includes(g.quelle)));
+    // Seit dem 8. Oktober liegt auch für den langen Typ eine Detailzeichnung vor
+    // (zwei Einträge, die sich nur im Mastaufsatz unterscheiden) - vorher 2.
+    wahr('Vier Einträge nach Detailzeichnung (drei Zeichnungen), die übrigen als «abgeleitet» gekennzeichnet',
+         mitZ === 4 && alle.every((g) => ['zeichnung', 'abgeleitet'].includes(g.quelle)));
     const rohr = geo.find(([g]) => g.rohr)?.[1]?.rohr;
     wahr('Das Rohr oben: Durchmesser, Wanddicke, freie Länge und Länge im Oberteil',
          rohr && rohr.d > 0.1 && rohr.t > 0.003 && rohr.frei > 3 && rohr.innen > 3,
@@ -36644,7 +36646,8 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
           + m.stationsListe.filter((x) => x.vertikal).reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / w.L;
       };
       const As = tj.map(flaeche);
-      const stufen = [['EK1', '0.9'], ['EK2', '1.1'], ['EK3', '1.3']];
+      // EK0: dieselbe Rechnung mit dem Einheitswind der Tragjoche (8. Oktober).
+      const stufen = [['EK1', '0.9'], ['EK2', '1.1'], ['EK3', '1.3'], ['EK0', '1.0']];
       const ok = tj.length > 0 && M207.gittermasten().every((g) => stufen.every(([ek, q]) => {
         const mi = tj.reduce((sum, t, k) => sum + Number(t.wind[q]) / As[k], 0) / tj.length;
         return Math.abs(Number(g.windJeFlaeche?.[ek]) - mi) < 0.006;
@@ -36813,8 +36816,26 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
       wahr('Mastaufsatz: Quadratrohr ab dem Kopf, kein Rohr im Oberteil',
            gA.obenArt === 'aufsatz' && qA && !hA.roh.dat.staebe.some((s) => /_ROHR_I$/.test(s.name))
            && Number.isFinite(hA.teile[`mast:${gA.id}|rohr`]?.eta));
-      wahr('… wo die Schenkel zusammenstossen, steht eine starre Verbindung statt eines Blechs',
-           hA.roh.dat.staebe.some((s) => /_BT_/.test(s.name) && s.art === 'starr'));
+      // Bis zum 8. Oktober stand hier L 120x120x12 (aus der Übersicht abgeleitet): am
+      // Knick stiessen die Schenkel zusammen (240 − 2 · 120 = 0), eine starre Verbindung
+      // ersetzte das Blech. Die Detailzeichnung nennt L 100x100x12 - es bleibt ein Blech von 40 mm.
+      {
+        const gz = M207.getGittermast(aufs.typ), Gz = M207.gittermastGeometrie(aufs.typ);
+        const kn = Gz.stationen.find((x) => x.blech?.art === 'knick');
+        wahr('… Gurt unten L 100x100x12 nach Detailzeichnung, am Knick in Richtung b ein Blech von 40 mm',
+             gz.gurtUnten === 'L 100x100x12' && Math.abs(kn.blech.lb - 0.040) < 1e-9 && Math.abs(kn.blech.la - 0.183) < 1e-9);
+        wahr('… keine starre Ersatzverbindung mehr (kein Blech der Länge null)',
+             !hA.roh.dat.staebe.some((s) => /_BT_/.test(s.name) && s.art === 'starr'));
+        wahr('… Unterteil 13, Oberteil 15 Blechstationen; am Kopf nur die Kopfplatte',
+             Gz.stationen.filter((x) => x.blech && x.teil === 'unten').length === 13
+             && Gz.stationen.filter((x) => x.blech && x.teil === 'oben').length === 15
+             && Gz.stationen.at(-1).blech === null
+             && Math.abs(Gz.stationen.at(-1).z - Gz.stationen.at(-2).z - 0.070) < 1e-9);
+        wahr('… Bleche unten 100×12 (erste Station 160×12), oben 100×10; Aussenmass am Kopf 300 / 240',
+             Gz.stationen[1].blech.b === 0.16 && Gz.stationen[1].blech.t === 0.012
+             && Gz.stationen[2].blech.t === 0.012 && Gz.stationen.at(-2).blech.t === 0.010
+             && Math.abs(Gz.stationen.at(-1).a - 0.300) < 1e-9 && Math.abs(Gz.stationen.at(-1).b - 0.240) < 1e-9);
+      }
     }
 
     // --- Am Joch ---------------------------------------------------------------
@@ -37054,7 +37075,18 @@ if (AJ.abfangDbDa()) {
     const AJ209 = await import(J('data.abfangjoche.js'));
     wahr('Abfangjoche A160-A360: Einheitswind nach der Mappe, ohne Zuschlag',
          Object.entries(sollA).every(([t, w]) => AJ209.abfangWind(AJ209.getAbfangjoch(t), 'EK0') === w));
-    pruef('… ein alter Typ ohne Eintrag (UAP 200) bleibt bei Profilhöhe × 1.25', AJ209.abfangWind(AJ209.getAbfangjoch('UAP 200'), 'EK0'), 0.25, 1e-12, 'kN/m');
+    // Weisung 8. Oktober: «alte abfangjoche den zuschlag von 1.25 weglassen und die werte der
+    // excel auf diese reinterpretieren» (vorher Profilhöhe × 1.25 = 0.25).
+    pruef('… alte Abfangjoche: Profilhöhe ohne Zuschlag (UAP 200)', AJ209.abfangWind(AJ209.getAbfangjoch('UAP 200'), 'EK0'), 0.20, 1e-12, 'kN/m');
+    pruef('… UAP 175: 0.175, IPE 360: 0.36', AJ209.abfangWind(AJ209.getAbfangjoch('UAP 175'), 'EK0') + AJ209.abfangWind(AJ209.getAbfangjoch('IPE 360'), 'EK0'), 0.535, 1e-12, 'kN/m');
+    pruef('… ohne Eintrag im Sortiment dieselbe Regel aus der Profilhöhe', AJ209.abfangWind({ profil: 'UAP 220', wind: {} }, 'EK0'), 0.22, 1e-12, 'kN/m');
+    wahr('Alte Lampen nach der Mappe: Lampe alt 0.3 kN, mit Befestigung 0.5 kN',
+         FL209.getFlBauteil('anbauteil-lampe-alt').windQuer.EK0 === 0.3 && FL209.getFlBauteil('anbauteil-lampe-alt-befestigung').windLaengs.EK0 === 0.5);
+    pruef('LED-Lampe: heutiger Wert auf 1.0 kN/m² ohne Formbeiwert 1.4 (Herleitung)',
+          FL209.flLastwerte('anbauteil-lampe-led-befestigung', { ek: 'EK0' }).Qx,
+          (0.15 / 0.9 + 0.25 / 1.1 + 0.3 / 1.3) / 3 / 1.4, 0.005, 'kN');
+    pruef('Leiter ohne Wert der Mappe (Cu 95 × 3): heutiger Wert / q, Formbeiwert 1.0',
+          FL209.flLastwerte('drahtwerk-cu-95-x3', { ek: 'EK0' }).Qx, (0.0255 / 0.9 + 0.0312 / 1.1 + 0.0369 / 1.3) / 3, 0.005, 'kN/m');
   }
 
   // Tragjoch: 1.0 kN/m² auf die Windangriffsfläche (stehende Gurtschenkel + Vertikalbleche).
@@ -37083,8 +37115,11 @@ if (AJ.abfangDbDa()) {
   const Gq = M209.gittermastGeometrie(gq.typ);
   const pq = M209.gittermastProfil(gq);
   // Seit 7. Oktober das Grösste der Angriffsfläche über die Höhe (Abschnitt 256).
-  wahr('Gittermast: Einheitswind am Kopf = Angriffsfläche × 1.0 × 1.25 (hintere Ebene, 7. Oktober)',
-       Math.abs(pq.wind.quer.EK0 - 1.25 * M209.gitterWindflaecheMax(Gq, 'a')) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
+  // Seit dem 8. Oktober aus der Logik der EK umgerechnet: Einheitswind der Tragjoche (Mappe)
+  // je m² ihrer Windangriffsfläche, Mittel = 1.52 kN/m² (vorher 1.0 × 1.25).
+  wahr('Gittermast: Einheitswind = Angriffsfläche × Wert aus den Tragjochen (1.52 kN/m²)',
+       gq.windJeFlaeche.EK0 === 1.52 && Math.abs(pq.wind.quer.EK0 - 1.52 * M209.gitterWindflaecheMax(Gq, 'a')) < 0.0006, `${pq.wind.quer.EK0} kN/m`);
+  pruef('… ohne Eintrag (älteres Datenpaket) bleibt 1.0 × 1.25', M209.gitterEinheitJeFlaeche({ windJeFlaeche: { EK1: 1.9 } }), 1.25, 1e-12, 'kN/m²');
   if (Gq.oben?.art === 'rohr') {
     pruef('… am Rohr der Durchmesser × 1.0, ohne den Faktor 1.2', M209.gitterWindOben(Gq, gq, 'EK0'), Gq.oben.d, 1e-12, 'kN/m');
   }
@@ -39687,10 +39722,12 @@ titel('254  Einheitswind mit hinterer Ebene 25 %; Bemessungsvorschlag mit Reserv
   wahr('Ein Faktor für die hintere Ebene: 1.25', FL254.EINHEIT_EBENEN === 1.25);
   const ta254 = readFileSync(join(HIER, 'js', 'export.axisvm.tragausleger.js'), 'utf8');
   const la254 = readFileSync(join(HIER, 'js', 'core.lasten.js'), 'utf8');
-  wahr('Tragjoch, Abfangjoch, Gittermast und Tragausleger lesen ihn',
+  // Seit dem 8. Oktober nur noch als Rückfall, wo die Datenbasis keinen Einheitswind
+  // führt; das Abfangjoch rechnet ohne ihn (Weisung «zuschlag von 1.25 weglassen»).
+  wahr('Tragjoch, Gittermast und Tragausleger lesen ihn als Rückfall; das Abfangjoch nicht mehr',
        la254.includes('windflaeche * 1.0 * EINHEIT_EBENEN') && ta254.includes('p.h / 100 * EINHEIT_EBENEN')
-       && readFileSync(join(HIER, 'js', 'data.abfangjoche.js'), 'utf8').includes('EINHEIT_Q * EINHEIT_EBENEN * h')
-       && readFileSync(join(HIER, 'js', 'data.masten.js'), 'utf8').includes('EINHEIT_Q * EINHEIT_EBENEN : '));
+       && !readFileSync(join(HIER, 'js', 'data.abfangjoche.js'), 'utf8').includes('EINHEIT_EBENEN * h')
+       && readFileSync(join(HIER, 'js', 'data.masten.js'), 'utf8').includes('EINHEIT_Q * EINHEIT_EBENEN)'));
   wahr('Die Leiter bleiben beim Formbeiwert 1.0 (Rückfrage)',
        FL254.tabellenBeiwert({ gruppe: 'drahtwerk' }) === 1.0 && FL254.tabellenBeiwert({ gruppe: 'anbauteil' }) === 1.4);
   const op254 = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');

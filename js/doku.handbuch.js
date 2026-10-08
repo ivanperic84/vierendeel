@@ -2490,13 +2490,14 @@ Herleitung, ohne weiteren Zuschlag:</p>
 <table class="dt">
 <tr><th>Teil</th><th>Einheitswind</th></tr>
 <tr><td>Tragjoch J60 … J130 (neu und alt)</td><td>0.25 / 0.28 / 0.29 / 0.35 / 0.39 / 0.43 / 0.48 kN/m, längs zum Gleis</td></tr>
-<tr><td>Abfangjoch A160 … A360</td><td>0.16 … 0.36 kN/m (Profilhöhe)</td></tr>
+<tr><td>Abfangjoch A160 … A360 und alte Bauweise (UAP, IPE)</td><td>Profilhöhe × 1.0, ohne Zuschlag: 0.13 … 0.36 kN/m</td></tr>
 <tr><td>Tragausleger übergreifend</td><td>0.14 kN/m</td></tr>
 <tr><td>Mast HEB 200 … 260, HEM 240</td><td>0.20 … 0.26 kN/m; HEM 240 0.248 / 0.27 kN/m</td></tr>
 <tr><td>Fahrleitung; Leiter 1×95 / 2×95 / 1×150 / 2×150</td><td>0.020; 0.0083 / 0.0141 / 0.0105 / 0.0178 kN/m (Tragseil und Fahrdraht einzeln je 0.010)</td></tr>
 <tr><td>Hängestütze, Jochaufsatz alt</td><td>0.10 bzw. 0.20 kN/m</td></tr>
 <tr><td>Jochaufsatz einfach / doppelt</td><td>0.45 kN / 0.9 kN quer, 0.8 kN längs</td></tr>
 <tr><td>Ausleger Rohr / NT, Leiter-Traverse</td><td>0.3 / 0.5 kN, 0.08 kN/m (längs)</td></tr>
+<tr><td>Lampe alt / alt mit Befestigung</td><td>0.3 / 0.5 kN</td></tr>
 </table>
 
 <p>Wo die Mastberechnung keinen Wert führt, bleibt die Herleitung
@@ -2505,10 +2506,9 @@ Herleitung, ohne weiteren Zuschlag:</p>
 <table class="dt">
 <tr><th>Teil</th><th>Angriffsfläche</th></tr>
 <tr><td>Tragjoch ohne Eintrag</td><td>stehende Gurtschenkel und Vertikalbleche einer Seite, aus der Geometrie, hintere Ebene mit 25 %</td></tr>
-<tr><td>Abfangjoch alter Bauweise</td><td>Höhe des vorderen Profils, hintere Ebene mit 25 %</td></tr>
 <tr><td>Mast (Walzprofil)</td><td>Profilbreite (Tabellenwert / (q · 1.4))</td></tr>
-<tr><td>Gittermast</td><td>Stabfläche A_s(z), hintere Ebene mit 25 %; Rohr und Aufsatz mit Durchmesser bzw. Kante</td></tr>
-<tr><td>übrige Anbauteile der Lasttabelle (Lampen, Trafo, Konsolen, Bündel × 3 / × 4, Aldrey 300)</td><td>Tabellenwert / (q · c), über EK1-EK3 gemittelt; c = 1.4, bei Drähten 1.0</td></tr>
+<tr><td>Gittermast</td><td>Stabfläche A_s(z) × 1.52 kN/m² - wie bei EK1-EK3 aus den Tragjochen umgerechnet (ihr Einheitswind je m² Windangriffsfläche, Mittel); Rohr und Aufsatz mit Durchmesser bzw. Kante × 1.0</td></tr>
+<tr><td>übrige Anbauteile der Lasttabelle (LED-Lampen, Trafo, Konsolen, Bündel × 3 / × 4, Aldrey 300)</td><td>Tabellenwert / (q · c), über EK1-EK3 gemittelt; c = 1.4, bei Drähten 1.0</td></tr>
 <tr><td>freie Fläche, Signal</td><td>eingegebene Fläche</td></tr>
 </table>
 <p>Von Hand eingegebene Windkräfte bleiben, wie sie sind. Lastbeiwerte,

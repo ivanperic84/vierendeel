@@ -428,7 +428,11 @@ export function gittermastGeometrie(typ) {
     z += d / 1000;
     const a = Number.isFinite(g.breiteAOben?.[i]) ? mm(g.breiteAOben[i]) : ka;
     const b = Number.isFinite(g.breiteBOben?.[i]) ? mm(g.breiteBOben[i]) : kb;
-    stelle(z, 'oben', a, b, lO, g.gurtOben, g.blech?.oben, 'oben');
+    // Kopf ohne Bindeblech (8. Oktober, nach Detailzeichnung): beim langen Typ
+    // sitzt das letzte Blech 70 mm unter der Kopfplatte, am Kopf selbst steht
+    // nur die Platte. `kopfBlech: false` im Sortiment lässt das Blech dort weg.
+    const amKopf = i === to.length - 1 && g.kopfBlech === false;
+    stelle(z, 'oben', a, b, lO, g.gurtOben, amKopf ? null : g.blech?.oben, 'oben');
   });
   const hoehe = r6((Number(g.hUnten) || 0) + (Number(g.hOben) || 0));
   if (Math.abs(z - hoehe) > 1e-6) fehler.push(`Teilung oben endet bei ${z.toFixed(3)} m statt ${hoehe} m`);
@@ -572,6 +576,20 @@ export function gitterWindflaecheMax(G, richtung = 'a') {
  */
 export const ROHR_FAKTOR = 1.2;
 
+/**
+ * Einheitswind je m² Windangriffsfläche des Gitters [kN/m²].
+ *
+ * >>> AUS DER HEUTIGEN LOGIK UMGERECHNET (8. Oktober). <<< Weisung: «Für die
+ * Gittermasten ist auf der heutigen logik heraus die umrechnung auf den
+ * einheitswind vorzunehmen». Die Logik für EK1-EK3 ist: Windlast je Meter
+ * des Tragjochs / seine Windangriffsfläche, Mittel über J60-J130. Dieselbe
+ * Rechnung mit dem Einheitswind der Tragjoche (Mast-Mappe, `wind/1.0`) gibt
+ * den Wert `windJeFlaeche/EK0` des Sortiments. Ohne Eintrag (älteres
+ * Datenpaket) bleibt 1.0 kN/m² mit der hinteren Ebene 25 % (7. Oktober).
+ */
+export const gitterEinheitJeFlaeche = (g) =>
+  (Number(g?.windJeFlaeche?.[EINHEIT_EK]) > 0 ? Number(g.windJeFlaeche[EINHEIT_EK]) : EINHEIT_Q * EINHEIT_EBENEN);
+
 /** Windlast über dem Kopf [kN/m] je Einwirkungsklasse: Rohr bzw. Aufsatz. */
 export function gitterWindOben(G, g, ek) {
   if (!G.oben) return 0;
@@ -596,7 +614,7 @@ export function gitterWindHerleitung(typ) {
     const f = gitterWindflaeche(G, z, r);
     zeilen.push({ stelle: name, z, richtung: r, As: f.As, breite: f.breite, phi: f.phi,
       w: { ...Object.fromEntries(eks.map((ek) => [ek, (Number(g.windJeFlaeche?.[ek]) || 0) * f.As])),
-           [EINHEIT_EK]: EINHEIT_Q * EINHEIT_EBENEN * f.As } });
+           [EINHEIT_EK]: gitterEinheitJeFlaeche(g) * f.As } });
   }));
   return { typ: g.typ, jeFlaeche: g.windJeFlaeche ?? null, staudruck: g.windStaudruck ?? null,
            zeilen, oben: G.oben ? { art: G.oben.art, mass: G.oben.d ?? G.oben.a,
@@ -663,8 +681,8 @@ export function gittermastProfil(g) {
   // gitterWindflaeche); das Stabwerk setzt je Abschnitt die Fläche seiner Höhe an.
   const druck = g.windJeFlaeche ?? null;
   const je = (richtung) => (druck ? Object.fromEntries(['EK1', 'EK2', 'EK3', EINHEIT_EK]
-    // Einheitswind: Gitter mit der hinteren Ebene 25 % (7. Oktober).
-    .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? EINHEIT_Q * EINHEIT_EBENEN : (Number(druck[ek]) || 0))
+    // Einheitswind: aus den Tragjochen umgerechnet (8. Oktober, gitterEinheitJeFlaeche).
+    .map((ek) => [ek, Math.round((ek === EINHEIT_EK ? gitterEinheitJeFlaeche(g) : (Number(druck[ek]) || 0))
       * gitterWindflaecheMax(G, richtung) * 1000) / 1000])) : null);
   const p = {
     name: GITTER_PRAEFIX + g.typ, gitter: g.typ, h, b,
