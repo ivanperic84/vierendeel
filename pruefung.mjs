@@ -24858,7 +24858,9 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
   const man70 = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
   wahr('Projekt und Tragwerk sind Auswahlfelder',
        aq70.includes('id="bs-projekt"') && aq70.includes('id="bs-tragwerk"')
-       && aq70.includes('+ Neues Projekt') && aq70.includes('+ Neues Tragwerk'));
+       && aq70.includes('+ Neues Projekt') && aq70.includes('+ Als neuen Eintrag speichern (Stand bleibt)')
+       // 8. Oktober: zwei gleich benannte «Neues Tragwerk» - der Knopf heisst «Neues Querprofil (leer)».
+       && aq70.includes('Neues Querprofil (leer)') && !aq70.includes('+ Neues Tragwerk</option>'));
   wahr('Die Ablage ist eine Tabelle mit Suche und Sortierung',
        aq70.includes('class="ab-tabelle"') && aq70.includes('id="bs-suche"')
        && aq70.includes('id="bs-sort"'));

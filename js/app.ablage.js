@@ -175,10 +175,11 @@ export async function zeichneSchublade(app) {
     ${neuesProjektOffen ? `<div class="feld"><label for="bs-projekt-neu">Name des neuen Projekts</label>
       <input id="bs-projekt-neu" type="text" placeholder="z. B. Bahnhof Nord, Fahrleitung"></div>` : ''}`;
   const tragwerkWahl = `
-    <div class="feld"><label for="bs-tragwerk">Tragwerk im Projekt</label>
+    <div class="feld"><label for="bs-tragwerk"
+        title="Die gespeicherten Einträge dieses Projekts. Ein Eintrag ist ein Querprofil mit allen seinen Tragwerken.">Eintrag im Projekt</label>
       <select id="bs-tragwerk">
         ${imProjekt.map((e) => `<option value="${esc(e.id)}"${e.id === app.projekt.id ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}
-        <option value="__neu__"${app.projekt.id && imProjekt.some((e) => e.id === app.projekt.id) ? '' : ' selected'}>+ Neues Tragwerk</option>
+        <option value="__neu__"${app.projekt.id && imProjekt.some((e) => e.id === app.projekt.id) ? '' : ' selected'}>+ Als neuen Eintrag speichern (Stand bleibt)</option>
       </select></div>
     <div class="feld"><label for="bs-name">Bezeichnung</label>
       <input id="bs-name" type="text" value="${esc(app.projekt.name)}"
@@ -266,7 +267,8 @@ export async function zeichneSchublade(app) {
 
   n.innerHTML = `
     <div class="bs-kopf">
-      <button class="btn" data-neu>${icon('neu', 13)} Neues Tragwerk</button>
+      <button class="btn" data-neu
+        title="Beginnt ein leeres Querprofil aus einer Vorlage - der jetzige Stand wird ersetzt">${icon('neu', 13)} Neues Querprofil (leer)</button>
       <button class="btn btn-acc" data-speichern>${icon('speichern', 13)} ${app.projekt.id ? 'Speichern' : 'In Ablage speichern'}</button>
       <button class="btn btn-mini bs-zu" data-zu>Schliessen</button>
     </div>
@@ -365,6 +367,9 @@ export async function zeichneSchublade(app) {
     if (v === '__neu__') {
       // Wie in BlockCalc: der Stand bleibt, er wird beim Speichern ein
       // NEUER Eintrag in diesem Projekt.
+      // Umbenannt am 8. Oktober («Es gibt zwei Neues Tragwerk buttons»): der
+      // Knopf oben beginnt leer («Neues Querprofil (leer)»), diese Wahl löst
+      // nur vom Eintrag («Als neuen Eintrag speichern (Stand bleibt)»).
       app.projekt = { ...app.projekt, id: null, name: `Neues ${tragwerksart(app.werte).label}` };
       app.ungesichert = true;
       app.aktualisiereProjektKnopf();

@@ -6499,7 +6499,7 @@ function dialogSpeichern() {
  * hingehört, statt in einem Kasten des Browsers.
  */
 function neuesTragjoch() {
-  const d = dialog('Neues Tragwerk', `
+  const d = dialog('Neues Querprofil', `
     <p>Womit soll begonnen werden? Der bisherige Stand geht verloren, wenn er
        nicht gespeichert ist.</p>
     <div class="feld"><label>Vorlage</label>

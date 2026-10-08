@@ -2334,8 +2334,8 @@ ein neuer Eintrag im gewählten Projekt. Der Punkt am Projektknopf zeigt, dass
 der Stand von der Ablage abweicht.</p>
 
 <h4>16.2 Die Ablage</h4>
-<p>Oben links stehen <b>Projekt</b> und <b>Tragwerk im Projekt</b> als
-Auswahl; «+ Neues Projekt» und «+ Neues Tragwerk» legen ohne Dialog an. Darunter
+<p>Oben links stehen <b>Projekt</b> und <b>Eintrag im Projekt</b> als
+Auswahl; «+ Neues Projekt» legt ohne Dialog an; «+ Als neuen Eintrag speichern (Stand bleibt)» löst den Stand vom Eintrag, das nächste Speichern legt einen neuen an. Ein leeres Blatt beginnt der Knopf «Neues Querprofil (leer)». Darunter
 die Angaben zum Tragwerk: Linie, Ortschaft, KM, Projektnummer, Bearbeiter,
 Datum. Sie gehen in keine Rechnung ein, aber in Dateinamen, Bericht und
 Projektliste.</p>
