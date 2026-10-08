@@ -429,3 +429,16 @@ python3 vergleich_axisvm.py Export.xlsx vergleich_werkzeug.json
 
 Die Zuordnung der Stäbe, der Versatz zwischen den Koordinatensystemen und die
 Zuordnung der Lastfälle findet das Werkzeug selbst; wo es rät, sagt es das.
+
+## Nur der Statikbericht am gebauten Modell (`-BerichtNur`, 9. Oktober)
+
+`AxisVM_aufbauen.ps1 -Json <modell.json> -BerichtNur [-BerichtVariante a,b] -Stapel` lädt die `.axs` neben der
+Modelldatei (`LoadFromFile`), sieht nach, ob Ergebnisse da sind (sonst wird linear gerechnet), und macht nur die
+Zeichnungen. Bericht nach `<modell>_berichtnur[_Variante].txt`, Bilder nach `Images_<modell>[_Variante]`; das
+Modell wird nicht gesichert. Varianten zum Eingrenzen: `ohnefit`, `fiteinmal`, `ohnewerte`, `ohneemf`, `ohnebib`,
+`persp`, `pause`, `nurn` (je Kombination nur N, ohne Spannungen), `auflager` (nur Auflagerkräfte in mehreren
+Darstellungen).
+
+**Gemessen:** die Spannungsanzeige σ_v (`rc_lsSomax`) über COM lässt AxisVM beim nächsten Setzen der Anzeige
+einfrieren bzw. abstürzen («Berechnung der Stabspannungen…»). Ohne sie (`nurn`) entstehen alle Zeichnungen in
+rund 17 s. Nach einem RPC-Fehler hört der Lauf auf, statt jede weitere Zeichnung zu versuchen.

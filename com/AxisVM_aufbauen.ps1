@@ -48,7 +48,9 @@ param(
     [string]$Ziel,
     [switch]$Unsichtbar,
     [switch]$Statikbericht,
-    [string]$BerichtVorlage
+    [string]$BerichtVorlage,
+    [switch]$BerichtNur,
+    [string]$BerichtVariante
 )
 
 $ErrorActionPreference = 'Stop'
@@ -816,6 +818,23 @@ function Bericht-Erzeugen {
     $vPersp = Aufzaehlung 'EView' 'vPerspective'; $vFront = Aufzaehlung 'EView' 'vFront'
     $zeichnungen = New-Object System.Collections.Generic.List[object]
     $nr = 0
+    <#  VARIANTEN ZUM EINGRENZEN (9. Oktober, -BerichtVariante 'a,b').
+        Der vierte Lauf stuerzte nach der 9. Zeichnung ab. Jede Variante
+        nimmt EINEN Verdacht heraus:
+          ohnefit    kein Model.FitInView vor jeder Zeichnung
+          fiteinmal  FitInView nur einmal, nach dem Setzen der Ansicht
+          ohnewerte  keine Werte an Staeben / Knoten (WriteValuesTo aus)
+          ohneemf    kein SaveWindowToMetafile
+          ohnebib    kein DrawingsLibrary.AddWindow
+          persp      Ergebnisse perspektivisch statt von vorn
+          pause      0.5 s nach jeder Zeichnung
+          nurn       je Kombination nur N (prueft den Kombinationswechsel)
+          auflager   nur die Auflagerkraefte, in mehreren Darstellungen
+        Nach einem RPC-Fehler ist AxisVM weg - der Lauf hoert dann auf.   #>
+    $bv = @{}
+    foreach ($x in @(([string]$BerichtVariante).ToLower() -split '[,; ]+')) { if ($x) { $bv[$x] = $true } }
+    if ($bv.Count) { Schreib ("  Variante: {0}" -f (($bv.Keys | Sort-Object) -join ', ')) }
+    $script:axisWeg = $false
 
     $ansicht = {
         param($v)
@@ -827,12 +846,15 @@ function Bericht-Erzeugen {
     $ablegen = {
         param([string]$kapitel, [string]$name)
         $script:berichtNr++
+        if ($script:axisWeg) { return }
         # Einpassen (Model.FitInView, Referenz): ohne lag das Tragwerk am Rand.
-        try { $m.FitInView() } catch { }
+        if (-not $bv['ohnefit'] -and -not $bv['fiteinmal']) { try { $m.FitInView() } catch { } }
         $di = -1
-        try { $di = [int]$bib.AddWindow(1, $name) } catch { $di = -1 }
+        if ($bv['ohnebib']) { $di = 9000 + $script:berichtNr }
+        else { try { $di = [int]$bib.AddWindow(1, $name) } catch { $di = -1; if ($_.Exception.Message -match '0x800706B[AE]') { $script:axisWeg = $true } } }
+        if ($bv['pause']) { Start-Sleep -Milliseconds 500 }
         $bild = $null
-        if ($bildOrdner) {
+        if ($bildOrdner -and -not $bv['ohneemf'] -and -not $script:axisWeg) {
             $bild = Join-Path $bildOrdner ('{0:D2}_{1}.emf' -f $script:berichtNr, ($name -replace '[^A-Za-z0-9_.+-]+', '_'))
             try { $null = $w.SaveWindowToMetafile(1, $bild) } catch { $bild = $null }
         }
@@ -856,9 +878,10 @@ function Bericht-Erzeugen {
         $par = SatzSetzen $par @('BasicDispParams', 'AutoScale') 'lbTrue'
         # Werte: an Staeben nur Min/Max, an Knoten (Auflager) alle.
         $knoten = $komp -like 'rc_nsf*'
-        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Lines') $(if ($knoten) { 'lbFalse' } else { 'lbTrue' })
-        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Nodes') $(if ($knoten) { 'lbTrue' } else { 'lbFalse' })
-        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'MinMaxOnly') $(if ($knoten) { 'lbFalse' } else { 'lbTrue' })
+        $werte = -not $bv['ohnewerte']
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Lines') $(if ($knoten -or -not $werte) { 'lbFalse' } else { 'lbTrue' })
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Nodes') $(if ($knoten -and $werte) { 'lbTrue' } else { 'lbFalse' })
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'MinMaxOnly') $(if ($knoten -or -not $werte) { 'lbFalse' } else { 'lbTrue' })
         $par = SatzSetzen $par @('DisplayAnalysisType') 'datLinear'
         $par = SatzSetzen $par @('ResultsType') 'rtLoadCombination'
         $par = SatzSetzen $par @('MinMaxType') 'mtMinMax'
@@ -871,6 +894,7 @@ function Bericht-Erzeugen {
             @{ n = 'V181 / Satz _V153'; typ = 'RExtendedDisplayParameters_V153'; f = 'V181' },
             @{ n = 'V153 (4 Argumente)'; typ = 'RExtendedDisplayParameters_V153'; f = 'V153' })
         if ($script:anzeigeWeg) { $wege = @($wege | Where-Object { $_.n -eq $script:anzeigeWeg }) }
+        if ($script:axisWeg) { return -1 }
         foreach ($weg in $wege) {
             $t = $script:typen | Where-Object { $_.Name -eq $weg.typ } | Select-Object -First 1
             if (-not $t) { continue }
@@ -881,6 +905,11 @@ function Bericht-Erzeugen {
                 $r = if ($weg.f -eq 'V181') { [int]$w.SetStaticDisplayParameters_V181(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
                      else { [int]$w.SetStaticDisplayParameters_V153(1, [ref]$par, $kombiNr, [int[]]@()) }
             } catch {
+                if ($_.Exception.Message -match '0x800706B[AE]') {
+                    $script:axisWeg = $true
+                    Schreib ("    >>> AxisVM ist weg (RPC) beim Setzen von {0}, Kombination {1}, nach {2} Zeichnungen." -f $komp, $kombiNr, $script:berichtNr)
+                    return -1
+                }
                 if (-not $script:anzeigeMeldung.ContainsKey($weg.n)) {
                     $script:anzeigeMeldung[$weg.n] = 1
                     Schreib "    >>> $($weg.n): $($_.Exception.Message -replace "`r?`n", ' ')"
@@ -903,15 +932,21 @@ function Bericht-Erzeugen {
 
     Schreib '  1 Modell'
     & $ansicht $vPersp; & $ablegen '1 Modell' 'Modell perspektivisch'
-    & $ansicht $vFront; & $ablegen '1 Modell' 'Modell Ansicht vorn'
+    if (-not $bv['persp']) { & $ansicht $vFront }
+    if ($bv['fiteinmal']) { try { $m.FitInView() } catch { } }
+    & $ablegen '1 Modell' 'Modell Ansicht vorn'
     # Die Ergebnisse von vorn (X-Z, die Ebene des Jochs): perspektivisch
     # stand das Tragwerk verzerrt am Rand (erster Lauf, 8. Oktober).
 
     $komp = @(@('rc_lfNx', 'N'), @('rc_lfVz', 'Vz'), @('rc_lfMy', 'My'), @('rc_lfMz', 'Mz'), @('rc_lfTx', 'Tx'))
+    if ($bv['nurn']) { $komp = @(, @('rc_lfNx', 'N')); $uls = @($komb | Where-Object { $_.art -eq 'tragsicherheit' }) }
+    if ($bv['auflager']) { $uls = @(); $gzg = @() }
     Schreib '  2 Schnittgroessen und Spannungen (Tragsicherheit)'
     foreach ($kb in $uls) {
+        if ($script:axisWeg) { break }
         $kn = $nrVon[[string]$kb.key]
         foreach ($k in $komp) {
+            if ($script:axisWeg) { break }
             $r = & $ergebnis $kn $k[0] $false 'dmDiagramFilled'
             if ($r -le 0) {
                 Schreib "    >>> $($k[1]) $($kb.bez): Anzeige nicht gesetzt ($r)"
@@ -924,6 +959,7 @@ function Bericht-Erzeugen {
             }
             & $ablegen '2 Schnittgroessen' ("{0} - {1}" -f $k[1], $kb.bez)
         }
+        if ($bv['nurn']) { continue }
         $r = & $ergebnis $kn 'rc_lsSomax' $false 'dmDiagramFilled'
         if ($r -gt 0) { & $ablegen '3 Spannungen' ("sigma_v - {0}" -f $kb.bez) }
     }
@@ -933,11 +969,32 @@ function Bericht-Erzeugen {
         if ($r -gt 0) { & $ablegen '4 Verformung' ("eR - {0}" -f $kb.bez) }
     }
     Schreib '  5 Auflagerkraefte (charakteristisch)'
+    if ($bv['auflager']) {
+        <#  Die Auflagerkraefte kamen im Bild als 0 (Max/Min 0). Eine
+            Kombination, jede Komponente in drei Darstellungen - welche
+            eine Zahl zeigt, sagt das Bild.                               #>
+        $kb = $chr | Select-Object -First 1
+        if (-not $kb) { $kb = $komb | Select-Object -First 1 }
+        foreach ($k in @('rc_nsfRz', 'rc_nsfRx', 'rc_nsfRy', 'rc_nsfRxyz', 'rc_nsfRyy', 'rc_nsfRr')) {
+            foreach ($dm in @('dmDiagram', 'dmDiagramFilled', 'dmNone')) {
+                if ($script:axisWeg) { break }
+                $r = & $ergebnis $nrVon[[string]$kb.key] $k $false $dm
+                if ($r -gt 0) { & $ablegen '5 Auflagerkraefte' ("{0} {1} - {2}" -f $k, $dm, $kb.bez) }
+                else { Schreib "    $k $dm : nicht gesetzt ($r)" }
+            }
+        }
+    } else {
     foreach ($kb in $chr) {
         foreach ($k in @(@('rc_nsfRz', 'Rz'), @('rc_nsfRx', 'Rx'), @('rc_nsfRy', 'Ry'))) {
+            if ($script:axisWeg) { break }
             $r = & $ergebnis $nrVon[[string]$kb.key] $k[0] $false 'dmDiagram'
             if ($r -gt 0) { & $ablegen '5 Auflagerkraefte' ("{0} - {1}" -f $k[1], $kb.bez) }
         }
+    }
+    }
+    if ($script:axisWeg) {
+        Schreib ("  >>> ABGEBROCHEN: AxisVM antwortet nicht mehr (RPC). {0} Zeichnungen bis dahin." -f $zeichnungen.Count)
+        return
     }
     $ok = @($zeichnungen | Where-Object { $_.index -gt 0 })
     Schreib ("  {0} von {1} Zeichnungen in der Bibliothek" -f $ok.Count, $zeichnungen.Count)
@@ -1102,6 +1159,73 @@ $typen = TypbibliothekLaden
 if (-not $typen) {
     Beenden 11 ('Die Typbibliothek liess sich nicht lesen. Ohne sie sind ' +
                 'Staebe, Auflager und Lasten nicht zu setzen.')
+}
+
+<#  ===========================================================================
+    NUR DER STATIKBERICHT, AM SCHON GEBAUTEN MODELL (-BerichtNur, 9. Oktober).
+
+    Der Aufbau dauert Minuten, die Zeichnungen Sekunden. Zum Eingrenzen des
+    Absturzes nach der 9. Zeichnung wird die .axs neben der Modelldatei
+    geladen (LoadFromFile), nachgesehen, ob Ergebnisse da sind (sonst linear
+    gerechnet - auf Weisung, wie -Rechnen), und nur Bericht-Erzeugen gefahren.
+    Geschrieben wird ein eigener Bericht <Modell>_berichtnur[_Variante].txt;
+    die Bilder gehen nach Images_<Modell>[_Variante]. Das Modell wird NICHT
+    gesichert - die .axs bleibt, wie der Aufbau sie abgelegt hat.
+    =========================================================================== #>
+if ($BerichtNur) {
+    Abschnitt 'Nur Statikbericht - Modell laden'
+    $axsN = [IO.Path]::GetFullPath([IO.Path]::ChangeExtension($Json, '.axs'))
+    $anh = ''
+    if ($BerichtVariante) { $anh = '_' + (([string]$BerichtVariante) -replace '[^A-Za-z0-9]+', '-') }
+    $bericht = NebenDatei $Json ("_berichtnur$anh.txt")
+    $ende = {
+        param([int]$code)
+        if ($Stapel) {
+            try { $app.AskCloseAll = 0 } catch { }
+            try { $app.Models.Delete($idx) } catch { }
+            try { $app.Quit() } catch { }
+            foreach ($o in @($m, $app)) {
+                try { while ([Runtime.InteropServices.Marshal]::ReleaseComObject($o) -gt 0) { } } catch { }
+            }
+            [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+        }
+        $zeilen | Set-Content -Path $bericht -Encoding UTF8
+        Write-Host ''; Write-Host "Bericht: $bericht"
+        exit $code
+    }
+    if (-not (Test-Path -LiteralPath $axsN)) { Schreib "  >>> Kein Modell: $axsN"; & $ende 40 }
+    $rl = $null
+    try { $rl = $m.LoadFromFile($axsN) } catch { Schreib "  >>> LoadFromFile: $($_.Exception.Message)" }
+    $nKn = -1
+    try { $nKn = [int]$m.Nodes.Count } catch { }
+    Schreib "  LoadFromFile -> $rl, Knoten $nKn"
+    if ($nKn -le 0) { & $ende 41 }
+    $atLinN = Aufzaehlung 'EAnalysisType' 'atLinearStatic'; if ($null -eq $atLinN) { $atLinN = 0 }
+    $anzN = -1
+    try { $anzN = [int]$m.Results.ResultCaseCount($atLinN) } catch { }
+    Schreib "  Ergebnisfaelle aus der Datei: $anzN"
+    if ($anzN -le 0) {
+        $cuiN = Aufzaehlung 'ECalculationUserInteraction' 'cuiNoUserInteractionWithAutoCorrectNoShow'
+        if ($null -eq $cuiN) { $cuiN = 3 }
+        $rr = $null
+        try { $rr = $m.Calculation.LinearAnalysis($cuiN) } catch { Schreib "  >>> LinearAnalysis: $($_.Exception.Message)" }
+        try { $anzN = [int]$m.Results.ResultCaseCount($atLinN) } catch { }
+        Schreib "  Linear gerechnet (Rueckgabe $rr), Ergebnisfaelle: $anzN"
+        if ($anzN -le 0) { & $ende 42 }
+    }
+    $kbN = @{}
+    $zuN = NebenDatei $Json '_zuordnung.json'
+    if (Test-Path -LiteralPath $zuN) {
+        try { $zN = Get-Content -LiteralPath $zuN -Raw -Encoding UTF8 | ConvertFrom-Json
+              $zN.kombinationen.PSObject.Properties | ForEach-Object { $kbN[$_.Name] = [int]$_.Value } } catch { }
+    }
+    Schreib "  Kombinationen aus der Zuordnung: $($kbN.Count)"
+    $ordN = Join-Path (Split-Path $axsN) ('Images_' + [IO.Path]::GetFileNameWithoutExtension($axsN) + $anh)
+    $t0 = Get-Date
+    try { Bericht-Erzeugen $m $d $kbN $ordN $BerichtVorlage }
+    catch { Schreib "  >>> Bericht-Erzeugen brach ab: $($_.Exception.Message)" }
+    Schreib ("  Dauer der Zeichnungen: {0:N0} s" -f ((Get-Date) - $t0).TotalSeconds)
+    & $ende 0
 }
 
 # =============================================================================

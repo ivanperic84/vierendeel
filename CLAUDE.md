@@ -400,7 +400,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**8. Oktober 2026** · ⚠ **Acht Commits sind örtlich und warten auf den Befehl zum Pushen** («Gespreizte Masten DGP», «Windlasten auf Joch und Mast von Hand») (Weisung 8. Oktober: «auf befehl push warten, ich will zuerst den stand der momentan vorhanden ist weitergeben und testen»); `origin/main` = `5dc0ef6`. `Versand/` (Datenpaket, Einzeldatei, COM_Bruecke) ist der Stand von `5dc0ef6` und wird erst mit dem Push nachgezogen. Davor: alles gepusht, auch der Stand zum Statikbericht über COM (Weisung 8. Oktober, nach dem Bugreport zur Brücke: «alles offene nachführen und dann pushen» - hebt «nicht pushen» vom selben Tag auf). Der Statikbericht ist weiter in Arbeit (siehe *Laufende Arbeit* und INITIALPROMPT.md). · Prüfstand 7047 Kontrollen grün (am Arbeitsrechner, örtliche Daten; Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json` und Einzeldatei `Versand/vierendeel_tool_2026-10-08.html` sind aktuell, die COM-Brücke in `Versand/COM_Bruecke` gleich `com/`) · `durchlauf.mjs`
+**8. Oktober 2026** · ⚠ **Neun Commits sind örtlich und warten auf den Befehl zum Pushen** («Gespreizte Masten DGP», «Windlasten auf Joch und Mast von Hand») (Weisung 8. Oktober: «auf befehl push warten, ich will zuerst den stand der momentan vorhanden ist weitergeben und testen»); `origin/main` = `5dc0ef6`. `Versand/` (Datenpaket, Einzeldatei, COM_Bruecke) ist der Stand von `5dc0ef6` und wird erst mit dem Push nachgezogen. Davor: alles gepusht, auch der Stand zum Statikbericht über COM (Weisung 8. Oktober, nach dem Bugreport zur Brücke: «alles offene nachführen und dann pushen» - hebt «nicht pushen» vom selben Tag auf). Der Statikbericht ist weiter in Arbeit (siehe *Laufende Arbeit* und INITIALPROMPT.md). · Prüfstand 7047 Kontrollen grün (am Arbeitsrechner, örtliche Daten; Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json` und Einzeldatei `Versand/vierendeel_tool_2026-10-08.html` sind aktuell, die COM-Brücke in `Versand/COM_Bruecke` gleich `com/`) · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2103,8 +2103,15 @@ Ergebnisanzeige nicht. (3) **`SetStaticDisplayParameters_V181(Index, RExtendedDi
 KombiNr, LoadLevel, Int32[])`** trägt (Typbibliothek; die Referenz nennt den Satz _V153), 30 von 30
 Zeichnungen - aber perspektivisch verzerrt am Rand, Auflagerkräfte Max/Min 0. (4) Mit `Model.FitInView()`,
 Ansicht vorn und Werten (WriteValuesTo) ist M_y richtig (Wind +y: 0.887 / −0.967 kNm) - dann **AxisVM-Absturz
-nach der 9. Zeichnung** («RPC-Server nicht verfügbar»). Nächste Schritte: Absturz eingrenzen; Komponente der
-Auflagerkräfte klären; Bericht nur mit Vorlage .rep (Auftraggeber). Bilder in `com/Images_<Modell>/`
+nach der 9. Zeichnung** («RPC-Server nicht verfügbar»). **9. Oktober, zwei weitere Läufe** (Weisung «mach noch ein paar axis läufe»; neuer Schalter `-BerichtNur` lädt die gebaute .axs und macht nur die
+Zeichnungen, `-BerichtVariante` nimmt je einen Verdacht heraus - Zeichnungen in 17 s statt eines ganzen Aufbaus): (5) unverändert - AxisVM **friert ein**
+(«Keine Rückmeldung», Statuszeile «Berechnung der Stabspannungen…», Rechenzeit steht) nach der Spannungsanzeige σ_v (`rc_lsSomax`), beim nächsten
+Setzen der Anzeige; Instanz beendet. (6) Variante `nurn` (ohne σ_v): **22 von 22 Zeichnungen, kein Absturz** - N je Tragsicherheits-Kombination,
+Verformung, Auflagerkräfte; die Auflagerkräfte stehen jetzt mit Zahl da (R_z −12.820 kN je Mastfuss = Löser). **Befund: der Auslöser ist die
+Spannungsanzeige über COM**, nicht FitInView, EMF oder die Bibliothek. Kosmetisch offen: Werte an jedem Knoten statt nur Min/Max, das Bild füllt nur
+einen Teil des Rahmens. ⚠ Frage des Auftraggebers dazu: «macht es vielleich mehr sinn die resultate in diese app zurückzuführen und den bericht hier
+zusammenzustellen?» - empfohlen ja (Zahlen über `-Auslesen` sind erprobt, die Anzeige über COM ist brüchig und braucht eine Vorlage .rep); Entscheid offen.
+Nächste Schritte: Entscheid abwarten; Bericht in AxisVM nur mit Vorlage .rep (Auftraggeber). Bilder in `com/Images_<Modell>/`
 (gitignoriert).
 
 **Gittermast: gebaut (3. Okt.).** Etappen 4-7 erledigt (Stabmodell, 3D, Nachweise je Stab mit
