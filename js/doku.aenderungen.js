@@ -15,7 +15,7 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
-      { text: 'Projektliste: die Spalte «η max» zeigt beim Speichern die grösste Ausnutzung über alle Bauteile mit dem massgebenden Bauteil (vorher nur das Joch). Ältere Einträge dafür einmal neu speichern.' },
+      { text: 'Projektliste: die Spalte «η max» zeigt beim Speichern die grösste Ausnutzung über alle Bauteile (vorher nur das Joch; das massgebende Bauteil steht im Titel der Zahl). Ältere Einträge dafür einmal neu speichern.' },
       { text: 'Neu: Blatt «Bestandesschutz» (Knopf im Block Bestandesschutz, auch unter Export) - Übersicht mit den neuen Bauteilen in Rot, Ausnutzung im Bestand und mit den neuen Teilen als Balken und Tabelle; wählbar Gesamt, Joch, Mast, Fundamente.' },
       { text: 'Reiter Auflager, Kräfte am Jochanschluss: umschaltbar zwischen der Resultierenden je Jochende (Kräfte und Momente) und den einzelnen Gurten.' },
       { text: 'Von Hand gesetzte Lasten stehen unten rechts im Bild als «Lasten von Hand (Joch, Mastwind)». Eine Windlast lässt sich auch auf 0 setzen.' },

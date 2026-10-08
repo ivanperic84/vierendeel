@@ -213,8 +213,8 @@ export async function zeichneSchublade(app) {
       ? `Grösste Ausnutzung über alle geführten Bauteile beim Speichern${k.etaWer ? ` - massgebend: ${k.etaWer}` : ''}`
         + (k.etaQuelle === 'ersatzbalken' ? ' (vorläufig, Ersatzbalken)' : ' (Stabwerk)')
       : 'Älterer Eintrag: nur das Joch aus dem Ersatzbalken, ohne Masten und Fundamente - neu speichern für das Gesamturteil';
-    return `<td class="ab-zahl ${v > 1 ? 'nok' : 'ok'}" title="${esc(titel)}">${v.toFixed(2)}${
-      k.etaWer && k.etaQuelle !== 'joch' ? ` <span class="ab-wer">${esc(k.etaWer)}</span>` : ''}</td>`;
+    // Nur die Zahl («Zahl alleine geügt, die liste soll schlank bleiben», 8. Oktober) - das Bauteil steht im Titel.
+    return `<td class="ab-zahl ${v > 1 ? 'nok' : 'ok'}" title="${esc(titel)}">${v.toFixed(2)}</td>`;
   };
   const tabelle = (k, liste) => `
     <details class="ab-gruppe${k === app.projekt.projekt ? ' aktiv' : ''}" open>
@@ -227,7 +227,7 @@ export async function zeichneSchublade(app) {
       </summary>
       <div class="ab-rollen"><table class="ab-tabelle">
         <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
-          <th>Tragwerk</th><th title="Grösste Ausnutzung über alle geführten Bauteile beim Speichern, mit dem massgebenden Bauteil">η max</th><th>Datum</th><th>Bemerkung</th><th></th></tr></thead>
+          <th>Tragwerk</th><th title="Grösste Ausnutzung über alle geführten Bauteile beim Speichern, das massgebende Bauteil steht im Titel der Zahl">η max</th><th>Datum</th><th>Bemerkung</th><th></th></tr></thead>
         <tbody>${liste.map((e) => `
           <tr class="${e.id === app.projekt.id ? 'aktiv' : ''}" data-id="${esc(e.id)}">
             ${ed(e.id, 'name', e.name, 'ab-name')}
