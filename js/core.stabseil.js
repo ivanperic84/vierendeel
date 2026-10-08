@@ -269,6 +269,19 @@ export function ankerAusStabwerk(dat, lsg, faelle, mastId, meta, seilInfo, satz,
   if (einzel) {
     const zul = Number(erg.A.nachweis?.zul) > 0 ? erg.A.nachweis.zul / 2 : null;
     einzel = { ...einzel, zul, eta: zul ? einzel.N / zul : null };
+    /*
+     * >>> DAS EINZELNE SEIL BESTIMMT DAS URTEIL MIT (9. Oktober). <<< Auf die
+     * Frage, ob die Ampel nur der Resultierenden folgt: «doppelanker
+     * bestimmt das urteil». η ist das Grössere aus Resultierende / 134 kN und
+     * stärkerem Seil / 67 kN; `massgebend` sagt, welches.
+     */
+    const nw = erg.A.nachweis;
+    if (nw && Number.isFinite(einzel.eta) && !nw.schlaff && einzel.eta > (nw.eta ?? 0)) {
+      return { ...erg.A, lastfall: einzel.lastfall, bez: einzel.bez, quelle: 'stabwerk', einzel,
+               nachweis: { ...nw, etaResultierende: nw.eta, NResultierende: nw.N,
+                           eta: einzel.eta, ok: einzel.eta <= 1, massgebend: 'seil',
+                           text: `Zug — Seil ${einzel.seil} ${einzel.N.toFixed(1)} kN, zulässig ${zul.toFixed(1)} kN je Seil` } };
+    }
   }
   return { ...erg.A, quelle: 'stabwerk', ...(einzel ? { einzel } : {}) };
 }

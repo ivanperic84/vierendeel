@@ -40645,6 +40645,23 @@ titel('263  Doppelanker mit zwei Seilen; Gruppenkopf mit Summenkräften');
        dop.a.nachweis.N >= dop.a.einzel.N - 1e-9 && dop.a.nachweis.N <= dop.a.einzel.oben + dop.a.einzel.unten + 1e-9,
        `oben ${dop.a.einzel.oben.toFixed(2)}, unten ${dop.a.einzel.unten.toFixed(2)} kN`);
   pruef('Das einzelne Seil steht gegen die Hälfte (67 kN) daneben', dop.a.einzel.zul, 67, 1e-12, 'kN');
+  // «doppelanker bestimmt das urteil» (9. Oktober): η = das Grössere aus
+  // Resultierende / 134 und stärkerem Seil / 67.
+  pruef('Urteil des Doppelankers: das Grössere aus Resultierender und Einzelseil',
+        dop.a.nachweis.eta, Math.max(dop.a.nachweis.N / 134, dop.a.einzel.N / 67), 1e-12, '');
+  wahr('… hier bestimmt das obere Seil (7.13 / 67 > 11.36 / 134), und die Kachel sagt es',
+       dop.a.nachweis.massgebend === 'seil' && dop.a.einzel.seil === 'oben'
+       && Math.abs(dop.a.nachweis.etaResultierende - dop.a.nachweis.N / 134) < 1e-12,
+       `η ${dop.a.nachweis.eta.toFixed(4)} statt ${dop.a.nachweis.etaResultierende.toFixed(4)}`);
+  pruef('Messwert: η Doppelanker', dop.a.nachweis.eta, 0.1064, 0.0005, '');
+  wahr('Der einfache Seilanker bleibt, wie er war (kein Einzelseil-Vergleich)',
+       !ein.a.einzel && Math.abs(ein.a.nachweis.eta - ein.a.nachweis.N / 67) < 1e-12);
+  {
+    const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+    wahr('Grundwerte-Fenster: Lasten von Hand aufgeführt, mit Rücksetzknopf für das ganze Blatt',
+         kq.includes("kopf: 'Lasten von Hand (nicht aus der Datenbank)'") && kq.includes('app.lastenZuruecksetzen()')
+         && APP_QUELLE().includes("if (key === 'lastenZuruecksetzenAlle') {"));
+  }
   // Messwerte (J90/20 m, HEB 260, ohne Teile, Anker längs an M1, h 7.0 / a 4.5 / d 3.0):
   pruef('Messwert: Seilanker einfach', ein.a.nachweis.N, 9.04, 0.02, 'kN');
   pruef('Messwert: Doppelanker resultierend', dop.a.nachweis.N, 11.36, 0.02, 'kN');

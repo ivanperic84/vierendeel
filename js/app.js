@@ -203,6 +203,7 @@ const app = {
   VERSION,
   get BEARBEITER() { return BEARBEITER; },
   get ANKER_STANDARD() { return ANKER_STANDARD; },
+  lastenZuruecksetzen: () => aendern('lastenZuruecksetzenAlle', true),
   get setzen() { return setzen; }, set setzen(v) { setzen = v; },
   blattVersatz: (...a) => blattVersatz(...a),
   hebungVon: (...a) => hebungVon(...a),
@@ -2816,7 +2817,9 @@ function aktualisiereModell(erg) {
       ek.addEventListener('click', (e) => {
         e.stopPropagation();
         const r = ek.getBoundingClientRect();
-        kontextZeigen(app, [r.right - 300, r.top - 230], kontextTrasse(app));
+        // Höher, wenn Lasten von Hand aufgeführt sind (9. Oktober).
+        const pkt = kontextTrasse(app);
+        kontextZeigen(app, [r.right - 340, r.top - 40 - 26 * pkt.length], pkt);
       });
     }
   }
@@ -3862,6 +3865,18 @@ function aendern(key, wert) {
   }
   if (key === 'bearbeiten') {
     werte = { ...werte, bearbeiten: wert };
+    neuRechnen();
+    return;
+  }
+  if (key === 'lastenZuruecksetzenAlle') {
+    /*
+     * Rücksetzknopf im Grundwerte-Fenster (9. Oktober): jedes Tragwerk des
+     * Blattes zurück auf die Tabelle, der Mastwind von Hand an allen Masten weg.
+     */
+    const zurueck = (t) => ({ ...t, lastenBearbeiten: false, lastHerkunft: 'tabelle' });
+    werte = { ...zurueck(werte), weitere: (werte.weitere ?? []).map(zurueck) };
+    if (mastWindVonHand(werte)) werte = rechensatz(mastWindZuruecksetzen(werte));
+    meldeImBalken('Lasten auf Joch und Masten wieder aus der Datenbank (Strg+Z holt die Eingaben zurück).', { dauer: 6000 });
     neuRechnen();
     return;
   }

@@ -7521,8 +7521,8 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        */
       const ez = e.einzel;
       const einzelText = ez && Number.isFinite(ez.N)
-        ? ` · resultierend · Seil ${ez.seil} ${ez.N.toFixed(1)} kN`
-          + (ez.zul && ez.N > ez.zul + 1e-9 ? ` > ${ez.zul.toFixed(0)} kN je Seil!` : '') : '';
+        ? ` · resultierend · Seil ${ez.seil} ${ez.N.toFixed(1)} / ${(ez.zul ?? 0).toFixed(0)} kN`
+          + (nw.massgebend === 'seil' ? ' massgebend' : '') : '';
       const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
         + `${Math.abs(nw.N).toFixed(1)} kN char.${einzelText}${schlaffAuch}`;
       /*

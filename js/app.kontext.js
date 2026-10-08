@@ -13,7 +13,8 @@ import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, se
 import { flBauteile, getFlBauteil } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { anbauGruppe } from './data.anbauteile.js';
-import { WIND_KLASSEN, SCHNEE_KLASSEN } from './core.lasten.js';
+import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
+import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
 
@@ -54,6 +55,8 @@ export function kontextZeigen(app, bei, punkte) {
   n.innerHTML = echte.map((p, i) => {
     if (p === '-') return '<hr>';
     if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
+    // Eine Zeile Auskunft, nichts zum Anklicken (9. Oktober).
+    if (p.info) return `<div class="kontext-info${p.warn ? ' warn' : ''}">${esc(p.info)}</div>`;
     if (p.feld) {
       const f = p.feld;
       const eingabe = f.art === 'auswahl'
@@ -620,6 +623,42 @@ export function kontextAnbauteil(app, i) {
 export function kontextTrasse(app) {
   const w = app.werte;
   const ja = [{ wert: '1', text: 'ein' }, { wert: '', text: 'aus' }];
+  /*
+   * >>> DIE LASTEN VON HAND STEHEN HIER, MIT RÜCKSETZKNOPF (9. Oktober). <<<
+   * Mit Bild des Fensters, im Wortlaut: «Führe hier die angepassten werte
+   * auf und mach noch den button reset». Je Joch mit «Werte bearbeiten» die
+   * drei Laufmeterlasten, je Mast die von Hand gesetzte Windlast mit dem
+   * Tabellenwert daneben. Der Knopf geht denselben Weg wie «Tabellenwerte»
+   * im Reiter Lasten (`lastenBearbeiten` aus) - für jedes Tragwerk des
+   * Blattes, und der Mastwind fällt an allen Masten weg.
+   */
+  const f2 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2) : '–');
+  const hand = [];
+  const tw = tragwerkeVon(w);
+  tw.forEach((t) => {
+    if (t.lastHerkunft !== 'manuell' || (t.tragwerksart ?? 'joch') === 'einzelmast') return;
+    hand.push({ info: `Joch ${tragwerkPos(w, t)}: g_k ${f2(t.gkManuell)} · w_k ${f2(t.wkManuell)}`
+      + `${w.schneeAktiv ? ` · s_k ${f2(t.skManuell)}` : ''} kN/m` });
+  });
+  let masten = [];
+  try { masten = mastenVon(w); } catch { masten = []; }
+  masten.forEach((m) => {
+    const hx = Number.isFinite(m?.windX), hy = Number.isFinite(m?.windY);
+    if (!hx && !hy) return;
+    let tab = null;
+    try { tab = mastWindBeide(m.profil, ekVonWindklasse(w.windKlasse), m.steg ?? 'jochachse'); } catch { tab = null; }
+    const teil = [];
+    if (hx) teil.push(`quer ${f2(m.windX)} (Tabelle ${f2(tab?.jochachse)})`);
+    if (hy) teil.push(`längs ${f2(m.windY)} (Tabelle ${f2(tab?.gleis)})`);
+    hand.push({ info: `Mastwind ${mastName(w, m) || m.id}: ${teil.join(' · ')} kN/m` });
+  });
+  const handBlock = hand.length ? ['-', { kopf: 'Lasten von Hand (nicht aus der Datenbank)' }, ...hand.map((h) => ({ ...h, warn: true })),
+    { text: 'Zurücksetzen auf die Datenbankwerte', warn: true, tun: () => app.lastenZuruecksetzen() }] : [];
+  return [
+    ...kontextTrasseFelder(app, w, ja), ...handBlock];
+}
+
+function kontextTrasseFelder(app, w, ja) {
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
     { feld: { art: 'auswahl', label: 'Wind', wert: w.windKlasse ?? '0.9',

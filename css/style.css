@@ -2749,6 +2749,11 @@ body.datei-ueber::after {
   padding: 3px 8px 5px; max-width: 200px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.kontext-info {
+  font: 10.5px var(--f-mono); color: var(--on2); padding: 2px 8px; max-width: 340px;
+  white-space: normal; line-height: 1.35;
+}
+.kontext-info.warn { color: var(--warn, #d9a441); }
 .kontext-feld {
   /* Feste Spalten (7. Oktober, «kannst du die felder ordnen»): Beschriftung,
      Feld, Einheit - alle Felder gleich breit, die Einheit hat immer Platz. */
