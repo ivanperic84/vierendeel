@@ -32,7 +32,7 @@ und Richtung in der Mastliste (`windX`, `windY`); «Tabellenwerte» setzt Joch u
 **Gebaut am 8. Oktober, nicht gepusht:** Blatt «Bestandesschutz» (Knopf im Block, Export; neue Teile rot, Auswahl Gesamt / Joch /
 Mast / Fundamente; `export.bestand.js`) und am Jochanschluss der Schalter Resultierende je Jochende / Einzelgurte.
 
-**Aufgabenliste:** der Bugreport vom 9. Oktober steht als Liste B1-B9 in CLAUDE.md unter *Offene Punkte* (B1-B7, B9, B10 erledigt; offen B8). Doppelanker seit 9. Oktober mit zwei Seilen und Feld d_A (Vorgabe 3.00 m abgegriffen, zu bestätigen).
+**Aufgabenliste:** der Bugreport vom 9. Oktober steht als Liste B1-B9 in CLAUDE.md unter *Offene Punkte* (B1-B7, B9, B10 erledigt; offen B8). Doppelanker seit 9. Oktober mit zwei Seilen und Feld d_A (Vorgabe 3.00 m, bestätigt). Versand ist nachgezogen; der Push wartet weiter auf den Befehl.
 
 **Gegenrechnung AxisVM (9. Oktober):** statt des Berichts in AxisVM liest die App die Ergebnisdatei der Brücke ein (*Export → AxisVM-Ergebnisse
 einlesen*) und führt das Kapitel «Gegenrechnung AxisVM» im Nachweisbericht (`core.axisvergleich.js`, `export.gegenrechnung.js`). Der Statikbericht
