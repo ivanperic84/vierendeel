@@ -40101,6 +40101,34 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
   wahr('… das Ergebnis nennt Typ, Profil und Höhe der Spreizung', eD.gespreiztJe?.M1?.typ === 'DGP24/5.5'
        && eD.gespreiztJe.M1.profil === 'HEB 240' && eD.gespreiztJe.M1.L1 === 5.5);
 
+  /*
+   * ANBAUTEILE AM GESPREIZTEN MASTEN (8. Oktober, Frage: «wie verhält es sich
+   * mit den anbauteilen bei den dgp masttypen, hast du das geprüft?» - bis
+   * dahin nicht). Ein Teil in der Spreizung hängt an einem Achsknoten mit
+   * Schott zu beiden Hälften, eines darüber am Walzprofil; die Lasten sind
+   * dieselben wie am HEB 240.
+   */
+  {
+    const teil = (h) => ({ ...A.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: h });
+    const sch = (d) => d.staebe.filter((x) => /_SCH/.test(x.name)).length;
+    const summe = (d, lf, r) => d.lasten.punkt.filter((l) => l.lastfall === lf && l.richtung === r).reduce((q, l) => q + l.wert, 0);
+    [[3, 'in der Spreizung'], [5.5, 'genau auf L1'], [8, 'über der Spreizung']].forEach(([hM, wo]) => {
+      const d = rechne(einzel('DGP24/5.5', 10, { anbauteile: [teil(hM)] })).h;
+      const hh = rechne(einzel('HEB 240', 10, { anbauteile: [teil(hM)] })).h;
+      const dd = d.roh?.dat, dh = hh.roh?.dat;
+      const kn = new Set((dd?.knoten ?? []).map((k) => k.name)), st = new Set((dd?.staebe ?? []).map((x) => x.name));
+      wahr(`NT-Ausleger auf ${hM.toFixed(1)} m (${wo}): das Stabwerk rechnet, jede Last an einem vorhandenen Knoten / Stab`,
+           !d.fehler && !d.ohneModell && dd.lasten.punkt.length > 0 && dd.lasten.punkt.every((l) => kn.has(l.knoten))
+           && dd.lasten.strecke.every((l) => st.has(l.stab)), d.fehler ?? d.ohneModell ?? `${dd?.lasten.punkt.length} Punktlasten`);
+      pruef('… dieselben Lasten wie am HEB 240 (Gewicht und Wind längs der Teile)',
+            summe(dd, 'G_Anbau', 'Z') + summe(dd, 'WindY', 'Y'), summe(dh, 'G_Anbau', 'Z') + summe(dh, 'WindY', 'Y'), 1e-12, 'kN');
+      wahr(hM < 5.5 ? '… in der Spreizung ein eigenes Schott zu beiden Hälften' : '… kein zusätzliches Schott (das Teil hängt am Walzprofil bzw. am Schott bei L1)',
+           hM < 5.5 ? sch(dd) === sch(dat) + 2 : sch(dd) === sch(dat), `${sch(dat)} → ${sch(dd)}`);
+      wahr('… die Hälften sind höher ausgenutzt als ohne Teil, das Fundament auch',
+           d.teile['mast:M1|gurt'].eta > eD.teile['mast:M1|gurt'].eta && d.fundamentJe.M1.eta > eD.fundamentJe.M1.eta,
+           `Hälften ${eD.teile['mast:M1|gurt'].eta.toFixed(3)} → ${d.teile['mast:M1|gurt'].eta.toFixed(3)} (HEB 240 ${hh.teile['mast:M1|mast'].eta.toFixed(3)}), Blech ${d.teile['mast:M1|blech'].eta.toFixed(3)}, Fundament ${d.fundamentJe.M1.eta.toFixed(3)}`);
+    });
+  }
   // Steifigkeit: 1 kN am Kopf, in der Stegrichtung und quer dazu.
   {
     const d2 = JSON.parse(JSON.stringify(dat));
