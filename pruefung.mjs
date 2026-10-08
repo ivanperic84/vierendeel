@@ -40055,6 +40055,16 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
            && x[k].min.wert >= an.anschluss.filter((g) => g.mast === x.mast).reduce((s, g) => s + g[k].min.wert, 0) - 1e-9)));
     wahr('… mit Momenten um die Mitte des Anschlusses', voll.every((x) => ['Mx', 'My', 'Mz'].every((k) => Number.isFinite(x[k].max.wert))),
          voll.map((x) => `${x.mast}: Mx ${x.Mx.min.wert.toFixed(2)}/${x.Mx.max.wert.toFixed(2)} My ${x.My.min.wert.toFixed(2)}/${x.My.max.wert.toFixed(2)} Mz ${x.Mz.min.wert.toFixed(2)}/${x.Mz.max.wert.toFixed(2)}`).join(' · '));
+    // Wie die Tabelle am Mastfuss (9. Oktober): je Jochende eine Tabelle, Grössen als Zeilen.
+    {
+      const ER = await import(J('export.reaktionen.js'));
+      const t = ER.anschlussKurzHtml(an.anschluss, (m) => m, true);
+      const zeilen = [...t.matchAll(/<tr><th>([^<]+) <span class="rk-einheit">/g)].map((m) => m[1]);
+      wahr('Jochanschluss, Resultierende: je Jochende eine Tabelle wie am Mastfuss (F_z, M_y, F_x, M_x, F_y, M_z; min / max)',
+           (t.match(/class="dt rk-kurz rk-jochende"/g) ?? []).length === 2
+           && zeilen.slice(0, 6).join('|') === 'F_z ↑ (V)|M_y (M,q)|F_x (H,q)|M_x (M,l)|F_y (H,l)|M_z (T)'
+           && t.includes('>min<') && t.includes('>max<'), zeilen.slice(0, 6).join(' · '));
+    }
     wahr('Reiter Auflager: Schalter Resultierende / Einzelgurte am Jochanschluss',
          APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln)'));
   }

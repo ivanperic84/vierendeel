@@ -527,26 +527,25 @@ export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = fal
 }
 
 /*
- * Resultierende je Jochende (8. Oktober): je Mast und Tragwerk eine Zeile
- * mit den Kräften, darunter eine mit den Momenten um die Mitte des
- * Anschlusses - in den drei Spalten x, y, z, damit die Tabelle so schmal
- * bleibt wie die der Gurte.
+ * Resultierende je Jochende - WIE DIE TABELLE AM MASTFUSS (9. Oktober, «kann
+ * man die auflagerreaktionen beim joch ähnlich aufführen wie die beim
+ * Masten?»): je Jochende eine kleine Tabelle, die Grössen als Zeilen in
+ * derselben Reihenfolge und Benennung (F_z, M_y, F_x, M_x, F_y, M_z), als
+ * Spalten das Kleinste und das Grösste über die Zustände. Anders als am
+ * Mastfuss MIT Vorzeichen (global, F_z nach oben): es ist die Kraft des
+ * Jochs auf den Masten, kein ±Betrag gegen eine zulässige Last. Momente um
+ * die Mitte des Anschlusses. Die erste Fassung vom 8. Oktober führte F und
+ * M als zwei Zeilen mit den Spalten x / y / z.
  */
 function anschlussResultierendeHtml(res, mastName) {
-  const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
-    k.min ? `${f2(k.min.wert)}<br>${f2(k.max.wert)}` : '–'}</td>`;
-  return `<table class="dt rk-anschluss">
-    <colgroup><col style="width:31%"><col style="width:23%"><col style="width:23%"><col style="width:23%"></colgroup>
-    <thead><tr><th>Jochende<br><span class="rk-einheit">min / max</span></th>
-      <th class="num">x<br><span class="rk-einheit">quer</span></th>
-      <th class="num">y<br><span class="rk-einheit">längs</span></th>
-      <th class="num">z ↑<br><span class="rk-einheit">lotrecht</span></th></tr></thead>
-    <tbody>${res.map((a) => {
-      const wer = `${a.tw ? `${a.tw} ` : ''}${mastName(a.mast)}`;
-      const titel = `${a.tw ? `${a.tw} · ` : ''}Mast ${mastName(a.mast)} · Summe von ${a.anzahl} Gurtanschlüssen`;
-      return `<tr><th title="${esc(titel)}">${esc(wer)} · F <span class="rk-einheit">[kN]</span></th>
-        ${zelle(a.Fx)}${zelle(a.Fy)}${zelle(a.Fz)}</tr>
-      <tr class="rk-moment"><th title="${esc(`${titel} · Momente um die Mitte des Anschlusses, global, rechte Hand`)}">${esc(wer)} · M <span class="rk-einheit">[kNm]</span></th>
-        ${zelle(a.Mx)}${zelle(a.My)}${zelle(a.Mz)}</tr>`;
-    }).join('')}</tbody></table>`;
+  const zeile = (label, einheit, k) => `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
+    <td class="num" title="${esc(k.min?.bez ?? '')}">${k.min ? f2(k.min.wert) : '–'}</td>
+    <td class="num" title="${esc(k.max?.bez ?? '')}">${k.max ? f2(k.max.wert) : '–'}</td></tr>`;
+  return res.map((a) => `<table class="dt rk-kurz rk-jochende">
+      <colgroup><col style="width:46%"><col style="width:27%"><col style="width:27%"></colgroup>
+      <thead><tr><th><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`)}</b>
+          <span class="rk-x">Jochende · ${a.anzahl} Gurtanschlüsse</span></th>
+        <th class="num">min</th><th class="num">max</th></tr></thead>
+      <tbody>${zeile('F_z ↑ (V)', 'kN', a.Fz)}${zeile('M_y (M,q)', 'kNm', a.My)}${zeile('F_x (H,q)', 'kN', a.Fx)}${
+        zeile('M_x (M,l)', 'kNm', a.Mx)}${zeile('F_y (H,l)', 'kN', a.Fy)}${zeile('M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
 }

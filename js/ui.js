@@ -2443,7 +2443,7 @@ export function querprofilLeisteHtml(werte) {
   }).join('');
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      <div class="qp-band qp-bahn" style="height:${hoehe + 48}px">
+      <div class="qp-band qp-bahn" style="height:${hoehe + 62}px">
         <span class="qp-boden" style="top:${hoehe + 28}px"></span>
         ${bandLinien}${bandMasten}
       </div>
