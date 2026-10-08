@@ -549,3 +549,87 @@ function anschlussResultierendeHtml(res, mastName) {
       <tbody>${zeile('F_z ↑ (V)', 'kN', a.Fz)}${zeile('M_y (M,q)', 'kNm', a.My)}${zeile('F_x (H,q)', 'kN', a.Fx)}${
         zeile('M_x (M,l)', 'kNm', a.Mx)}${zeile('F_y (H,l)', 'kN', a.Fy)}${zeile('M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
 }
+
+/**
+ * >>> DAS BLATT «KRÄFTE AM JOCHANSCHLUSS» (9. Oktober). <<< Weisung: «für die
+ * jochreaktionen auch ein blatt zusammenstellen ähnlich wie Reaktionskräfte
+ * und button aufführen.» A4 quer wie das Reaktionsblatt: die Übersicht aus
+ * dem Stabmodell, je Jochende eine Zeile mit der Resultierenden (Kräfte und
+ * Momente, je das Kleinste und das Grösste), auf Wunsch darunter die
+ * einzelnen Gurtanschlüsse. Dieselben Zahlen wie im Reiter Auflager.
+ *
+ * @param {object} daten  wie beim Reaktionsblatt (skizze, zeilen, titel, linie, …)
+ *                        dazu `anschluss` (Liste mit `.resultierende`) und `mastName`
+ */
+export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = {}) {
+  const liste = daten?.anschluss ?? [];
+  const res = liste.resultierende ?? [];
+  const mn = daten?.mastName ?? ((m) => m);
+  const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
+    daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
+    .filter(Boolean).join(' · ') || 'Linie / Station: –';
+  const paar = (k) => `<td class="num" title="${esc(k.min?.bez ?? '')}">${k.min ? f2(k.min.wert) : '–'}</td>`
+    + `<td class="num" title="${esc(k.max?.bez ?? '')}">${k.max ? f2(k.max.wert) : '–'}</td>`;
+  const SP = [['Fz', 'F_z ↑ (V)', 'kN'], ['My', 'M_y (M,q)', 'kNm'], ['Fx', 'F_x (H,q)', 'kN'],
+              ['Mx', 'M_x (M,l)', 'kNm'], ['Fy', 'F_y (H,l)', 'kN'], ['Mz', 'M_z (T)', 'kNm']];
+  const tabRes = `<table><colgroup><col style="width:16%">${'<col style="width:7%">'.repeat(12)}</colgroup>
+    <thead><tr><th rowspan="2">Jochende</th>${SP.map(([, t, e]) => `<th colspan="2" class="rk-gruppe">${t} [${e}]</th>`).join('')}</tr>
+      <tr>${SP.map(() => '<th class="num">min</th><th class="num">max</th>').join('')}</tr></thead>
+    <tbody>${res.map((a) => `<tr class="rk-haupt"><td class="rk-name"><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mn(a.mast)}`)}</b>
+        <span class="rk-x">${a.anzahl} Gurtanschlüsse</span></td>${SP.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>`;
+  const SG = [['Fx', 'F_x (quer)'], ['Fy', 'F_y (längs)'], ['Fz', 'F_z ↑ (lotrecht)']];
+  const tabEinzel = einzeln && liste.length ? `<h2 class="rk-hinweise-titel">Einzelne Gurtanschlüsse</h2>
+    <table style="width:62%"><colgroup><col style="width:28%">${'<col style="width:12%">'.repeat(6)}</colgroup>
+    <thead><tr><th rowspan="2">Anschluss</th>${SG.map(([, t]) => `<th colspan="2" class="rk-gruppe">${t} [kN]</th>`).join('')}</tr>
+      <tr>${SG.map(() => '<th class="num">min</th><th class="num">max</th>').join('')}</tr></thead>
+    <tbody>${liste.map((a, i) => `<tr${i && liste[i - 1].mast !== a.mast ? ' class="rk-haupt"' : ''}><td>${
+      esc(`${a.tw ? `${a.tw} · ` : ''}${mn(a.mast)} · ${a.gurt === 'OG' ? 'Obergurt' : 'Untergurt'} ${a.seite === 'L' ? 'links' : 'rechts'}`)}</td>${
+      SG.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>` : '';
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8">
+  <title>Kräfte am Jochanschluss</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font: 11px/1.35 system-ui, sans-serif; color: #111; background: #fff; margin: 16px; }
+    h1 { font-size: 17px; margin: 0 0 2px; }
+    .unter { color: #555; margin: 0 0 10px; }
+    .oben { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; }
+    .oben figure { margin: 0; }
+    figcaption { font-size: 10px; color: #555; margin-top: 2px; }
+    table { border-collapse: collapse; width: 100%; font-size: 10.5px; table-layout: fixed; }
+    th, td { border: 1px solid #c8c8c8; padding: 4px 6px; vertical-align: middle; overflow-wrap: anywhere; }
+    thead th { background: #eef0f3; font-weight: 600; text-align: left; font-size: 10px; line-height: 1.25; }
+    thead th.num { text-align: right; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rk-gruppe { text-align: center !important; color: #333; }
+    .rk-name b { display: block; font-size: 12px; }
+    .rk-x { display: block; color: #666; font-size: 9.5px; }
+    tbody tr.rk-haupt td { border-top: 1.6px solid #888; }
+    .rk-hinweise { margin: 6px 0 0 16px; padding: 0; }
+    .rk-hinweise li { margin: 2px 0; }
+    .rk-hinweise-titel { font-size: 13px; margin: 12px 0 4px; }
+    .fuss { margin-top: 10px; font-size: 9.5px; color: #777; }
+  </style></head><body>
+  <h1>Kräfte am Jochanschluss · Charakteristische Werte</h1>
+  <p class="unter">${kopf} · ${esc(daten?.datum ?? '')}</p>
+  <div class="oben">
+    <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
+      <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
+    <div style="max-width:330px"><b>Achsen und Vorzeichen</b>
+      <ul class="rk-hinweise"><li>Kraft des Jochs AUF den Masten, global: x quer zum Gleis, y längs zum Gleis, z nach oben
+        (Gewicht des Jochs negativ).</li>
+        <li>Momente um die Mitte der Gurtanschlüsse am Masten, rechte Hand.</li>
+        <li>min / max mit Vorzeichen - nicht ±Betrag wie am Mastfuss.</li></ul></div>
+  </div>
+  <h2 class="rk-hinweise-titel">Resultierende je Jochende</h2>
+  ${res.length ? tabRes : '<p>Keine Anschlüsse im Stabwerk.</p>'}
+  ${tabEinzel}
+  ${hinweise ? `<h2 class="rk-hinweise-titel">Hinweise</h2><ul class="rk-hinweise">
+    <li>Charakteristische Werte aus dem Stabwerk; Hülle über «Ständig» (ganzes G) und «Ständig + Wind / Schnee» je Richtung,
+      Wind ohne Abminderung. Der Havariefall ist nicht enthalten.</li>
+    <li>Die Resultierende ist je Zustand über die Gurtanschlüsse summiert und dann umhüllt - sie ist deshalb nicht die Summe
+      der Grösstwerte der einzelnen Gurte.</li>
+    <li>Die Verteilung auf die Gurte folgt der eingestellten Auflagerbedingung am Masten (welcher Gurt in welcher Richtung hält).</li>
+    <li>Für die Bemessung der Gurtverbindung (Bügelschrauben) gilt der Block «Bügelschrauben» mit den Bemessungswerten.</li></ul>` : ''}
+  <p class="fuss">${esc(daten?.fassung ?? '')}</p>
+  </body></html>`;
+}

@@ -2013,7 +2013,14 @@ export const FELDER = [
   // Tabellenwerte gelten, stehen sie gesperrt darin - man sieht also stets,
   // womit gerechnet wird. Der Knopf "Werte bearbeiten" entsperrt sie und
   // schaltet die Herkunft auf "manuell".
-  { key: 'gkManuell', gruppe: 'staendig', typ: 'zahl', label: 'Ständige Last Joch',
+  /*
+   * >>> WEM DIE LAST GILT, STEHT IM NAMEN DES FELDES (9. Oktober). <<< Frage
+   * mit Bild: «wo sieht man hier welches tragwerk das betroffen ist?» Die
+   * Laufmeterlasten gehören dem angewählten Tragwerk, der Mastwind dem
+   * angewählten Masten - beides stand nur im Hinweis bzw. gar nicht da.
+   */
+  { key: 'gkManuell', gruppe: 'staendig', typ: 'zahl',
+    label: (w) => `Ständige Last Joch ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     sym: 'g_k', einheit: 'kN/m', standard: 0.6, schritt: 0.05, min: 0,
     ausLast: true,
     // >>> LAUFMETERLASTEN GEHOEREN DEM TRAEGER (20. September). <<<
@@ -2031,11 +2038,13 @@ export const FELDER = [
         + 'Das Stabwerk wiegt wie AxisVM die Stäbe (Gurte, Bleche, Masten; Querschnitt × Wichte) '
         + 'plus Zuschlag Δg_k. Nicht als Stab im Modell: Anschlusswinkel, Stosslaschen, '
         + 'Schrauben - beim J130/30 m rund 5 % der Tabelle; bei Bedarf als Δg_k ansetzen.') },
-  { key: 'wkManuell', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Joch',
+  { key: 'wkManuell', gruppe: 'ein', typ: 'zahl',
+    label: (w) => `Windlast auf Joch ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     sym: 'w_k', einheit: 'kN/m', standard: 0.52, schritt: 0.05, min: 0,
     ausLast: true,
     sichtbar: (w) => tragwerksart(w).key !== 'einzelmast' },
-  { key: 'skManuell', gruppe: 'schnee', typ: 'zahl', label: 'Schneelast',
+  { key: 'skManuell', gruppe: 'schnee', typ: 'zahl',
+    label: (w) => `Schneelast Joch ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     sym: 's_k', einheit: 'kN/m', standard: 0.27, schritt: 0.05, min: 0,
     ausLast: true,
     sichtbar: (w) => w.schneeAktiv && tragwerksart(w).key !== 'einzelmast' },
@@ -2093,14 +2102,14 @@ export const FELDER = [
    * vor der Tabelle gilt. «Tabellenwerte» nimmt sie an allen Masten weg.
    */
   { key: 'mastWindX', gruppe: 'ein', typ: 'zahl',
-    label: 'Windlast auf Mast · quer zum Gleis',
+    label: (w) => `Windlast auf Mast ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''} · quer zum Gleis`.replace('  ', ' '),
     sym: 'w_Mast,x', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
     ausLast: true,
     wertAus: (w) => mastWindAnzeige(w).x,
     sichtbar: (w) => mastDa(w),
     hinweis: mastWindHinweis('x') },
   { key: 'mastWindY', gruppe: 'ein', typ: 'zahl',
-    label: 'Windlast auf Mast · längs zum Gleis',
+    label: (w) => `Windlast auf Mast ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''} · längs zum Gleis`.replace('  ', ' '),
     sym: 'w_Mast,y', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
     ausLast: true,
     wertAus: (w) => mastWindAnzeige(w).y,

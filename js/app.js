@@ -27,7 +27,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten } from './app.bericht.js';
-import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml } from './export.reaktionen.js';
+import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml, anschlussBlattHtml } from './export.reaktionen.js';
 import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
 import { axisVergleich, istAxisErgebnis } from './core.axisvergleich.js';
 import { gegenrechnungBlattHtml } from './export.gegenrechnung.js';
@@ -834,6 +834,29 @@ function reaktionsBlatt() {
     ],
   };
   berichtZeigen(wahl.bauen(reaktionsWahl), 'Reaktionskräfte', wahl);
+}
+
+/*
+ * >>> DAS BLATT DER KRÄFTE AM JOCHANSCHLUSS (9. Oktober). <<< «für die
+ * jochreaktionen auch ein blatt zusammenstellen ähnlich wie Reaktionskräfte
+ * und button aufführen.» Derselbe Weg wie das Reaktionsblatt.
+ */
+let anschlussWahl = { einzeln: true, hinweise: true };
+function anschlussBlatt() {
+  const g = stabwerkGilt();
+  const liste = g ? stabwerk?.anschluss : null;
+  if (!liste?.length) {
+    meldeImBalken(`Kräfte am Jochanschluss: ${!g ? 'das Stabwerk ist noch nicht gerechnet'
+      : 'das Blatt führt kein Joch an Masten'}.`);
+    return;
+  }
+  const d = { ...reaktionsDaten(), anschluss: liste, mastName: (m) => mastAnzeigeText(m, anzeigeKarte) };
+  const wahl = {
+    optionen: [{ key: 'einzeln', label: 'Einzelne Gurte' }, { key: 'hinweise', label: 'Hinweise' }],
+    zustand: anschlussWahl,
+    bauen: (z) => { anschlussWahl = z; return anschlussBlattHtml(d, z); },
+  };
+  berichtZeigen(wahl.bauen(anschlussWahl), 'Kräfte am Jochanschluss', wahl);
 }
 
 /*
@@ -1873,10 +1896,14 @@ function anschlussBlockEinfuegen(node) {
       : 'Je Jochende die Summe der Gurtanschlüsse: Kräfte und Momente um die Mitte des Anschlusses, '
         + 'je Zustand summiert'}; Hülle über «Ständig» und «Ständig + Wind / Schnee», ohne Abminderung
       des Winds. Der massgebende Zustand steht im Titel der Zelle.</p>
+    <button class="btn btn-mini btn-acc" type="button" data-anschluss-blatt
+      title="Blatt der Kräfte am Jochanschluss öffnen: Übersicht, Resultierende je Jochende, einzelne Gurte">Blatt mit Skizze
+      und Hinweisen …</button>
   </div>`;
   const rk = node.querySelector('.rk-block');
   if (rk) rk.insertAdjacentHTML('afterend', html);
   else node.insertAdjacentHTML('afterbegin', html);
+  node.querySelector('[data-anschluss-blatt]')?.addEventListener('click', anschlussBlatt);
   node.querySelectorAll('input[name="rk-anschluss-gurte"]').forEach((r) => r.addEventListener('change', () => {
     try { localStorage.setItem(RK_GURTE, r.value); } catch { /* nur Ansicht */ }
     zeichneAuswertung();
@@ -5446,6 +5473,7 @@ function exportMenue() {
     { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
     // Charakteristisch, alle Auflager des Blattes (30. September).
     { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
+    { text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
     { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
     { text: axisErgebnis ? 'Gegenrechnung AxisVM (Blatt)' : 'AxisVM-Ergebnisse einlesen (Gegenrechnung) …',
       tun: axisErgebnis ? gegenrechnungBlatt : axisEinlesen },

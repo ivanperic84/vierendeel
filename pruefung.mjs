@@ -24549,7 +24549,7 @@ titel('68  Das Menueband und der Name der Anwendung');
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
   // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
   wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Drucken',
-       eintraege.length === 10 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+       eintraege.length === 11 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
            'reaktionsBlatt', 'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
        eintraege.join(' · '));
@@ -40064,6 +40064,23 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
            (t.match(/class="dt rk-kurz rk-jochende"/g) ?? []).length === 2
            && zeilen.slice(0, 6).join('|') === 'F_z ↑ (V)|M_y (M,q)|F_x (H,q)|M_x (M,l)|F_y (H,l)|M_z (T)'
            && t.includes('>min<') && t.includes('>max<'), zeilen.slice(0, 6).join(' · '));
+    }
+    // Das Blatt (9. Oktober): «für die jochreaktionen auch ein blatt zusammenstellen ähnlich wie Reaktionskräfte».
+    {
+      const ER = await import(J('export.reaktionen.js'));
+      const d = { anschluss: an.anschluss, skizze: an.skizze, zeilen: [], mastName: (m) => `Mast ${m}` };
+      const voll = ER.anschlussBlattHtml(d, {});
+      const r1 = an.anschluss.resultierende[0];
+      const f2p = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2).replace('-', '−');
+      wahr('Blatt «Kräfte am Jochanschluss»: Skizze, Resultierende je Jochende, einzelne Gurte, Hinweise',
+           voll.includes('class="rk-skizze"') && voll.includes('Resultierende je Jochende') && voll.includes('Einzelne Gurtanschlüsse')
+           && voll.includes(`Mast ${r1.mast}`) && voll.includes(f2p(r1.Fz.min.wert)) && voll.includes(f2p(r1.Fy.max.wert)));
+      const kurz = ER.anschlussBlattHtml(d, { einzeln: false, hinweise: false });
+      wahr('… die Kästchen nehmen die Einzelgurte und die Hinweise heraus',
+           !kurz.includes('Einzelne Gurtanschlüsse') && !kurz.includes('<h2 class="rk-hinweise-titel">Hinweise</h2>')
+           && kurz.includes('Resultierende je Jochende'));
+      wahr('… Knopf im Block und Eintrag im Export',
+           APP_QUELLE().includes('data-anschluss-blatt') && APP_QUELLE().includes("{ text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt }"));
     }
     wahr('Reiter Auflager: Schalter Resultierende / Einzelgurte am Jochanschluss',
          APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln)'));
