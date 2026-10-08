@@ -121,3 +121,6 @@ com/AxisVM_Abfangjoch_*
 
 # Gemeldete Fehler mit Modellen des Betreibers (Linie, Kilometer im Namen) - nie in die Ablage.
 bugs/
+
+# Bilder des Statikberichts aus AxisVM (Schalter -Statikbericht, 8. Oktober)
+com/Images_*/

@@ -21,7 +21,7 @@ export const AENDERUNGEN = [
       { text: 'Gittermast: der Wind im Ersatzprofil (Maske, vorläufige Anzeige) ist je Richtung das Grösste über die Höhe - am I 30 jetzt 0.305 / 0.441 statt 0.305 / 0.305 kN/m (EK1). Das Stabwerk rechnete schon je Höhe mit der richtigen Fläche und bleibt gleich.' },
       { text: 'Havarie: solange der Reiter Lasten offen ist, stehen alle Leiter im 3D - die angehakten («kann reissen») in der Warnfarbe.' },
       { text: 'Drahtwerke: «Ordnen nach Name / Lage x / Höhe z» in jeder Gliederung, mit den Spalten x und z.' },
-      { text: 'COM-Brücke: Schalter -Bericht legt die Plots für den Statikbericht an (Zeichnungsbibliothek und EMF-Bilder, mit Vorlage auch den Bericht).' },
+      { text: 'COM-Brücke: Schalter -Statikbericht legt die Plots für den Statikbericht an (Zeichnungsbibliothek und EMF-Bilder, mit Vorlage auch den Bericht).' },
       { text: 'Wind auf die Fahrleitung: Tragseil und Fahrdraht einzeln tragen je die Hälfte der Zeile «Fahrleitung mit Fd» (Blatt Windlasten 2), zusammen also wie das Kettenwerk (vorher 15 % weniger).', rechnung: true },
       { text: 'Lastgenerator: Δ zur Gleisachse je Anbauteil; Jochaufsätze nicht mehr ans Gleis gebunden (Anzahl, gleichmässig verteilt oder Abstand Δ zur Jochmitte); Montagehöhe des Jochs und Mastlänge im Dialog.' },
       { text: 'Havarie: die Leiterliste sieht aus wie die Drahtwerke (Leiter, Typ, Lage), Überfahren zeigt den Leiter im 3D; Kettenwerke gleicher Bezeichnung zählen nur an derselben Stelle als ein Leiter (Punkt für Punkt).', rechnung: true },

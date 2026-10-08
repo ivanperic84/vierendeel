@@ -39771,8 +39771,8 @@ titel('256  Gittermast-Wind je Richtung; Havarie-Leiter ohne Klick; Statikberich
        UQ.includes('export function havarieLeiterMarken') && R3.includes('this.havarieLeiter.get(`${mk.teil}#${mk.modul}`)')
        && APP_QUELLE().includes("ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null"));
   const PS = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
-  wahr('Brücke: -Bericht mit Fenster, Zeichnungsbibliothek, EMF und Bericht aus Vorlage',
-       ['[switch]$Bericht', '[string]$BerichtVorlage', 'function Bericht-Erzeugen', 'SetStaticDisplayParameters_V181',
+  wahr('Brücke: -Statikbericht mit Fenster, Zeichnungsbibliothek, EMF und Bericht aus Vorlage',
+       ['[switch]$Statikbericht', '[string]$BerichtVorlage', 'function Bericht-Erzeugen', 'SetStaticDisplayParameters_V181',
         'DrawingsLibrary', 'AddWindow(1, $name)', 'SaveWindowToMetafile', 'NewFromTemplateFile', 'AddRootFolder',
         'AddDrawingFromLibrary', "'rc_lfMy'", "'rc_lsSomax'", "'rc_d_eR'", "'rc_nsfRz'"].every((k) => PS.includes(k)));
   wahr('Brücke bleibt reines ASCII', /^[\x00-\x7F]*$/.test(PS));

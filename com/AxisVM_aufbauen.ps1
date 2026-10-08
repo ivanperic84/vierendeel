@@ -47,7 +47,7 @@ param(
     [string]$Zuordnung,
     [string]$Ziel,
     [switch]$Unsichtbar,
-    [switch]$Bericht,
+    [switch]$Statikbericht,
     [string]$BerichtVorlage
 )
 
@@ -92,7 +92,7 @@ trap {
     try { ($zeilen + $t) | Set-Content -Path $bericht -Encoding UTF8
           Write-Host ''; Write-Host "Bericht: $bericht"
           Write-Host 'Diese Datei zurueckschicken.' } catch { }
-    Warte
+    if (Get-Command Warte -ErrorAction SilentlyContinue) { Warte }
     exit 9
 }
 
@@ -827,6 +827,8 @@ function Bericht-Erzeugen {
     $ablegen = {
         param([string]$kapitel, [string]$name)
         $script:berichtNr++
+        # Einpassen (Model.FitInView, Referenz): ohne lag das Tragwerk am Rand.
+        try { $m.FitInView() } catch { }
         $di = -1
         try { $di = [int]$bib.AddWindow(1, $name) } catch { $di = -1 }
         $bild = $null
@@ -838,33 +840,72 @@ function Bericht-Erzeugen {
         $wie = if ($di -gt 0) { "Zeichnung $di" } else { "Zeichnung NICHT angelegt ($di$(if (FehlerName $di) { ' = ' + (FehlerName $di) }))" }
         Schreib ("    {0,-56} {1}" -f $name, $wie)
     }
-    $ergebnis = {
-        param([int]$kombiNr, [string]$komp, [bool]$verformt, [string]$modus)
-        $par = NeuerSatz 'RExtendedDisplayParameters_V153'
+    <#  Welcher Verbund-Typ und welche Fassung: die Referenz nennt fuer das
+        Fenster _V181 mit dem Satz _V153 (5 Argumente) und _V153 ohne
+        LoadLevel (4 Argumente). Erster Lauf (7. Oktober): _V181 mit _V153
+        nicht angenommen. Also der Reihe nach probieren, jede Meldung einmal
+        in den Bericht, die erste, die traegt, merken.                     #>
+    $script:anzeigeWeg = $null
+    $script:anzeigeMeldung = @{}
+    $satzFuer = {
+        param([string]$typ, [string]$komp, [bool]$verformt, [string]$modus)
+        $par = NeuerSatz $typ
         $par = SatzSetzen $par @('BasicDispParams', 'ResultComponent') $komp
         $par = SatzSetzen $par @('BasicDispParams', 'DisplayMode') $modus
         $par = SatzSetzen $par @('BasicDispParams', 'DisplayShape') $(if ($verformt) { 'dsDeformed' } else { 'dsUndeformed' })
         $par = SatzSetzen $par @('BasicDispParams', 'AutoScale') 'lbTrue'
-        $par = SatzSetzen $par @('BasicDispParams', 'Scale') 1.0
+        # Werte: an Staeben nur Min/Max, an Knoten (Auflager) alle.
+        $knoten = $komp -like 'rc_nsf*'
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Lines') $(if ($knoten) { 'lbFalse' } else { 'lbTrue' })
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'Nodes') $(if ($knoten) { 'lbTrue' } else { 'lbFalse' })
+        $par = SatzSetzen $par @('BasicDispParams', 'WriteValuesTo', 'MinMaxOnly') $(if ($knoten) { 'lbFalse' } else { 'lbTrue' })
         $par = SatzSetzen $par @('DisplayAnalysisType') 'datLinear'
         $par = SatzSetzen $par @('ResultsType') 'rtLoadCombination'
         $par = SatzSetzen $par @('MinMaxType') 'mtMinMax'
-        if ($null -eq $par) { return -1 }
-        $r = -1
-        try { $r = [int]$w.SetStaticDisplayParameters_V181(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
-        catch {
-            try { $r = [int]$w.SetStaticDisplayParameters_V153(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
-            catch { Schreib "    >>> SetStaticDisplayParameters: $($_.Exception.Message -replace "`r?`n", ' ')"; $r = -1 }
+        return $par
+    }
+    $ergebnis = {
+        param([int]$kombiNr, [string]$komp, [bool]$verformt, [string]$modus)
+        $wege = @(
+            @{ n = 'V181 / Satz _V181'; typ = 'RExtendedDisplayParameters_V181'; f = 'V181' },
+            @{ n = 'V181 / Satz _V153'; typ = 'RExtendedDisplayParameters_V153'; f = 'V181' },
+            @{ n = 'V153 (4 Argumente)'; typ = 'RExtendedDisplayParameters_V153'; f = 'V153' })
+        if ($script:anzeigeWeg) { $wege = @($wege | Where-Object { $_.n -eq $script:anzeigeWeg }) }
+        foreach ($weg in $wege) {
+            $t = $script:typen | Where-Object { $_.Name -eq $weg.typ } | Select-Object -First 1
+            if (-not $t) { continue }
+            $par = & $satzFuer $weg.typ $komp $verformt $modus
+            if ($null -eq $par) { continue }
+            $r = -1
+            try {
+                $r = if ($weg.f -eq 'V181') { [int]$w.SetStaticDisplayParameters_V181(1, [ref]$par, $kombiNr, 0, [int[]]@()) }
+                     else { [int]$w.SetStaticDisplayParameters_V153(1, [ref]$par, $kombiNr, [int[]]@()) }
+            } catch {
+                if (-not $script:anzeigeMeldung.ContainsKey($weg.n)) {
+                    $script:anzeigeMeldung[$weg.n] = 1
+                    Schreib "    >>> $($weg.n): $($_.Exception.Message -replace "`r?`n", ' ')"
+                }
+                continue
+            }
+            if ($r -gt 0) {
+                if (-not $script:anzeigeWeg) { $script:anzeigeWeg = $weg.n; Schreib "    Anzeige gesetzt ueber $($weg.n)" }
+                try { $m.Refresh() } catch { }
+                return $r
+            }
+            if (-not $script:anzeigeMeldung.ContainsKey("$($weg.n)#$r")) {
+                $script:anzeigeMeldung["$($weg.n)#$r"] = 1
+                Schreib "    >>> $($weg.n): Rueckgabe $r$(if (FehlerName $r) { ' = ' + (FehlerName $r) })"
+            }
         }
-        try { $m.Refresh() } catch { }
-        return $r
+        return -1
     }
     $script:berichtNr = 0
 
     Schreib '  1 Modell'
     & $ansicht $vPersp; & $ablegen '1 Modell' 'Modell perspektivisch'
     & $ansicht $vFront; & $ablegen '1 Modell' 'Modell Ansicht vorn'
-    & $ansicht $vPersp
+    # Die Ergebnisse von vorn (X-Z, die Ebene des Jochs): perspektivisch
+    # stand das Tragwerk verzerrt am Rand (erster Lauf, 8. Oktober).
 
     $komp = @(@('rc_lfNx', 'N'), @('rc_lfVz', 'Vz'), @('rc_lfMy', 'My'), @('rc_lfMz', 'Mz'), @('rc_lfTx', 'Tx'))
     Schreib '  2 Schnittgroessen und Spannungen (Tragsicherheit)'
@@ -872,7 +913,15 @@ function Bericht-Erzeugen {
         $kn = $nrVon[[string]$kb.key]
         foreach ($k in $komp) {
             $r = & $ergebnis $kn $k[0] $false 'dmDiagramFilled'
-            if ($r -le 0) { Schreib "    >>> $($k[1]) $($kb.bez): Anzeige nicht gesetzt ($r)"; continue }
+            if ($r -le 0) {
+                Schreib "    >>> $($k[1]) $($kb.bez): Anzeige nicht gesetzt ($r)"
+                if (-not $script:sigGezeigt) {
+                    $script:sigGezeigt = $true
+                    try { Signaturen 'IAxisVMWindows' 'SetStatic' } catch { }
+                    try { SatzAufbau 'RExtendedDisplayParameters_V153' } catch { }
+                }
+                continue
+            }
             & $ablegen '2 Schnittgroessen' ("{0} - {1}" -f $k[1], $kb.bez)
         }
         $r = & $ergebnis $kn 'rc_lsSomax' $false 'dmDiagramFilled'
@@ -1465,7 +1514,7 @@ if ($Auslesen -and -not $Rechnen) {
              else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
     $n = Lies-Schnittgroessen $m $zielA
     # Statikbericht am offenen, gerechneten Modell (7. Oktober).
-    if ($Bericht -and $d) {
+    if ($Statikbericht -and $d) {
         $kbA = @{}
         $zuA = if ($Zuordnung) { $Zuordnung } elseif ($Json) { NebenDatei $Json '_zuordnung.json' } else { $null }
         if ($zuA -and (Test-Path -LiteralPath $zuA)) {
@@ -3432,7 +3481,7 @@ if ($Rechnen) {
 }
 
 # Statikbericht (7. Oktober): nur mit Ergebnissen, also nach dem Rechnen.
-if ($Bericht -and $Rechnen) {
+if ($Statikbericht -and $Rechnen) {
     $bildOrdner = Join-Path (Split-Path $axs) ('Images_' + [IO.Path]::GetFileNameWithoutExtension($axs))
     Bericht-Erzeugen $m $d $kbId $bildOrdner $BerichtVorlage
     try { $null = $m.SaveToFile($axs, $lbFalsch) } catch { }

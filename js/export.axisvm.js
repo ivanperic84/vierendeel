@@ -5537,7 +5537,7 @@ export function exportiereJson(inp, deps, opt = {}) {
   // Modell selbst führt sie nicht mit.
   opt = { ...opt, eingabe: inp, bau: blattWennMehrere(inp, deps, opt) };
   const d = stabmodellJson(m, opt);
-  // Plan für den Statikbericht in AxisVM (7. Oktober, Schalter -Bericht der Brücke).
+  // Plan für den Statikbericht in AxisVM (7. Oktober, Schalter -Statikbericht der Brücke).
   if (opt.bericht) d.bericht = opt.bericht;
   const name = dateiname(inp, opt, m, 'json');
   const text = JSON.stringify(d, null, 1);

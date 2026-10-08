@@ -5,28 +5,53 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **7. Oktober 2026** (Abschnitt «Gebaut am 6./7. Oktober»); Übergabe vom 4. Oktober für einen neuen Chat / ein neues Konto. Prüfstand **6899**
-Kontrollen grün (mit den Betreiberdaten, in der Cloud-Sitzung), `durchlauf.mjs` ohne Bruch (Betreiber- und
-Testdaten). Gearbeitet wurde in einer **Cloud-Sitzung** auf dem Zweig `claude/dreamy-cannon-9m6xxb`; jeder
-grüne Stand ist dorthin **und nach `main`** gepusht (Weisungen «danach stand auf main stellen», «pushen wenn
-es eine funktionierenden stand erlaubt»). Der Arbeitsbaum ist sauber. Am Arbeitsrechner zuerst
-`git pull origin main`.
+## Stand 8. Oktober 2026 - hier weitermachen
 
-⚠ **Zuerst am Arbeitsrechner:**
-1. Das Datenpaket `Vierendeel_Datenpaket_2026-10-04.json` (dem Auftraggeber als Datei übergeben, nicht in der
-   Ablage) unter *Bauteildaten → Daten laden* einlesen und nach `data/` übernehmen - es trägt die
-   Halterippen der Gittermasten (`rohr.halter`) und das UL-Rohr mit zwei Wanddicken (`rohr.tOben`,
-   `rohr.wechsel`). Die Grundlagen dazu sind **vertraulich** («diese daten nicht öffentlich stellen»):
-   keine Zahl, kein Positions- oder Zeichnungsbezug daraus in verfolgte Dateien.
-2. `node pruefung.mjs` (6711) und `node durchlauf.mjs`.
-3. Die COM-Brücke ist seit dem 4. Oktober unverändert in der Ablage (`com/`); die App legt die Skripte
-   beim Ausleiten mit «Skriptdateien mitliefern» neben die Modelldatei.
+Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
+**6899** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
-**Verteilen auf die Arbeitsrechner (Empfehlung vom 4. Oktober):** Code über GitHub Pages (aktualisiert sich
-selbst, App installierbar), das Datenpaket über einen betriebsinternen Ablageort - nicht über Gmail
-(vertrauliche Daten; Gmail warnt bei HTML-Anhängen mit Skript). Die Einzeldatei mit Daten nur für Rechner
-ohne Internet. ⚠ Ob Pages den neuesten Stand ausliefert, liess sich aus der Cloud nicht prüfen (Fussleiste
-sollte «04.10.2026» zeigen).
+**Git:** `origin/main` steht auf `0320fad` (gepusht). Darüber liegt **ein örtlicher Commit «Statikbericht
+über COM (Brücke) - in Arbeit»**, der **nicht gepusht werden darf** (Weisung 8. Oktober: «den neuen stand
+nach dem abchlusss des berichtbauers nicht pushen»). Erst pushen, wenn der Auftraggeber es sagt.
+
+**Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-07.json`
+ist aktuell (Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
+`Versand/vierendeel_tool_2026-10-07.html`; COM-Brücke `Versand/COM_Bruecke` (mit dem neuen Schalter, aber
+noch nicht fertig erprobt - siehe unten).
+
+**Laufende Arbeit: Statikbericht über COM** (Weisungen 7./8. Oktober: «kannst du auch mit hilfe der
+abhandlung com ein template für einen statikbericht generieren lassen. so viel wie nötig an plots generieren
+lassen», dann «berichtsetzung testen»). Gebaut in `com/AxisVM_aufbauen.ps1`, Funktion `Bericht-Erzeugen`,
+Schalter **`-Statikbericht`** (umbenannt von `-Bericht`: PowerShell kennt keine Gross-/Kleinschreibung, und
+`$bericht` ist der Pfad der Berichtsdatei) und `-BerichtVorlage <.rep>`. Die App schreibt den Plan in die
+Modelldatei (Feld `bericht`, `berichtPlan` in app.axisvm.js). Referenz: `axisvm_com_18100.pdf`
+(download.axisvm.eu, vom Auftraggeber genannt).
+Testlauf (auf Anweisung), Testmodell `com/AxisVM_Bericht_J90_20m.json` (Kopie des Einzeljochs J90/20 m mit
+Plan Wind ±y):
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File com\AxisVM_aufbauen.ps1 -Json com\AxisVM_Bericht_J90_20m.json -Rechnen -Statikbericht -Stapel
+```
+Ergebnis der vier Läufe vom 7./8. Oktober:
+- **Geht:** Bauen, Rechnen; Modellansichten als Zeichnung (`DrawingsLibrary.AddWindow`) und als EMF
+  (`Windows.SaveWindowToMetafile`) in `com/Images_<Modell>/`. Ergebnisanzeige: nur
+  **`SetStaticDisplayParameters_V181(Index, RExtendedDisplayParameters_V181, KombiNr, LoadLevel, Int32[])`**
+  trägt (Signatur aus der Typbibliothek gelesen; die Referenz nennt fälschlich den Satz _V153). Mit
+  `Model.FitInView()` und Ansicht vorn (vFront) ist das Bild M_y unter Wind +y richtig (Max 0.887 /
+  Min −0.967 kNm, Werte am Joch, Legende).
+- **Offen 1:** im 4. Lauf stürzte AxisVM nach der 9. Zeichnung ab («Der RPC-Server ist nicht verfügbar»,
+  HRESULT 0x800706BA) - Ursache unbekannt (je EMF ~3 MB? FitInView? Speicher?). Nächster Schritt: Ursache
+  eingrenzen (z. B. EMF nur auf Wunsch, Pause/`Refresh` zwischen den Zeichnungen, weniger Plots je Lauf).
+- **Offen 2:** Auflagerkräfte (`rc_nsfRz` …) zeigten im 3. Lauf Max 0 / Min 0 - die richtige Komponente oder
+  Anzeigeoption ist noch zu finden; die Verformung `rc_d_eR` ohne Max/Min-Angabe im Kasten.
+- **Offen 3:** ein Bericht selbst entsteht nur aus einer Vorlage (.rep, `Reports.NewFromTemplateFile`) -
+  einen leeren legt die Schnittstelle nicht an. Der Auftraggeber müsste einmal in AxisVM einen Bericht als
+  Vorlage sichern.
+- AxisVM rechnet weiter **nur auf Anweisung**; jeder Lauf dauert rund 10 Minuten.
+
+**Offen beim Auftraggeber:** «Verformung ohne Havarie» (meldet sich, wenn es wieder vorkommt); Gewicht
+Aldrey 300 (0.01 kN/m angenommen); Lesart «Rohr weglassen» = ganzes Rohr.
+
+### Bisher gebaut (Kurzfassung; Einzelheiten in CLAUDE.md, *Entschieden*)
 
 **Gebaut am 4. Oktober** (Einzelheiten in CLAUDE.md, *Entschieden*, Prüfstand 221-232): direkte
 Starrglieder der Anbauteile; alle Tragwerke aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen;
@@ -47,22 +72,7 @@ Sprung der Seitenleiste nach Klick auf den Masttitel behoben.
 
 **Gebaut am 6. Oktober** (am Arbeitsrechner, Prüfstand 236): Teile am Masten an Abfangjoch und Tragausleger im Stabmodell (Knoten auf hMast, Kraft und Moment r × F) und im Bild; am Abfangjoch die Hebel der Jochteile (Jochaufsatz, Hängestütze) als Moment am Achsknoten, Leiterzug zentrisch; Blech-Diagonale (ein Starrglied vom Gurtknoten zum Blechende, J90/20 m 942 → 718 Stäbe). Offen dazu: Havarie je Leiter an Mastteilen dieser Arten, Figur/GZG der Mastteile, AxisVM nicht neu gebaut. ⚠ Das Datenpaket vom 4. Oktober ist am Arbeitsrechner noch nicht eingelesen.
 
-**Gebaut am 6./7. Oktober** (Prüfstand 240-247, 6799 grün, gepusht bis `23078b1`; Einzelheiten CLAUDE.md, *Entschieden*, Zeile «Bedienung und Lasten, 6./7. Oktober»): Stabwerk Echtzeit/Knopf, Bügelschrauben mit Grenzfeder, ψ₀ 0.65 ohne γ_Q, Eigengewicht aus den Stäben wie AxisVM, Gruppen/#Tag, Lastgenerator mit Abstand Mast–Gleis, Drahtwerke nach Typ, Mehrfachauswahl und Kontextfenster der Anbauteile, Trasse in der Fussleiste, Havarie ↔ 3D. Danach (7. Oktober, Prüfstand 248-250): Fundamentablauf mit Gelände über 14° (Schritte 10/12 wie die Zellen der Mappe, bestätigt), Doppelanker, Handbuch Kapitel 21, Drahtwerke je Leiter (Überfahren/Klick/Strg), Gruppe duplizieren, Stahlgüten S450/S460 getrennt für Joch und Masten. Dann Windlasten der Hängestütze je Meter, Gesamtlänge statt Angriffspunkt bei Trägern und Auslegern, Leiter Cu 150 / 2×150 / Aldrey 300 (Prüfstand 251), Gittermast ohne Rohr/Aufsatz als Kästchen (252), Leiterstrich im 3D, Drahtwerke «Einzeln», eigene Vorlagen projektübergreifend (Optionen, 253), Einheitswind mit hinterer Ebene 25 %, Bemessungsvorschlag mit Reserve, Änderungsprotokoll hinter der Fassung (254 - dort bei jeder Änderung einen Punkt ergänzen). Abends (255): Lastgenerator mit Δ je Teil, Jochaufsätzen ohne Gleis, Montagehöhe/Mastlänge; Havarie-Liste wie die Drahtwerke und Kettenwerke Punkt für Punkt; Wind Ts/Fd je die Hälfte der Fahrleitungszeile; Drahtwerke nach Name/x/z, Striche je Anzahl; Griffe nur in der Nähe; Figur rechtwinklig; Reaktionen alter Joche als Resultierende; Verläufe Gittermast. Spät (256): Gittermast-Wind je Richtung (Grösstes über die Höhe), Havarie-Leiter ohne Klick im 3D, Drahtwerke ordnen nach Name/x/z, Brücke -Bericht (Plots für den Statikbericht, ⚠ in AxisVM nicht erprobt). Leiter-Traverse am Masten einseitig (Mitte 0.50, Leiter 1.00, ziehbar; 257). 258: Anschnitt ohne Knotenbereich (auch Gittermast), Signalsymbole (abstrakt, örtlich), Tabelle Kräfte am Jochanschluss. ⚠ Wartet: Pfad der AxisVM-Berichtsvorlage (dann Schalter `-Bericht` im Skript). ⚠ COM-Material-Rückfall in AxisVM nicht erprobt.
-
-**Nächster Schritt (wartet auf den Auftraggeber):**
-1. ⚠ Tragausleger verdreht sich unter Wind längs um rund 0.17 rad (L 10 m, Hängestütze mit NT-Ausleger),
-   der Fahrdraht wandert 0.45 m längs - nachgewiesen wird nur quer. Grenzwert nötig?
-2. Kette der Anbauteile am Tragausleger: geklärt, ändert nichts, **nicht ins Modell gebaut** (sonst
-   ändert sich die COM-Datei). Auf Weisung einbauen.
-3. Zurückgestellt: AxisVM-Lauf Beispiel B; Verdrehung der Signale um die Jochachse.
-4. Uneinheitlich: SAF/DXF/PyNite für Abfangjoch und Gittermast; PyNite-Gegenprobe des seitlichen
-   Rohrhalts unzuverlässig (PyNite 3.0.0 nötig, 3.2.0 bricht ab). Ein AxisVM-Lauf eines Gittermasts mit
-   Rohr nur auf Anweisung.
-5. Nicht im Browser bestätigt: Ziehen von Anbauteilen am Abfangjoch, Ablage-Paket (ZIP) hin und zurück.
-
-**Dateien der Cloud-Sitzung** (`Versand/`, nicht in der Ablage; dem Auftraggeber als Dateikarten im Chat
-geschickt - die Cloud-Sitzung hat keinen Ordner auf dem Arbeitsrechner, und ihr Rechner wird nach einer
-Weile abgeräumt): Datenpaket vom 4. Oktober, `COM_Bruecke.zip`, `Vierendeel_mit_Daten_2026-10-04.html`.
+**Gebaut am 6./7. Oktober** (Prüfstand 240-247, 6799 grün, gepusht bis `23078b1`; Einzelheiten CLAUDE.md, *Entschieden*, Zeile «Bedienung und Lasten, 6./7. Oktober»): Stabwerk Echtzeit/Knopf, Bügelschrauben mit Grenzfeder, ψ₀ 0.65 ohne γ_Q, Eigengewicht aus den Stäben wie AxisVM, Gruppen/#Tag, Lastgenerator mit Abstand Mast–Gleis, Drahtwerke nach Typ, Mehrfachauswahl und Kontextfenster der Anbauteile, Trasse in der Fussleiste, Havarie ↔ 3D. Danach (7. Oktober, Prüfstand 248-250): Fundamentablauf mit Gelände über 14° (Schritte 10/12 wie die Zellen der Mappe, bestätigt), Doppelanker, Handbuch Kapitel 21, Drahtwerke je Leiter (Überfahren/Klick/Strg), Gruppe duplizieren, Stahlgüten S450/S460 getrennt für Joch und Masten. Dann Windlasten der Hängestütze je Meter, Gesamtlänge statt Angriffspunkt bei Trägern und Auslegern, Leiter Cu 150 / 2×150 / Aldrey 300 (Prüfstand 251), Gittermast ohne Rohr/Aufsatz als Kästchen (252), Leiterstrich im 3D, Drahtwerke «Einzeln», eigene Vorlagen projektübergreifend (Optionen, 253), Einheitswind mit hinterer Ebene 25 %, Bemessungsvorschlag mit Reserve, Änderungsprotokoll hinter der Fassung (254 - dort bei jeder Änderung einen Punkt ergänzen). Abends (255): Lastgenerator mit Δ je Teil, Jochaufsätzen ohne Gleis, Montagehöhe/Mastlänge; Havarie-Liste wie die Drahtwerke und Kettenwerke Punkt für Punkt; Wind Ts/Fd je die Hälfte der Fahrleitungszeile; Drahtwerke nach Name/x/z, Striche je Anzahl; Griffe nur in der Nähe; Figur rechtwinklig; Reaktionen alter Joche als Resultierende; Verläufe Gittermast. Spät (256): Gittermast-Wind je Richtung (Grösstes über die Höhe), Havarie-Leiter ohne Klick im 3D, Drahtwerke ordnen nach Name/x/z, Brücke -Statikbericht (Plots für den Statikbericht, ⚠ in AxisVM nicht erprobt). Leiter-Traverse am Masten einseitig (Mitte 0.50, Leiter 1.00, ziehbar; 257). 258: Anschnitt ohne Knotenbereich (auch Gittermast), Signalsymbole (abstrakt, örtlich), Tabelle Kräfte am Jochanschluss. ⚠ Wartet: Pfad der AxisVM-Berichtsvorlage (Schalter `-Statikbericht -BerichtVorlage`). ⚠ COM-Material-Rückfall in AxisVM nicht erprobt.
 
 **Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
 Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
@@ -202,7 +212,9 @@ mit falscher Linklage; PyNite-Links.
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
 > Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
-> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober);
+> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober) - **den örtlichen
+> Commit zum Statikbericht über COM nicht pushen**, bis ich es sage (8. Oktober);
+> `data/*.json` nie pushen, Änderungen daran als Datenpaket nach `Versand/`;
 > kein Projektmaterial des Betreibers in verfolgte Dateien (keine
 > Zeichnungs- oder Projektnummern, kein Betreibername, nicht `data/*.json`,
 > nicht `Grundlagen/`, `Versand/`, `pruefung_axisvm/`); AxisVM rechnet nur

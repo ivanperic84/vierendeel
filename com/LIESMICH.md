@@ -366,14 +366,14 @@ powershell -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -NurPruefen
 
 ---
 
-## Statikbericht (Schalter -Bericht, 7. Oktober 2026)
+## Statikbericht (Schalter -Statikbericht, 7. Oktober 2026)
 
 Nach dem Rechnen legt die Brücke die Plots für einen Statikbericht an
 (nach der COM-Referenz `axisvm_com_18100.pdf`):
 
 ```
-AxisVM_aufbauen.cmd -Json <modell.json> -Rechnen -Bericht [-BerichtVorlage <vorlage.rep>]
-AxisVM_aufbauen.cmd -Json <modell.json> -Auslesen -Bericht   (offenes, gerechnetes Modell)
+AxisVM_aufbauen.cmd -Json <modell.json> -Rechnen -Statikbericht [-BerichtVorlage <vorlage.rep>]
+AxisVM_aufbauen.cmd -Json <modell.json> -Auslesen -Statikbericht   (offenes, gerechnetes Modell)
 ```
 
 - **Was gezeichnet wird:** das Modell (perspektivisch, vorn); je massgebende

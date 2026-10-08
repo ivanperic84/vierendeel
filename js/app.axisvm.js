@@ -33,7 +33,7 @@ import { COM_SKRIPTE, comSkripte, zusammenAblegen } from './export.comskripte.js
  * >>> PLAN FÜR DEN STATIKBERICHT IN AXISVM (7. Oktober). <<< Weisung: «kannst
  * du auch mit hilfe der abhandlung com ein template für einen statikbericht
  * generieren lassen. so viel wie nötig an plots generieren lassen.» Die
- * Brücke (Schalter -Bericht) zeichnet je massgebende Kombination N, V, M, T
+ * Brücke (Schalter -Statikbericht) zeichnet je massgebende Kombination N, V, M, T
  * und σ_v; welche das sind, weiss nur das Stabwerk der Anwendung - je
  * Bauteil der Fall seines grössten η, höchstens vier, nach η geordnet.
  */
