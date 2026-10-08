@@ -23594,7 +23594,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   // Vierzehn seit dem 30. September: die Signalteile (Signalbauer).
   // Fünfzehn seit dem 3. Oktober: die Gittermasten.
   // Sechzehn seit dem 7. Oktober: die Fundamentlasten je Gelände.
-  pruef('Sechzehn Abschnitte', K.ABSCHNITTE.length, 16, 1e-12, 'Stk');
+  // Siebzehn seit dem 8. Oktober: die gespreizten Masten.
+  pruef('Siebzehn Abschnitte', K.ABSCHNITTE.length, 17, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23678,7 +23679,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle sechzehn Abschnitte', gesamt.abschnitte.length, 16, 1e-12, 'Stk');
+    pruef('… ueber alle siebzehn Abschnitte', gesamt.abschnitte.length, 17, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23798,8 +23799,9 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
      */
     // Elf seit dem 3. Oktober: die Gittermasten bei den Masten; zwoelf seit
     // dem 7. Oktober: die Fundamentlasten je Gelaende.
-    wahr('Sortiment: zwoelf Abschnitte in sechs Dateien',
-         sort.length === 12 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    // Dreizehn seit dem 8. Oktober: die gespreizten Masten.
+    wahr('Sortiment: dreizehn Abschnitte in sechs Dateien',
+         sort.length === 13 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -28981,10 +28983,14 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
     // Ein Profil ohne Standardfundament ist eine Auskunft, kein Fehler.
     wahr('Ohne Standardfundament kommt null, nicht ein falsches',
          MA116.fundamentFuerMast('HEB 180', 'jochachse') === null);
-    // Die Doppelmasten stehen in der Tabelle, tragen aber kein Profil.
-    wahr('Die Doppelmasten sind nur von Hand waehlbar',
-         MA116.fundamenttypen().filter((x) => /^DG/.test(x.typ))
-           .every((x) => !x.profile));
+    // Bis zum 8. Oktober trugen die Doppelmasten kein Profil (nur von Hand
+    // wählbar). Seither führt das Sortiment die gespreizten Masten (DGP), und
+    // ihre Fundamente sind ihnen zugeordnet.
+    wahr('Die Fundamente der gespreizten Masten sind zugeordnet (DG1a: DGP24, DG2a/DG3a: DGP26 je Stegrichtung)',
+         MA116.fundamentFuerMast('DGP24/5.5')?.typ === 'DG1a / 2.4'
+         && MA116.fundamentFuerMast('DGP24/10', 'quer')?.typ === 'DG1a / 2.4'
+         && MA116.fundamentFuerMast('DGP26/5.5', 'quer')?.typ === 'DG2a / 2.5'
+         && MA116.fundamentFuerMast('DGP26/10', 'jochachse')?.typ === 'DG3a / 2.6');
   }
 
   // --- c) Der Nachweis, nachgerechnet -----------------------------------
@@ -39946,6 +39952,150 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
   wahr('Jochanschluss: je Mast vier Zeilen im Ergebnis des Stabwerks', an.anschluss?.length === 8, `${an.anschluss?.length}`);
   wahr('Reiter Auflager: Block «Kräfte am Jochanschluss»', APP_QUELLE().includes('function anschlussBlockEinfuegen(node)')
        && APP_QUELLE().includes('anschlussBlockEinfuegen(node);'));
+}
+
+/* ===========================================================================
+ * 259  Die gespreizten Masten (DGP) - 8. Oktober
+ * ===========================================================================
+ * Weisung: «Hier hast du noch die Zeichnungen zu den DGP Masttypen …
+ * Implementiere diese wie die übrigen Masten und führe tests durch.» Ein
+ * HEB, unten längs im Steg geteilt und am Fuss gespreizt; im Stabwerk zwei
+ * Hälften (T) mit Bindeblechen, darüber das Walzprofil. */
+{
+  console.log('\n259  Die gespreizten Masten (DGP)');
+  const M259 = await import(J('data.masten.js'));
+  const N259 = await import(J('core.nachbarn.js'));
+  const AS259 = await import(J('app.stabwerk.js'));
+  const C259 = await import(J('core.constants.js'));
+  const SW259 = await import(J('core.stabwerk.js'));
+  const SN259 = await import(J('core.stabnachweis.js'));
+  const R259 = await import(J('render.3d.js'));
+  const RS259 = await import(J('render.stabwerk.js'));
+
+  const typen = M259.gespreizteMasten();
+  wahr('Vier Typen: DGP24/5.5, DGP26/5.5, DGP24/10, DGP26/10',
+       ['DGP24/5.5', 'DGP26/5.5', 'DGP24/10', 'DGP26/10'].every((t) => typen.some((g) => g.typ === t)) && typen.length === 4);
+  typen.forEach((g) => {
+    const G = M259.gespreiztGeometrie(g.typ);
+    wahr(`${g.typ}: Geometrie ohne Befund`, G.fehler.length === 0, G.fehler.join('; '));
+    pruef(`${g.typ}: am Fuss das Fussmass, bei L1 die Profilhöhe`, G.tiefe(0) + G.tiefe(G.L1), G.H0 + G.h, 1e-12, 'm');
+    pruef(`${g.typ}: das halbe Profil hat die halbe Fläche`, G.T.A * 1e4, G.profil.A / 2, 1e-3, 'cm²');
+    pruef(`${g.typ}: … und um die Stegachse das halbe Trägheitsmoment`, G.T.Iz * 1e8, G.profil.Iz / 2, 2e-3, 'cm⁴');
+    // Stückliste: Blechlänge = lichte Weite zwischen den Steghälften + rund 5 mm
+    // (das erste Blech steht auf der Fussplatte: volle Weite des Fusses).
+    const ab = G.stationen.slice(1).map((st, i) => Math.abs(st.l * 1000 + 5 - g.blechLaengen[i + 1]));
+    wahr(`${g.typ}: Blechlängen der Stückliste = lichte Weite + 5 mm (${ab.length} Stationen, auf 1.5 mm)`,
+         Math.max(...ab) <= 1.5, `grösste Abweichung ${Math.max(...ab).toFixed(2)} mm`);
+    pruef(`${g.typ}: das Fussblech überbrückt die volle Weite des Fusses`,
+          g.blechLaengen[0], (G.H0 - G.h) * 1000 + 5, 1e-9, 'mm');
+    const p = M259.getMastprofil(g.typ);
+    wahr(`${g.typ}: als Mastprofil wählbar, mit den Werten und dem Wind von ${g.profil}`,
+         p.gespreizt === g.typ && p.basis === g.profil && p.Iy === M259.getMastprofil(g.profil).Iy
+         && JSON.stringify(p.wind) === JSON.stringify(M259.getMastprofil(g.profil).wind));
+  });
+  wahr('istGespreizt erkennt Namen und Datensatz, ein Walzprofil nicht',
+       M259.istGespreizt('DGP24/5.5') && M259.istGespreizt(M259.getMastprofil('DGP26/10')) && !M259.istGespreizt('HEB 240'));
+
+  const einzel = (profil, L, extra = {}) => ({ ...standardwerte(), bearbeiten: false, tragwerksart: 'einzelmast',
+    mastVorhanden: true, mastProfil: profil, mastLaenge: L, windKlasse: '0.9', anbauteile: [], twId: 'M1', ...extra });
+  const rechne = (w) => {
+    const s = N259.rechensatzMitNachbarn(w);
+    const erg = berechne(s, ...N259.kernArgumente(s));
+    return { erg, h: AS259.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+  };
+  const eH = rechne(einzel('HEB 240', 10)).h;
+  const e = rechne(einzel('DGP24/5.5', 10));
+  const eD = e.h;
+  wahr('Einzelmast DGP24/5.5, 10 m: das Stabwerk rechnet', !eD.fehler && !eD.ohneModell, eD.fehler ?? eD.ohneModell ?? '');
+  const dat = eD.roh.dat;
+  const g0 = dat.gespreizt[0];
+  wahr('… zwei Gurte, neun Bindebleche (das zehnte ist kürzer als 20 mm: starr), Profil über 5.50 m',
+       g0.L1 === 5.5 && g0.bleche.length === 9 && dat.staebe.some((st) => /_BT_S_/.test(st.name) && st.art === 'starr')
+       && g0.gurte.every((n) => /_G[12]_S\d+$/.test(n)) && dat.staebe.filter((st) => /^MAST_M1_S\d+$/.test(st.name)).length >= 1);
+  wahr('… die Rollen: Hälften als Gurt, Bleche als Blech, das Profil als Mast',
+       SN259.stabRolle(g0.gurte[0]) === 'gurt' && SN259.stabRolle(g0.bleche[0]) === 'blech' && SN259.stabRolle('MAST_M1_S1') === 'mast'
+       && ['gurt', 'blech', 'mast'].every((t) => Number.isFinite(eD.teile[`mast:M1|${t}`]?.eta)));
+  // Wind längs (quer zum Steg) ist massgebend: dort hilft die Spreizung nicht -
+  // die beiden Hälften haben zusammen das W_z des Profils.
+  pruef('… η der Hälften am Fuss = η des HEB 240 (Wind quer zum Steg, schwache Achse)',
+        eD.teile['mast:M1|gurt'].eta, eH.teile['mast:M1|mast'].eta, 0.01, '');
+  wahr('… das Profil über der Spreizung ist schwächer beansprucht als der Fuss',
+       eD.teile['mast:M1|mast'].eta < eD.teile['mast:M1|gurt'].eta);
+  wahr('… Fundament aus dem Auflager, Typ DG1a; kein Knicken als Vollstab',
+       Number.isFinite(eD.fundamentJe?.M1?.eta) && !(eD.knick && eD.knick.M1));
+  wahr('… das Ergebnis nennt Typ, Profil und Höhe der Spreizung', eD.gespreiztJe?.M1?.typ === 'DGP24/5.5'
+       && eD.gespreiztJe.M1.profil === 'HEB 240' && eD.gespreiztJe.M1.L1 === 5.5);
+
+  // Steifigkeit: 1 kN am Kopf, in der Stegrichtung und quer dazu.
+  {
+    const d2 = JSON.parse(JSON.stringify(dat));
+    const kopf = g0.achse[g0.achse.length - 1];
+    d2.lasten.punkt.push({ name: 'P1', knoten: kopf, richtung: 'X', wert: 1, lastfall: 'ProbeX' },
+                         { name: 'P2', knoten: kopf, richtung: 'Y', wert: 1, lastfall: 'ProbeY' });
+    d2.lastfaelle.push({ key: 'ProbeX', label: 'ProbeX', art: 'Others' }, { key: 'ProbeY', label: 'ProbeY', art: 'Others' });
+    const lsg = SW259.loese(d2, { eigengewicht: false, schubweich: false });
+    const i = lsg.knotenIdx.get(kopf);
+    const wx = lsg.u.get('ProbeX')[i * 6], wy = lsg.u.get('ProbeY')[i * 6 + 1];
+    const p = M259.getMastprofil('HEB 240');
+    const EI = (I) => 210e6 * I / 1e8;
+    // Quer zum Steg: wie das Walzprofil, F·L³/(3·E·I_z).
+    pruef('Kopfweg quer zum Steg = F·L³/(3·E·I_z) des HEB 240 (Spreizung wirkt dort nicht)', wy * 1000, 1e6 / (3 * EI(p.Iz)), 0.005, 'mm');
+    wahr('Kopfweg in Stegrichtung: weniger als die Hälfte des ungespreizten Profils',
+         wx * 1000 < 0.5 * 1e6 / (3 * EI(p.Iy)), `${(wx * 1000).toFixed(2)} gegen ${(1e6 / (3 * EI(p.Iy))).toFixed(2)} mm`);
+    // Gleichgewicht: das eine Auflager trägt die ganze Last.
+    const r = lsg.auflagerkraefte('ProbeX').find((a) => a.knoten === g0.achse[0]);
+    pruef('Auflager: Einspannmoment unter 1 kN am Kopf = 10 kNm', Math.abs(r.fiy), 10, 1e-6, 'kNm');
+  }
+  // Eigengewicht: zwei Hälften + Bleche + Profil darüber.
+  {
+    const G = M259.gespreiztGeometrie('DGP24/5.5');
+    const soll = (G.profil.A / 1e4) * 7850 * 9.81 / 1000 * 10
+      + G.stationen.filter((st) => st.l >= 0.02).reduce((a, st) => a + st.b * st.t * st.l, 0) * 7850 * 9.81 / 1000;
+    const eg = dat.lasten.strecke.filter((l) => /^EG_/.test(l.name));
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const st = new Map(dat.staebe.map((x) => [x.name, x]));
+    const summe = eg.reduce((a, l) => { const x = st.get(l.stab), p1 = kn.get(x.von), p2 = kn.get(x.bis);
+      return a + Math.abs(l.wert) * Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z); }, 0);
+    pruef('Eigengewicht im Modell = Profil über 10 m + Bindebleche', summe, soll, 0.005, 'kN');
+  }
+  // Zu kurz: kein Modell, mit Grund.
+  {
+    const k = rechne(einzel('DGP24/5.5', 5)).h;
+    wahr('Mast kürzer als die Spreizung: nicht gerechnet, der Grund steht da',
+         /reicht nicht über die Spreizung/.test(String(k.fehler ?? k.ohneModell ?? '')), String(k.fehler ?? k.ohneModell ?? '').slice(0, 80));
+  }
+  // Am Joch: gespreizt in der Stegrichtung (Jochachse), beide Masten.
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0, windKlasse: '0.9', anbauteile: [] };
+    C259.mastenVon(w).forEach((m) => { w = C259.setzeMastAngabe(w, m.id, 'mastProfil', 'DGP24/5.5'); });
+    const j = rechne(w);
+    wahr('J90/20 m auf zwei DGP24/5.5: das Stabwerk rechnet, zwei gespreizte Masten in der Jochachse',
+         !j.h.fehler && !j.h.ohneModell && j.h.roh.dat.gespreizt.length === 2
+         && j.h.roh.dat.gespreizt.every((x) => Math.abs(x.dirA[0]) === 1 && x.dirA[1] === 0));
+    wahr('… Joch, Hälften, Bleche und Profil tragen ein η; Fundament je Mast',
+         ['mast:M1|gurt', 'mast:M1|blech', 'mast:M1|mast', 'mast:M2|gurt'].every((k) => Number.isFinite(j.h.teile[k]?.eta))
+         && Number.isFinite(j.h.fundamentJe?.M1?.eta) && Number.isFinite(j.h.fundamentJe?.M2?.eta));
+    // Das Bild: Hälften und Bleche als Gitterflächen, das Profil erst über L1.
+    const js = RS259.jochStaebe(j.h.jeStab, 'tragwerk');
+    const sz = R259.erzeugeSzene({ ...j.erg.modell, gurtTeilung: RS259.gurtTeilung(js) }, j.erg);
+    RS259.stabwerkFaerben(sz, j.h.jeStab, { mastNamen: j.erg.modell.federn?.namen ?? {} });
+    const mf = sz.flaechen.filter((f) => f.teil === 'MAST_A');
+    const gurt = mf.filter((f) => f.gitter?.art === 'gurt'), bl = mf.filter((f) => f.gitter?.art === 'blech'), ip = mf.filter((f) => !f.gitter);
+    const zMin = (l) => Math.min(...l.flatMap((f) => f.punkte.map((q) => q[2])));
+    const mx = (l) => Math.max(...l.map((f) => f.werte?.eta ?? -1));
+    wahr('3D: zwei Hälften und die Bindebleche unter L1, das Walzprofil beginnt bei L1',
+         gurt.length > 0 && bl.length > 0 && ip.length > 0 && Math.abs(zMin(ip) - (zMin(gurt) + 5.5)) < 1e-6);
+    pruef('3D: grösstes η der Hälften im Bild = Nachweis', mx(gurt), j.h.teile['mast:M1|gurt'].eta, 1e-6, '');
+    pruef('3D: … der Bleche', mx(bl), j.h.teile['mast:M1|blech'].eta, 1e-6, '');
+    pruef('3D: … des Profils darüber', mx(ip), j.h.teile['mast:M1|mast'].eta, 1e-6, '');
+  }
+  const ps = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('Brücke: das halbe Profil geht als T (AddT) nach AxisVM', ps.includes("if ($q.form -ne 'T') { throw 'kein T-Profil' }")
+       && ps.includes('$m.CrossSections.AddT($q.name'));
+  const ax = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('SAF und DXF brechen mit Grund ab (der Rahmen steht nur in COM-Datei und Stabwerk)',
+       ax.includes('mit gespreiztem Masten nicht gebaut'));
 }
 
 console.log('\n' + '='.repeat(104));

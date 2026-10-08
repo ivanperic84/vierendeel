@@ -109,6 +109,16 @@ export const AUFBAU = {
              { name: 'fundamente', pfad: 'fundamente', schluessel: 'typ' },
              { name: 'gittermasten', pfad: 'gittermasten', schluessel: 'typ' },
              /*
+              * >>> DIE GESPREIZTEN MASTEN (8. Oktober). <<<
+              * Weisung: «Hier hast du noch die Zeichnungen zu den DGP
+              * Masttypen … Implementiere diese wie die übrigen Masten». Ein
+              * Walzprofil, im unteren Teil längs im Steg geteilt und am Fuss
+              * gespreizt; zwischen den Steghälften Bindebleche. Je Typ das
+              * Profil, die Höhe der Spreizung, das Aussenmass am Fuss und die
+              * Stationen der Bleche.
+              */
+             { name: 'gespreizt', pfad: 'gespreizt', schluessel: 'typ' },
+             /*
               * >>> DIE FUNDAMENTLASTEN JE GELÄNDE (7. Oktober). <<<
               * Weisung: «fundamentflow und gelände >14° einbauen». Je
               * Fundamenttyp und Geländefall eine Zeile: Basiswerte, Grenzwerte

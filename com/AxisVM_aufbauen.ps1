@@ -2298,6 +2298,19 @@ foreach ($q in $d.querschnitte) {
         @{ name = 'CrossSections.AddI(Name, h, b, tw, tf, R, cspRolled)'; tu = {
             if ($q.form -ne 'I') { throw 'kein I-Profil' }
             $m.CrossSections.AddI($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } },
+        <#  DAS HALBE WALZPROFIL DES GESPREIZTEN MASTS (8. Oktober).
+            Die Datei fuehrt [Flanschbreite, Hoehe des T, Stegdicke,
+            Flanschdicke, Ausrundung] in mm. AddT steht in der Typbibliothek
+            als (string, double x 5, ECrossSectionProcess) - die Reihenfolge
+            (h, b, tw, tf, R) ist NACH AddI angenommen, nicht vermessen. Die
+            Flaechenprobe darunter zeigt, ob sie stimmt. Auf welcher Seite
+            der lokalen z-Achse AxisVM den Flansch legt, ist nicht vermessen;
+            der Stab liegt auf der Schwerachse, die Schnittgroessen haengen
+            nicht daran.                                                   #>
+        @{ name = 'CrossSections.AddT(Name, h, b, tw, tf, R, cspRolled)'; tu = {
+            if ($q.form -ne 'T') { throw 'kein T-Profil' }
+            $m.CrossSections.AddT($q.name, $p[1] * $mm, $p[0] * $mm, $p[2] * $mm,
                                   $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } }
     ) -Leise:($qs.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'CrossSections' $m.CrossSections; Beenden 4 "Querschnitt $($q.name) nicht anlegbar." }

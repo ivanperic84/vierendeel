@@ -36,7 +36,7 @@
  * ===========================================================================
  */
 
-import { gittermastGeometrie } from './data.masten.js';
+import { gittermastGeometrie, gespreiztGeometrie } from './data.masten.js';
 
 export const MM = 1 / 1000;
 
@@ -432,6 +432,51 @@ export function gitterFlaechen(G, { x, zFuss, achse = 'y', opt = {} }) {
   return flaechen;
 }
 
+/* ===========================================================================
+ * >>> DER GESPREIZTE MAST IM BILD (8. Oktober). <<<
+ * =========================================================================
+ * Unter L1 zwei Hälften des Walzprofils (Flansch mit halbem Steg), am Fuss
+ * auseinandergezogen, dazwischen die Bindebleche in der Stegebene. Aus
+ * derselben Geometrie, aus der das Stabwerk baut (`gespreiztGeometrie`).
+ * Die Flächen tragen `gitter` wie beim Gittermast (Gurt 1 / 2, Blech «S»):
+ * das Stabwerk färbt sie über Lage und Höhe (render.stabwerk.js).
+ */
+export function gespreiztFlaechen(G, { x, zFuss, achse = 'y', opt = {} }) {
+  const flaechen = [];
+  const T = G.T;
+  if (!T) return flaechen;
+  // Die Stegrichtung: Steg in der Jochachse -> gespreizt in x.
+  const inX = achse === 'y';
+  const p3 = (ua, ub, z) => (inX ? [x + ua, ub, zFuss + z] : [x - ub, ua, zFuss + z]);
+  const hoehen = [...new Set([0, G.tFuss, ...G.stationen.map((s) => s.z), G.L1]
+    .map((z) => Math.round(z * 1e6) / 1e6))].sort((p, q) => p - q);
+  const umriss = (z, s) => {
+    const d = G.tiefe(z) / 2;
+    return [[d, -T.b / 2], [d, T.b / 2], [d - T.tf, T.b / 2], [d - T.tf, T.tw / 2],
+            [d - T.hT, T.tw / 2], [d - T.hT, -T.tw / 2], [d - T.tf, -T.tw / 2], [d - T.tf, -T.b / 2]]
+      .map(([u, v]) => p3(s * u, v, z));
+  };
+  for (let i = 0; i < hoehen.length - 1; i += 1) {
+    [[1, +1], [2, -1]].forEach(([k, s]) => {
+      const A = umriss(hoehen[i], s), B = umriss(hoehen[i + 1], s);
+      const o = { ...opt, gitter: { art: 'gurt', k }, xMitte: x,
+                  label: `${opt.grund ?? 'Mast'} · Hälfte ${G.profilName} · ${hoehen[i].toFixed(2)} bis ${hoehen[i + 1].toFixed(2)} m` };
+      for (let n = 0; n < A.length; n += 1) {
+        const m = (n + 1) % A.length;
+        flaechen.push({ punkte: [A[n], A[m], B[m], B[n]], ...o });
+      }
+    });
+  }
+  G.stationen.forEach((s) => {
+    if (!(s.l > 0.005)) return;
+    flaechen.push(...schraegerStab(p3(-s.l / 2, 0, s.z), p3(s.l / 2, 0, s.z), s.t, s.b, {
+      ...opt, gitter: { art: 'blech', seite: 'S' },
+      label: `${opt.grund ?? 'Mast'} · Bindeblech ${Math.round(s.b * 1000)}×${Math.round(s.t * 1000)} · ${s.z.toFixed(2)} m`,
+    }));
+  });
+  return flaechen;
+}
+
 export function mastKoerper(o) {
   const flaechen = [];
   const linien = [];
@@ -498,6 +543,18 @@ export function mastKoerper(o) {
   if (profil.gitter) {
     try { gitterG = gittermastGeometrie(profil.gitter); } catch { gitterG = null; }
   }
+  // Der gespreizte Mast (8. Oktober): unter L1 die beiden Hälften, das
+  // Walzprofil erst darüber - `zAbI` schneidet die Prismen dort ab.
+  let gespG = null;
+  if (profil.gespreizt) {
+    try { gespG = gespreiztGeometrie(profil.gespreizt); } catch { gespG = null; }
+    if (gespG?.fehler.length || !(zKopf - zFuss > (gespG?.L1 ?? Infinity) + 1e-6)) gespG = null;
+  }
+  const zAbI = gespG ? zFuss + gespG.L1 : -Infinity;
+  if (gespG) {
+    flaechen.push(...gespreiztFlaechen(gespG, { x, zFuss, achse, opt: {
+      gruppe: 'mast', teil, grund, farbeBauteil: o.farbeBauteil, werte: wGzg ?? undefined } }));
+  }
   if (gitterG && !gitterG.fehler.length) {
     // Das Fachwerk; gefärbt wird es aus dem Stabwerk (ohne es neutral).
     flaechen.push(...gitterFlaechen(gitterG, { x, zFuss, achse, opt: {
@@ -508,7 +565,7 @@ export function mastKoerper(o) {
   } else if (st.length >= 2) {
     for (let i = 0; i < st.length - 1; i += 1) {
       const u = st[i], ob = st[i + 1];
-      const zu2 = zFuss + u.z, zo2 = zFuss + ob.z;
+      const zu2 = Math.max(zFuss + u.z, zAbI), zo2 = zFuss + ob.z;
       if (!(zo2 > zu2 + 1e-9)) continue;
       const arg = (f) => Math.max(Math.abs(u[f] ?? 0), Math.abs(ob[f] ?? 0));
       const schlimmer = u.eta >= ob.eta ? u : ob;
@@ -551,7 +608,7 @@ export function mastKoerper(o) {
      * an der letzten Station, und der Ueberstand mit seinen Traversen
      * fehlte im Bild.
      */
-    const zLetzt = zFuss + st[st.length - 1].z;
+    const zLetzt = Math.max(zFuss + st[st.length - 1].z, zAbI);
     if (zKopf > zLetzt + 1e-9) {
       flaechen.push(...prismaZ(poly, x, zLetzt, zKopf, {
         gruppe: 'mast', teil, werte: wGzg ?? undefined,
@@ -565,7 +622,7 @@ export function mastKoerper(o) {
   } else {
     // Ohne Nachweis bleibt er ein Koerper ohne Kennwert - neutral
     // eingefaerbt statt mit einer erfundenen Zahl.
-    flaechen.push(...prismaZ(poly, x, zFuss, zKopf, {
+    flaechen.push(...prismaZ(poly, x, Math.max(zFuss, zAbI), zKopf, {
       gruppe: 'mast', teil, farbeBauteil: o.farbeBauteil,
       werte: wGzg ?? undefined,
       label: `${grund} · ${(zKopf - zFuss).toFixed(2)} m`,

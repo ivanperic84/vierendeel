@@ -65,6 +65,7 @@ import { winkelwerteFuer, winkelIt, winkelGetauscht } from './core.winkel.js';
 import { uKontur } from './core.profilgeometrie.js';
 import { getProfil } from './data.profiles.js';
 import { gitterMerkQuerschnitt, gittermastenEinsetzen } from './export.axisvm.gitter.js';
+import { gespreizteMastenEinsetzen } from './export.axisvm.gespreizt.js';
 
 /** Wählbare Knotenmodelle. */
 export const KNOTENMODELLE = [
@@ -663,9 +664,12 @@ function mastQuerschnitt(p) {
   const rest = p.A * 100 - 2 * p.b * p.tf - (p.h - 2 * p.tf) * p.tw;
   const R = rest > 0 ? Math.sqrt(rest / (4 - Math.PI)) : 0;
   return {
-    name: `MAST_${p.name.replace(/\s+/g, '')}`, art: 'Parametric', form: 'I',
+    // Der gespreizte Mast (8. Oktober): das Walzprofil mit dem Merkmal
+    // `gespreizt`; den Teil unter L1 ersetzt export.axisvm.gespreizt.js.
+    name: `MAST_${p.name.replace(/[^A-Za-z0-9]+/g, '')}`, art: 'Parametric', form: 'I',
     parameter: [p.h, p.b, p.tw, p.tf, r6(R)],
-    profil: p.name,
+    profil: p.basis ?? p.name,
+    ...(p.gespreizt ? { gespreizt: p.gespreizt } : {}),
     A: p.A / 1e4,                                   // cm2 -> m2
     Iy: p.Iy / 1e8,                                 // cm4 -> m4
     Iz: p.Iz / 1e8,
@@ -4485,6 +4489,10 @@ export function ohneGittermast(bau, weg) {
     throw new Error(`${weg}: mit Gittermast nicht gebaut - das Fachwerk steht nur in der `
       + 'COM-Datei (JSON) für AxisVM und im Stabwerk der Anwendung.');
   }
+  if ([...(bau?.querschnitte?.values?.() ?? [])].some((q) => q.gespreizt)) {
+    throw new Error(`${weg}: mit gespreiztem Masten nicht gebaut - der Rahmen aus den beiden `
+      + 'Hälften steht nur in der COM-Datei (JSON) und im Stabwerk der Anwendung.');
+  }
 }
 
 export function safBlaetter(m, opt = {}) {
@@ -5332,6 +5340,8 @@ export function stabmodellJson(m, opt = {}) {
       ...(Number.isFinite(q.Iyz) ? { Iyz: q.Iyz } : {}),
       // Der Merk-Querschnitt des Gittermasts (wird beim Einsetzen ersetzt).
       ...(q.gitter ? { gitter: q.gitter } : {}),
+      // Das Merkmal des gespreizten Masts (wird beim Einsetzen gelesen).
+      ...(q.gespreizt ? { gespreizt: q.gespreizt } : {}),
       // Der ungleichschenklige Winkel im Spiegelbild (6. Oktober, `gurtTausch`).
       // Fehlte das Feld hier, rechnete der Nachweis die getauschte Ecke mit dem
       // ungetauschten Winkel - dieselbe Falle wie bei `versatz` und `Iyz`.
@@ -5426,7 +5436,8 @@ export function stabmodellJson(m, opt = {}) {
     lasten: l,
   };
   // Gittermasten: der Zug auf der Mastachse wird zum Fachwerk (3. Oktober).
-  return knotenEntflechten(gittermastenEinsetzen(datei));
+  // Gespreizte Masten: der Zug unter L1 wird zum Rahmen aus zwei T-Gurten (8. Oktober).
+  return knotenEntflechten(gespreizteMastenEinsetzen(gittermastenEinsetzen(datei)));
 }
 
 /**

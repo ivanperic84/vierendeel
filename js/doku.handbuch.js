@@ -2466,6 +2466,22 @@ der Stäbe der Seite quer zum Wind je Meter Höhe (zwei Gurtschenkel und
 Bindebleche). Der Wert ist die Windlast der Tragjoche bezogen auf ihre
 Angriffsfläche, gemittelt über die Typen. Das Rohr: w = 1.2 · q · d. Die
 Herleitung steht im Profilblatt des Typs.</p>
+
+<h4>Gespreizte Masten (DGP)</h4>
+<p>Der gespreizte Mast ist ein HEB, der im unteren Teil längs in der
+Stegmitte geteilt ist; die beiden Hälften sind am Fuss auseinandergezogen
+und laufen bis zur Höhe der Spreizung (5.50 bzw. 10.00 m) auf die
+Profilhöhe zusammen. Zwischen den Steghälften stehen Bindebleche. Im
+Mastwähler heisst er <b>DGP24/5.5</b>, <b>DGP26/5.5</b>, <b>DGP24/10</b>
+und <b>DGP26/10</b>; die Mastlänge ist frei (Sortiment 6.0 bis 16.5 bzw.
+18.0 m), muss aber über die Spreizung hinausreichen.</p>
+<p>Im Stabwerk ist der untere Teil ein Rahmen aus zwei Gurten (je ein
+halbes Profil, ein T) und den Bindeblechen in der Stegebene; darüber
+läuft das Walzprofil. Nachgewiesen wird je Stab: <b>Hälften</b>,
+<b>Blech</b> und <b>Profil</b>. Gespreizt ist in der Stegrichtung - quer
+zum Steg tragen die beiden Hälften zusammen wie das ungeteilte Profil.
+Wind, vorläufige Anzeige und Fundament (DG1a, DG2a, DG3a) laufen über das
+Walzprofil; ein Knicknachweis als Vollstab wird für ihn nicht geführt.</p>
 `,
 },
 {

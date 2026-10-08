@@ -7196,6 +7196,27 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         }
         return;
       }
+      /*
+       * >>> DER GESPREIZTE MAST: JE TEIL EINE KACHEL (8. Oktober). <<<
+       * Unter der Spreizung die beiden Hälften des Profils (T) und die
+       * Bindebleche, darüber das Walzprofil - je Stab aus dem Stabwerk.
+       */
+      const gsJ = sw && n.profil.gespreizt ? (opt.swH?.gespreiztJe?.[name] ?? null) : null;
+      if (gsJ) {
+        const teilK = (teil, titel, unter) => {
+          const t = opt.swH?.teile?.[`mast:${name}|${teil}`];
+          if (!t) return;
+          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), `${unter} · Stabwerk`, ampelU(t.eta), {
+            ...(t.bez ? { fall: fallKurz(t.bez) } : {}), ...(t.wo ? { stab: t.wo } : {}),
+            titel: `${t.bez ? `Massgebende Kombination: ${t.bez}\n\n` : ''}`
+                 + `${n.profil.name}: ${titel} aus dem Stabwerk, massgebender Stab ${t.wo ?? ''}.`,
+          }));
+        };
+        teilK('gurt', 'Hälften', `½ ${gsJ.profil} bis ${gsJ.L1.toFixed(2)} m`);
+        teilK('blech', 'Blech', 'Bindebleche');
+        teilK('mast', 'Profil', `${gsJ.profil} über ${gsJ.L1.toFixed(2)} m`);
+        return;
+      }
       if (sw) {
         const fS = sw.bez ? { kurz: fallKurz(sw.bez), voll: sw.bez } : null;
         mast.push(kachel(`η ${name}`, f3(sw.eta),

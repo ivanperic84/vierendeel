@@ -164,6 +164,11 @@ function widerstand(qs) {
     const rand = qs.parameter[0] / 2000;
     return { A: qs.A, Wy: qs.Iy / rand, Wz: qs.Iz / rand };
   }
+  // Das halbe Walzprofil des gespreizten Masts (8. Oktober): einfachsymmetrisch,
+  // die Widerstandsmomente stehen in der Datei (Rand = Stegkante bzw. Flanschspitze).
+  if (qs.form === 'T' && qs.A > 0 && qs.Wy > 0 && qs.Wz > 0) {
+    return { A: qs.A, Wy: qs.Wy, Wz: qs.Wz };
+  }
   if (qs.form === 'Rectangle') {
     // parameter [b, h] in mm: b in lokaler y-, h in lokaler z-Richtung.
     const b = qs.parameter[0] / 1000, h = qs.parameter[1] / 1000;
@@ -523,7 +528,9 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
       }
     }
     // Masten mit ihrer eigenen Güte (7. Oktober).
-    const fydR = rolle === 'mast' && opt.fydMast > 0 ? opt.fydMast : fyd;
+    // … auch die beiden Hälften des gespreizten Masts: sie SIND das Mastprofil.
+    const istMastTeil = rolle === 'mast' || qsMap.get(st.querschnitt)?.form === 'T';
+    const fydR = istMastTeil && opt.fydMast > 0 ? opt.fydMast : fyd;
     const eta = fydR > 0 ? s.sig / fydR : null;
     const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta: imKnoten ? null : eta,
                       detail: s, verlauf, ...(imKnoten ? { imKnoten: true } : {}) };

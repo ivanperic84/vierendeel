@@ -407,8 +407,11 @@ function nachweise(d, U) {
      * Gurtwinkel, Bindebleche und Rohr je Stab, danach das Bemessungs-
      * diagramm des Sortiments als Kontrolle - ohne Anteil am Urteil.
      */
+    // Der gespreizte Mast (8. Oktober): die beiden Hälften heissen nicht Gurtwinkel.
+    const gsB = sw.gespreiztJe?.[m.id] ?? null;
     q += GITTER_TEILE.map(([teil, name]) =>
-      teilAbschnitt(d, `Mast ${m.anzeige} · ${name}`, `mast:${m.id}`, teil)).join('');
+      teilAbschnitt(d, `Mast ${m.anzeige} · ${gsB && teil === 'gurt'
+        ? `Hälften des Profils (½ ${gsB.profil}, bis ${gsB.L1.toFixed(2)} m)` : name}`, `mast:${m.id}`, teil)).join('');
     const gd = sw.gitterJe?.[m.id]?.diagramm;
     if (gd && Number.isFinite(gd.eta)) {
       q += `<h4>Mast ${esc(m.anzeige)} · Kontrolle nach dem Bemessungsdiagramm — ${zahl(gd.eta, 3)}</h4>
@@ -501,7 +504,7 @@ function anhang(d) {
   if (o.umfang === 'massgebend') return '';
   const sw = d.sw;
   const rollen = [...new Set((sw.jeFall ?? []).flatMap((f) => Object.keys(f.gruppen ?? {})))];
-  const ROLLE = { gurt: 'Gurt (Winkel)', gurtU: 'Gurt UPE', blech: 'Bindeblech', mast: 'Mast' };
+  const ROLLE = { gurt: 'Gurt', gurtU: 'Gurt UPE', blech: 'Bindeblech', mast: 'Mast' };
   const a1 = tabelle(['Kombination', ...rollen.map((r) => `η ${ROLLE[r] ?? r}`)],
     (sw.jeFall ?? []).map((f) => [esc(f.bez ?? f.key), ...rollen.map((r) => zahl(f.gruppen?.[r]?.eta, 3))]), 'eng');
   const alle = Object.values(sw.jeStab ?? {}).filter((z) => Number.isFinite(z.eta))

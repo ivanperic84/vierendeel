@@ -62,14 +62,18 @@ writeFileSync(join(ARBEIT, 'gitter_pynite.py'), PD.PYNITE_DATEI_SKRIPT);
 export function einzelmastDatei(typ, stegrichtung = 'jochachse') {
   const j = S.typUebernehmen({ ...S.standardwerte(), bearbeiten: false, typ: 'J90' }, T.getTragjoch('J90'));
   Object.assign(j, { L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' });
+  // Auch die gespreizten Masten (8. Oktober): Typname = Profilname, Länge = Spreizung + 4.5 m.
+  const gesp = MA.istGespreizt(typ);
   const w0 = C.tragwerkWeg(C.tragwerkHinzu(j, 'einzelmast',
-    { mastProfil: MA.GITTER_PRAEFIX + typ, mastH: 8, mastLaenge: 0, mastSteg: stegrichtung }), 'T1');
+    { mastProfil: gesp ? typ : MA.GITTER_PRAEFIX + typ, mastH: 8,
+      mastLaenge: gesp ? MA.getGespreizt(typ).L1 + 4.5 : 0, mastSteg: stegrichtung }), 'T1');
   const w = N.rechensatzMitNachbarn(w0);
   const erg = V.berechne(w, ...N.kernArgumente(w));
   const h = AS.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
   if (h.fehler || h.ohneModell) throw new Error(h.fehler ?? h.ohneModell);
   const dat = JSON.parse(JSON.stringify(h.roh.dat));
-  const g = dat.gittermasten[0];
+  const g = gesp ? { ...dat.gespreizt[0], hUnten: dat.gespreizt[0].L1, hoehe: dat.gespreizt[0].laenge }
+    : dat.gittermasten[0];
   const spitze = g.achse[g.achse.length - 1];
   const kn = new Map(dat.knoten.map((k) => [k.name, k]));
   const auf = (z) => g.achse.find((n) => Math.abs(kn.get(n).z - g.zFuss - z) < 1e-6);

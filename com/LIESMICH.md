@@ -366,6 +366,16 @@ powershell -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -NurPruefen
 
 ---
 
+## Gespreizter Mast: T-Querschnitt (8. Oktober 2026)
+
+Die Modelldatei führt die beiden Hälften des gespreizten Masts als `form: 'T'`
+mit `parameter` [Flanschbreite, Höhe des T, Stegdicke, Flanschdicke, Ausrundung] in mm.
+Die Brücke legt sie mit `CrossSections.AddT(Name, h, b, tw, tf, R, cspRolled)` an.
+Die Signatur steht in der Typbibliothek (string, double x 5, Process); die Reihenfolge
+der Masse ist nach `AddI` angenommen. **In AxisVM nicht erprobt** - die Flächenprobe
+im Aufbaubericht zeigt, ob sie stimmt (Soll: halbe Fläche des Walzprofils). Auf welcher
+Seite der lokalen z-Achse AxisVM den Flansch legt, ist nicht vermessen.
+
 ## Statikbericht (Schalter -Statikbericht, 7. Oktober 2026)
 
 Nach dem Rechnen legt die Brücke die Plots für einen Statikbericht an

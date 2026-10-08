@@ -8,13 +8,12 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 8. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**6924** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**6994** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
-**Git:** alles gepusht, auch der Stand zum Statikbericht über COM (Weisung 8. Oktober: «alles offene
-nachführen und dann pushen» - hebt «nicht pushen» vom selben Tag auf). Anlass: Bugreport eines Anwenders,
-die gepushte Brücke brach bei jedem Start ab (Schalter `-Bericht` gegen Variable `$bericht`; jetzt
-`-Statikbericht`). `Versand/COM_Bruecke` ist dem Anwender neu abzugeben; seine Modelldatei (`bugs/`, örtlich)
-ist in AxisVM nicht gebaut (nur auf Anweisung).
+**Git:** `origin/main` steht auf `5dc0ef6`. Darüber liegt **ein örtlicher Commit «Gespreizte Masten DGP»**, der auf den
+Befehl zum Pushen wartet (Weisung 8. Oktober: «auf befehl push warten, ich will zuerst den stand der momentan
+vorhanden ist weitergeben und testen»). `Versand/` (Datenpaket, Einzeldatei, COM_Bruecke) ist der Stand von
+`5dc0ef6`; nach dem Push `node datenpaket.mjs` laufen lassen und Einzeldatei sowie COM_Bruecke nachziehen.
 
 **Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json`
 ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
@@ -22,6 +21,10 @@ ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-T
 noch nicht fertig erprobt - siehe unten).
 
 **Gebaut am 8. Oktober:** Einheitswind mit den Werten der alten Mastberechnung (`Grundlagen/Einheitswind`) als EK0 in der Datenbasis - Tragjoche, Abfangjoche A160-A360, Tragausleger, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger; ein hinterlegter Wert gilt vor der Herleitung und ohne Zuschlag (J90 w_k 0.275 → 0.350). Nachtrag: alte Lampen 0.3 / 0.5 kN, alte Abfangjoche ohne Zuschlag, Gittermast 1.52 kN/m² aus den Tragjochen. **Gittermast IV 45 UL nach der Detailzeichnung berichtigt** (Gurt unten L 100x100x12, Teilung 13 / 15 Stationen, Bleche 12 / 10 mm, Kopf ohne Blech; Beispiel Gurt 0.874 → 0.813, Blech 0.424 → 0.574). ⚠ Lesarten zu bestätigen und offene Punkte zum Gittermast: CLAUDE.md, *Offene Punkte*. Die Datei des Anwenders aus dem Bugreport ist in AxisVM aufgebaut (nur gebaut): läuft durch.
+
+**Gebaut am 8. Oktober, nicht gepusht: gespreizte Masten DGP24/5.5, DGP26/5.5, DGP24/10, DGP26/10** (Tabelle `gespreizt` in
+`data/masten.json`, `export.axisvm.gespreizt.js`; unter der Spreizung zwei T-Hälften mit Bindeblechen, darüber das Walzprofil; Kacheln
+«Hälften», «Blech», «Profil»; PyNite 0.000 %; im Browser geprüft). ⚠ Brücke `AddT` in AxisVM nicht erprobt; offene Punkte in CLAUDE.md.
 
 **Laufende Arbeit: Statikbericht über COM** (Weisungen 7./8. Oktober: «kannst du auch mit hilfe der
 abhandlung com ein template für einen statikbericht generieren lassen. so viel wie nötig an plots generieren
@@ -216,7 +219,8 @@ mit falscher Linklage; PyNite-Links.
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
 > Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
-> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober);
+> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober) - **den örtlichen
+> Commit «Gespreizte Masten DGP» nicht pushen**, bis ich es sage (8. Oktober);
 > `data/*.json` nie pushen, Änderungen daran als Datenpaket nach `Versand/`;
 > kein Projektmaterial des Betreibers in verfolgte Dateien (keine
 > Zeichnungs- oder Projektnummern, kein Betreibername, nicht `data/*.json`,
@@ -266,7 +270,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6924 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6994 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

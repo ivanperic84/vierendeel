@@ -248,6 +248,11 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     else if (m[3]) (g.blech[m[3]] ??= []).push(z);
     else g.rohr.push(z);
   });
+  // Der gespreizte Mast (8. Oktober) führt seine Achsstäbe erst über L1; sein
+  // Fuss ist der seiner beiden Hälften.
+  Object.keys(masten).forEach((id) => {
+    if (Number.isFinite(gitter[id]?.fuss)) mastFuss[id] = Math.min(mastFuss[id], gitter[id].fuss);
+  });
   // Der Fuss je Mast in der Szene.
   const szFuss = {};
   (sz.flaechen ?? []).forEach((f) => {

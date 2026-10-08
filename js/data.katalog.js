@@ -423,6 +423,28 @@ export const ABSCHNITTE = [
     ],
   },
   {
+    key: 'gespreizt', db: 'masten', tabelle: 'gespreizt', liste: 'gespreizt',
+    titel: 'Gespreizte Masten', herkunft: 'sortiment', schluessel: 'typ',
+    notiz: 'Walzprofil, unten längs im Steg geteilt und am Fuss gespreizt (DGP). '
+         + 'Höhen ab Unterkante Fussplatte. Zwischen den Steghälften stehen die '
+         + 'Bindebleche; über der Spreizung läuft das Profil ungeteilt weiter.',
+    felder: [
+      text('typ', 'Typ', { pflicht: true }),
+      text('profil', 'Profil', { pflicht: true, notiz: 'Verweist auf einen Satz der Mastprofile.' }),
+      zahl('L1', 'Höhe der Spreizung', 'm', { pflicht: true, von: 1, bis: 20 }),
+      mm('fussBreite', 'Aussenmass über die Flansche am Fuss', { pflicht: true }),
+      mm('fussplatte', 'Dicke der Fussplatte',
+        { notiz: 'Bis hierher bleibt das Aussenmass des Fusses; darüber läuft es geradlinig auf die Profilhöhe zu.' }),
+      liste('laengen', 'Mastlänge von / bis', 'm', { pflicht: true }),
+      liste('blechZ', 'Bindebleche: Höhe der Blechmitte', 'mm', { pflicht: true }),
+      liste('blechB', 'Bindebleche: Breite (in Mastrichtung)', 'mm', { pflicht: true }),
+      mm('blechT', 'Bindebleche: Dicke', { pflicht: true }),
+      liste('blechLaengen', 'Blechlängen (Stückliste)', 'mm',
+        { notiz: 'Zur Gegenprobe: lichte Weite zwischen den Steghälften + rund 5 mm.' }),
+      text('hinweis', 'Hinweis'),
+    ],
+  },
+  {
     key: 'tragjoche', db: 'tragjoche', tabelle: 'typen', liste: 'typen',
     titel: 'Tragjochtypen', herkunft: 'sortiment', schluessel: 'typ',
     notiz: 'Masse in Millimetern, Aussenmasse wo nicht anders angeschrieben. '

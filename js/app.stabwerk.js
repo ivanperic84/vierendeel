@@ -489,13 +489,16 @@ export function rechneStabwerk(app, aufruf = {}) {
       const id = mastName(app.werte, m);
       // Der Gittermast: kein Knicken als Vollstab, kein Standardfundament.
       const zugM = mastZug(dat, id);
-      if (!zugM || zugM.gitter) return;
+      // Der gespreizte Mast (8. Oktober): kein Knicken als Vollstab (der Zug
+      // steht unter L1 nicht auf der Achse), aber das Fundament aus dem
+      // Auflager wie bei jedem Walzprofil.
+      if (!zugM || (zugM.gitter && !zugM.gespreizt)) return;
       let basis;
       try {
         basis = { profil: getMastprofil(m.profil ?? satz.mastProfil),
                   stegrichtung: getStegrichtung(m.steg ?? satz.mastSteg ?? 'jochachse') };
       } catch { return; }
-      if (knick) {
+      if (knick && !zugM.gespreizt) {
         const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
                                      { beta: beta > 0 ? beta : undefined });
         if (k && Number.isFinite(k.eta)) knick[id] = k;
@@ -529,6 +532,10 @@ export function rechneStabwerk(app, aufruf = {}) {
     gitterJe[g.id] = { typ: g.typ, diagramm: d, gurtUnten: g.gurtUnten, gurtOben: g.gurtOben,
                        obenArt: g.obenArt };
   });
+
+  // Die gespreizten Masten (8. Oktober): Typ, Profil und Höhe der Spreizung je Mast.
+  const gespreiztJe = {};
+  (dat.gespreizt ?? []).forEach((g) => { gespreiztJe[g.id] = { typ: g.typ, profil: g.profil, L1: g.L1 }; });
 
   if (!ausleger && (sichtbareTragwerke(werte) ?? []).length > 1
       && tragwerksart(satz).key === 'tragausleger') {
@@ -609,7 +616,7 @@ export function rechneStabwerk(app, aufruf = {}) {
     ausleger,
     knick,
     fundamentJe,
-    gitterJe,
+    gitterJe, gespreiztJe,
     ankerJe,
     seile: seile.length,
     kennung: eingabeKennung(app.werte),

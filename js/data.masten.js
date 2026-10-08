@@ -228,7 +228,109 @@ export function mastprofile() {
   }
   // Die Gittermasten hinter den Walzprofilen (3. Oktober).
   const gitter = gittermastenAlle().map(gittermastProfil).filter(Boolean);
-  return [...(aus.length ? aus : norm), ...gitter];
+  // Die gespreizten Masten (8. Oktober): das Walzprofil mit seinem Wind,
+  // unter dem Namen des Typs und mit dem Merkmal `gespreizt`.
+  const basis = aus.length ? aus : norm;
+  const gespreizt = gespreizteMasten().map((g) => {
+    const p = basis.find((x) => x.name === g.profil);
+    return p ? { ...p, name: g.typ, gespreizt: g.typ, basis: g.profil } : null;
+  }).filter(Boolean);
+  return [...basis, ...gespreizt, ...gitter];
+}
+
+/* ===========================================================================
+ * >>> DER GESPREIZTE MAST (8. Oktober). <<<
+ * =========================================================================
+ * Weisung: «Hier hast du noch die Zeichnungen zu den DGP Masttypen …
+ * Implementiere diese wie die übrigen Masten und führe tests durch.»
+ *
+ * Ein HEB, im unteren Teil (L1) längs in der Stegmitte geteilt; die beiden
+ * Hälften - je ein Flansch mit halbem Steg, ein T - sind am Fuss
+ * auseinandergezogen (Aussenmass über die Flansche `fussBreite`) und laufen
+ * bis L1 geradlinig auf die Profilhöhe zusammen. Zwischen den Steghälften
+ * stehen Bindebleche in der Stegebene. Darüber läuft das Profil ungeteilt.
+ * Gespreizt ist also in der STEGRICHTUNG (starke Achse).
+ *
+ * Für den Kern (vorläufige Anzeige), den Wind, das Knicken und das
+ * Fundament ist er das Walzprofil; das Stabwerk baut den unteren Teil als
+ * Rahmen aus zwei T-Gurten und den Blechen (export.axisvm.gespreizt.js).
+ * ========================================================================= */
+export const gespreizteMasten = () => SORT?.gespreizt ?? [];
+
+/** Ist dieses Profil (Name oder Datensatz) ein gespreizter Mast? */
+export const istGespreizt = (p) => (typeof p === 'string'
+  ? gespreizteMasten().some((g) => g.typ === p) : Boolean(p?.gespreizt));
+
+export function getGespreizt(typ) {
+  const g = gespreizteMasten().find((x) => x.typ === typ);
+  if (!g) throw new Error(`Unbekannter gespreizter Mast: ${typ}`);
+  return g;
+}
+
+/**
+ * Das halbe Walzprofil als T: ein Flansch, der halbe Steg und die beiden
+ * Ausrundungen. Masse in m, bezogen auf die Aussenfläche des Flansches.
+ *
+ * Die Ausrundungen zählen mit Fläche und Lage (ihr Eigenträgheitsmoment
+ * ist vernachlässigt - es macht am HEB 240 weniger als 0.1 %); so ist die
+ * Fläche genau die halbe des Profils.
+ *
+ * @returns {{A, e, Iy, Iz, It, Wy, Wz, hT, b, tw, tf}}
+ *          e = Schwerpunkt ab Flansch-Aussenfläche; Iy um die Achse parallel
+ *          zum Flansch (Biegung in der Stegebene), Iz um die Stegachse
+ */
+export function halbesProfil(p) {
+  const mm = (v) => (Number(v) || 0) / 1000;
+  const b = mm(p.b), tf = mm(p.tf), tw = mm(p.tw), hT = mm(p.h) / 2, r = mm(p.r);
+  const hw = hT - tf;
+  const teile = [
+    { A: b * tf, z: tf / 2, Iy: b * tf ** 3 / 12, Iz: tf * b ** 3 / 12 },
+    { A: tw * hw, z: tf + hw / 2, Iy: tw * hw ** 3 / 12, Iz: hw * tw ** 3 / 12 },
+  ];
+  if (r > 0) {
+    // Zwickel zwischen Flansch und Steg: r² · (1 − π/4), Schwerpunkt 0.2234 · r von der Ecke.
+    const Af = r * r * (1 - Math.PI / 4), c = 0.2234 * r;
+    [-1, 1].forEach((s) => teile.push({ A: Af, z: tf + c, y: s * (tw / 2 + c), Iy: 0, Iz: 0 }));
+  }
+  const A = teile.reduce((a, t) => a + t.A, 0);
+  const e = teile.reduce((a, t) => a + t.A * t.z, 0) / A;
+  const Iy = teile.reduce((a, t) => a + t.Iy + t.A * (t.z - e) ** 2, 0);
+  const Iz = teile.reduce((a, t) => a + t.Iz + t.A * (t.y ?? 0) ** 2, 0);
+  const It = (b * tf ** 3 + hw * tw ** 3) / 3;
+  return { A, e, Iy, Iz, It, hT, b, tw, tf,
+           // Rand in der Stegebene: die Stegkante liegt weiter vom Schwerpunkt als der Flansch.
+           Wy: Iy / Math.max(e, hT - e), Wz: Iz / (b / 2) };
+}
+
+/**
+ * Geometrie eines gespreizten Masts: Aussenmass über die Flansche auf jeder
+ * Höhe, das T, die Stationen der Bindebleche mit ihrer lichten Länge.
+ * Höhen ab Unterkante Fussplatte, Masse in m.
+ */
+export function gespreiztGeometrie(typ) {
+  const g = typeof typ === 'string' ? getGespreizt(typ) : typ;
+  const fehler = [];
+  const profil = mastprofileNorm().find((x) => x.name === g.profil) ?? null;
+  if (!profil) fehler.push(`Profil ${g.profil} fehlt in den Mastprofilen`);
+  const mm = (v) => (Number(v) || 0) / 1000;
+  const L1 = Number(g.L1) || 0, H0 = mm(g.fussBreite), tFuss = mm(g.fussplatte);
+  const h = mm(profil?.h);
+  const T = profil ? halbesProfil(profil) : null;
+  // Aussenmass über die Flansche: bis zur Oberkante der Fussplatte das Fussmass,
+  // darüber geradlinig auf die Profilhöhe bei L1.
+  const tiefe = (z) => (z <= tFuss ? H0 : z >= L1 ? h
+    : H0 + (h - H0) * (z - tFuss) / (L1 - tFuss));
+  const zs = g.blechZ ?? [], bs = g.blechB ?? [];
+  if (zs.length !== bs.length) fehler.push('Höhen und Breiten der Bindebleche haben nicht gleich viele Einträge');
+  const stationen = zs.map((zmm, i) => {
+    const z = mm(zmm);
+    // Lichte Weite zwischen den Steghälften = Aussenmass − Profilhöhe.
+    return { z, b: mm(bs[i]), t: mm(g.blechT), l: Math.round((tiefe(z) - h) * 1e6) / 1e6 };
+  });
+  if (stationen.some((s) => s.z <= 0 || s.z >= L1)) fehler.push('Ein Bindeblech liegt ausserhalb der Spreizung');
+  if (!(H0 > h)) fehler.push('Das Fussmass ist nicht grösser als die Profilhöhe');
+  return { typ: g.typ, profil, profilName: g.profil, L1, H0, h, tFuss, T, tiefe, stationen,
+           laengen: (g.laengen ?? []).map(Number), fehler };
 }
 
 /**

@@ -2129,7 +2129,10 @@ function jochSzeneMitStabwerk(erg, zeichnen) {
   // (bei «umhüllend»; «so weit wie sinnvoll vereinheitlichen») - als
   // Nachbar wurde er schon aus dem Stabwerk gefärbt (`mastenOhneJoch`).
   const hatGitter = Boolean(g) && Object.keys(g.h.jeStab ?? {}).some(istGitterStab);
-  const walzEinzel = Boolean(g) && artS === 'einzelmast' && !hatGitter;
+  // Der gespreizte Mast (8. Oktober) hat beides: Hälften wie ein Gitter und
+  // darüber das Walzprofil - sein oberer Teil wird wie ein Walzprofil gefärbt.
+  const hatGespreizt = Boolean(g?.h?.roh?.dat?.gespreizt?.length);
+  const walzEinzel = Boolean(g) && artS === 'einzelmast' && (!hatGitter || hatGespreizt);
   // Die Werte: Hülle oder gewählter Fall aus dem Stabwerk (4. Oktober).
   const ga = g ? stabwerkAnsicht() : null;
   const js = g ? jochStaebe((ga ?? g).h.jeStab, g.jochKey) : null;

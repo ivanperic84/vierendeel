@@ -117,7 +117,14 @@ export function mastZug(dat, id) {
       return { name: s.name, z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z), unten };
     })
     .sort((p, q) => p.z0 - q.z0);
-  if (!st.length) {
+  /*
+   * Der gespreizte Mast (8. Oktober) führt seinen Zug nur über L1 als Stäbe
+   * auf der Achse; darunter stehen die beiden Hälften. Seine Achsknoten
+   * reichen aber vom Fuss bis zum Kopf (unter L1 über Schotte gehalten) -
+   * er wird deshalb wie der Gittermast über die Achsknoten gelesen.
+   */
+  const gs = (dat.gespreizt ?? []).find((x) => x.id === id);
+  if (!st.length || gs) {
     /*
      * >>> DER GITTERMAST (3. Oktober). <<<
      * Er hat keinen Stabzug auf der Achse, aber seine ACHSKNOTEN: jeder ist
@@ -125,11 +132,12 @@ export function mastZug(dat, id) {
      * Weg und Verdrehung des Mastquerschnitts dort. Zwischen ihnen wird wie
      * im Stab interpoliert (Hermite aus Weg und Verdrehung, ohne Feldanteil).
      */
-    const g = (dat.gittermasten ?? []).find((x) => x.id === id);
+    const g = gs ?? (dat.gittermasten ?? []).find((x) => x.id === id);
     if (!g) return null;
     const pk = g.achse.map((n) => kn.get(n)).filter(Boolean).sort((p, q) => p.z - q.z);
     if (pk.length < 2) return null;
     return { fuss: pk[0].z, kopf: pk[pk.length - 1].z - pk[0].z, staebe: [], gitter: true,
+             ...(gs ? { gespreizt: true } : {}),
              knoten: pk.map((k) => ({ name: k.name, h: k.z - pk[0].z })) };
   }
   const fuss = st[0].z0;
