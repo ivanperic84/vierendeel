@@ -1167,7 +1167,8 @@ export function erzeugeSzene(m, erg) {
     const bef = meine[0]?.befestigung
       ?? (((a.module ?? [])[0]?.z ?? 0) <= 0 ? 'unten' : 'oben');
     const gurte = bef === 'durchgehend' ? ['OG', 'UG'] : bef === 'oben' ? ['OG'] : ['UG'];
-    const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
+    // Eine der Gruppe zugewiesene Farbe geht vor (9. Oktober, Ebene «Teil»).
+    const fb = a.farbe || farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
     const teilKey = `AT${k}`;
     // ANBAUTEILE SIND TRAGWERK, NICHT LAST.
     // Sie lagen bisher in der Ebene 'last' und verschwanden mit ihr. Wer die
@@ -1276,7 +1277,7 @@ export function erzeugeSzene(m, erg) {
       // Der Träger trägt alles, was danach kommt - er darf dicker sein.
       // Ein SCHRÄGES Glied als Stab um seine Achse: der achsparallele Quader
       // von `stab` wurde dort zur Platte («fläche anstatt stäbe»).
-      const dk = g.rang === 0 ? 0.045 : 0.038;
+      const dk = gliedDicke(g);
       const achsen = [g.bis.x - g.von.x, g.bis.y - g.von.y, g.bis.z - g.von.z]
         .filter((v) => Math.abs(v) > 1e-6).length;
       const o3 = opt(`${g.teil.bauteilName ?? g.teil.name} · ${laenge.toFixed(2)} m`);
@@ -1332,6 +1333,7 @@ export function erzeugeSzene(m, erg) {
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
       });
       teilEndeMarke(marken, a, t, pAn, teilKey);
+      teilEndeKoerper(flaechen, a, t, pAn, opt);
 
       // Kraftpfeile am Angriffspunkt dieses Teils, JE LASTART.
       //
@@ -1942,7 +1944,7 @@ function zeichneMastteil(ctx, a, k, ort) {
   const g = mastGeo[ende];
   if (!g) return;
   const meine = nachGruppeMast.get(a.id) ?? [];
-  const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
+  const fb = a.farbe || farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
   const teilKey = `AT${k}`;
   const zWurzel = g.zF + (a.hMast ?? 0);
   const opt = (label) => ({ gruppe: 'anbau', teil: teilKey, farbeBauteil: fb,
@@ -1960,7 +1962,7 @@ function zeichneMastteil(ctx, a, k, ort) {
   kette.glieder.forEach((gl) => {
     const p1 = welt(gl.von), p2 = welt(gl.bis);
     const laenge = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
-    flaechen.push(...stab(p1, p2, gl.rang === 0 ? 0.045 : 0.038,
+    flaechen.push(...stab(p1, p2, gliedDicke(gl),
       opt(`${gl.teil.bauteilName ?? gl.teil.name} · ${laenge.toFixed(2)} m`)));
   });
 
@@ -1994,6 +1996,7 @@ function zeichneMastteil(ctx, a, k, ort) {
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
     teilEndeMarke(marken, a, t, pAn, teilKey);
+    teilEndeKoerper(flaechen, a, t, pAn, opt);
     Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
       [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
        { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
@@ -2069,16 +2072,45 @@ export function mastTeileSzene(sz, anbauteile, flach, namen = {}) {
  * Auslegers steht ein Griff; gezogen ändert er die Gesamtlänge, der
  * Angriffspunkt bleibt in der Mitte (`teilLaengeSetzen`, app.js).
  */
-function teilEndeMarke(marken, a, t, pAn, teilKey) {
-  if (t?.art !== 'modul' || !Number.isInteger(t.modulIndex)) return;
+/** Das Ende eines Teils mit Gesamtlänge (Angriffspunkt in der Mitte), oder null. */
+function teilEndePunkt(a, t, pAn) {
+  if (t?.art !== 'modul' || !Number.isInteger(t.modulIndex)) return null;
   const m = a?.module?.[t.modulIndex];
   let b = null;
-  try { b = getFlBauteil(m?.bauteil); } catch { return; }
+  try { b = getFlBauteil(m?.bauteil); } catch { return null; }
   const ax = laengsAchseVon(b);
   const c = Number(m?.[ax]) || 0;
-  if (!ax || Math.abs(c) < 1e-9) return;
+  if (!ax || Math.abs(c) < 1e-9) return null;
   const p = [...pAn];
   p[ax === 'x' ? 0 : 2] += c;
+  return { p, ax };
+}
+
+/*
+ * >>> SICHTBARE RANGFOLGE: TRAGENDES TEIL BIS ZUM ENDE, LEITER FEIN (9. Oktober). <<<
+ * Im Wortlaut: «um ein visuelle hirarchie darzustellen könnte man für den
+ * anbau den endpunkt darstellen und dafür die linie vom Drahtwerk dünner
+ * gestalten, da es sich um filigrane elemente handelt». Das Glied der Kette,
+ * das zu einem Drahtwerk führt, ist ein feiner Strich (`gliedDicke`); ein
+ * Teil mit Gesamtlänge (Stütze, Aufsatz, Ausleger, Konsole) steht als Körper
+ * von seiner Mitte bis zu seinem Ende da, mit einem Würfel am Ende
+ * (`teilEndeKoerper`). Nur das Bild - die Kette des Stabmodells bleibt.
+ */
+const gliedDicke = (g) => (g?.teil?.rolle === 'drahtwerk' ? 0.014
+  : g?.rang === 0 ? 0.045 : 0.038);
+
+function teilEndeKoerper(flaechen, a, t, pAn, opt) {
+  const e = teilEndePunkt(a, t, pAn);
+  if (!e) return;
+  const name = t.bauteilName ?? t.name;
+  flaechen.push(...stab(pAn, e.p, 0.038, opt(`${name} · bis zum Ende`)));
+  flaechen.push(...quader(e.p, [0.075, 0.075, 0.075], opt(`${name} · Ende`)));
+}
+
+function teilEndeMarke(marken, a, t, pAn, teilKey) {
+  const ende = teilEndePunkt(a, t, pAn);
+  if (!ende) return;
+  const { p, ax } = ende;
   marken.push({ gruppe: 'anbau', art: 'teilende', p, teil: teilKey,
                 titel: `${t.name} · Ende (Gesamtlänge ziehen)`,
                 zieh: { achse: ax, modul: t.modulIndex, last: null, ende: true } });

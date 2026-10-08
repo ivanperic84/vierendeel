@@ -525,7 +525,7 @@ export function abfangSzene(typ, jt, opt = {}) {
     if ((at.ort ?? 'joch') !== 'joch') return;
     const x = Math.min(Math.max(Number(at.x) || 0, 0), jt);
     const an = abfangAnbindung(at);
-    const fb = farbeFuer(`anbau|${at.vorlage ?? at.name}`,
+    const fb = at.farbe || farbeFuer(`anbau|${at.vorlage ?? at.name}`,
                          at.name ?? 'Anbauteil', 'anbau');
     const teil = `AT_${j + 1}`;
     // `anbauteil`: daran erkennt das 3D die Fläche als greifbares Teil (Ziehen).

@@ -202,13 +202,14 @@ export function auslegerSzene(satz, opt = {}) {
     try { s = baugruppeSumme(at, sOpt); } catch { s = null; }
     const teile = s?.teile ?? [];
     const teil = `AT_${j + 1}`;
-    const fb = farbeFuer(`anbau|${at.vorlage ?? at.name}`, at.name ?? 'Anbauteil', 'anbau');
+    const fb = at.farbe || farbeFuer(`anbau|${at.vorlage ?? at.name}`, at.name ?? 'Anbauteil', 'anbau');
     const o = (label) => ({ gruppe: 'anbau', teil, farbeBauteil: fb, anbauteil: at, label });
     const kette = anbauKette(teile, { x0: xA, zAn: 0 });
     kette.glieder.forEach((g) => {
       const p0 = [xG(g.von.x), g.von.y, g.von.z], p1 = [xG(g.bis.x), g.bis.y, g.bis.z];
       const achsen = [0, 1, 2].filter((i) => Math.abs(p1[i] - p0[i]) > 1e-6).length;
-      const dk = g.rang === 0 ? 0.045 : 0.038;
+      // Das Glied zum Leiter fein (9. Oktober).
+      const dk = g.teil?.rolle === 'drahtwerk' ? 0.014 : g.rang === 0 ? 0.045 : 0.038;
       flaechen.push(...(achsen > 1 ? schraegerStab(p0, p1, dk, dk, o(at.name ?? ''))
                                    : stab(p0, p1, dk, o(at.name ?? ''))));
     });

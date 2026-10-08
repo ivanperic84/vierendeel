@@ -3239,7 +3239,8 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          * 6. Oktober («hier die last weglassen, da wir sonst auch die fy und
          * fx aufführen sollten») - jetzt stehen alle drei da.
          */''}
-      <div class="at-gkopf" title="Summe der eingeschalteten Teile der Gruppe">
+      <div class="at-gkopf" title="Summe der eingeschalteten Teile der Gruppe"${
+        teile.find((t) => t.a.farbe) ? ` style="border-left-color:${esc(teile.find((t) => t.a.farbe).a.farbe)}"` : ''}>
         <span class="at-gname">${name ? `#${esc(name)}` : 'Ohne Gruppe'}</span>
         <span class="at-x">${teile.length} Stück</span>
         <span class="at-kraft at-gkraft">${esc(gruppeKraft(teile.map((t) => t.a), trasse))} kN</span>
@@ -3254,6 +3255,36 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
             aria-label="${zu ? 'Einschalten' : 'Ausschalten'}"
             title="${zu ? 'Gruppe wieder einschalten (rechnen und zeichnen)' : 'Gruppe ausschalten - nicht gerechnet, nicht gezeichnet, die Eingaben bleiben'}">${icon('auge', 12)}</button>
         </span>
+      </div>
+      ${/*
+         * >>> GRUPPE BEARBEITEN, IN DER LEISTE STATT IM BROWSERFENSTER
+         * (9. Oktober). <<< Gemeldet: «wenn ich auf den bearbeiten button
+         * (anpassung gruppe) drücke passiert nichts. könnte man hier noch
+         * weiter funktionen hinterlegen als nur namen ändern, zum beispiel
+         * die farbe (sichtbar bei layer Teil) zuweisen». Der Stift rief
+         * `window.prompt` - die installierte App und eingebettete Browser
+         * zeigen dieses Fenster nicht, der Klick blieb ohne Wirkung. Jetzt
+         * klappt der Stift ein Feld unter dem Kopf auf: Name, Farbe, und
+         * die Teile am Joch um Δx verschieben.
+         */''}
+      <div class="at-gform" data-at-gform="${esc(name)}" hidden>
+        <label class="at-feld breit2"><span>Name der Gruppe</span>
+          <input type="text" data-gf="name" value="${esc(name)}" placeholder="z. B. Gleis 1"></label>
+        <div class="at-feld breit2"><span>Farbe im Modell (Ebene «Teil»)</span>
+          <div class="at-gfarben" data-gf="farbe" data-wert="${esc(teile.find((t) => t.a.farbe)?.a.farbe ?? '')}">
+            <button type="button" class="at-gfarbe auto${teile.some((t) => t.a.farbe) ? '' : ' an'}" data-farbe=""
+              title="Automatisch - je Vorlage eine Farbe">auto</button>
+            ${GRUPPEN_FARBEN.map((f) => `<button type="button" class="at-gfarbe${
+              teile.some((t) => t.a.farbe === f) ? ' an' : ''}" data-farbe="${f}"
+              style="background:${f}" title="${f}" aria-label="Farbe ${f}"></button>`).join('')}
+          </div></div>
+        <label class="at-feld"><span>Verschieben Δx <i>m</i></span>
+          <input type="number" step="0.1" data-gf="dx" value="0"
+            title="Alle Teile der Gruppe am Joch um diesen Betrag in x verschieben"></label>
+        <div class="at-gknoepfe">
+          <button type="button" class="btn btn-mini btn-acc" data-gf-ok>Übernehmen</button>
+          <button type="button" class="btn btn-mini" data-gf-zu>Abbrechen</button>
+        </div>
       </div>
       ${teile.map(zeile).join('')}
     </div>`;
@@ -4243,6 +4274,10 @@ function lastblockListeHtml(a, i) {
  * Summe einer GRUPPE in derselben Form (9. Oktober): F_x, F_y, F_z der
  * eingeschalteten Teile, ständig + veränderlich wie in der Zeile je Teil.
  */
+/** Farben zur Wahl im Gruppenkopf - gut unterscheidbar auf dunklem und hellem Grund. */
+const GRUPPEN_FARBEN = ['#e4572e', '#f2a541', '#e6d04a', '#6fbf73', '#3fb6b2',
+  '#4a90d9', '#9b7ede', '#d86fb0'];
+
 function gruppeKraft(teile, trasse) {
   const s = { x: 0, y: 0, z: 0 };
   (teile ?? []).filter((a) => a && a.aktiv !== false).forEach((a) => {
@@ -5522,12 +5557,41 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-gruppe-name]').forEach((b) => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      const alt = b.dataset.atGruppeName;
-      const neu = window.prompt(alt ? `Neuer Name für die Gruppe «${alt}»` : 'Name für diese Teile (Gruppe)', alt);
-      if (neu === null) return;
-      const name = neu.trim().replace(/^#+/, '').trim();
-      if (name === alt) return;
-      onAnbau(liste().map((a) => (anbauGruppe(a) === alt ? { ...a, tag: name } : a)));
+      // Der Stift klappt das Feld unter dem Kopf auf (9. Oktober) - kein
+      // Browserfenster mehr, das die installierte App nicht zeigt.
+      const form = b.closest('.at-gruppe')?.querySelector('.at-gform');
+      if (!form) return;
+      form.hidden = !form.hidden;
+      if (!form.hidden) form.querySelector('[data-gf="name"]')?.focus();
+    });
+  });
+  container.querySelectorAll('.at-gform').forEach((form) => {
+    const alt = form.dataset.atGform;
+    const farben = form.querySelector('.at-gfarben');
+    form.querySelectorAll('.at-gfarbe').forEach((f) => {
+      f.addEventListener('click', (e) => {
+        e.stopPropagation();
+        farben.dataset.wert = f.dataset.farbe;
+        form.querySelectorAll('.at-gfarbe').forEach((x) => x.classList.toggle('an', x === f));
+      });
+    });
+    const uebernehmen = () => {
+      const name = String(form.querySelector('[data-gf="name"]').value ?? '').trim().replace(/^#+/, '').trim();
+      const farbe = farben.dataset.wert || '';
+      const dx = Number(form.querySelector('[data-gf="dx"]').value) || 0;
+      onAnbau(liste().map((a) => {
+        if (anbauGruppe(a) !== alt) return a;
+        const n = { ...a, tag: name };
+        if (farbe) n.farbe = farbe; else delete n.farbe;
+        if (dx && !amMast(a) && Number.isFinite(Number(a.x))) n.x = Math.round((Number(a.x) + dx) * 1000) / 1000;
+        return n;
+      }));
+    };
+    form.querySelector('[data-gf-ok]').addEventListener('click', (e) => { e.stopPropagation(); uebernehmen(); });
+    form.querySelector('[data-gf-zu]').addEventListener('click', (e) => { e.stopPropagation(); form.hidden = true; });
+    form.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); uebernehmen(); }
+      if (e.key === 'Escape') { e.stopPropagation(); form.hidden = true; }
     });
   });
   // Gruppe ein-/ausschalten (6. Oktober), wie das Häkchen je Teil.

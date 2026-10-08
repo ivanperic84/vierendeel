@@ -40495,7 +40495,7 @@ titel('262  Bugreport B3-B7: Gruppenname, «neu», Serie, Überstand, Vorschau')
   const setzQ = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   // B3
   wahr('B3: Stift am Gruppenkopf - der neue Name geht in alle Teile der Gruppe',
-       uiQ.includes('data-at-gruppe-name=') && uiQ.includes('anbauGruppe(a) === alt ? { ...a, tag: name } : a'));
+       uiQ.includes('data-at-gruppe-name=') && uiQ.includes('const n = { ...a, tag: name };'));
   // B4
   wahr('B4: das Kästchen «neu» zoomt nicht ins Bauteil',
        uiQ.includes("if (e.target?.dataset?.k === 'neu') return;"));
@@ -40659,6 +40659,18 @@ titel('263  Doppelanker mit zwei Seilen; Gruppenkopf mit Summenkräften');
        uiQ.includes('class="at-gkopf"') && uiQ.includes('class="at-kraft at-gkraft"')
        && /class="btn btn-mini" data-at-gruppe-name=/.test(uiQ) && cssQ.includes('.at-gkopf {')
        && uiQ.includes('function gruppeKraft(teile, trasse)'));
+  // Gruppe bearbeiten in der Leiste (9. Oktober): «wenn ich auf den bearbeiten
+  // button … drücke passiert nichts» - der Stift rief window.prompt.
+  wahr('Gruppe bearbeiten: kein window.prompt mehr, ein Feld unter dem Kopf mit Name, Farbe, Δx',
+       !uiQ.includes('window.prompt(') && uiQ.includes('class="at-gform"') && uiQ.includes('data-gf="farbe"')
+       && uiQ.includes('data-gf="dx"') && uiQ.includes('if (farbe) n.farbe = farbe; else delete n.farbe;'));
+  {
+    const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    wahr('3D: die Gruppenfarbe geht vor der Farbe je Vorlage (Joch und Mast)',
+         (r3.match(/const fb = a\.farbe \|\| farbeFuer\(/g) ?? []).length === 2);
+    wahr('3D: das Glied zum Drahtwerk ist fein, das tragende Teil reicht bis zu seinem Ende',
+         r3.includes("g?.teil?.rolle === 'drahtwerk' ? 0.014") && (r3.match(/teilEndeKoerper\(flaechen, a, t, pAn, opt\);/g) ?? []).length === 2);
+  }
   wahr('Die Summe im Gruppenkopf wird bei jeder Rechnung nachgeführt',
        /querySelectorAll\('\.at-gruppe'\)\.forEach\(\(g\) => \{\s*const el = g\.querySelector\('\.at-gkraft'\);/.test(uiQ));
 }
