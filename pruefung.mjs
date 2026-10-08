@@ -23723,10 +23723,11 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
      * >>> EIN SATZ MIT BEKANNTEN FELDERN WIRD AUFGEFALTET. <<<
      *
      * Die Windlast des Masten steht als quer/längs mal EK1..EK3 - sechs
-     * Spalten, in jeder eine Zahl.
+     * Spalten, in jeder eine Zahl. Seit dem 8. Oktober dazu je Richtung der
+     * Einheitswind EK0 aus der Mast-Mappe (vorher 7 Spalten).
      */
     const sp = K.spaltenVon('masten', 'typen', tab.masten.tabellen.typen);
-    pruef('Masttypen: Profil und sechs Windwerte', sp.length, 7, 1e-12, 'Spalten');
+    pruef('Masttypen: Profil und acht Windwerte (EK1-EK3 und EK0, quer und längs)', sp.length, 9, 1e-12, 'Spalten');
     wahr('Die Anschrift nennt den Weg dorthin',
          sp[1].kopf === 'Windlast · quer zum Gleis · EK1', sp[1].kopf);
     wahr('Der Pfad ist der der Datei', sp[1].pfad === 'wind/quer/EK1', sp[1].pfad);
@@ -37014,11 +37015,47 @@ if (AJ.abfangDbDa()) {
   pruef('Mast HEB 240: Einheitswind = Profilbreite × 1.0', M209.mastWind('HEB 240', 'EK0'), 0.24, 0.005, 'kN/m');
   pruef('Mast HEB 260', M209.mastWind('HEB 260', 'EK0'), 0.26, 0.005, 'kN/m');
   const hst = 'anbauteil-haengestuetze-od-haengerohr';
-  pruef('Anbauteil (Hängestütze): Tabellenwert EK1 / (0.9 · 1.4), über die Klassen gemittelt',
-        FL209.flLastwerte(hst, { ek: 'EK0' }).Qy / FL209.flLastwerte(hst, { ek: 'EK1' }).Qy, 1 / 1.26, 0.03, '-');
+  /*
+   * >>> SEIT DEM 8. OKTOBER DIE WERTE DER MAST-MAPPE. <<< Weisung: «die
+   * bisherigen angaben bezüglich einheitswind waren annahmen, die werte aus
+   * der excel übernehmen und als EK0 hinterlegen in der app global». Vorher
+   * hergeleitet: Hängestütze Tabellenwert EK1 / (0.9 · 1.4) = 0.143 kN/m,
+   * Cu 95 Wert / q = 0.0094 kN/m. Die Herleitung bleibt für Zeilen ohne EK0
+   * (oben an `windWert` geprüft).
+   */
+  pruef('Hängestütze: Einheitswind 0.10 kN/m aus der Mappe, quer wie längs',
+        FL209.getFlBauteil(hst).windLaengs.EK0 + FL209.getFlBauteil(hst).windQuer.EK0, 0.20, 1e-12, 'kN/m');
+  wahr('… kleiner als die frühere Herleitung aus EK1',
+       FL209.flLastwerte(hst, { ek: 'EK0' }).Qy < FL209.flLastwerte(hst, { ek: 'EK1' }).Qy / 1.26);
   const dr = 'drahtwerk-cu-95';
-  pruef('Draht: kein Formbeiwert im Tabellenwert - Einheitswind = Wert / q',
-        FL209.flLastwerte(dr, { ek: 'EK0' }).Qx / FL209.flLastwerte(dr, { ek: 'EK1' }).Qx, 1 / 0.9, 0.03, '-');
+  pruef('Draht Cu 95: Einheitswind 0.0083 kN/m aus der Mappe', FL209.getFlBauteil(dr).windQuer.EK0, 0.0083, 1e-12, 'kN/m');
+  pruef('… Bündel 2 × 95: 0.0141, nicht das Doppelte', FL209.getFlBauteil('drahtwerk-cu-95-x2').windQuer.EK0, 0.0141, 1e-12, 'kN/m');
+  pruef('… Cu 150 / 2 × 150', FL209.getFlBauteil('drahtwerk-cu-150').windQuer.EK0 + FL209.getFlBauteil('drahtwerk-cu-150-x2').windQuer.EK0, 0.0105 + 0.0178, 1e-12, 'kN/m');
+  pruef('Fahrleitung (Kettenwerk): 0.020 kN/m', FL209.getFlBauteil('drahtwerk-n-fl-ts-stcu-50-fd-cu-107').windQuer.EK0, 0.02, 1e-12, 'kN/m');
+  pruef('… Tragseil und Fahrdraht einzeln je die Hälfte (Entscheid 7. Oktober)',
+        FL209.getFlBauteil('drahtwerk-n-fl-stcu-50').windQuer.EK0 + FL209.getFlBauteil('drahtwerk-n-fl-cu-107').windQuer.EK0, 0.02, 1e-12, 'kN/m');
+  wahr('Jochaufsatz einfach 0.45 / 0.45, doppelt 0.9 quer / 0.8 längs, alt 0.20 kN/m',
+       FL209.getFlBauteil('anbauteil-jochaufsatz-norm-typ-einfach').windQuer.EK0 === 0.45
+       && FL209.getFlBauteil('anbauteil-jochaufsatz-norm-typ-doppelt').windQuer.EK0 === 0.9
+       && FL209.getFlBauteil('anbauteil-jochaufsatz-norm-typ-doppelt').windLaengs.EK0 === 0.8
+       && FL209.getFlBauteil('anbauteil-jochaufsatz-alt').windLaengs.EK0 === 0.2);
+  wahr('Ausleger Rohr 0.3, NT 0.5 kN, Leiter-Traverse 0.08, Tragausleger 0.14 kN/m (längs)',
+       FL209.getFlBauteil('anbauteil-ausleger-typ-rohr').windLaengs.EK0 === 0.3
+       && FL209.getFlBauteil('anbauteil-ausleger-typ-nt').windLaengs.EK0 === 0.5
+       && FL209.getFlBauteil('anbauteil-leiter-traverse').windLaengs.EK0 === 0.08
+       && FL209.getFlBauteil('anbauteil-tragausleger-uebergreifend-fix').windLaengs.EK0 === 0.14);
+  pruef('Mast HEM 240: quer 0.248, längs 0.27 kN/m (Fwx / Fwy der Mappe)',
+        M209.mastWind('HEM 240', 'EK0', 'jochachse') + M209.mastWind('HEM 240', 'EK0', 'quer'), 0.248 + 0.27, 1e-12, 'kN/m');
+  {
+    const soll = { J60: 0.25, J70: 0.28, J80: 0.29, J90: 0.35, J100: 0.39, J120: 0.43, J130: 0.48 };
+    wahr('Tragjoche J60-J130, neu und alt: wind/1.0 nach der Mappe',
+         Object.entries(soll).every(([t, w]) => T.getTragjoch(t).wind['1.0'] === w && T.getTragjoch(`${t}-alt`).wind['1.0'] === w));
+    const sollA = { A160: 0.16, A200: 0.2, A240: 0.24, A270: 0.27, A300: 0.3, A330: 0.33, A360: 0.36 };
+    const AJ209 = await import(J('data.abfangjoche.js'));
+    wahr('Abfangjoche A160-A360: Einheitswind nach der Mappe, ohne Zuschlag',
+         Object.entries(sollA).every(([t, w]) => AJ209.abfangWind(AJ209.getAbfangjoch(t), 'EK0') === w));
+    pruef('… ein alter Typ ohne Eintrag (UAP 200) bleibt bei Profilhöhe × 1.25', AJ209.abfangWind(AJ209.getAbfangjoch('UAP 200'), 'EK0'), 0.25, 1e-12, 'kN/m');
+  }
 
   // Tragjoch: 1.0 kN/m² auf die Windangriffsfläche (stehende Gurtschenkel + Vertikalbleche).
   const j209 = (wk) => ({ ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
@@ -37028,8 +37065,14 @@ if (AJ.abfangDbDa()) {
   const m10 = modell(w10, getProfil(w10.profOG), getProfil(w10.profUG), getStahl(w10.stahl), T.getTragjoch('J90'));
   const As209 = (m09.profOG.aV + m09.profUG.aV) / 1000
     + m09.stationsListe.filter((x) => x.vertikal).reduce((a, x) => a + x.vertikal.breite * x.vertikal.laenge / 1e6, 0) / 20;
-  // Seit dem 7. Oktober mit der hinteren Ebene 25 % (vorher 0.2203 kN/m).
-  pruef('Tragjoch J90/20 m: w_k = 1.0 kN/m² · Windangriffsfläche je Meter × 1.25', m10.char.wk, As209 * 1.25, 1e-9, 'kN/m');
+  // Seit dem 8. Oktober der Wert der Mast-Mappe (vorher Fläche × 1.25 = 0.2754, davor 0.2203 kN/m).
+  pruef('Tragjoch J90/20 m: w_k = 0.35 kN/m nach der Mappe (wind/1.0)', m10.char.wk, 0.35, 1e-12, 'kN/m');
+  {
+    // Ohne Eintrag im Sortiment bleibt die Herleitung: Fläche × 1.0 × 1.25 (7. Oktober).
+    const jOhne = { ...T.getTragjoch('J90'), wind: { '0.9': 0.43, '1.1': 0.52, '1.3': 0.62 } };
+    const mOhne = modell(w10, getProfil(w10.profOG), getProfil(w10.profUG), getStahl(w10.stahl), jOhne);
+    pruef('… ein Typ ohne wind/1.0: Windangriffsfläche je Meter × 1.25', mOhne.char.wk, As209 * 1.25, 1e-9, 'kN/m');
+  }
   wahr('… kleiner als der Tabellenwert EK1, und die Herkunft nennt den Einheitswind',
        m10.char.wk < m09.char.wk && /Einheitswind/.test(m10.char.herkunft.wind), `${m10.char.wk.toFixed(3)} gegen ${m09.char.wk}`);
   wahr('… Eigengewicht und Schnee bleiben', m10.char.gk === m09.char.gk && m10.char.sk === m09.char.sk);
@@ -37206,8 +37249,8 @@ if (AJ.abfangDbDa()) {
 
   // Einheitswind am Abfangjoch: eine Ebene = Profilhöhe.
   const a160 = AJ.getAbfangjoch('A160');
-  // Seit dem 7. Oktober mit dem zweiten Profil zu 25 % (vorher 0.16).
-  pruef('Einheitswind am Abfangjoch A160: Profilhöhe × 1.0 kN/m² × 1.25', AJ.abfangWind(a160, 'EK0'), 0.2, 1e-12, 'kN/m');
+  // Seit dem 8. Oktober der Wert der Mast-Mappe = Profilhöhe ohne Zuschlag (7. Oktober: 0.20 mit 25 %).
+  pruef('Einheitswind am Abfangjoch A160: 0.16 kN/m nach der Mappe', AJ.abfangWind(a160, 'EK0'), 0.16, 1e-12, 'kN/m');
   wahr('… EK1-EK3 bleiben beim Tabellenwert', AJ.abfangWind(a160, 'EK1') === a160.wind['0.9']
        && AJ.abfangWind(a160, 'EK3') === a160.wind['1.3']);
 

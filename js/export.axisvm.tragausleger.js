@@ -46,7 +46,7 @@ import { baugruppeSumme } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
-import { flLastwerte, EINHEIT_EBENEN } from './data.fl.js';
+import { flLastwerte, getFlBauteil, EINHEIT_EBENEN } from './data.fl.js';
 import { anbauKette, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
 
 /** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
@@ -426,7 +426,11 @@ export function tragauslegerModell(satz, opt = {}) {
   try { wA = flLastwerte(TA_WIND_BAUSTEIN, { ek }).Qy; } catch { wA = null; }
   // Einheitswind (alte Norm): nur die Angriffsfläche des vorderen Profils, h × 1.0 kN/m².
   // + hintere Ebene (zweite UPE) mit 25 % (7. Oktober).
-  if (ek === 'EK0' && p?.h > 0) wA = p.h / 100 * EINHEIT_EBENEN;   // p.h in cm
+  // Seit dem 8. Oktober gilt der Wert der Mast-Mappe (Spalte EK0 der Lasttabelle)
+  // vor dieser Herleitung; sie bleibt der Rückfall, wenn die Spalte leer ist.
+  let wAMappe = false;
+  try { wAMappe = ek === 'EK0' && getFlBauteil(TA_WIND_BAUSTEIN)?.windLaengs?.EK0 > 0; } catch { wAMappe = false; }
+  if (ek === 'EK0' && !wAMappe && p?.h > 0) wA = p.h / 100 * EINHEIT_EBENEN;   // p.h in cm
   if (wA > 0) {
     staebe.filter((s) => /^[VH]_S\d+$/.test(s.name)).forEach((s) => {
       strecke.push({ name: `Q_WindY_${s.name}`, stab: s.name, richtung: 'Y',

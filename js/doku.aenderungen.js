@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-08',
     punkte: [
+      { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
       { text: 'COM-Brücke: der Aufbau brach seit dem 7. Oktober bei jedem Start ab («System.String kann nicht in SwitchParameter konvertiert werden», Zeile 70). Behoben - bitte die Skripte der Brücke neu aus der internen Ablage holen.' },
     ],
   },

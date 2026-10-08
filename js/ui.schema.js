@@ -1921,10 +1921,11 @@ export const FELDER = [
       + 'Windkräfte der Anbauteile; der Staudruck dient der Einordnung.'
       : 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
       + 'der Einordnung.')
-      + ' Einheitswind (alte Norm): 1.0 kN/m² auf die Angriffsfläche, ohne '
-      + 'Formbeiwert — Joch (stehende Gurtschenkel + Vertikalbleche), Masten '
-      + '(Profilbreite), Anbauteile (Fläche aus dem Tabellenwert); für den '
-      + 'Vergleich im Bestandesschutz. Von Hand eingegebene Windkräfte bleiben.'},
+      + ' Einheitswind (alte Norm): 1.0 kN/m², ohne Formbeiwert — die Werte '
+      + 'der alten Mastberechnung für Joche, Masten, Leiter und Anbauteile '
+      + '(Spalte EK0 der Datenbasis); wo sie keinen Wert führt, aus der '
+      + 'Angriffsfläche hergeleitet. Für den Vergleich im Bestandesschutz. '
+      + 'Von Hand eingegebene Windkräfte bleiben.'},
   /*
    * >>> DER BESTANDESSCHUTZ STEHT AUCH UNTER LASTEN (4. Oktober). <<<
    *

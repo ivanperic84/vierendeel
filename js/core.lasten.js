@@ -125,7 +125,16 @@ export function charakteristischeLasten(inp, joch, windflaeche = null) {
    * und Formbeiwert - er liegt darüber, sichere Seite.
    */
   const einheit = WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.einheit === true;
-  const wk = einheit
+  /*
+   * >>> DER WERT DER MAPPE GILT VOR DER HERLEITUNG (8. Oktober). <<< Weisung:
+   * «die bisherigen angaben bezüglich einheitswind waren annahmen, die werte
+   * aus der excel übernehmen und als EK0 hinterlegen in der app global».
+   * Führt das Sortiment `wind/1.0`, gilt diese Zahl - ohne Zuschlag für die
+   * hintere Ebene (sie ist der Wert der alten Mastberechnung). Die Fläche
+   * aus der Geometrie bleibt der Rückfall für Typen ohne Eintrag.
+   */
+  const wkMappe = Number(joch.wind?.['1.0']);
+  const wk = einheit && wkMappe > 0 ? wkMappe : einheit
     // Hintere Ebene mit 25 % (7. Oktober, EINHEIT_EBENEN in data.fl.js).
     ? (windflaeche > 0 ? windflaeche * 1.0 * EINHEIT_EBENEN : joch.wind['0.9'] / (0.9 * 1.4))
     : joch.wind[inp.windKlasse];
@@ -140,7 +149,9 @@ export function charakteristischeLasten(inp, joch, windflaeche = null) {
       gewichtTabelle: joch.gewicht,
       eigengewicht: `${joch.gewicht} kg/m (Tabelle) → ${gJoch.toFixed(3)} kN/m` +
                     (inp.gZusatz ? ` + ${inp.gZusatz.toFixed(3)} kN/m Zuschlag` : ''),
-      wind: einheit
+      wind: einheit && wkMappe > 0
+        ? `Einheitswind 1.0 kN/m² (alte Norm), Wert der Mast-Mappe für ${joch.typ} → ${wk.toFixed(3)} kN/m`
+        : einheit
         ? `Einheitswind 1.0 kN/m² (alte Norm) auf die Angriffsfläche `
           + `${windflaeche > 0 ? `${windflaeche.toFixed(3)} m²/m` : 'aus dem Tabellenwert'} → ${wk.toFixed(3)} kN/m`
         : `${WIND_KLASSEN.find((k) => k.key === inp.windKlasse)?.ek} ` +

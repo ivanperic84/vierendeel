@@ -99,7 +99,9 @@ const JOCHLASTEN = [
     zahl('0.9', 'bei 0.9 kN/m²', 'kN/m', { von: 0, bis: 5 }),
     zahl('1.1', 'bei 1.1 kN/m²', 'kN/m', { von: 0, bis: 5 }),
     zahl('1.3', 'bei 1.3 kN/m²', 'kN/m', { von: 0, bis: 5 }),
-  ], { notiz: 'Charakteristisch; die Spalte nennt den Referenz-Staudruck.' }),
+    // Einheitswind der alten Norm (8. Oktober): Wert der Mast-Mappe, gilt vor der Herleitung.
+    zahl('1.0', 'Einheitswind 1.0 kN/m² (alte Norm)', 'kN/m', { von: 0, bis: 5 }),
+  ], { notiz: 'Charakteristisch; die Spalte nennt den Referenz-Staudruck. «1.0» ist der Einheitswind der alten Norm (ohne Formbeiwert); leer = hergeleitet.' }),
 ];
 
 /** Pos und Anzahl einer Staffelungsstufe - bei Typ und Ausführung gleich. */
@@ -235,8 +237,8 @@ export const ABSCHNITTE = [
       text('profil', 'Profil', { pflicht: true,
         notiz: 'Verweist auf einen Satz der Mastprofile.' }),
       satz('wind', 'Windlast', [
-        satz('quer', 'quer zum Gleis', EK('kN/m')),
-        satz('laengs', 'in Gleisrichtung', EK('kN/m')),
+        satz('quer', 'quer zum Gleis', EK('kN/m', ['EK1', 'EK2', 'EK3', 'EK0'])),
+        satz('laengs', 'in Gleisrichtung', EK('kN/m', ['EK1', 'EK2', 'EK3', 'EK0'])),
       ], { pflicht: true, notiz: 'Charakteristische Laufmeterlast je Klasse.' }),
     ],
   },

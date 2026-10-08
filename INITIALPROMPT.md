@@ -8,7 +8,7 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 8. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**6899** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**6911** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
 **Git:** alles gepusht, auch der Stand zum Statikbericht über COM (Weisung 8. Oktober: «alles offene
 nachführen und dann pushen» - hebt «nicht pushen» vom selben Tag auf). Anlass: Bugreport eines Anwenders,
@@ -16,10 +16,12 @@ die gepushte Brücke brach bei jedem Start ab (Schalter `-Bericht` gegen Variabl
 `-Statikbericht`). `Versand/COM_Bruecke` ist dem Anwender neu abzugeben; seine Modelldatei (`bugs/`, örtlich)
 ist in AxisVM nicht gebaut (nur auf Anweisung).
 
-**Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-07.json`
-ist aktuell (Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
-`Versand/vierendeel_tool_2026-10-07.html`; COM-Brücke `Versand/COM_Bruecke` (mit dem neuen Schalter, aber
+**Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json`
+ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
+`Versand/vierendeel_tool_2026-10-08.html`; COM-Brücke `Versand/COM_Bruecke` (mit dem neuen Schalter, aber
 noch nicht fertig erprobt - siehe unten).
+
+**Gebaut am 8. Oktober:** Einheitswind mit den Werten der alten Mastberechnung (`Grundlagen/Einheitswind`) als EK0 in der Datenbasis - Tragjoche, Abfangjoche A160-A360, Tragausleger, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger; ein hinterlegter Wert gilt vor der Herleitung und ohne Zuschlag (J90 w_k 0.275 → 0.350). ⚠ Offen: Zuordnung der Lampen, J…-alt wie J…, alte Abfangjoche (CLAUDE.md, *Offene Punkte*). Die Datei des Anwenders aus dem Bugreport ist in AxisVM aufgebaut (nur gebaut): läuft durch.
 
 **Laufende Arbeit: Statikbericht über COM** (Weisungen 7./8. Oktober: «kannst du auch mit hilfe der
 abhandlung com ein template für einen statikbericht generieren lassen. so viel wie nötig an plots generieren
@@ -264,7 +266,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6899 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6911 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

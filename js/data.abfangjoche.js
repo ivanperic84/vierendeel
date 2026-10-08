@@ -73,6 +73,10 @@ import { windWertStufe, EINHEIT_EK, EINHEIT_Q, EINHEIT_EBENEN } from './data.fl.
  */
 export function abfangWind(a, ek) {
   if (ek === EINHEIT_EK) {
+    // Wert der Mast-Mappe (8. Oktober, `wind/1.0` im Sortiment) gilt vor der
+    // Herleitung und ohne Zuschlag; ohne Eintrag (alte Typen) die Regel darunter.
+    const wMappe = Number(a?.wind?.['1.0']);
+    if (wMappe > 0) return wMappe;
     const h = Number(/(\d+)/.exec(String(a?.profil ?? ''))?.[1]);
     if (h > 0) return EINHEIT_Q * EINHEIT_EBENEN * h / 1000;   // + hintere Ebene 25 % (7. Okt.)
   }
