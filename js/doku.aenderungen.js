@@ -15,6 +15,7 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
+      { text: 'Verjüngte (alte) Joche: das liegende Blech der Untergurtebene liegt im Stabmodell und in der AxisVM-Ausleitung in der Neigung des Untergurts, nicht mehr waagrecht. Die Ausnutzung der Bindebleche dieser Joche sinkt (J120-alt/24 m: 0.56 → 0.44).', rechnung: true },
       { text: 'Überstand (Kragarm) eingeben: die Masten bleiben stehen, das Joch verschiebt sich; reicht es am anderen Ende nicht mehr, wird es auf die nächste Länge im Halbmeterraster verlängert.', rechnung: true },
       { text: 'Anbauteile: Gruppenname am Gruppenkopf änderbar (Stift); «neu» ankreuzen zoomt nicht mehr und lässt die Liste stehen; eine duplizierte Baugruppe lässt sich mehrmals hintereinander absetzen (Esc beendet).' },
       { text: 'Ablage: Vorschau mit Skizze beim Überfahren eines gespeicherten Eintrags.' },

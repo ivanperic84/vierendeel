@@ -40529,6 +40529,44 @@ titel('262  Bugreport B3-B7: Gruppenname, «neu», Serie, Überstand, Vorschau')
   wahr('B7: Vorschau eines Eintrags - Skizze mit zwei Masten, Joch und Anbauteil, darunter Tragwerk und Masten',
        (vs.match(/class="vs-mast"/g) ?? []).length === 2 && vs.includes('class="vs-joch"') && vs.includes('class="vs-teil"')
        && vs.includes('Probe') && /T1 · /.test(vs) && vs.includes('HEB 260'), vs.replace(/<svg[\s\S]*<\/svg>/, '[svg]').replace(/\s+/g, ' ').slice(0, 200));
+  /*
+   * B1 (9. Oktober): «Blech bem Untergurt in der schräge ausrichten.
+   * Fischbauchjoch», präzisiert: «die Ausleitung nach AxisVM ist das blech
+   * noch horizontal ausgerichtet und nicht in der neigung des untergurts».
+   */
+  {
+    const N262 = await import(J('core.nachbarn.js'));
+    const AS262 = await import(J('app.stabwerk.js'));
+    const stab = (typ, L) => {
+      let w = typUebernehmen({ ...standardwerte(), typ }, T.getTragjoch(typ));
+      w = { ...w, L, xLage: 0, mastVorhanden: true, twId: 'T1', windKlasse: '0.9', anbauteile: [] };
+      const sR = N262.rechensatzMitNachbarn(w);
+      const erg = berechne(sR, ...N262.kernArgumente(sR));
+      return { erg, h: AS262.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+    };
+    const alt = stab('J120-alt', 24);
+    const dat = alt.h.roh.dat, m = alt.erg.modell;
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const bh = dat.staebe.filter((q) => /BH_U_\d+(_2)?$/.test(q.name) && (q.art ?? 'stab') === 'stab');
+    const geneigt = bh.filter((q) => q.lcsZ && Math.abs(q.lcsZ[0]) > 1e-6);
+    wahr('B1: J120-alt/24 m - die liegenden Untergurtbleche in der Voute tragen ihre geneigte Lage, die übrigen nicht',
+         geneigt.length >= 4 && geneigt.length < bh.length, `${geneigt.length} von ${bh.length}`);
+    wahr('… die Flächennormale steht senkrecht auf der Stabachse und auf der Untergurtneigung an der Station',
+         geneigt.every((q) => {
+           const a = kn.get(q.von), b = kn.get(q.bis);
+           const d = [b.x - a.x, b.y - a.y, b.z - a.z];
+           const x = a.x, xa = Math.max(0, x - 0.05), xb = Math.min(m.L, x + 0.05);
+           const n = (m.ugVersatz(xb) - m.ugVersatz(xa)) / 1000 / (xb - xa);
+           return Math.abs(q.lcsZ[0] * d[0] + q.lcsZ[1] * d[1] + q.lcsZ[2] * d[2]) < 1e-6
+             && Math.abs(q.lcsZ[0] * 1 + q.lcsZ[2] * n) < 1e-5 && Math.abs(Math.hypot(...q.lcsZ) - 1) < 1e-5 && q.lcsZ[2] < 0;
+         }), JSON.stringify(geneigt[0]?.lcsZ));
+    // Gemessen vorher → nachher (ohne Anbauteile, HEB 240 des Prüfstands): die Bleche sinken.
+    wahr('… gemessen: das Bindeblech des J120-alt/24 m liegt unter dem Wert mit waagrechtem Blech (vorher 0.555 mit HEB 260)',
+         alt.h.teile['tragwerk|blech'].eta < 0.50, `Blech ${alt.h.teile['tragwerk|blech'].eta.toFixed(4)} (${alt.h.teile['tragwerk|blech'].wo}) · OG ${alt.h.teile['tragwerk|OG'].eta.toFixed(4)} · UG ${alt.h.teile['tragwerk|UG'].eta.toFixed(4)}`);
+    const neu = stab('J90', 20).h.roh.dat;
+    wahr('… am Joch ohne Verjüngung (J90/20 m) bleibt jedes Blech waagrecht',
+         neu.staebe.filter((q) => /BH_U_/.test(q.name) && (q.art ?? 'stab') === 'stab').every((q) => !q.lcsZ || Math.abs(q.lcsZ[0]) < 1e-9));
+  }
   wahr('… ohne lesbaren Stand keine Vorschau; verdrahtet beim Überfahren der Zeile',
        AB.eintragVorschauHtml({ name: 'x' }) === '' && readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes("tr.addEventListener('mousemove', zeige);")
        && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.ab-vorschau {'));

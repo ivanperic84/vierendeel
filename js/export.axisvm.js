@@ -2984,7 +2984,7 @@ export function stabmodell(m, opt = {}) {
    * seinen Weg nicht. Wo es kein steifes Stück gibt (Knotenmodell ohne
    * Anschnitt), bleibt der Stummel - er ist dann schon der direkte Weg.
    */
-  const blechStab = (name, qsBlech, p1, p2, v1, v2, laenge = 0, d1 = 0, d2 = 0) => {
+  const blechStab = (name, qsBlech, p1, p2, v1, v2, laenge = 0, d1 = 0, d2 = 0, extra = null) => {
     const gurt1 = p1, gurt2 = p2;
     const versetzt = (p, v) => (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)
       ? p : { name: null, x: p.x, y: p.y + v.dy, z: p.z + v.dz });
@@ -3023,7 +3023,7 @@ export function stabmodell(m, opt = {}) {
     const [e1, e2] = km !== 'anschnitt' ? [0, 0]
                    : ausDaten !== null ? ausDaten : [d1, d2];
     if (!(L > 0) || (e1 + e2) < 1e-9 || (e1 + e2) >= L) {
-      s.stab(name, qsBlech, rueck(gurt1, p1, 1).name, rueck(gurt2, p2, 2).name);
+      s.stab(name, qsBlech, rueck(gurt1, p1, 1).name, rueck(gurt2, p2, 2).name, extra ?? undefined);
       return;
     }
     const t = (f) => ({ x: p1.x + (p2.x - p1.x) * f,
@@ -3036,7 +3036,7 @@ export function stabmodell(m, opt = {}) {
     const von = e1 > 1e-9 ? gurt1.name : rueck(gurt1, p1, 1).name;
     const bis = e2 > 1e-9 ? gurt2.name : rueck(gurt2, p2, 2).name;
     s.stab(`${name}_1`, qsStarr, von, n1, { starrRolle: 'blechende' });
-    s.stab(`${name}_2`, qsBlech, n1, n2);
+    s.stab(`${name}_2`, qsBlech, n1, n2, extra ?? undefined);
     s.stab(`${name}_3`, qsStarr, n2, bis, { starrRolle: 'blechende' });
   };
 
@@ -3085,8 +3085,32 @@ export function stabmodell(m, opt = {}) {
       const lH = station.horizontal.laenge ?? 0;
       blechStab(`BH_O_${i}`, qs, ogl, ogr,
                 { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz }, lH, sHO, sHO);
+      /*
+       * >>> DAS BLECH DER UNTERGURTEBENE LIEGT IN DER SCHRÄGE (9. Oktober,
+       *     B1). <<< Aus dem Bugreport: «Blech bem Untergurt in der schräge
+       * ausrichten. Fischbauchjoch», präzisiert: «die Ausleitung nach AxisVM
+       * ist das blech noch horizontal ausgerichtet und nicht in der neigung
+       * des untergurts». Am verjüngten Joch steigt der Untergurt zu den Enden
+       * hin; das liegende Blech ist dort in seiner Ebene eingebaut (Schnitt
+       * B-B der Konstruktionszeichnung, im 3D seit je so gezeichnet). Der
+       * Stab bekommt deshalb seine Flächennormale als lokale z-Achse mit:
+       * senkrecht zur Stabachse (y) und zur Untergurtneigung, (n, 0, −1)
+       * normiert - bei n = 0 ist das die bisherige Lage [0, 0, −1]. Dieselbe
+       * Neigung wie im Bild (±5 cm um die Station). Gilt dem eigenen Löser
+       * und AxisVM (die Datei ist dieselbe).
+       */
+      let schraeg = null;
+      if (typeof m.ugVersatz === 'function') {
+        const dN = 0.05;
+        const xb = Math.min(m.L, x + dN), xa = Math.max(0, x - dN);
+        const nU = (m.ugVersatz(xb) - m.ugVersatz(xa)) / 1000 / (xb - xa || 1);
+        if (Math.abs(nU) > 1e-6) {
+          const nn = Math.hypot(nU, 1);
+          schraeg = { lcsZ: [r6(nU / nn), 0, r6(-1 / nn)] };
+        }
+      }
       blechStab(`BH_U_${i}`, qs, ugl, ugr,
-                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz }, lH, sHU, sHU);
+                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz }, lH, sHU, sHU, schraeg);
     }
   });
 
