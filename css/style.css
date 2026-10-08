@@ -3481,6 +3481,9 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-anschluss td { line-height: 1.3; }
 .rk-anschluss tr.rk-moment th, .rk-anschluss tr.rk-moment td { border-top: 0; color: var(--on2); }
 .rk-block .btn { margin-top: 6px; }
+/* Der Blattknopf klebte an der Kachel darüber und an der Klappe darunter (8. Oktober). */
+[data-bestand-blatt] { margin: 8px 0 0; }
+.ab-wer { color: var(--on2); font-weight: 400; margin-left: 4px; }
 .rk-tabelle { font-size: 11px; }
 .rk-tabelle th, .rk-tabelle td { padding: 3px 5px; }
 .rk-tabelle .rk-gruppe { text-align: center; }

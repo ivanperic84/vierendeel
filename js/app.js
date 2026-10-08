@@ -189,6 +189,7 @@ const app = {
   // Zustand - gelesen immer der aktuelle; wo ein Modul schreibt, ein Setter.
   get werte() { return werte; }, set werte(v) { werte = v; },
   get letzte() { return letzte; },
+  get urteilKurz() { return urteilKurz; },
   get stabwerk() { return stabwerk; }, set stabwerk(v) { stabwerk = v; },
   get projekt() { return projekt; }, set projekt(v) { projekt = v; },
   get station() { return station; }, set station(v) { station = v; },
@@ -1309,6 +1310,14 @@ function rechneTragwerk(werte, joch) {
   return { erg, bemessung, vergleich, kombi, checks, auflager, mitJoch,
            warn: flucht.warnungen, hinw, kl, urteil, fdStelle };
 }
+
+/*
+ * Das Gesamturteil der Fussleiste, kurz: η, massgebendes Bauteil, Quelle.
+ * Die Projektliste vermerkt es beim Speichern (8. Oktober, Frage «Welche
+ * ausnutzung wird hier aufgeführt? die globale des tragwerks?» - bis dahin
+ * stand dort nur das Joch aus dem Ersatzbalken).
+ */
+let urteilKurz = null;
 
 /** Laufmeterlasten des Jochs (g_k, w_k, s_k) gibt es nur mit Joch - nicht am Einzelmasten. */
 function mitJochLasten(w) { return tragwerksart(w).key !== 'einzelmast'; }
@@ -2784,6 +2793,9 @@ function aktualisiereFuss(erg, urteil, joch) {
   const farbe = urteil.tragwerkGefuehrt === false ? 'var(--warn)'
     : (gut ? 'var(--ok)' : 'var(--fail)');
   const wer = bt?.massgebend && bt.liste.length > 1 ? ` (${esc(bt.massgebend.name)})` : '';
+  // Dieselbe Zahl geht beim Speichern in die Projektliste (8. Oktober).
+  urteilKurz = { eta: e, wer: bt?.massgebend?.name ?? null,
+                 quelle: stabwerkGilt() ? 'stabwerk' : 'ersatzbalken' };
   ui.el('st-urteil').innerHTML =
     `<span class="pkt" style="background:${farbe}"></span>` +
     urteilFusszeile({ gut, eta: e, wer, urteil });

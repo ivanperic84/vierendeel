@@ -38426,6 +38426,15 @@ titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
          && nurMast.includes('Masten (Querschnitt, Knicken, Anker)') && !nurMast.includes('<h2>Fundamente</h2>'));
     const zm = b.zeilen.find((z) => z.gruppe === 'mast');
     wahr('Blatt: die Zahlen sind die des Vergleichs', nurMast.includes(zm.alt.toFixed(3)) && nurMast.includes(zm.neu.toFixed(3)));
+    // Projektliste (8. Oktober): das Gesamturteil der Fussleiste statt nur des Jochs.
+    {
+      const ab = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+      wahr('Projektliste: η ist das Gesamturteil der Fussleiste, mit Bauteil und Quelle',
+           ab.includes('eta: Number.isFinite(app.urteilKurz?.eta) ? app.urteilKurz.eta')
+           && ab.includes('etaWer: app.urteilKurz?.wer ?? null')
+           && APP_QUELLE().includes('urteilKurz = { eta: e, wer: bt?.massgebend?.name ?? null,')
+           && APP_QUELLE().includes('get urteilKurz() { return urteilKurz; }'));
+    }
     wahr('Knopf im Block, Blatt im Export', html.includes('data-bestand-blatt')
          && APP_QUELLE().includes("{ text: 'Bestandesschutz (Blatt)', tun: bestandBlatt }")
          && APP_QUELLE().includes("closest?.('[data-bestand-blatt]')"));

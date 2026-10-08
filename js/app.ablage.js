@@ -207,7 +207,14 @@ export async function zeichneSchublade(app) {
   const etaZelle = (e) => {
     const v = eintragEta(e);
     if (v === null) return '<td class="ab-zahl">–</td>';
-    return `<td class="ab-zahl ${v > 1 ? 'nok' : 'ok'}">${v.toFixed(2)}</td>`;
+    // Was die Zahl ist, steht im Titel; ältere Einträge führen nur das Joch.
+    const k = e.kennwerte ?? {};
+    const titel = k.etaQuelle && k.etaQuelle !== 'joch'
+      ? `Grösste Ausnutzung über alle geführten Bauteile beim Speichern${k.etaWer ? ` - massgebend: ${k.etaWer}` : ''}`
+        + (k.etaQuelle === 'ersatzbalken' ? ' (vorläufig, Ersatzbalken)' : ' (Stabwerk)')
+      : 'Älterer Eintrag: nur das Joch aus dem Ersatzbalken, ohne Masten und Fundamente - neu speichern für das Gesamturteil';
+    return `<td class="ab-zahl ${v > 1 ? 'nok' : 'ok'}" title="${esc(titel)}">${v.toFixed(2)}${
+      k.etaWer && k.etaQuelle !== 'joch' ? ` <span class="ab-wer">${esc(k.etaWer)}</span>` : ''}</td>`;
   };
   const tabelle = (k, liste) => `
     <details class="ab-gruppe${k === app.projekt.projekt ? ' aktiv' : ''}" open>
@@ -220,7 +227,7 @@ export async function zeichneSchublade(app) {
       </summary>
       <div class="ab-rollen"><table class="ab-tabelle">
         <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
-          <th>Tragwerk</th><th>η</th><th>Datum</th><th>Bemerkung</th><th></th></tr></thead>
+          <th>Tragwerk</th><th title="Grösste Ausnutzung über alle geführten Bauteile beim Speichern, mit dem massgebenden Bauteil">η max</th><th>Datum</th><th>Bemerkung</th><th></th></tr></thead>
         <tbody>${liste.map((e) => `
           <tr class="${e.id === app.projekt.id ? 'aktiv' : ''}" data-id="${esc(e.id)}">
             ${ed(e.id, 'name', e.name, 'ab-name')}
@@ -565,7 +572,18 @@ export async function sichereAktuell(app, neu = false, bemerkung = undefined) {
     erstellt: alt?.erstellt,
     werte: app.werte,
     kennwerte: app.letzte ? {
-      typ: app.werte.typ, L: app.werte.L, eta: app.letzte.anzeige?.max?.etaGesamt ?? app.letzte.erg.max.etaGesamt,
+      typ: app.werte.typ, L: app.werte.L,
+      /*
+       * >>> DAS GESAMTURTEIL, MIT BAUTEIL (8. Oktober). <<< Frage: «Welche
+       * ausnutzung wird hier aufgeführt? die globale des tragwerks?» Es war
+       * nur das Joch aus dem Ersatzbalken (0.58 neben «η 0.907 Fundament M1»
+       * in der Fussleiste). Jetzt die Zahl der Fussleiste - das Maximum über
+       * alle geführten Bauteile -, dazu wer massgebend ist und woher.
+       */
+      eta: Number.isFinite(app.urteilKurz?.eta) ? app.urteilKurz.eta
+        : (app.letzte.anzeige?.max?.etaGesamt ?? app.letzte.erg.max.etaGesamt),
+      etaWer: app.urteilKurz?.wer ?? null,
+      etaQuelle: Number.isFinite(app.urteilKurz?.eta) ? app.urteilKurz.quelle : 'joch',
     } : null,
   });
   app.projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung };
