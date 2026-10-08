@@ -572,6 +572,28 @@ export function erzeugeSzene(m, erg) {
   const yLinks = qs.bindebleche.vertikal[0].y * MM;
   const yRechts = qs.bindebleche.vertikal[1].y * MM;
   const zu = (x) => zUnten + ugAnhebung(x);
+  /*
+   * >>> DIE BLECHE REICHEN BIS AN DIE WINKEL, NICHT IN SIE HINEIN
+   *     (9. Oktober). <<< Gemeldet mit Bild: «Stehenden Bleche werden nicht
+   * korrekt abgebildet im 3d, sie überschneiden sich mit dem winkel» und
+   * «mach die verbindungsbläche korrekt (nur bis zu den Winkeln ausbilden
+   * und nicht überschneiden)». Die Platten liefen von Schenkelmitte zu
+   * Schenkelmitte - das ist die ACHSE des Stabmodells, nicht das Blech. Das
+   * stehende Blech steht in der Flucht der stehenden Schenkel und stösst an
+   * ihre Kanten (Vorgabe 22. August); das liegende liegt zwischen den
+   * Innenkanten der beiden Winkel. Die Blechachsen darunter bleiben die
+   * Stäbe des Modells, von Achse zu Achse.
+   */
+  const wk = qs.byId;
+  const innen = (a, b, achse, hin) => (hin > 0
+    ? Math.max(a[`${achse}1`], b[`${achse}1`]) : Math.min(a[`${achse}0`], b[`${achse}0`])) * MM;
+  const kante = (id, achse, hin) => innen(wk[id].schenkelLiegend, wk[id].schenkelStehend, achse, hin);
+  // Stehend: von der Oberkante des Untergurtwinkels bis zur Unterkante des Obergurtwinkels.
+  const zBlechUnten = { V_L: kante('UG_L', 'z', +1), V_R: kante('UG_R', 'z', +1) };
+  const zBlechOben = { V_L: kante('OG_L', 'z', -1), V_R: kante('OG_R', 'z', -1) };
+  // Liegend: zwischen den Innenkanten des linken und des rechten Winkels.
+  const yBlech = { H_O: [kante('OG_L', 'y', +1), kante('OG_R', 'y', -1)],
+                   H_U: [kante('UG_L', 'y', +1), kante('UG_R', 'y', -1)] };
 
   stationen.forEach((st, i) => {
     const bv = st.vertikal, bh = st.horizontal;
@@ -582,7 +604,7 @@ export function erzeugeSzene(m, erg) {
       const fb = farbeFuer(`blech|V|${bv.pos}|${bv.breite}x${bv.dicke}`,
                            `Vertikalblech Pos ${bv.pos} · ${bv.breite}×${bv.dicke}`, 'blech');
       [['V_L', yL], ['V_R', yR]].forEach(([id, y]) => {
-        flaechen.push(...platte(st.x, bv.breite, 'y', y, zu(st.x), zOben, {
+        flaechen.push(...platte(st.x, bv.breite, 'y', y, zBlechUnten[id] + ugAnhebung(st.x), zBlechOben[id], {
           gruppe: 'blech', teil: id, station: i, dicke: bv.dicke, farbeBauteil: fb,
           werte: kennwerte(i, id), label: `${id} · Pos ${bv.pos} · ${bv.breite}×${bv.dicke}`,
         }));
@@ -594,7 +616,7 @@ export function erzeugeSzene(m, erg) {
       // Das Blech der Untergurtebene liegt in der Schräge und ist entsprechend
       // geneigt eingebaut (Schnitt B-B der Konstruktionszeichnung).
       [['H_O', zOben, 0], ['H_U', zu(st.x), ugNeigung(st.x)]].forEach(([id, z, n]) => {
-        flaechen.push(...platte(st.x, bh.breite, 'z', z, yL, yR, {
+        flaechen.push(...platte(st.x, bh.breite, 'z', z, yBlech[id][0] - aus, yBlech[id][1] + aus, {
           gruppe: 'blech', teil: id, station: i, dicke: bh.dicke, farbeBauteil: fb,
           werte: kennwerte(i, id), label: `${id} · Pos ${bh.pos} · ${bh.breite}×${bh.dicke}`,
         }, n));

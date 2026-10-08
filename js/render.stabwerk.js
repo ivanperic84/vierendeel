@@ -286,6 +286,20 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
         return js.gurt[teil].filter((q) => q.x1 > b.x0 + e && q.x0 < b.x1 - e).map((q) => q.z);
       }
       const s = js.gurt[teil].find((q) => xm >= q.x0 - 1e-6 && xm <= q.x1 + 1e-6);
+      /*
+       * >>> DER KNOTENBEREICH BLEIBT NICHT GRAU (9. Oktober). <<< «lass die
+       * graue färbung der konoten weg». Mit «Anschnitt» trägt der steife
+       * Gurtabschnitt im Blech kein η (7. Oktober) und stand grau zwischen
+       * den gefärbten Feldern. Er zeigt jetzt die Farbe des nächsten freien
+       * Gurtstabs - des Anschnitts, an dem nachgewiesen wird. Die Liste der
+       * Stäbe und die Verläufe lassen ihn weiter aus.
+       */
+      if (s?.z?.imKnoten) {
+        const frei = js.gurt[teil].filter((q) => !q.z.imKnoten);
+        const dist = (q) => Math.max(q.x0 - xm, xm - q.x1, 0);
+        const n = frei.reduce((a, q) => (!a || dist(q) < dist(a) ? q : a), null);
+        if (n) return [n.z];
+      }
       return s ? [s.z] : [];
     }
     if (js.blech[teil]) {

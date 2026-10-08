@@ -1331,6 +1331,37 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
 
   const aus = R.erzeugeSzene(e.modell, e);
   wahr('Ausgeschaltet: keine Schnittebene', aus.schnitt === null);
+  /*
+   * DIE BLECHE REICHEN BIS AN DIE WINKEL (9. Oktober): «Stehenden Bleche werden
+   * nicht korrekt abgebildet im 3d, sie überschneiden sich mit dem winkel»,
+   * «nur bis zu den Winkeln ausbilden und nicht überschneiden».
+   */
+  {
+    const GEO = await import(J('geometry.js'));
+    const qsB = GEO.querschnitt(e.modell);
+    const grenzen = (teil, k) => {
+      // In Feldmitte: an den Enden weitet der Grundriss des J90 die Gurte (340 statt 260 mm).
+      const v = aus.flaechen.filter((f) => f.gruppe === 'blech' && f.teil === teil && f.punkte.every((p) => Math.abs(p[0] - 10) < 1.2))
+        .flatMap((f) => f.punkte.map((p) => p[k]));
+      return [Math.min(...v), Math.max(...v)];
+    };
+    const [zu, zo] = grenzen('V_R', 2);
+    const og = qsB.byId.OG_R.schenkelStehend, ug = qsB.byId.UG_R.schenkelStehend;
+    pruef('Stehendes Blech: unten an der Oberkante des Untergurtwinkels', zu * 1000, ug.z1, 1e-6, 'mm');
+    pruef('Stehendes Blech: oben an der Unterkante des Obergurtwinkels', zo * 1000, og.z0, 1e-6, 'mm');
+    const [yl, yr] = grenzen('H_O', 1);
+    const li = qsB.byId.OG_L, re = qsB.byId.OG_R;
+    pruef('Liegendes Blech: von der Innenkante des linken Winkels', yl * 1000,
+          Math.max(li.schenkelLiegend.y1, li.schenkelStehend.y1), 1e-6, 'mm');
+    pruef('Liegendes Blech: bis zur Innenkante des rechten Winkels', yr * 1000,
+          Math.min(re.schenkelLiegend.y0, re.schenkelStehend.y0), 1e-6, 'mm');
+    wahr('… kürzer als von Achse zu Achse (dort liefen die Platten in die Winkel)',
+         zo - zu < (qsB.bindebleche.horizontal[0].z - qsB.bindebleche.horizontal[1].z) / 1000 - 0.05,
+         `${((zo - zu) * 1000).toFixed(0)} mm statt ${(qsB.bindebleche.horizontal[0].z - qsB.bindebleche.horizontal[1].z).toFixed(0)} mm`);
+    wahr('Knotenbereich im Bild nicht grau: der steife Gurtabschnitt zeigt den nächsten freien Stab',
+         readFileSync(join(HIER, 'js', 'render.stabwerk.js'), 'utf8').includes('if (s?.z?.imKnoten) {'));
+  }
+
   wahr('Ausgeschaltet: nur die Jochlänge bleibt bemasst',
        aus.masse.every((mz) => mz.zu !== 'schnitt'),
        `${aus.masse.length} Masse`);
