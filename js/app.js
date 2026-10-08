@@ -3275,6 +3275,25 @@ function aendern(key, wert) {
    * (lokal ab dem Gurtanfang) rücken mit - ihre Lage auf dem Blatt bleibt.
    */
   if ((key === 'kragA' || key === 'kragB') && tragwerksart(werte).key === 'joch') {
+    /*
+     * >>> SEIT DEM 9. OKTOBER (B6): DAS JOCH GLEITET, DIE MASTEN STEHEN. <<<
+     * `kragarmSetzen` (ui.js): Stützweite und Jochlänge bleiben, das andere
+     * Ende bekommt den Rest; reicht das Joch nicht mehr, wächst es auf die
+     * nächste Sortimentslänge. Nur wenn am anderen Ende ein Joch der Reihe
+     * anstösst, gilt der Weg darunter weiter.
+     */
+    const k = ui.kragarmSetzen(werte, werte.twId ?? 'T1', key === 'kragA' ? 'A' : 'B', wert);
+    if (k) {
+      werte = k.werte;
+      const i = k.info, r2 = (v) => v.toFixed(2);
+      meldeImBalken((i.verlaengert
+        ? `Joch ${r2(i.L0)} → ${r2(i.L)} m verlängert${i.ueberSortiment ? ' (über dem Sortiment)' : ''}: `
+        : `Joch ${r2(i.L)} m verschoben: `)
+        + `c_A ${r2(i.cA)} m, c_B ${r2(i.cB)} m, Stützweite ${r2(i.s)} m - die Masten bleiben.`, { dauer: 6000 });
+      mastNachfuehren();
+      neuRechnen();
+      return;
+    }
     const r6 = (v) => Math.round(v * 1e6) / 1e6;
     const neu = Math.max(0, Number(wert) || 0);
     const d = neu - Math.max(0, Number(werte[key]) || 0);
@@ -6081,7 +6100,15 @@ function ankerSelektor(f) {
   if (f.id) return `#${CSS.escape(f.id)}`;
   const a = [...f.attributes].filter((x) => x.name.startsWith('data-'))
     .map((x) => `[${x.name}="${CSS.escape(x.value)}"]`).join('');
-  return a ? `${f.tagName.toLowerCase()}${a}` : null;
+  /*
+   * In einer Bauteilkarte gilt der Anker DIESER Karte (9. Oktober, B4: «nicht
+   * die sidebar noch obern ziehen»). Das Kästchen «neu» trägt nur
+   * `data-k="neu"` - der Selektor traf damit das erste solche Kästchen der
+   * Liste, und die Leiste rollte nach dem Neuaufbau zur ersten Karte.
+   */
+  const karte = f.closest?.('.at-karte[data-idx]');
+  const vor = karte ? `.at-karte[data-idx="${CSS.escape(karte.dataset.idx)}"] ` : '';
+  return a ? `${vor}${f.tagName.toLowerCase()}${a}` : null;
 }
 function maskenAnkerMerken(e) {
   const m = ui.el('maske');

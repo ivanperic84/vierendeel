@@ -40470,6 +40470,70 @@ titel('261  Gegenrechnung mit AxisVM: Ergebnisdatei einlesen, Kapitel im Bericht
        && APP_QUELLE().includes('AxisVM-Ergebnisse einlesen (Gegenrechnung)') && APP_QUELLE().includes('function axisEinlesen()'));
 }
 
+/* =========================================================================
+ * 262  AUFGABENLISTE B3 BIS B7 AUS DEM BUGREPORT (9. Oktober)
+ * =========================================================================
+ * «aufgabenliste B3 bis B7 abarbeiten»: Gruppenname ändern, «neu» ohne Zoom
+ * und ohne Sprung der Leiste, Duplizieren in Serie, Überstand bei stehenden
+ * Masten, Vorschau der gespeicherten Einträge.
+ * ========================================================================= */
+titel('262  Bugreport B3-B7: Gruppenname, «neu», Serie, Überstand, Vorschau');
+{
+  const C262 = await import(J('core.constants.js'));
+  const U262 = await import(J('ui.js'));
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const appQ = APP_QUELLE();
+  const setzQ = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  // B3
+  wahr('B3: Stift am Gruppenkopf - der neue Name geht in alle Teile der Gruppe',
+       uiQ.includes('data-at-gruppe-name=') && uiQ.includes('anbauGruppe(a) === alt ? { ...a, tag: name } : a'));
+  // B4
+  wahr('B4: das Kästchen «neu» zoomt nicht ins Bauteil',
+       uiQ.includes("if (e.target?.dataset?.k === 'neu') return;"));
+  wahr('B4: der Rollanker einer Bauteilkarte meint diese Karte (sonst rollte die Leiste zur ersten)',
+       appQ.includes("const karte = f.closest?.('.at-karte[data-idx]');") && appQ.includes('return a ? `${vor}${f.tagName.toLowerCase()}${a}` : null;'));
+  // B5
+  wahr('B5: eine Kopie als Vorwahl bleibt nach dem Absetzen im Setzen - ohne Karte, ohne Zoom',
+       setzQ.includes("const serie = app.setzen?.vorwahl?.art === 'kopie' ? app.setzen.vorwahl : null;")
+       && /if \(serie\) \{[\s\S]{0,420}vorwahl: serie,[\s\S]{0,260}return;\s*\}\s*setzenEnde\(app\);/.test(setzQ));
+  // B6: die Masten stehen, das Joch gleitet, dann wächst es.
+  const basis = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 260', mastVorhanden: true, tragwerksart: 'joch',
+                  twId: 'T1', mastH: 7.5, kragMasten: true, kragA: 0, kragB: 0, xNachweis: 8,
+                  anbauteile: [{ id: 'X', x: 10 }] };
+  const m0 = C262.mastLagen(basis);
+  const a = U262.kragarmSetzen(basis, 'T1', 'A', 0.3);
+  wahr('B6: Überstand A 0.30 an L = Stützweite 20 m: das Joch reicht nicht mehr - es wächst auf 20.50 m',
+       a.info.verlaengert && Math.abs(a.werte.L - 20.5) < 1e-9 && Math.abs(a.info.cA - 0.3) < 1e-9 && Math.abs(a.info.cB - 0.2) < 1e-9,
+       `L ${a.werte.L} · c_A ${a.info.cA} · c_B ${a.info.cB}`);
+  wahr('… die Masten bleiben stehen, das Teil und die Nachweisstelle bleiben auf dem Blatt',
+       C262.mastLagen(a.werte).every((x, i) => Math.abs(x - m0[i]) < 1e-9) && Math.abs(a.werte.xLage + 0.3) < 1e-9
+       && Math.abs(a.werte.anbauteile[0].x - 10.3) < 1e-9 && Math.abs(a.werte.xNachweis - 8.3) < 1e-9,
+       C262.mastLagen(a.werte).join(' / '));
+  const b = U262.kragarmSetzen(a.werte, 'T1', 'A', 0.1);
+  wahr('… kleiner gestellt: das Joch gleitet zurück, die Länge bleibt (c_A 0.10, c_B 0.40)',
+       !b.info.verlaengert && Math.abs(b.werte.L - 20.5) < 1e-9 && Math.abs(b.info.cB - 0.4) < 1e-9
+       && C262.mastLagen(b.werte).every((x, i) => Math.abs(x - m0[i]) < 1e-9) && Math.abs(b.werte.anbauteile[0].x - 10.1) < 1e-9);
+  const c = U262.kragarmSetzen(b.werte, 'T1', 'B', 0.5);
+  wahr('… am Ende B 0.50: innerhalb der Länge nur verschoben (c_A 0.00), Masten bleiben',
+       !c.info.verlaengert && Math.abs(c.info.cA) < 1e-9 && Math.abs(c.werte.L - 20.5) < 1e-9
+       && C262.mastLagen(c.werte).every((x, i) => Math.abs(x - m0[i]) < 1e-9));
+  const d = U262.kragarmSetzen(c.werte, 'T1', 'B', 0.8);
+  wahr('… am Ende B 0.80: wieder zu kurz - die nächste Länge im Halbmeterraster (21.00 m, c_A 0.20)',
+       d.info.verlaengert && Math.abs(d.werte.L - 21) < 1e-9 && Math.abs(d.info.cA - 0.2) < 1e-9,
+       `L ${d.werte.L} · c_A ${d.info.cA}`);
+  pruef('… die Stützweite ist nach allen vier Eingaben dieselbe', d.info.s, 20, 1e-9, 'm');
+  wahr('B6: die Eingabe eines Kragarms geht diesen Weg', appQ.includes("const k = ui.kragarmSetzen(werte, werte.twId ?? 'T1', key === 'kragA' ? 'A' : 'B', wert);"));
+  // B7
+  const AB = await import(J('app.ablage.js'));
+  const vs = AB.eintragVorschauHtml({ name: 'Probe', projekt: 'P', werte: { ...basis, anbauteile: [{ id: 'X', x: 10, aktiv: true }] } });
+  wahr('B7: Vorschau eines Eintrags - Skizze mit zwei Masten, Joch und Anbauteil, darunter Tragwerk und Masten',
+       (vs.match(/class="vs-mast"/g) ?? []).length === 2 && vs.includes('class="vs-joch"') && vs.includes('class="vs-teil"')
+       && vs.includes('Probe') && /T1 · /.test(vs) && vs.includes('HEB 260'), vs.replace(/<svg[\s\S]*<\/svg>/, '[svg]').replace(/\s+/g, ' ').slice(0, 200));
+  wahr('… ohne lesbaren Stand keine Vorschau; verdrahtet beim Überfahren der Zeile',
+       AB.eintragVorschauHtml({ name: 'x' }) === '' && readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes("tr.addEventListener('mousemove', zeige);")
+       && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.ab-vorschau {'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

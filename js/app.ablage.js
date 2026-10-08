@@ -11,7 +11,8 @@
  */
 import { standAnheben, fzNachObenAnheben, psiAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
-import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
+import { APP_NAME, mastenVon, rechensatz, tragwerksart, sichtbareTragwerke, lageVon, lageOrtsnull,
+         kragarme, tragwerkPos, tragwerkName, mastName } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
 import { normalisiereAnbauteil, setzeEigeneVorlagen, vorlagen } from './data.anbauteile.js';
 import { getProfil, getStahl } from './data.profiles.js';
@@ -111,6 +112,76 @@ function eintragRechnung(app, e) {
 }
 
 const eintragEta = (e) => (Number.isFinite(e.kennwerte?.eta) ? e.kennwerte.eta : null);
+
+/**
+ * >>> DIE VORSCHAU EINES GESPEICHERTEN EINTRAGS (9. Oktober, B7). <<<
+ * «Vorschaufenster beim überfahren der Einträge der gespeicherten
+ * Tragwerke.» Eine Skizze quer zum Gleis aus dem gespeicherten Stand - die
+ * Masten in ihrer Länge, Joche und Abfangjoche auf ihrer Anschlusshöhe, der
+ * Tragausleger mit seinem Seil, die Anbauteile am Joch als Striche -,
+ * darunter Tragwerke und Masten beim Namen. Gezeichnet wird nur aus den
+ * EINGABEN: nichts wird gerechnet, das Überfahren bleibt ohne Verzug.
+ *
+ * @returns {string} HTML, leer wenn der Stand sich nicht lesen lässt
+ */
+export function eintragVorschauHtml(e) {
+  const w = e?.werte;
+  if (!w) return '';
+  let tws = [], masten = [];
+  try { tws = sichtbareTragwerke(w); masten = mastenVon(w); } catch { return ''; }
+  if (!tws.length) return '';
+  const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+  const teile = tws.map((t) => {
+    const art = tragwerksart(t).key;
+    const H = num(t.mastH, 7.5), L = num(t.L);
+    const x0 = art === 'abfangjoch' ? lageOrtsnull(t) : lageVon(t);
+    const seite = t.auslegerSeite === 'links' ? -1 : 1;
+    return { t, art, H, L, x0, x1: art === 'tragausleger' ? x0 + seite * L : x0 + L, seite };
+  });
+  const ms = masten.map((m) => ({ m, x: num(m.x), l: num(m.laenge) > 0 ? num(m.laenge)
+    : Math.max(8, ...teile.map((q) => q.H + 1)) }));
+  const xs = [...teile.flatMap((q) => [q.x0, q.x1]), ...ms.map((q) => q.x)];
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const zMax = Math.max(4, ...ms.map((q) => q.l), ...teile.map((q) => q.H + 1));
+  const B = 300, Hh = 150, rand = 16;
+  const s = Math.min((B - 2 * rand) / Math.max(xMax - xMin, 2), (Hh - 2 * rand - 12) / zMax);
+  const ox = (B - (xMax - xMin) * s) / 2;
+  const X = (x) => (ox + (x - xMin) * s).toFixed(1), Z = (z) => (Hh - rand - 12 - z * s).toFixed(1);
+  const linien = [];
+  ms.forEach((q) => {
+    linien.push(`<line class="vs-mast" x1="${X(q.x)}" y1="${Z(0)}" x2="${X(q.x)}" y2="${Z(q.l)}"/>`
+      + `<line class="vs-fuss" x1="${(Number(X(q.x)) - 5).toFixed(1)}" y1="${Z(0)}" x2="${(Number(X(q.x)) + 5).toFixed(1)}" y2="${Z(0)}"/>`
+      + `<text x="${X(q.x)}" y="${(Number(Z(0)) + 11).toFixed(1)}" text-anchor="middle">${esc(mastName(w, q.m))}</text>`);
+  });
+  teile.forEach((q) => {
+    if (q.art === 'einzelmast') return;
+    const jd = q.art === 'joch' ? Math.max(0.3, num(q.t.jd, 500) / 1000) : 0.16;
+    if (q.art === 'joch') {
+      linien.push(`<rect class="vs-joch" x="${X(Math.min(q.x0, q.x1))}" y="${Z(q.H + jd / 2)}" width="${(Math.abs(q.x1 - q.x0) * s).toFixed(1)}" height="${Math.max(2, jd * s).toFixed(1)}"/>`);
+      (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false && !String(a.ort ?? '').startsWith('mast'))
+        .forEach((a) => {
+          const x = q.x0 + num(a.x);
+          const unten = a.befestigung !== 'oben';
+          linien.push(`<line class="vs-teil" x1="${X(x)}" y1="${Z(q.H)}" x2="${X(x)}" y2="${Z(q.H + (unten ? -1.4 : 1.4))}"/>`);
+        });
+    } else {
+      linien.push(`<line class="vs-joch" x1="${X(q.x0)}" y1="${Z(q.H)}" x2="${X(q.x1)}" y2="${Z(q.H)}"/>`);
+      if (q.art === 'tragausleger') {
+        const m0 = ms.find((mm) => Math.abs(mm.x - q.x0) < 0.2);
+        linien.push(`<line class="vs-seil" x1="${X(q.x0)}" y1="${Z(m0 ? m0.l : q.H + 4)}" x2="${X(q.x0 + q.seite * q.L * 0.82)}" y2="${Z(q.H)}"/>`);
+      }
+    }
+  });
+  const liste = teile.map((q) => `<li>${esc(`${tragwerkPos(w, q.t)} · ${tragwerkName(q.t, w)}`)}${
+    (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false).length
+      ? ` · ${(q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false).length} Anbauteile` : ''}</li>`).join('');
+  const mastText = ms.map((q) => `${mastName(w, q.m)} ${q.m.profil ?? ''}`.trim()).join(' · ');
+  return `<div class="ab-vs-titel">${esc(e.name ?? '')}${e.projekt ? ` <span>· ${esc(e.projekt)}</span>` : ''}</div>
+    <svg class="ab-vs-bild" viewBox="0 0 ${B} ${Hh}" width="${B}" height="${Hh}" aria-hidden="true">
+      <line class="vs-boden" x1="6" y1="${Z(0)}" x2="${B - 6}" y2="${Z(0)}"/>${linien.join('')}</svg>
+    <ul class="ab-vs-liste">${liste}</ul>
+    ${mastText ? `<div class="ab-vs-masten">${esc(mastText)}</div>` : ''}`;
+}
 
 /** Passt der Eintrag zur Suche? Gesucht wird in allem, was ihn benennt. */
 function passtZurSuche(app, e, q) {
@@ -435,6 +506,34 @@ export async function zeichneSchublade(app) {
       zeichneSchublade(app);
     };
   });
+
+  /*
+   * Die Vorschau beim Überfahren einer Zeile (B7). Ein schwebendes Fenster
+   * neben dem Zeiger; über den Knöpfen der Zeile und beim Tippen in einer
+   * Zelle bleibt es weg, damit es nichts verdeckt, was man bedienen will.
+   */
+  let vs = document.getElementById('ab-vorschau');
+  const vsWeg = () => { if (vs) vs.hidden = true; };
+  n.querySelectorAll('.ab-tabelle tbody tr[data-id]').forEach((tr) => {
+    const zeige = (ev) => {
+      if (ev.target.closest('button, [contenteditable]') || document.activeElement?.isContentEditable) { vsWeg(); return; }
+      const e = alle.find((x) => x.id === tr.dataset.id);
+      if (!vs) { vs = document.createElement('div'); vs.id = 'ab-vorschau'; vs.className = 'ab-vorschau'; document.body.appendChild(vs); }
+      if (vs.dataset.id !== tr.dataset.id) {
+        const html = e ? eintragVorschauHtml(e) : '';
+        if (!html) { vsWeg(); return; }
+        vs.innerHTML = html; vs.dataset.id = tr.dataset.id;
+      }
+      vs.hidden = false;
+      const b = vs.getBoundingClientRect();
+      const x = Math.min(ev.clientX + 18, window.innerWidth - b.width - 8);
+      const y = ev.clientY + 18 + b.height > window.innerHeight ? ev.clientY - b.height - 12 : ev.clientY + 18;
+      vs.style.left = `${Math.max(8, x)}px`; vs.style.top = `${Math.max(8, y)}px`;
+    };
+    tr.addEventListener('mousemove', zeige);
+    tr.addEventListener('mouseleave', vsWeg);
+  });
+  n.addEventListener('scroll', vsWeg, { passive: true, capture: true });
 
   // --- Knoepfe -------------------------------------------------------------------
   const auf = (wahl, fn) => n.querySelectorAll(wahl).forEach((b) => {

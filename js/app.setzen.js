@@ -301,6 +301,23 @@ function setzeBaugruppeAnStelle(app, roh) {
         return { ...rasterGesetzt(gesetzt, an), x: an.x };
       })()
     : gesetzt;
+  /*
+   * >>> EINE KOPIE IN SERIE (9. Oktober, B5). <<< «Beim Befehl Duplizierne von
+   * vorhandenen Bauteilen nicht nach dem absetzen in das bauteil zoomen, so
+   * kann man das bauteil in serie mehrmals absetzen.» Mit einer Kopie als
+   * Vorwahl bleibt das Setzen an: das Bild bleibt, wie es ist, die Karte
+   * geht nicht auf, der nächste Klick setzt die nächste Kopie. Esc oder
+   * «Abbrechen» beendet. Vorlagen setzen wie bisher einmal und fahren hin.
+   */
+  const serie = app.setzen?.vorwahl?.art === 'kopie' ? app.setzen.vorwahl : null;
+  if (serie) {
+    app.setzeAnbauteile([...(app.werte.anbauteile ?? []), t]);
+    const wo = st.ort === 'joch' ? `x ${Number(t.x).toFixed(2)} m` : `Höhe ${Number(t.hMast).toFixed(2)} m am Masten`;
+    app.setzen = { stelle: null, vorwahl: serie,
+                   hinweis: `«${t.name}» gesetzt bei ${wo}. Weiter antippen für die nächste Kopie - Esc beendet.` };
+    app.zeichneBalken();
+    return;
+  }
   setzenEnde(app);
   app.tabEingabe = 'anbau';
   /*

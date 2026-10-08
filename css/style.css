@@ -3483,6 +3483,20 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-block .btn { margin-top: 6px; }
 /* Der Blattknopf klebte an der Kachel darüber und an der Klappe darunter (8. Oktober). */
 [data-bestand-blatt] { margin: 8px 0 0; }
+/* Vorschau eines gespeicherten Eintrags beim Überfahren (9. Oktober, B7). */
+.ab-vorschau { position: fixed; z-index: 400; pointer-events: none; width: 320px; padding: 9px 10px;
+  background: var(--su2, #1b1d24); border: 1px solid var(--acc); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  font-size: 11px; color: var(--on); }
+.ab-vorschau[hidden] { display: none; }
+.ab-vs-titel { font-weight: 600; margin-bottom: 4px; } .ab-vs-titel span { color: var(--on2); font-weight: 400; }
+.ab-vs-bild { display: block; margin: 2px 0 4px; }
+.ab-vs-bild .vs-boden { stroke: var(--ol); stroke-width: 1; }
+.ab-vs-bild .vs-mast { stroke: var(--on); stroke-width: 2; } .ab-vs-bild .vs-fuss { stroke: var(--on); stroke-width: 2; }
+.ab-vs-bild .vs-joch { fill: none; stroke: var(--acc); stroke-width: 1.6; }
+.ab-vs-bild .vs-teil { stroke: var(--warn); stroke-width: 1.2; }
+.ab-vs-bild .vs-seil { stroke: var(--on2); stroke-width: 1; stroke-dasharray: 4 3; }
+.ab-vs-bild text { font: 8.5px sans-serif; fill: var(--on2); }
+.ab-vs-liste { margin: 0 0 2px 14px; padding: 0; } .ab-vs-masten { color: var(--on2); }
 .rk-tabelle { font-size: 11px; }
 .rk-tabelle th, .rk-tabelle td { padding: 3px 5px; }
 .rk-tabelle .rk-gruppe { text-align: center; }

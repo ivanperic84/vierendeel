@@ -1640,6 +1640,69 @@ export function jochAufStandardlaenge(werte, id) {
 }
 
 /**
+ * >>> DER ÜBERSTAND SCHIEBT DAS JOCH, DIE MASTEN STEHEN (9. Oktober, B6). <<<
+ *
+ * Aus dem Bugreport, im Wortlaut: «Wenn man nachträglich einen überstand
+ * eingeben hat man keine kontrolle mehr über spannweite jochlänge, ist nicht
+ * intuitiv aufgebaut. Die Maststandorte sollten als fix angesehen werden,
+ * wenn man einen überstand definiert dann schieb sich das joch und wenn beim
+ * andern ende die grenze erreicht wird, wird das joch länger in halbmeter
+ * schritten.»
+ *
+ * Löst für die Eingabe eines Kragarms die Regel vom 30. September / 2. Oktober
+ * ab (das Joch wurde um den Kragarm länger, dann aufgerundet und der Rest auf
+ * beide Enden verteilt - nach einer Eingabe standen zwei andere Zahlen da).
+ * Jetzt: die Stützweite s = L − c_A − c_B bleibt, die Jochlänge bleibt. Der
+ * eingegebene Überstand gilt, das Joch gleitet über den Masten, das andere
+ * Ende bekommt den Rest c = L − s − c_ein. Würde der Rest negativ (das Joch
+ * reichte nicht mehr bis zum anderen Masten), wächst das Joch auf die
+ * nächste Länge des Sortiments (Raster 0.5 m), die reicht. Kürzer wird es
+ * von selbst nie - die Jochlänge stellt man am Feld «Jochlänge».
+ *
+ * Stösst am ANDEREN Ende ein Joch der Reihe an (dort ist kein Platz für
+ * einen Überstand), gibt die Funktion `null` zurück; es gilt dann der
+ * bisherige Weg.
+ *
+ * @returns {{werte:object, info:{L0,L,cA,cB,verlaengert,ueberSortiment}}|null}
+ */
+export function kragarmSetzen(werte, id, ende, eingabe) {
+  const t = tragwerkeVon(werte).find((x) => x.id === id);
+  if (!t || tragwerksart(t).key !== 'joch') return null;
+  const anderes = ende === 'A' ? 'B' : 'A';
+  if (jochStoss(werte, t, anderes)) return null;
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const [kA, kB] = kragarme(t);
+  const L0 = Number(t.L) || 0;
+  const s = r6(L0 - kA - kB);
+  const c = Math.max(0, Number(eingabe) || 0);
+  let L = L0, ueberSortiment = false;
+  let rest = r6(L - s - c);
+  if (rest < 0) {
+    let std = [];
+    try { std = moeglicheLaengen(getTragjoch(t.typ)).map((e) => e.wert); } catch { std = []; }
+    const reicht = std.find((v) => v >= s + c - 1e-9);
+    if (reicht > 0) L = reicht;
+    else { L = r6(s + c); ueberSortiment = true; }
+    rest = Math.max(0, r6(L - s - c));
+  }
+  const cA = ende === 'A' ? c : rest, cB = ende === 'A' ? rest : c;
+  const dA = r6(cA - kA);
+  const neu = tragwerkAendern(werte, id, (x) => {
+    const f = { L, kragA: cA, kragB: cB, kragMasten: true };
+    if (dA) {
+      if (Number.isFinite(Number(x.xLage))) f.xLage = r6(Number(x.xLage) - dA);
+      // Die Teile auf dem Joch stehen lokal ab dem Gurtanfang - sie rücken
+      // mit, ihre Lage auf dem Blatt bleibt.
+      f.anbauteile = (x.anbauteile ?? []).map((a) => (a && !amMast(a)
+        && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) + dA) } : a));
+      if (Number.isFinite(Number(x.xNachweis))) f.xNachweis = r6(Number(x.xNachweis) + dA);
+    }
+    return f;
+  });
+  return { werte: neu, info: { id, L0, L, cA, cB, s, verlaengert: L > L0 + 1e-9, ueberSortiment } };
+}
+
+/**
  * Stösst an diesem Ende ein anderes Tragjoch auf derselben Anschlusshöhe an
  * denselben Masten (Reihe, B an A bzw. A an B)? Dann ist dort kein Platz
  * für einen Kragarm.
@@ -3158,6 +3221,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
     return `
     <div class="at-gruppe${zu ? ' verborgen' : ''}">
       <div class="sec">${name ? `#${esc(name)}` : 'Ohne Gruppe'}<span class="sec-r">${teile.length} Stück
+        <button type="button" class="btn-icon at-auge" data-at-gruppe-name="${esc(name)}"
+          aria-label="${name ? 'Gruppe umbenennen' : 'Gruppe benennen'}"
+          title="${name ? 'Gruppe umbenennen - gilt für alle Teile der Gruppe' : 'Diesen Teilen einen Gruppennamen geben'}">${icon('bearbeiten', 13)}</button>
         ${name ? `<button type="button" class="btn-icon at-auge" data-at-gruppe-dup="${esc(name)}"
           aria-label="Gruppe duplizieren"
           title="Gruppe duplizieren - um Δx versetzen oder im Modell antippen">${icon('kopie', 13)}</button>` : ''}
@@ -5405,6 +5471,25 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelector('[data-dw-aufheben]')?.addEventListener('click', () => {
     dwWahl.clear(); beiDrahtwerk?.(null); beiAnbauNeu?.();
   });
+  /*
+   * >>> GRUPPE UMBENENNEN (9. Oktober, B3). <<< «Gruppenname nachträglich
+   * anpassen können.» Bisher ging das nur Teil für Teil im Feld «Gruppe» der
+   * Karte. Der Stift am Gruppenkopf schreibt den neuen Namen in alle Teile
+   * der Gruppe (`tag`); die Wahl je Leiter und alles Übrige bleiben. Ein
+   * leerer Name löst die Gruppe auf - Teile mit Gleisnummer fallen dann auf
+   * «Gleis n» zurück.
+   */
+  container.querySelectorAll('[data-at-gruppe-name]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const alt = b.dataset.atGruppeName;
+      const neu = window.prompt(alt ? `Neuer Name für die Gruppe «${alt}»` : 'Name für diese Teile (Gruppe)', alt);
+      if (neu === null) return;
+      const name = neu.trim().replace(/^#+/, '').trim();
+      if (name === alt) return;
+      onAnbau(liste().map((a) => (anbauGruppe(a) === alt ? { ...a, tag: name } : a)));
+    });
+  });
   // Gruppe ein-/ausschalten (6. Oktober), wie das Häkchen je Teil.
   // Gruppe duplizieren (7. Oktober).
   container.querySelectorAll('[data-at-gruppe-dup]').forEach((b) => {
@@ -5430,7 +5515,12 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   // Ein Klick in eine Karte fährt das Modell auf dieses Teil - man sieht
   // sofort, welches Teil man gerade bearbeitet.
   container.querySelectorAll('.at-karte').forEach((k) => {
-    k.addEventListener('focusin', () => beiAnbauZoom?.(+k.dataset.idx, true));
+    // Nicht beim Kennzeichen «neu» (9. Oktober, B4: «Wenn man anbauteil als neu
+    // markiert nicht hineinzoomen») - wer mehrere Teile abhakt, will im Bild bleiben.
+    k.addEventListener('focusin', (e) => {
+      if (e.target?.dataset?.k === 'neu') return;
+      beiAnbauZoom?.(+k.dataset.idx, true);
+    });
   });
 
   container.querySelectorAll('.at').forEach((inp) => {
