@@ -38,7 +38,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
          tragwerksart,
          tragwerkTeil,
-         MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
+         MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz, mastWindVonHand, mastWindZuruecksetzen,
          mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer, lageOrtsnull, stossVersatz, anschlusshoehe, sichtbareTragwerke,
@@ -3669,6 +3669,11 @@ function aendern(key, wert) {
     // Sperren heisst: zurück auf die Sortimentstabelle.
     werte = { ...werte, lastenBearbeiten: wert,
               lastHerkunft: wert ? 'manuell' : 'tabelle' };
+    // Zurück auf die Datenbank (8. Oktober): auch der Mastwind von Hand fällt weg.
+    if (!wert && mastWindVonHand(werte)) {
+      werte = rechensatz(mastWindZuruecksetzen(werte));
+      meldeImBalken('Windlasten auf Joch und Masten wieder aus der Datenbank.');
+    }
     neuRechnen();
     return;
   }

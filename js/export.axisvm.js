@@ -41,6 +41,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { mastWindHand } from './data.masten.js';
 import { havarieKandidaten, expandiereAnbauteile } from './data.anbauteile.js';
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle, ekVonWindklasse } from './core.lasten.js';
@@ -2201,7 +2202,8 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     const hoeheB = H - (Number(satzT?.mastFussB ?? satzT?.mastFuss) || 0);
     return profil && hoehe > 0
       ? { profil, hoehe, hoeheB,
-          stegrichtung: satzT?.mastSteg ?? werte.mastSteg ?? 'jochachse' }
+          stegrichtung: satzT?.mastSteg ?? werte.mastSteg ?? 'jochachse',
+          windHand: mastWindHand(satzT ?? werte, 'A') }
       : null;
   };
 

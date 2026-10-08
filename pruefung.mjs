@@ -1560,7 +1560,7 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const wM = { ...w, mastVorhanden: true, schneeAktiv: true };
     const kw = U.sichtbareFelder('ein', wM).map((f) => f.key);
     wahr('Wind: Stufe zuerst, dann Joch und beide Mastrichtungen', kw[0] === 'windKlasse'
-         && ['wkManuell', 'wMast', 'wMastY'].every((k) => kw.includes(k)), kw.join(', '));
+         && ['wkManuell', 'mastWindX', 'mastWindY'].every((k) => kw.includes(k)), kw.join(', '));
     const ks = U.sichtbareFelder('schnee', wM).map((f) => f.key);
     wahr('Schnee: ja/nein, Klasse, Last', ks.join(',') === 'schneeAktiv,schneeKlasse,skManuell', ks.join(', '));
     const kg = U.sichtbareFelder('staendig', wM).map((f) => f.key);
@@ -1568,7 +1568,7 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const fein = ['ein', 'staendig', 'schnee'].flatMap((g) => U.sichtbareFelder(g, wM))
       .filter((f) => f.fein).map((f) => f.key);
     wahr('Zuschlag und Mastwind in der ersten Ebene', !fein.includes('gZusatz')
-         && !fein.includes('wMast') && !fein.includes('wMastY'), fein.join(', '));
+         && !fein.includes('mastWindX') && !fein.includes('mastWindY'), fein.join(', '));
     wahr('Mastwind auf das Joch nur beim Ersatzbalken',
          !U.sichtbareFelder('ein', wM).some((f) => f.key === 'mastWindAufJoch')
          && U.sichtbareFelder('ein', { ...wM, rechenverfahren: 'ersatzbalken' }).some((f) => f.key === 'mastWindAufJoch'));
@@ -14965,7 +14965,7 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
     wahr('Er steht in der Gruppe der Masten',
          feld('mastVorhanden').gruppe === 'mast');
     // >>> DIE MASTFELDER HAENGEN AM SCHALTER, NICHT AN DER ENDBEDINGUNG.
-    ['mastProfil', 'mastH', 'mastLaenge', 'mastSteg', 'wMast'].forEach((k) => {
+    ['mastProfil', 'mastH', 'mastLaenge', 'mastSteg', 'mastWindX'].forEach((k) => {
       wahr(`${k}: sichtbar bei gelenkigem Auflager mit Masten`,
            sicht(feld(k), an));
       wahr(`${k}: unsichtbar ohne Masten, auch bei "aus Mast"`,
@@ -14977,7 +14977,7 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
     ['mastProfil', 'mastH', 'mastLaenge', 'mastSteg'].forEach((k) => {
       wahr(`${k}: steht in der Gruppe der Masten`, feld(k).gruppe === 'mast');
     });
-    ['wMast', 'mastWindAufJoch'].forEach((k) => {
+    ['mastWindX', 'mastWindAufJoch'].forEach((k) => {
       wahr(`${k}: steht bei den Einwirkungen`, feld(k).gruppe === 'ein');
     });
     // KEINE OPTION MEHR: der Schalter, der den Tabellenwert abwaehlen liess,
@@ -14988,8 +14988,11 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
     // bearbeiten»: der Kern hat den eingetippten Wert nie gelesen, und ein
     // flaches Feld kann mehrere Masten mit verschiedenen Profilen ohnehin
     // nicht bedienen (Abschnitt 109).
-    wahr('Die Mastwindlast steht gesperrt, in beiden Richtungen',
-         feld('wMast').nurAnzeige === true && feld('wMastY').nurAnzeige === true);
+    // Seit dem 8. Oktober wieder mit «Werte bearbeiten» frei - jetzt JE MAST
+    // (windX / windY in der Mastliste), der Kern liest sie (Abschnitt 260).
+    wahr('Die Mastwindlast ist eine Tabellenlast: gesperrt bis «Werte bearbeiten», in beiden Richtungen',
+         feld('mastWindX').ausLast === true && feld('mastWindY').ausLast === true
+         && !feld('mastWindX').nurAnzeige && !feld('mastWindY').nurAnzeige);
     // Die Auflagerung behaelt, was Auflagerung ist.
     ['endbedingung', 'cPhi', 'kragA', 'kragB', 'mastAnschluss']
       .forEach((k) => wahr(`${k}: bleibt bei der Auflagerung`,
@@ -27261,8 +27264,8 @@ titel('109  Mastwind: die Maske zeigt, was der Kern rechnet');
        `gedreht: ${gedreht.jochachse} / ${gedreht.gleis} kN/m`);
 
   // b) Maske gegen Kern - ueber Profile, Klassen und Stegrichtungen.
-  const fX = S109.feld('wMast');
-  const fY = S109.feld('wMastY');
+  const fX = S109.feld('mastWindX');
+  const fY = S109.feld('mastWindY');
   const abweichend = [];
   ['HEB 200', 'HEB 220', 'HEB 260', 'HEM 240'].forEach((prof) => {
     ['0.9', '1.1', '1.3'].forEach((wk) => {
@@ -27281,8 +27284,9 @@ titel('109  Mastwind: die Maske zeigt, was der Kern rechnet');
        abweichend.length === 0, abweichend[0] ?? 'keine Abweichung');
 
   // c) Die zweite Richtung ist angeschrieben und keine Eingabe.
-  wahr('w_Mast,y steht in der Maske und ist gesperrt',
-       fY.nurAnzeige === true && fY.sichtbar(einzelmast()) === true,
+  // Seit dem 8. Oktober mit «Werte bearbeiten» frei (ausLast), vorher nurAnzeige.
+  wahr('w_Mast,y steht in der Maske, gesperrt bis «Werte bearbeiten»',
+       fY.ausLast === true && fY.sichtbar(einzelmast()) === true,
        `sym ${fY.sym}`);
 
   // d) Die Tabelle gewinnt - und die Maske behauptet nichts anderes.
@@ -27293,8 +27297,10 @@ titel('109  Mastwind: die Maske zeigt, was der Kern rechnet');
          Math.abs(m.mastLast.A.x - 0.28) < 1e-12, `x = ${m.mastLast.A.x} kN/m`);
     wahr('… und die Maske zeigt denselben Wert',
          Math.abs(fX.wertAus(w) - m.mastLast.A.x) < 1e-12, `Maske ${fX.wertAus(w)} kN/m`);
-    wahr('w_Mast,x ist deshalb gesperrt, nicht scheinbar frei',
-         fX.nurAnzeige === true && fX.ausLast === undefined, 'nurAnzeige');
+    // Das ALTE flache Feld `wMast` liest weiterhin niemand; frei ist seit dem
+    // 8. Oktober die Angabe je Mast (`mastWindX`), die der Kern liest.
+    wahr('w_Mast,x ist eine Angabe je Mast (mastWindX), das alte flache Feld wirkt nicht',
+         fX.key === 'mastWindX' && fX.ausLast === true, fX.key);
     /*
      * ZWEI MASTEN, ZWEI PROFILE - der Grund, warum es kein Eingabefeld gibt.
      * Ein flaches Feld gaebe beiden denselben Wert.
@@ -27457,9 +27463,9 @@ titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
            ml?.x === null && ml?.y === null && ml?.fehlt === true,
            `x ${ml?.x} · y ${ml?.y} · fehlt ${ml?.fehlt}`);
       wahr('… die Maske zeigt nichts statt eines fremden Wertes',
-           S110.feld('wMast').wertAus(w) === null
-           && S110.feld('wMastY').wertAus(w) === null,
-           `Maske ${S110.feld('wMast').wertAus(w)} / ${S110.feld('wMastY').wertAus(w)}`);
+           S110.feld('mastWindX').wertAus(w) === null
+           && S110.feld('mastWindY').wertAus(w) === null,
+           `Maske ${S110.feld('mastWindX').wertAus(w)} / ${S110.feld('mastWindY').wertAus(w)}`);
       const h = CH110.hinweise(erg.modell).join(' ');
       wahr('… und die Anwendung sagt es laut',
            /Mastwind fehlt/.test(h) && /unsicheren Seite/.test(h),
@@ -40096,6 +40102,104 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
   const ax = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
   wahr('SAF und DXF brechen mit Grund ab (der Rahmen steht nur in COM-Datei und Stabwerk)',
        ax.includes('mit gespreiztem Masten nicht gebaut'));
+}
+
+/* ===========================================================================
+ * 260  Windlasten auf Joch und Mast von Hand, zurück auf die Datenbank - 8. Oktober
+ * ===========================================================================
+ * Weisung: «kannst du noch unter lasten das bearbeiten der Windlasten auf
+ * Joch und Mast bearbeitbar machen und wieder zurücksetzen auf Datenbank
+ * werte.» Joch: w_k über «Werte bearbeiten» (bestand). Mast: je Mast und
+ * Richtung eine Zahl in der Mastliste, die der Tabelle vorgeht. */
+{
+  console.log('\n260  Windlasten auf Joch und Mast von Hand');
+  const C260 = await import(J('core.constants.js'));
+  const M260 = await import(J('data.masten.js'));
+  const N260 = await import(J('core.nachbarn.js'));
+  const AS260 = await import(J('app.stabwerk.js'));
+  const S260 = await import(J('ui.schema.js'));
+  const V260 = await import(J('core.vierendeel.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0, windKlasse: '0.9', anbauteile: [] };
+  const [m1, m2] = C260.mastenVon(w);
+  const kern = (x) => { const s = N260.rechensatzMitNachbarn(x); return { s, erg: berechne(s, ...N260.kernArgumente(s)) }; };
+  const tab = M260.mastWindBeide(m1.profil, 'EK1', 'jochachse');   // der Prüfstand rechnet mit HEB 240
+  const k0 = kern(w);
+  pruef('Ohne Eingabe: Mastwind aus der Tabelle (EK1)', k0.erg.modell.mastLast.A.x + k0.erg.modell.mastLast.A.y,
+        tab.jochachse + tab.gleis, 1e-12, 'kN/m');
+  wahr('… und als «aus der Tabelle» gekennzeichnet', k0.erg.modell.mastLast.A.ausTabelle === true);
+
+  // Mast M1 von Hand: quer 0.50, längs 0.60; M2 bleibt bei der Tabelle.
+  let h = C260.setzeMastAngabe(w, m1.id, 'mastWindX', 0.5);
+  h = C260.rechensatz(C260.setzeMastAngabe(h, m1.id, 'mastWindY', 0.6));
+  const k1 = kern(h);
+  wahr('Mast M1 von Hand: der Kern rechnet 0.50 quer / 0.60 längs', k1.erg.modell.mastLast.A.x === 0.5 && k1.erg.modell.mastLast.A.y === 0.6
+       && k1.erg.modell.mastLast.A.ausTabelle === false, JSON.stringify(k1.erg.modell.mastLast.A));
+  pruef('… Mast M2 bleibt bei der Tabelle', k1.erg.modell.mastLast.B.x + k1.erg.modell.mastLast.B.y, tab.jochachse + tab.gleis, 1e-12, 'kN/m');
+  wahr('… die Mastliste trägt die Zahl am Masten M1, nicht an M2',
+       C260.mastenVon(h)[0].windX === 0.5 && C260.mastenVon(h)[0].windY === 0.6 && C260.mastenVon(h)[1].windX == null);
+  wahr('mastWindVonHand erkennt es', C260.mastWindVonHand(h) === true && C260.mastWindVonHand(w) === false);
+  // Die Maske zeigt, was gerechnet wird - am angewählten Masten.
+  const fX = S260.feld('mastWindX'), fY = S260.feld('mastWindY');
+  wahr('Maske: am Masten M1 die Eingabe, am Masten M2 die Tabelle',
+       fX.wertAus({ ...h, mastAktiv: m1.id }) === 0.5 && fY.wertAus({ ...h, mastAktiv: m1.id }) === 0.6
+       && Math.abs(fX.wertAus({ ...h, mastAktiv: m2.id }) - tab.jochachse) < 1e-12);
+  wahr('Maske: der Hinweis sagt «VON HAND» und nennt den Tabellenwert',
+       /VON HAND/.test(fX.hinweis({ ...h, mastAktiv: m1.id })) && fX.hinweis({ ...h, mastAktiv: m1.id }).includes(tab.jochachse.toFixed(2))
+       && !/VON HAND/.test(fX.hinweis({ ...h, mastAktiv: m2.id })));
+  // Nur eine Richtung von Hand: die andere bleibt bei der Tabelle.
+  {
+    const e = kern(C260.rechensatz(C260.setzeMastAngabe(w, m1.id, 'mastWindY', 0.7)));
+    wahr('Nur längs von Hand: quer bleibt der Tabellenwert',
+         e.erg.modell.mastLast.A.y === 0.7 && Math.abs(e.erg.modell.mastLast.A.x - tab.jochachse) < 1e-12);
+  }
+  // Das Stabwerk rechnet mit denselben Zahlen: Summe der Mastwindlast in y am Masten M1.
+  {
+    const sw = AS260.rechneStabwerk({ werte: h, letzte: { erg: k1.erg }, stabwerk: null });
+    const d = sw.roh.dat;
+    const kn = new Map(d.knoten.map((k) => [k.name, k])), st = new Map(d.staebe.map((x) => [x.name, x]));
+    const summe = (mast, fall) => d.lasten.strecke.filter((l) => l.lastfall === fall && new RegExp(`^MAST_${mast}_S\\d+$`).test(l.stab))
+      .reduce((a, l) => { const x = st.get(l.stab); return a + Math.abs(l.wert) * Math.abs(kn.get(x.bis).z - kn.get(x.von).z); }, 0);
+    pruef('Stabwerk: Wind längs am Masten M1 = 0.60 kN/m × 8.50 m', summe('M1', 'WindY'), 0.6 * 8.5, 1e-6, 'kN');
+    pruef('Stabwerk: Wind quer am Masten M1 = 0.50 kN/m × 8.50 m', summe('M1', 'WindX'), 0.5 * 8.5, 1e-6, 'kN');
+    pruef('Stabwerk: am Masten M2 die Tabelle', summe('M2', 'WindY'), tab.gleis * 8.5, 1e-6, 'kN');
+    const sw0 = AS260.rechneStabwerk({ werte: w, letzte: { erg: k0.erg }, stabwerk: null });
+    wahr('… der Mast M1 ist mit dem grösseren Wind höher ausgenutzt, M2 praktisch gleich',
+         sw.bauteile['mast:M1'].eta > sw0.bauteile['mast:M1'].eta * 1.2
+         && Math.abs(sw.bauteile['mast:M2'].eta - sw0.bauteile['mast:M2'].eta) < 0.03,
+         `${sw0.bauteile['mast:M1'].eta.toFixed(3)} → ${sw.bauteile['mast:M1'].eta.toFixed(3)}`);
+  }
+  // Zurück auf die Datenbank.
+  {
+    const z = C260.rechensatz(C260.mastWindZuruecksetzen(h));
+    const kz = kern(z);
+    wahr('Zurücksetzen: kein Mast trägt mehr eine Zahl von Hand', C260.mastWindVonHand(z) === false
+         && z.mastWindX == null && z.mastWindY == null);
+    pruef('… und der Kern rechnet wieder die Tabelle', kz.erg.modell.mastLast.A.x + kz.erg.modell.mastLast.A.y,
+          tab.jochachse + tab.gleis, 1e-12, 'kN/m');
+  }
+  // Joch: w_k von Hand über die Herkunft «manuell» (bestand), zurück mit «tabelle».
+  {
+    const wj = { ...w, lastHerkunft: 'manuell', gkManuell: k0.erg.modell.char.gk, skManuell: k0.erg.modell.char.sk, wkManuell: 0.9 };
+    const kj = kern(wj);
+    pruef('Joch: w_k von Hand gilt (0.90 kN/m)', kj.erg.modell.char.wk, 0.9, 1e-12, 'kN/m');
+    pruef('Joch: zurück auf «tabelle» gilt wieder der Sortimentswert', kern({ ...wj, lastHerkunft: 'tabelle' }).erg.modell.char.wk,
+          T.getTragjoch('J90').wind['0.9'], 1e-12, 'kN/m');
+  }
+  // Einzelmast und Tragausleger lesen dieselbe Angabe.
+  {
+    const e0 = { ...standardwerte(), bearbeiten: false, tragwerksart: 'einzelmast', mastVorhanden: true, mastProfil: 'HEB 260',
+                 mastLaenge: 10, windKlasse: '0.9', anbauteile: [], twId: 'M1' };
+    const e1 = C260.rechensatz(C260.setzeMastAngabe(e0, C260.mastenVon(e0)[0].id, 'mastWindY', 0.8));
+    const m = V260.modellEinzelmast({ ...N260.rechensatzMitNachbarn(e1), lastfall: 'wyk' }, getStahl(e1.stahl));
+    wahr('Einzelmast: Wind längs von Hand kommt im Kern an', m.mastLast.A.y === 0.8, `y = ${m.mastLast.A.y}`);
+  }
+  const A260 = APP_QUELLE();
+  wahr('«Tabellenwerte» setzt auch den Mastwind zurück',
+       A260.includes('werte = rechensatz(mastWindZuruecksetzen(werte));'));
+  wahr('Abfangjoch und Tragausleger lesen den Mastwind von Hand',
+       readFileSync(join(HIER, 'js', 'export.axisvm.abfang.js'), 'utf8').includes('mastD.windHand ?? null')
+       && readFileSync(join(HIER, 'js', 'export.axisvm.tragausleger.js'), 'utf8').includes("mastWindHand(satz, 'A')"));
 }
 
 console.log('\n' + '='.repeat(104));

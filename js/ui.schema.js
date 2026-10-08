@@ -137,16 +137,36 @@ const mastWindAnzeige = (w) => {
     tab = mastWindBeide(m.profil, ekVonWindklasse(w.windKlasse),
                         m.steg ?? w.mastSteg ?? 'jochachse');
   } catch { /* Profil nicht im Sortiment - dann bleibt nur das Gespeicherte */ }
-  const vonHand = w.wMastAusTabelle === false;
   /*
    * Fehlt die Tabellenzeile, bleibt das Feld LEER - nicht der alte Wert aus
    * der Mastliste. Er gehoert dem Profil, das dort einmal stand (20. Sept.,
    * gemeldet an einem HEB 220, der 0.30 kN/m eines HEB 240 anzeigte).
+   *
+   * Von Hand (8. Oktober): `windX` / `windY` am Masten gehen der Tabelle
+   * vor, je Richtung. `tabX` / `tabY` bleiben der Tabellenwert - der
+   * Hinweis nennt ihn daneben.
    */
-  const x = vonHand ? (m.wMast ?? w.wMast ?? 0)
-          : (Number.isFinite(tab.jochachse) ? tab.jochachse : null);
-  return { x: x === null ? null : Math.abs(x),
-           y: Number.isFinite(tab.gleis) ? Math.abs(tab.gleis) : null };
+  const tabX = Number.isFinite(tab.jochachse) ? Math.abs(tab.jochachse) : null;
+  const tabY = Number.isFinite(tab.gleis) ? Math.abs(tab.gleis) : null;
+  const hx = Number.isFinite(m.windX) ? Math.abs(m.windX) : null;
+  const hy = Number.isFinite(m.windY) ? Math.abs(m.windY) : null;
+  return { x: hx ?? tabX, y: hy ?? tabY, tabX, tabY, handX: hx !== null, handY: hy !== null };
+};
+const mastWindHinweis = (richtung) => (w) => {
+  const a = mastWindAnzeige(w);
+  const hand = richtung === 'x' ? a.handX : a.handY;
+  const tab = richtung === 'x' ? a.tabX : a.tabY;
+  const wo = richtung === 'x' ? 'Quer zum Gleis' : 'Längs zum Gleis';
+  if (hand) {
+    return `${wo}: VON HAND gesetzt für den angewählten Masten`
+      + `${tab !== null ? ` (Tabelle ${tab.toFixed(2)} kN/m)` : ''}. «Tabellenwerte» setzt zurück.`;
+  }
+  return richtung === 'x'
+    ? 'Quer zum Gleis, aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung des '
+      + 'angewählten Masten. «Werte bearbeiten» gibt das Feld frei (gilt dann für diesen Masten).'
+    : 'Längs zum Gleis, aus derselben Tabellenzeile. Sie wirkt in den Lastfällen Wind ±y und ist am '
+      + 'Einzelmasten die massgebende Richtung — dort hält kein Joch den Mastkopf. '
+      + '«Werte bearbeiten» gibt das Feld frei.';
 };
 
 /** Der Wert einer Mastangabe am angewaehlten Masten, ersatzweise flach. */
@@ -2064,32 +2084,28 @@ export const FELDER = [
    * gaebe es beiden 0.37 statt 0.28 und 0.31 kN/m. Dem Auftraggeber
    * vorgelegt, bis dahin gilt die Tabelle.
    */
-  { key: 'wMast', gruppe: 'ein', typ: 'zahl',
+  /*
+   * >>> BEARBEITBAR, JE MAST (8. Oktober). <<< Weisung: «unter lasten das
+   * bearbeiten der Windlasten auf Joch und Mast bearbeitbar machen und
+   * wieder zurücksetzen auf Datenbank werte.» Die beiden Felder gehören dem
+   * angewählten Masten (Mastliste: `windX`, `windY`); gesperrt zeigen sie
+   * die Tabelle, mit «Werte bearbeiten» nehmen sie eine Zahl an, die dann
+   * vor der Tabelle gilt. «Tabellenwerte» nimmt sie an allen Masten weg.
+   */
+  { key: 'mastWindX', gruppe: 'ein', typ: 'zahl',
     label: 'Windlast auf Mast · quer zum Gleis',
-    sym: 'w_Mast,x', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    nurAnzeige: true,
+    sym: 'w_Mast,x', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
+    ausLast: true,
     wertAus: (w) => mastWindAnzeige(w).x,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Quer zum Gleis, aus der Lasttabelle je Profil, '
-           + 'Einwirkungsklasse und Stegrichtung des angewählten Masten.'},
-  /*
-   * DIE ZWEITE RICHTUNG - angeschrieben, nicht eingebbar.
-   *
-   * Sie folgt aus derselben Tabellenzeile wie die erste, nur aus der anderen
-   * Spalte; eine eigene Eingabe daneben waere eine zweite Wahrheit. Beim
-   * HEM 240 unterscheiden sich die beiden Spalten, bei den uebrigen Profilen
-   * nicht - sichtbar sein muessen sie trotzdem beide, sonst sieht man am
-   * Einzelmasten die massgebende Richtung gar nicht.
-   */
-  { key: 'wMastY', gruppe: 'ein', typ: 'zahl',
+    hinweis: mastWindHinweis('x') },
+  { key: 'mastWindY', gruppe: 'ein', typ: 'zahl',
     label: 'Windlast auf Mast · längs zum Gleis',
     sym: 'w_Mast,y', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
-    nurAnzeige: true,
+    ausLast: true,
     wertAus: (w) => mastWindAnzeige(w).y,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Längs zum Gleis, aus derselben Tabellenzeile. Sie wirkt in den '
-           + 'Lastfällen Wind ±y und ist am Einzelmasten die massgebende '
-           + 'Richtung — dort hält kein Joch den Mastkopf.'},
+    hinweis: mastWindHinweis('y') },
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.

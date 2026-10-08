@@ -1647,7 +1647,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   if (mitMast && mastQs) {
     let srW = 'jochachse';
     try { srW = getStegrichtung(mastD.stegrichtung ?? 'jochachse').key; } catch { /* Vorgabe */ }
-    const mw = mastWindBeide(mastProfil.name, ekAn, srW);
+    // Von Hand gesetzter Mastwind (8. Oktober) geht der Tabelle vor.
+    const mw = mastWindBeide(mastProfil.name, ekAn, srW, mastD.windHand ?? null);
     staebe.filter((st2) => st2.querschnitt === mastQs.name).forEach((st2) => {
       [['WindX', 'X', mw.jochachse], ['WindY', 'Y', mw.gleis]].forEach(([fall, richtung, w]) => {
         if (Number.isFinite(w) && Math.abs(w) > 0) {

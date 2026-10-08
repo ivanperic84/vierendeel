@@ -41,7 +41,7 @@
  */
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
-import { getMastprofil, getStegrichtung, istGittermast, getGittermast } from './data.masten.js';
+import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
 import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
@@ -301,7 +301,8 @@ export function stabwerkModell(werte, erg, satz, eingaben, opt) {
       ? { profil: mA?.profil ?? satz.mastProfil,
           hoehe: Number(satz.mastH) - (Number(satz.mastFuss) || 0),
           hoeheB: Number(satz.mastH) - (Number(satz.mastFussB ?? satz.mastFuss) || 0),
-          stegrichtung: satz.mastSteg ?? 'jochachse' }
+          stegrichtung: satz.mastSteg ?? 'jochachse',
+          windHand: mastWindHand(satz, 'A') }
       : null;
     bau = stabmodell(erg.modell, { ...opt,
       mastNamen: { A: nm.A || mA?.id || 'A', B: nm.B || mB?.id || 'B' },

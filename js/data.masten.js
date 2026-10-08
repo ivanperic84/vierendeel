@@ -383,7 +383,22 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
  * @returns {{jochachse:number|null, gleis:number|null}} kN/m, `null` wenn
  *          das Profil keine Windzeile in der Tabelle hat.
  */
-export function mastWindBeide(name, ek = 'EK2', steg = 'jochachse') {
+/** Der von Hand gesetzte Mastwind eines Endes aus dem Rechensatz: {x, y}, je Richtung eine Zahl oder null. */
+export function mastWindHand(satz, ende = 'A') {
+  const b = ende === 'B';
+  const zahl = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0
+    ? null : Number(v));
+  return { x: zahl(b ? satz?.mastWindXB : satz?.mastWindX), y: zahl(b ? satz?.mastWindYB : satz?.mastWindY) };
+}
+
+export function mastWindBeide(name, ek = 'EK2', steg = 'jochachse', hand = null) {
+  // Von Hand (8. Oktober): eine eingetragene Zahl gilt vor der Tabelle, je Richtung.
+  if (hand && (Number.isFinite(hand.x) || Number.isFinite(hand.y))) {
+    const tab = mastWindBeide(name, ek, steg);
+    return { jochachse: Number.isFinite(hand.x) ? hand.x : tab.jochachse,
+             gleis: Number.isFinite(hand.y) ? hand.y : tab.gleis,
+             vonHand: { x: Number.isFinite(hand.x), y: Number.isFinite(hand.y) }, tabelle: tab };
+  }
   const gegen = steg === 'quer' ? 'jochachse' : 'quer';
   return { jochachse: mastWind(name, ek, steg), gleis: mastWind(name, ek, gegen) };
 }

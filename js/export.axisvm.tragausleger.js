@@ -41,7 +41,7 @@ import { uKontur } from './core.profilgeometrie.js';
 import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung, tragauslegerSpreizung,
          tragauslegerBlechachsen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
-import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
+import { getMastprofil, getStegrichtung, mastWindBeide, mastWindHand } from './data.masten.js';
 import { baugruppeSumme } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
@@ -396,7 +396,8 @@ export function tragauslegerModell(satz, opt = {}) {
    * charakteristisch, je Richtung ein Lastfall. Fehlt die Tabellenzeile,
    * fehlt die Last, und es wird gesagt (wie am 20. September entschieden).
    */
-  const mw = mastWindBeide(pm.name, ek, sr.key);
+  // Von Hand gesetzter Mastwind (8. Oktober) geht der Tabelle vor.
+  const mw = mastWindBeide(pm.name, ek, sr.key, mastWindHand(satz, 'A'));
   const wx = Number.isFinite(mw.jochachse) ? Math.abs(mw.jochachse) : null;
   const wy = Number.isFinite(mw.gleis) ? Math.abs(mw.gleis) : null;
   if (wx === null || wy === null) {

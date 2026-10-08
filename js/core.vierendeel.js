@@ -17,7 +17,7 @@ import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, 
   from './core.constants.js';
 import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
-import { mastWindBeide } from './data.masten.js';
+import { mastWindBeide, mastWindHand } from './data.masten.js';
 import { getStahl } from './data.profiles.js';
 
 /**
@@ -207,11 +207,23 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
    * ob eine Eingabe je Mast gewuenscht ist.
    */
   const vonHand = inp.wMastAusTabelle === false;
-  const je = (mast, wManuell) => {
+  /*
+   * >>> VON HAND, JE MAST UND RICHTUNG (8. Oktober). <<< Weisung: «unter
+   * lasten das bearbeiten der Windlasten auf Joch und Mast bearbeitbar
+   * machen und wieder zurücksetzen auf Datenbank werte.» Die Frage vom
+   * 20. September (ein flaches Feld für mehrere Masten) ist damit so
+   * beantwortet: die Zahl steht AM MASTEN (`windX`, `windY` in der
+   * Mastliste, im Rechensatz `mastWindX/Y` und `…B`). Steht eine da, gilt
+   * sie vor der Tabelle; «Tabellenwerte» nimmt sie wieder weg.
+   */
+  const je = (mast, wManuell, ende) => {
     // Welche Tabellenspalte welche Richtung ist, sagt `mastWindBeide` -
     // dieselbe Stelle, aus der die Maske ihre beiden Zeilen holt.
-    const { jochachse: wJoch, gleis: wGleis } =
-      mastWindBeide(mast.profil.name, ek, mast.stegrichtung.key);
+    // Jeder Mast für sich: Ende B liest nur seine eigenen Felder (`mastWindXB`,
+    // `mastWindYB`, von `rechensatz` aus der Mastliste gesetzt) - es erbt nie von A.
+    const hand = mastWindHand(inp, ende === 'B' ? 'B' : 'A');
+    const { jochachse: wJoch, gleis: wGleis, vonHand: vH } =
+      mastWindBeide(mast.profil.name, ek, mast.stegrichtung.key, hand);
     /*
      * >>> OHNE TABELLENZEILE GIBT ES KEINEN MASTWIND (20. September). <<<
      *
@@ -237,7 +249,8 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
     const xk = xRoh === null ? null : Math.abs(xRoh);
     const yk = Number.isFinite(wGleis) ? Math.abs(wGleis) : null;
     return {
-      profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
+      profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand && !(vH?.x || vH?.y),
+      vonHand: vH ?? null,
       // `fehlt`: die Tabelle hat fuer dieses Profil keine Windzeile.
       fehlt: !vonHand && (xk === null || yk === null),
       x: xk, y: yk,
@@ -257,8 +270,8 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
     };
   };
   return { ek,
-           A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
-           B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
+           A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast, 'A'),
+           B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast, 'B') };
 }
 
 /* ===========================================================================

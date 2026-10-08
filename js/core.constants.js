@@ -978,6 +978,17 @@ export const MASTFELDER = [
   { flach: 'mastSteg', flachB: 'mastStegB', am: 'steg' },
   { flach: 'wMast', flachB: 'wMastB', am: 'wMast' },
   /*
+   * >>> DER MASTWIND VON HAND, JE MAST UND RICHTUNG (8. Oktober). <<<
+   * Weisung: «kannst du noch unter lasten das bearbeiten der Windlasten auf
+   * Joch und Mast bearbeitbar machen und wieder zurücksetzen auf Datenbank
+   * werte.» Zwei Zahlen am Masten: quer und längs zum Gleis [kN/m],
+   * charakteristisch. Steht eine da, gilt sie vor der Tabelle - für diesen
+   * Masten, an jedem Tragwerk, das ihn trägt. Ohne Eintrag gilt die Tabelle.
+   * (Das alte `wMast` darüber liest niemand mehr; es bleibt für alte Stände.)
+   */
+  { flach: 'mastWindX', flachB: 'mastWindXB', am: 'windX', eigen: true },
+  { flach: 'mastWindY', flachB: 'mastWindYB', am: 'windY', eigen: true },
+  /*
    * >>> DER FUSSPUNKT GEHOERT DEM MASTEN. <<<
    *
    * Weisung vom 12. September. Anders als die ANSCHLUSSHOEHE, die dem
@@ -1725,6 +1736,15 @@ export function mastenProjizieren(satz, w, t) {
    */
   satz.mastAnkerA = a.anker ?? null;
   satz.mastAnkerB = (b?.anker ?? null);
+  /*
+   * Der Mastwind von Hand (8. Oktober) gehört JEDEM Masten für sich: Ende B
+   * erbt ihn nie von Ende A, und ein Rest im flachen Satz zählt nicht -
+   * deshalb stehen alle vier Felder ausdrücklich da (null = Tabelle).
+   */
+  satz.mastWindX = a.windX ?? null;
+  satz.mastWindY = a.windY ?? null;
+  satz.mastWindXB = b ? (b.windX ?? null) : null;
+  satz.mastWindYB = b ? (b.windY ?? null) : null;
   if (b) {
     /*
      * >>> `mastZwei` HEISST «ENDE B WEICHT AB», nicht «es gibt zwei». <<<
@@ -1784,6 +1804,29 @@ export function gitterLaengenFest(w) {
       aus = setzeMastAngabe(aus, m.id, 'mastLaenge', L);
     }
   });
+  return aus;
+}
+
+/** Trägt irgendein Mast des Blattes einen Mastwind von Hand? */
+export function mastWindVonHand(w) {
+  let liste = [];
+  try { liste = mastenVon(w); } catch { liste = []; }
+  return liste.some((m) => Number.isFinite(m?.windX) || Number.isFinite(m?.windY));
+}
+
+/** Zurück auf die Tabelle: der Mastwind von Hand fällt an allen Masten weg. */
+export function mastWindZuruecksetzen(w) {
+  const aus = { ...w };
+  ['mastWindX', 'mastWindXB', 'mastWindY', 'mastWindYB'].forEach((k) => { delete aus[k]; });
+  const ohne = (m) => { const o = { ...m }; delete o.windX; delete o.windY; return o; };
+  if (Array.isArray(aus.masten)) aus.masten = aus.masten.map(ohne);
+  if (Array.isArray(aus.weitere)) {
+    aus.weitere = aus.weitere.map((t) => {
+      const o = { ...t };
+      ['mastWindX', 'mastWindXB', 'mastWindY', 'mastWindYB'].forEach((k) => { delete o[k]; });
+      return o;
+    });
+  }
   return aus;
 }
 

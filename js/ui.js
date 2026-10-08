@@ -289,6 +289,9 @@ export function maskenSignatur(werte, tab) {
   const gruppen = gruppenFuer(tab, werte);
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
+    // Mastwind von Hand (8. Oktober): ob eine Zahl gesetzt ist, steht im Hinweis des Feldes.
+    (Array.isArray(werte.masten) ? werte.masten : [])
+      .map((m) => `${Number.isFinite(m?.windX) ? 1 : 0}${Number.isFinite(m?.windY) ? 1 : 0}`).join(''),
     // Die Markierung der Anbauteile (Strg+Klick, 7. Oktober) ändert die Liste.
     [...atMarkiert].join(','),
     dwGliederung, dwOrdnung, [...dwWahl].join(','),
