@@ -442,3 +442,11 @@ Darstellungen).
 **Gemessen:** die Spannungsanzeige σ_v (`rc_lsSomax`) über COM lässt AxisVM beim nächsten Setzen der Anzeige
 einfrieren bzw. abstürzen («Berechnung der Stabspannungen…»). Ohne sie (`nurn`) entstehen alle Zeichnungen in
 rund 17 s. Nach einem RPC-Fehler hört der Lauf auf, statt jede weitere Zeichnung zu versuchen.
+
+## Gegenrechnung in der Anwendung (9. Oktober)
+
+Statt eines Berichts in AxisVM: `AxisVM_aufbauen.cmd -Json <modell.json> -Rechnen -Auslesen -Stapel` schreibt
+`<modell>_ergebnisse.json` (Schnittgrössen an den Stabschnitten, Knotenwege und Linkkräfte je Lastfall). Die Anwendung
+liest diese Datei unter *Export → AxisVM-Ergebnisse einlesen (Gegenrechnung) …* ein, hält sie gegen ihr Stabwerk und
+führt das Kapitel «Gegenrechnung AxisVM» im Nachweisbericht. Die Datei muss zum Modell gehören, das die Anwendung
+gerade rechnet (dieselben Stäbe) - sonst wird sie mit Grund abgewiesen.

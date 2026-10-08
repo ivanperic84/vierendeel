@@ -15,6 +15,7 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
+      { text: 'Neu: Gegenrechnung mit AxisVM in der Anwendung. Export → «AxisVM-Ergebnisse einlesen (Gegenrechnung)» nimmt die Ergebnisdatei der COM-Brücke und zeigt je Bauteil die Ausnutzung aus Anwendung und AxisVM sowie die Spannungsverläufe entlang der Stäbe; der Nachweisbericht führt es als Kapitel.' },
       { text: 'Reiter Auflager: die Resultierende am Jochanschluss steht je Jochende als Tabelle wie am Mastfuss (F_z, M_y, F_x, M_x, F_y, M_z; min / max). Im Lageband überdeckt das Profilzeichen die Skala nicht mehr.' },
       { text: '3D: die Bindebleche reichen bis an die Winkel und nicht mehr in sie hinein; die Knotenbereiche der Gurte stehen nicht mehr grau da, sondern in der Farbe des anschliessenden Gurtstabs.' },
       { text: 'Ablage: der Knopf oben heisst «Neues Querprofil (leer)» (beginnt aus einer Vorlage, ersetzt den Stand); in der Auswahl «Eintrag im Projekt» heisst es «Als neuen Eintrag speichern (Stand bleibt)». Vorher hiessen beide «Neues Tragwerk».' },

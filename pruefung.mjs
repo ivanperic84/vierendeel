@@ -24549,7 +24549,7 @@ titel('68  Das Menueband und der Name der Anwendung');
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
   // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
   wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Drucken',
-       eintraege.length === 9 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+       eintraege.length === 10 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
            'reaktionsBlatt', 'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
        eintraege.join(' · '));
@@ -40357,6 +40357,100 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
   wahr('Abfangjoch und Tragausleger lesen den Mastwind von Hand',
        readFileSync(join(HIER, 'js', 'export.axisvm.abfang.js'), 'utf8').includes('mastD.windHand ?? null')
        && readFileSync(join(HIER, 'js', 'export.axisvm.tragausleger.js'), 'utf8').includes("mastWindHand(satz, 'A')"));
+}
+
+/* =========================================================================
+ * 261  GEGENRECHNUNG MIT AXISVM IN DER ANWENDUNG (9. Oktober)
+ * =========================================================================
+ * «macht es vielleich mehr sinn die resultate in diese app zurückzuführen und
+ * den bericht hier zusammenzustellen?», dann «Bericht so wie vorgeschlagen in
+ * der App bauen, wäre es möglich die spannungsverläufe zu plotten so wi im
+ * Axisvm?» Die Ergebnisdatei der Brücke wird wie eine zweite Lösung desselben
+ * Stabmodells ausgewertet (core.axisvergleich.js). Geprüft an einer
+ * künstlichen Ergebnisdatei aus dem EIGENEN Löser: unverändert muss der
+ * Vergleich 0 % geben, um 5 % erhöht genau 5 %.
+ * ========================================================================= */
+titel('261  Gegenrechnung mit AxisVM: Ergebnisdatei einlesen, Kapitel im Bericht');
+{
+  const AV = await import(J('core.axisvergleich.js'));
+  const EG = await import(J('export.gegenrechnung.js'));
+  const N261 = await import(J('core.nachbarn.js'));
+  const AS261 = await import(J('app.stabwerk.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', windKlasse: '0.9',
+        anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 10)] };
+  const sR = N261.rechensatzMitNachbarn(w);
+  const erg = berechne(sR, ...N261.kernArgumente(sR));
+  const h = AS261.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const { dat, lsg } = h.roh;
+  const kn = new Map(dat.knoten.map((q) => [q.name, q]));
+  const stV = new Map(dat.staebe.map((q) => [q.name, q]));
+  // Die Datei in der Form der Brücke: je Lastfall Schnitte an beiden Stabenden und die Knotenwege.
+  const datei = (k, { nurAnfang = false } = {}) => {
+    const faelle = {};
+    for (const lf of lsg.u.keys()) {
+      const schnitte = [];
+      lsg.stabkraft(lf).forEach((f, name) => {
+        const st = stV.get(name);
+        if ((st.art ?? 'stab') !== 'stab') return;
+        const a = kn.get(st.von), b = kn.get(st.bis);
+        const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+        schnitte.push({ stab: name, x: 0, Nx: -k * f[0], Vy: -k * f[1], Vz: -k * f[2], Tx: -k * f[3], My: -k * f[4], Mz: -k * f[5] });
+        schnitte.push({ stab: name, x: nurAnfang ? L / 10 : L, Nx: k * f[6], Vy: k * f[7], Vz: k * f[8], Tx: k * f[9], My: k * f[10], Mz: k * f[11] });
+      });
+      const uv = lsg.u.get(lf); const wege = {};
+      lsg.knotenIdx.forEach((i, name) => { wege[name] = [0, 1, 2, 3, 4, 5].map((c) => k * uv[i * 6 + c]); });
+      faelle[lf] = { name: lf, schnitte, wege };
+    }
+    return { format: 'tragjoch-axisvm-ergebnisse', version: 1, erzeugt: '2026-10-09T00:00:00', tragwerk: 'Probe', faelle };
+  };
+  wahr('Das Stabwerk führt, womit seine Hülle gerechnet ist (Kombinationen, f_yd, Optionen)',
+       Array.isArray(h.roh.auswertung?.faelle) && h.roh.auswertung.fyd > 0 && h.roh.auswertung.opt?.knotenbereich !== undefined);
+  const v1 = AV.axisVergleich(h, datei(1));
+  wahr('Eigene Kräfte als Ergebnisdatei: der Vergleich gilt, jeder echte Stab hat Ergebnisse',
+       v1.ok === true && v1.passung.staebeErgebnis === v1.passung.staebeModell && v1.hinweise.length === 0, v1.grund ?? '');
+  wahr('… die Anwendungsseite des Vergleichs ist das Urteil des Stabwerks, Teil für Teil',
+       v1.teile.length === Object.keys(h.teile).length
+       && v1.teile.every((t) => Math.abs(t.etaApp - h.teile[t.key].eta) < 1e-12),
+       v1.teile.map((t) => `${t.name} ${t.teil} ${t.etaApp.toFixed(3)}`).join(' · '));
+  pruef('… und die AxisVM-Seite dieselbe Zahl: grösste Abweichung 0', Math.max(...v1.teile.map((t) => Math.abs(t.abw))), 0, 1e-9, '');
+  const v5 = AV.axisVergleich(h, datei(1.05));
+  wahr('Alle Kräfte um 5 % erhöht: jede Randspannung 5 % höher, jedes η auch',
+       v5.teile.every((t) => Math.abs(t.abw - 0.05) < 1e-9 && Math.abs(t.etaAxis / t.etaApp - 1.05) < 1e-9),
+       v5.teile.map((t) => `${(t.abw * 100).toFixed(2)} %`).join(' · '));
+  pruef('… η der Anwendung bleibt, η AxisVM = 1.05 × davon', v5.etaAxis / v5.etaApp, 1.05, 1e-9, '');
+  // Die Verläufe: Gurte und Bleche über x, Masten über die Höhe - je Stelle beide Werte.
+  const vG = v5.verlaeufe.find((x) => x.teil === 'UG'), vM = v5.verlaeufe.find((x) => x.teil === 'mast');
+  wahr('Spannungsverläufe: Obergurt, Untergurt, Bleche über x; Masten über die Höhe (alle 0.5 m)',
+       ['OG', 'UG', 'blech'].every((t) => v5.verlaeufe.some((x) => x.teil === t && x.achse === 'x'))
+       && v5.verlaeufe.filter((x) => x.teil === 'mast' && x.achse === 'z').length === 2 && vM.punkte.length >= 15,
+       v5.verlaeufe.map((x) => `${x.name} ${x.teil}: ${x.punkte.length}`).join(' · '));
+  pruef('… das Grösste des Untergurt-Verlaufs = σ des massgebenden Stabs', vG.maxApp, h.teile['tragwerk|UG'].sig, 1e-9, 'N/mm²');
+  wahr('… im Verlauf stehen an jeder Stelle beide Werte, AxisVM 5 % höher',
+       vG.punkte.every((q) => Number.isFinite(q.app) && Math.abs(q.axis / q.app - 1.05) < 1e-9));
+  wahr('Knotenwege je Lastfall: der grösste Weg beider Seiten, AxisVM 5 % höher',
+       v5.wege.length >= 3 && v5.wege.every((q) => Math.abs(q.abw - 0.05) < 1e-9),
+       v5.wege.slice(0, 3).map((q) => `${q.fall} ${q.app.toFixed(1)} / ${q.axis.toFixed(1)} mm`).join(' · '));
+  // Was nicht passt, gibt keine Zahl.
+  const fremd = datei(1); fremd.faelle.G.schnitte.push({ stab: 'GIBT_ES_NICHT', x: 0, Nx: 0, Vy: 0, Vz: 0, Tx: 0, My: 0, Mz: 0 });
+  const vF = AV.axisVergleich(h, fremd);
+  wahr('Eine Datei mit fremden Stäben wird abgewiesen, mit Grund', vF.ok === false && /anderen Stand/.test(vF.grund), vF.grund);
+  wahr('Keine Ergebnisdatei der Brücke: abgewiesen', AV.axisVergleich(h, { faelle: {} }).ok === false && !AV.istAxisErgebnis({ format: 'x' }));
+  const alt = AV.axisVergleich(h, datei(1, { nurAnfang: true }));
+  wahr('Alte Datei (zweiter Schnitt bei L/10 statt am Stabende): die Stäbe fehlen und der Hinweis sagt es',
+       alt.ok === true && alt.hinweise.some((x) => /ohne Schnitt am Stabende/.test(x)), alt.hinweise.join(' | '));
+  // Das Kapitel.
+  const html = EG.gegenrechnungAbschnitt(v5);
+  wahr('Kapitel «Gegenrechnung AxisVM»: Tabelle je Bauteil, je Teil ein Verlauf als Vektorbild, Knotenwege',
+       html.includes('§ Gegenrechnung AxisVM') && (html.match(/<svg class="gv"/g) ?? []).length === v5.verlaeufe.length
+       && html.includes(v5.etaAxis.toFixed(3)) && html.includes('+5.0 %') && html.includes('Knotenwege je Lastfall'));
+  wahr('… die Verläufe sind klein: alle Bilder zusammen unter 100 kB', html.length < 100000, `${Math.round(html.length / 1024)} kB`);
+  wahr('… passt die Datei nicht, sagt es das Kapitel statt Zahlen',
+       /passt aber nicht/.test(EG.gegenrechnungAbschnitt(vF)) && !EG.gegenrechnungAbschnitt(vF).includes('<svg'));
+  wahr('Im Nachweisbericht als Kapitel, im Export zum Einlesen und als Blatt',
+       readFileSync(join(HIER, 'js', 'export.stabbericht.js'), 'utf8').includes("['gegenrechnung', d.axis ? gegenrechnungAbschnitt(d.axis) : '']")
+       && readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8').includes('axis: app.axisErgebnis ? axisVergleich(sw, app.axisErgebnis.erg) : null')
+       && APP_QUELLE().includes('AxisVM-Ergebnisse einlesen (Gegenrechnung)') && APP_QUELLE().includes('function axisEinlesen()'));
 }
 
 console.log('\n' + '='.repeat(104));

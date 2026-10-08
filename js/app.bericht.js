@@ -10,6 +10,7 @@
  * importiert app.js nicht zurueck; einen Kreis vertraegt der Buendler nicht.
  * ---------------------------------------------------------------------------
  */
+import { axisVergleich } from './core.axisvergleich.js';
 import { nachweisbericht, berichtVorgabe, UMFAENGE, BILDER,
          BERICHT_ARTEN } from './export.nachweisbericht.js';
 import { APP_NAME, tragwerksart, rechensatz, sichtbareTragwerke, tauscheAktives,
@@ -299,6 +300,8 @@ export function stabwerkBerichtDaten(app) {
     sw, faelle: sw.roh?.faelle ?? [], tragwerke, masten,
     nichtGefuehrt: app.letzte?.urteil?.nichtGefuehrt ?? [], anzeige,
     reaktionen: app.reaktionsDaten?.()?.zeilen ?? null,
+    // Die Gegenrechnung mit AxisVM, wenn Ergebnisse eingelesen sind (9. Oktober).
+    axis: app.axisErgebnis ? axisVergleich(sw, app.axisErgebnis.erg) : null,
     fassung: `${APP_NAME} ${app.VERSION}`, datum: new Date().toLocaleDateString('de-CH'),
   };
 }

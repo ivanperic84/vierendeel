@@ -639,7 +639,10 @@ export function rechneStabwerk(app, aufruf = {}) {
    * Lösung. Nicht aufzählbar - sie gehören zu keinem gespeicherten Stand und
    * zu keinem Vergleich, und JSON.stringify übergeht sie.
    */
-  Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo },
+  // `auswertung` (9. Oktober): womit die Hülle gerechnet ist - die Gegenrechnung
+  // mit AxisVM wertet fremde Schnittgrössen genau so aus (core.axisvergleich.js).
+  Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo,
+    auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast } } },
                                           enumerable: false });
   /*
    * >>> DIE AUSWERTUNG IM GEWÄHLTEN LASTFALL (4. Oktober). <<<

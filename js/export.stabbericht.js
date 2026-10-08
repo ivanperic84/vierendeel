@@ -35,6 +35,7 @@ import { esc, zahl, tabelle, angaben, formel, urteilMarke, bild, feldText,
          gebrauchKapitel, NUR_JOCH, berichtVorgabe } from './export.nachweisbericht.js';
 import { FELDER } from './ui.schema.js';
 import { reaktionenTabelleHtml } from './export.reaktionen.js';
+import { gegenrechnungAbschnitt } from './export.gegenrechnung.js';
 
 /** Wie die Teile eines Tragwerks im Bericht heissen. */
 export const TEIL_NAMEN = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindebleche',
@@ -526,6 +527,8 @@ function nummeriert(d) {
     ['kombinationen', kombinationen(d)], ['schnittgroessen', schnittgroessen(d)],
     ['nachweise', nachweise(d, U)], ['gebrauch', gebrauch(d)], ['pruefungen', pruefungen(d)],
     ['nichtGefuehrt', nichtGefuehrt(d)], ['auflager', auflager(d)],
+    // Die Gegenrechnung mit AxisVM (9. Oktober) - nur, wenn Ergebnisse eingelesen sind.
+    ['gegenrechnung', d.axis ? gegenrechnungAbschnitt(d.axis) : ''],
   ].filter(([, html]) => html);
   const nr = {};
   const kapitel = teile.map(([key, html], i) => {
@@ -557,7 +560,8 @@ export function stabwerkBericht(d, opt = berichtVorgabe()) {
   const dd = { ...d, opt: o };
   const titel = `Nachweis ${d.blatt?.name || ''} ${d.blatt?.ort || ''}`.trim();
   return `<!DOCTYPE html><html lang="de-CH"><head><meta charset="utf-8">
-<title>${esc(titel)}</title><style>${FARBEN_DRUCK}${d.stil ?? ''}${STIL}</style></head><body>
+<title>${esc(titel)}</title><style>${FARBEN_DRUCK}${d.stil ?? ''}${STIL}
+  .gv-fig{margin:6px 0 10px;break-inside:avoid}.gv-fig figcaption{font-size:10px;margin-bottom:2px}.klein{font-size:10px;color:#444}</style></head><body>
 <div class="blatt">
 ${nummeriert(dd)}
 </div></body></html>`;

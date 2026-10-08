@@ -29,6 +29,8 @@ import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten } from './app.bericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml } from './export.reaktionen.js';
 import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
+import { axisVergleich, istAxisErgebnis } from './core.axisvergleich.js';
+import { gegenrechnungBlattHtml } from './export.gegenrechnung.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -190,6 +192,7 @@ const app = {
   get werte() { return werte; }, set werte(v) { werte = v; },
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
+  get axisErgebnis() { return axisErgebnis; },
   get stabwerk() { return stabwerk; }, set stabwerk(v) { stabwerk = v; },
   get projekt() { return projekt; }, set projekt(v) { projekt = v; },
   get station() { return station; }, set station(v) { station = v; },
@@ -879,6 +882,50 @@ function bestandBlatt() {
     bauen: (z) => { bestandWahl = z; return bestandBlattHtml(d, z); },
   };
   berichtZeigen(wahl.bauen(bestandWahl), 'Bestandesschutz', wahl);
+}
+/*
+ * >>> DIE GEGENRECHNUNG MIT AXISVM (9. Oktober). <<< «Bericht so wie
+ * vorgeschlagen in der App bauen»: die Ergebnisdatei der Brücke
+ * (`<modell>_ergebnisse.json`, aus `AxisVM_aufbauen -Rechnen -Auslesen`) wird
+ * eingelesen und gegen das gerechnete Stabwerk gehalten
+ * (core.axisvergleich.js). Sie gilt für die Sitzung; der Nachweisbericht
+ * führt dann das Kapitel «Gegenrechnung AxisVM». Passt sie nicht (mehr) zum
+ * Modell - andere Stäbe -, sagt es das Blatt, statt Zahlen zu zeigen.
+ */
+let axisErgebnis = null;
+function gegenrechnungBlatt() {
+  const g = stabwerkGilt();
+  if (!g?.h?.roh) { meldeImBalken('Gegenrechnung: das Stabwerk ist noch nicht gerechnet.'); return; }
+  if (!axisErgebnis) { axisEinlesen(); return; }
+  const v = axisVergleich(g.h, axisErgebnis.erg);
+  berichtZeigen(gegenrechnungBlattHtml(v, { name: projekt?.name, ort: verortung(werte),
+    datum: new Date().toLocaleDateString('de-CH'), fassung: `${APP_NAME} ${VERSION} · ${axisErgebnis.name}` }),
+    'Gegenrechnung AxisVM');
+}
+function axisEinlesen() {
+  const g = stabwerkGilt();
+  if (!g?.h?.roh) { meldeImBalken('Gegenrechnung: zuerst das Stabwerk rechnen lassen, dann die Ergebnisse einlesen.'); return; }
+  const i = document.createElement('input');
+  i.type = 'file';
+  i.accept = '.json,application/json';
+  i.onchange = async () => {
+    const f = i.files?.[0];
+    if (!f) return;
+    let erg = null;
+    try { erg = JSON.parse(await f.text()); } catch { erg = null; }
+    if (!istAxisErgebnis(erg)) {
+      meldeImBalken(`«${f.name}» ist keine Ergebnisdatei der COM-Brücke (erwartet: <Modell>_ergebnisse.json).`);
+      return;
+    }
+    const v = axisVergleich(stabwerkGilt()?.h, erg);
+    if (!v.ok) { meldeImBalken(`Gegenrechnung: ${v.grund}.`); return; }
+    axisErgebnis = { erg, name: f.name };
+    const m = v.abwMax;
+    meldeImBalken(`AxisVM eingelesen: η ${v.etaApp.toFixed(3)} (Anwendung) gegen ${v.etaAxis.toFixed(3)} (AxisVM)`
+      + (m ? `, grösste Abweichung ${(m.abw * 100).toFixed(1)} % (${m.name})` : '') + ' - steht im Nachweisbericht.');
+    gegenrechnungBlatt();
+  };
+  i.click();
 }
 // Der Knopf steht im Block der Seitenleiste (ui.js), der bei jeder Rechnung neu entsteht.
 if (typeof document !== 'undefined') {
@@ -5400,6 +5447,9 @@ function exportMenue() {
     // Charakteristisch, alle Auflager des Blattes (30. September).
     { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
     { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
+    { text: axisErgebnis ? 'Gegenrechnung AxisVM (Blatt)' : 'AxisVM-Ergebnisse einlesen (Gegenrechnung) …',
+      tun: axisErgebnis ? gegenrechnungBlatt : axisEinlesen },
+    ...(axisErgebnis ? [{ text: 'Andere AxisVM-Ergebnisse einlesen …', tun: axisEinlesen }] : []),
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
   ];
