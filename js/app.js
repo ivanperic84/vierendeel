@@ -1007,7 +1007,7 @@ function rechneTragwerk(werte, joch) {
    * `char?.gk ?? 0` haette eine Null in ein Feld geschrieben, das dem
    * Einzelmasten gar nicht gehoert.
    */
-  const mitJoch = tragwerksart(werte).key !== 'einzelmast';
+  const mitJoch = mitJochLasten(werte);
 
   // Die Tabellenlasten in die gesperrten Felder spiegeln, damit man sie
   // immer sieht - auch wenn gerade die Tabelle gilt.
@@ -1254,6 +1254,9 @@ function rechneTragwerk(werte, joch) {
   return { erg, bemessung, vergleich, kombi, checks, auflager, mitJoch,
            warn: flucht.warnungen, hinw, kl, urteil, fdStelle };
 }
+
+/** Laufmeterlasten des Jochs (g_k, w_k, s_k) gibt es nur mit Joch - nicht am Einzelmasten. */
+function mitJochLasten(w) { return tragwerksart(w).key !== 'einzelmast'; }
 
 function neuRechnen(neuZeichnen = true) {
   // Ein Gittermast trägt die Länge seines Typs (Gitter + Rohr), 3. Oktober.
@@ -2633,6 +2636,23 @@ function aktualisiereModell(erg) {
     const ek = ui.el('pos-ek');
     ek.textContent = teile.join(' · ');
     ek.title = 'Grundwerte des Querprofils - anklicken zum Bearbeiten';
+    /*
+     * ANGEPASSTE LASTEN STEHEN DA (8. Oktober, «gib noch einen hinweis unten
+     * rechts im feld, dass es sich um angepasste werte handelt»). Wer das
+     * Bild liest, soll sehen, dass nicht die Datenbank rechnet - auch wenn
+     * der Reiter Lasten zu ist. Genannt wird, was von Hand steht.
+     */
+    const hand = [];
+    if (mitJochLasten(werte) && werte.lastHerkunft === 'manuell') hand.push('Joch');
+    if (mastWindVonHand(werte)) hand.push('Mastwind');
+    if (hand.length) {
+      const m = document.createElement('span');
+      m.className = 'viewer-ek-hand';
+      m.textContent = ` · Lasten von Hand (${hand.join(', ')})`;
+      m.title = 'Lasten von Hand, nicht aus der Datenbank. '
+        + '«Tabellenwerte» im Reiter Lasten setzt sie zurück.';
+      ek.appendChild(m);
+    }
     if (!ek.dataset.verdrahtet) {
       ek.dataset.verdrahtet = '1';
       ek.addEventListener('click', (e) => {

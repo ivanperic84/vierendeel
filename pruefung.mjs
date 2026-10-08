@@ -40153,6 +40153,23 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
     wahr('Nur längs von Hand: quer bleibt der Tabellenwert',
          e.erg.modell.mastLast.A.y === 0.7 && Math.abs(e.erg.modell.mastLast.A.x - tab.jochachse) < 1e-12);
   }
+  // Null ist eine Eingabe, nicht «leer» (8. Oktober: «kann man so den wert auch auf null setzen beim wind?»).
+  {
+    const n = C260.rechensatz(C260.setzeMastAngabe(C260.setzeMastAngabe(w, m1.id, 'mastWindX', 0), m1.id, 'mastWindY', 0));
+    const kn0 = kern(n);
+    wahr('Mastwind 0 von Hand: der Kern rechnet 0 / 0, nicht die Tabelle',
+         kn0.erg.modell.mastLast.A.x === 0 && kn0.erg.modell.mastLast.A.y === 0 && kn0.erg.modell.mastLast.A.ausTabelle === false
+         && C260.mastWindVonHand(n) === true, JSON.stringify(kn0.erg.modell.mastLast.A));
+    wahr('… die Maske zeigt 0 und «VON HAND»', fX.wertAus({ ...n, mastAktiv: m1.id }) === 0
+         && /VON HAND/.test(fY.hinweis({ ...n, mastAktiv: m1.id })));
+    const swN = AS260.rechneStabwerk({ werte: n, letzte: { erg: kn0.erg }, stabwerk: null });
+    const lastN = swN.roh.dat.lasten.strecke.filter((l) => /^Wind[XY]$/.test(l.lastfall) && /^MAST_M1_S\d+$/.test(l.stab))
+      .reduce((a, l) => a + Math.abs(l.wert), 0);
+    pruef('… im Stabwerk trägt der Mast M1 keinen Wind', lastN, 0, 1e-12, 'kN/m');
+    wahr('Hinweis im Bild unten rechts: «Lasten von Hand» für Joch und Mastwind',
+         APP_QUELLE().includes("viewer-ek-hand") && APP_QUELLE().includes('Lasten von Hand (')
+         && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.viewer-ek-hand'));
+  }
   // Das Stabwerk rechnet mit denselben Zahlen: Summe der Mastwindlast in y am Masten M1.
   {
     const sw = AS260.rechneStabwerk({ werte: h, letzte: { erg: k1.erg }, stabwerk: null });
