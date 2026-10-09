@@ -2187,6 +2187,7 @@ export function tragwerkSatz(w, id = null, opt = {}) {
    * dranhaengen. Im Nachweis dagegen gehoert sie in BEIDE Rechnungen.
    */
   satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
+  if (satz.havarie) satz.havarie = havarieOhneAbzug(satz.havarie, anbauteileFuer(w, t));
   // Wo dieses Joch an ein anderes stösst (2. Oktober) - gekürzt wird im Kern.
   satz.stossEnden = stossEnden(w, t);
   // Der Kern liest die Mastangaben flach - er bekommt sie flach.
@@ -2200,6 +2201,47 @@ export function tragwerkSatz(w, id = null, opt = {}) {
  * kommen aus der Liste und ueberschreiben, was flach dasteht. Steht keine
  * Liste da, aendert sich nichts - alte Dateien laufen unveraendert.
  */
+/* =========================================================================
+ * >>> NUR ABGEZOGENE LEITER STEHEN NICHT IN DER HAVARIE (9. Oktober). <<<
+ * Weisung: «Die Fälle wo der leiter nur abgezogen wird nicht in der havarie
+ * aufführen. nur die die gestütz sind.» Ein Leiter, dessen Gewicht hier nicht
+ * ankommt (Haken «Gewicht» aus: Fahrdrahtabzug, Abzugsmast), ist an diesem
+ * Tragwerk nicht aufgehängt, nur quer gezogen - er steht nicht in der Liste
+ * und bekommt keinen Bruchfall. Ein Kettenwerk bleibt, solange EINES seiner
+ * Module an dieser Stelle gestützt ist.
+ *
+ * `leiterKennung` steht deshalb hier (data.anbauteile.js reicht sie weiter):
+ * der Rechensatz nimmt einen früher angehakten, jetzt nur abgezogenen Leiter
+ * aus der Auswahl, damit ALLE Leser (Lastfälle, Kern, Stabwerk, Ausleitung)
+ * dasselbe sehen. Abfangart und Richtung des Eintrags bleiben.
+ * ========================================================================= */
+export const nurAbgezogen = (m) => m?.wirktG === false;
+const kwStelle = (a) => {
+  const ort = a?.ort === 'mastA' || a?.ort === 'mastB' ? a.ort : 'joch';
+  if (ort !== 'joch') return `${ort}${a?.mastId ? `:${a.mastId}` : ''}`;
+  return `joch:${(Math.round((Number(a?.x) || 0) * 100) / 100).toFixed(2)}`;
+};
+export function leiterKennung(a, m, i) {
+  const kw = String(m?.kettenwerk ?? '').trim();
+  return kw ? `kw:${kw}@${kwStelle(a)}` : `${a?.id}#${i}`;
+}
+export function havarieOhneAbzug(havarie, anbauteile) {
+  const an = Object.keys(havarie ?? {}).filter((k) => havarie[k]?.reisst === true);
+  if (!an.length) return havarie;
+  const gestuetzt = new Map();
+  (anbauteile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => {
+    const k = leiterKennung(a, m, i);
+    gestuetzt.set(k, (gestuetzt.get(k) ?? false) || !nurAbgezogen(m));
+  }));
+  let h = null;
+  an.forEach((k) => {
+    if (gestuetzt.get(k) !== false) return;      // gestützt oder nicht (mehr) am Tragwerk
+    h = h ?? { ...havarie };
+    h[k] = { ...h[k], reisst: false };
+  });
+  return h ?? havarie;
+}
+
 export function rechensatz(w) {
   const t = tragwerkeVon(w)[0];
   /*
@@ -2209,6 +2251,7 @@ export function rechensatz(w) {
    * würde das Joch mit jeder Eingabe um weitere 5 cm kürzer.
    */
   const satz = { ...w, anbauteile: anbauteileFuer(w, t), stossEnden: stossEnden(w, t) };
+  if (satz.havarie) satz.havarie = havarieOhneAbzug(satz.havarie, satz.anbauteile);
   return mastenProjizieren(satz, w, t);
 }
 

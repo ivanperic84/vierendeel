@@ -40691,8 +40691,53 @@ titel('263  Doppelanker mit zwei Seilen; Gruppenkopf mit Summenkräften');
   wahr('Lageband: der zweite Klick auf den angewählten Masten öffnet das Mastfenster (wie am Joch)',
        uiQ.includes("b.getAttribute('aria-pressed') === 'true' ? 'mastDialog' : 'mastAktiv', mastId));")
        && /if \(key === 'mastDialog'\) \{[^}]*dialogMast\(app, wert\);/.test(APP_QUELLE()));
+  {
+    // «wenn nur Abzug definiert ist, dann im 3d anders darstellen» (9. Oktober).
+    const R263 = await import(J('render.3d.js'));
+    wahr('Nur Abzug: Drahtwerk ohne Gewicht, mit Ablenkung - sonst nicht',
+         R263.nurAbzug({ rolle: 'drahtwerk', wirkung: { G: false, ablenk: true } }) === true
+         && R263.nurAbzug({ rolle: 'drahtwerk', wirkung: { G: true, ablenk: true } }) === false
+         && R263.nurAbzug({ rolle: 'drahtwerk', wirkung: { G: false, ablenk: false } }) === false
+         && R263.nurAbzug({ rolle: 'traeger', wirkung: null }) === false);
+    const r3q = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    wahr('3D: der Abzug ist gestrichelt mit Doppelpfeil quer, die Marke heisst «Abzug»',
+         r3q.includes('c.setLineDash(mk.abzug ? [4 * s, 3 * s] : []);') && r3q.includes("(nurAbzug(t) ? 'Abzug' : 'Leiter')"));
+  }
   wahr('Die Summe im Gruppenkopf wird bei jeder Rechnung nachgeführt',
        /querySelectorAll\('\.at-gruppe'\)\.forEach\(\(g\) => \{\s*const el = g\.querySelector\('\.at-gkraft'\);/.test(uiQ));
+}
+
+titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
+/* Weisung vom 9. Oktober: «Die Fälle wo der leiter nur abgezogen wird nicht
+ * in der havarie aufführen. nur die die gestütz sind.» */
+{
+  const AB = await import(J('data.anbauteile.js'));
+  const C264 = await import(J('core.constants.js'));
+  const L264 = await import(J('core.lasten.js'));
+  const fd = 'drahtwerk-n-fl-cu-107', ts = 'drahtwerk-n-fl-stcu-50';
+  const abzug = { id: 'X1', name: 'Abzug', x: 5, module: [{ bauteil: fd, wirktG: false }] };
+  const gest = { id: 'X2', name: 'Gestützt', x: 8, module: [{ bauteil: fd }] };
+  const kw = { id: 'X3', name: 'KW', x: 12, module: [{ bauteil: ts, kettenwerk: 'K1' },
+                                                   { bauteil: fd, kettenwerk: 'K1', wirktG: false }] };
+  const liste = AB.leiterListe([abzug, gest, kw]);
+  wahr('Die Liste führt den nur abgezogenen Leiter nicht, den gestützten schon',
+       !liste.some((l) => l.key === 'X1#0') && liste.some((l) => l.key === 'X2#0'), liste.map((l) => l.key).join(', '));
+  const lk = liste.find((l) => l.kettenwerk === 'K1');
+  wahr('Ein Kettenwerk bleibt mit seinem gestützten Tragseil; der abgezogene Fahrdraht fehlt darin',
+       lk?.teile.length === 1 && lk.teile[0].bauteilId === ts);
+  const hav = { 'X1#0': { reisst: true, art: 'durchgehend' }, 'X2#0': { reisst: true }, [lk.key]: { reisst: true } };
+  const h = C264.havarieOhneAbzug(hav, [abzug, gest, kw]);
+  wahr('Der Rechensatz nimmt den angehakten, nur abgezogenen Leiter aus der Auswahl (Abfangart bleibt)',
+       h['X1#0'].reisst === false && h['X1#0'].art === 'durchgehend' && h['X2#0'].reisst === true && h[lk.key].reisst === true);
+  const h0 = { 'X2#0': { reisst: true } };
+  wahr('Ohne solchen Leiter bleibt die Auswahl dasselbe Objekt', C264.havarieOhneAbzug(h0, [gest]) === h0);
+  const w = { ...typUebernehmen({ ...standardwerteApp(), bearbeiten: false, typ: 'J90' }, T.getTragjoch('J90')),
+    L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [abzug, gest], havarie: { 'X1#0': hav['X1#0'], 'X2#0': hav['X2#0'] } };
+  const rs = C264.rechensatz(w);
+  const keys = L264.lastfaelle(rs).map((x) => x.key).filter((k) => k.startsWith('havarie|'));
+  wahr('Lastfälle: je ein Bruchfall ±y nur für den gestützten Leiter',
+       keys.length === 2 && keys.every((k) => k.startsWith('havarie|X2#0|')), keys.join(', '));
+  wahr('… auch im Satz je Tragwerk (Blatt, Ausleitung)', C264.tragwerkSatz(w, 'T1').havarie['X1#0'].reisst === false);
 }
 
 console.log('\n' + '='.repeat(104));

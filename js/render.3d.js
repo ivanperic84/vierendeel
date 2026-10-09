@@ -1327,8 +1327,8 @@ export function erzeugeSzene(m, erg) {
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
           gruppe: 'last', punkt: true }));
       marken.push({
-        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t),
-        text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t),
+        text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
       });
@@ -1991,8 +1991,8 @@ function zeichneMastteil(ctx, a, k, ort) {
     flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
       { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
         gruppe: 'last', punkt: true }));
-    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t),
-                  text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t),
+                  text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
     teilEndeMarke(marken, a, t, pAn, teilKey);
@@ -2073,6 +2073,17 @@ export function mastTeileSzene(sz, anbauteile, flach, namen = {}) {
  * Angriffspunkt bleibt in der Mitte (`teilLaengeSetzen`, app.js).
  */
 /** Das Ende eines Teils mit Gesamtlänge (Angriffspunkt in der Mitte), oder null. */
+/*
+ * >>> NUR ABZUG (9. Oktober). <<< Mit Bild (Hängestütze mit Fahrdrahtabzug), im
+ * Wortlaut: «wenn nur Abzug definiert ist, dann im 3d anders darstellen, da
+ * hier nicht aufgehängt sondern nur quer gezogen.» Ein Drahtwerk, dessen
+ * Gewicht hier nicht wirkt (`wirktG` aus), dessen Ablenkung aber schon: der
+ * Leiterstrich gestrichelt, dazu ein Doppelpfeil quer zum Gleis; die Marke
+ * heisst «Abzug» statt «Leiter».
+ */
+export const nurAbzug = (t) => t?.rolle === 'drahtwerk' && t.wirkung?.G === false
+  && t.wirkung?.ablenk !== false;
+
 function teilEndePunkt(a, t, pAn) {
   if (t?.art !== 'modul' || !Number.isInteger(t.modulIndex)) return null;
   const m = a?.module?.[t.modulIndex];
@@ -5494,7 +5505,24 @@ export class Modellansicht {
         const q0 = proj([mk.p[0] + dx, mk.p[1] - 0.6, mk.p[2]]);
         const q1 = proj([mk.p[0] + dx, mk.p[1] + 0.6, mk.p[2]]);
         if (!q0 || !q1) continue;
+        // Nur Abzug: gestrichelt - der Leiter hängt hier nicht, er wird quer gezogen.
+        c.setLineDash(mk.abzug ? [4 * s, 3 * s] : []);
         c.beginPath(); c.moveTo(q0[0], q0[1]); c.lineTo(q1[0], q1[1]); c.stroke();
+      }
+      c.setLineDash([]);
+      if (mk.abzug) {
+        // … und ein kurzer Doppelpfeil quer zum Gleis am Punkt.
+        const a0 = proj([mk.p[0] - 0.28, mk.p[1], mk.p[2]]), a1 = proj([mk.p[0] + 0.28, mk.p[1], mk.p[2]]);
+        if (a0 && a1) {
+          const ux = a1[0] - a0[0], uy = a1[1] - a0[1], ul = Math.hypot(ux, uy) || 1;
+          const ex = ux / ul, ey = uy / ul, k = Math.min(5 * s, ul / 3);
+          c.beginPath(); c.moveTo(a0[0], a0[1]); c.lineTo(a1[0], a1[1]);
+          [[a0, 1], [a1, -1]].forEach(([q, r]) => {
+            c.moveTo(q[0] + r * k * (ex - 0.6 * ey), q[1] + r * k * (ey + 0.6 * ex)); c.lineTo(q[0], q[1]);
+            c.lineTo(q[0] + r * k * (ex + 0.6 * ey), q[1] + r * k * (ey - 0.6 * ex));
+          });
+          c.stroke();
+        }
       }
     });
     c.restore();
@@ -5517,6 +5545,7 @@ export class Modellansicht {
           c.globalAlpha = reisst ? 0.3 : 0.18; c.lineWidth = 6 * s;
           c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
           c.globalAlpha = reisst ? 0.9 : 0.6; c.lineWidth = 1.8 * s;
+          if (mk.abzug) c.setLineDash([7 * s, 5 * s]);
           c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke();
         }
         c.globalAlpha = reisst ? 1 : 0.7; c.fillStyle = farbe;

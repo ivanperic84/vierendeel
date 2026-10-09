@@ -50,7 +50,7 @@ import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT, achsfolge } from './core.anbauteile.js';
-import { mastAnbauVon, mastenVon, einzelmastenAufgehen } from './core.constants.js';
+import { mastAnbauVon, mastenVon, einzelmastenAufgehen, leiterKennung, nurAbgezogen } from './core.constants.js';
 import { einzelmastLaenge } from './core.auflager.js';
 
 let DB = null;
@@ -914,15 +914,9 @@ export function haengeTiefe(a) {
  * ein Leiter (Weisung 19. September); dieselbe Bezeichnung an einer anderen
  * Stelle ist ein anderer Leiter.
  */
-const kwStelle = (a) => {
-  const ort = ortVon(a);
-  if (ort !== 'joch') return `${ort}${a?.mastId ? `:${a.mastId}` : ''}`;
-  return `joch:${(Math.round((Number(a?.x) || 0) * 100) / 100).toFixed(2)}`;
-};
-export function leiterKennung(a, m, i) {
-  const kw = String(m?.kettenwerk ?? '').trim();
-  return kw ? `kw:${kw}@${kwStelle(a)}` : `${a?.id}#${i}`;
-}
+// Die Kennung selbst steht in core.constants.js (9. Oktober): der Rechensatz
+// braucht sie, um die nur abgezogenen Leiter aus der Havarie zu nehmen.
+export { leiterKennung, nurAbgezogen };
 
 /** Bezeichnung eines Kettenwerk-Schlüssels (ohne Stelle), sonst null. */
 export const kettenwerkVon = (key) => (String(key ?? '').startsWith('kw:')
@@ -997,6 +991,8 @@ export function leiterListe(anbauteile) {
       let b;
       try { b = getFlBauteil(m.bauteil); } catch { return; }
       if (b.rolle !== 'drahtwerk') return;
+      // Nur abgezogen (9. Oktober): kein Havariefall, steht nicht in der Liste.
+      if (nurAbgezogen(m)) return;
       const key = leiterKennung(a, m, i);
       const ort = ortVon(a);
       let z20 = null;
