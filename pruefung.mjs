@@ -40764,6 +40764,12 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       wahr('Die Modelldatei nennt die Leiterknoten (alle Drahtwerke, nicht nur Fahrdrähte)',
            /leiter: leiterKnoten\(bau\)/.test(readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8')));
     }
+    wahr('Ein ausgeblendetes Tragwerk anklicken blendet es ein (das gerechnete ist nie ausgeblendet)',
+         /if \(key === 'tragwerkAktiv'\) \{\s*werte = tauscheAktives\(werte, wert\);[\s\S]{0,900}if \(werte\.ausgeblendet === true\) \{\s*werte = \{ \.\.\.werte, ausgeblendet: false \};/.test(APP_QUELLE()));
+    wahr('Jochanschluss: der Lastfall steht kurz unter der Zahl (Reiter und Blatt)',
+         RK264.fallKurz('Ständig + Wind +y (längs zum Gleis)') === 'G + Wind +y' && RK264.fallKurz('Ständig') === 'G'
+         && /class="rk-fall"/.test(RK264.anschlussKurzHtml(Object.assign([{}], { resultierende: [{ mast: 'M1', anzahl: 4,
+              ...Object.fromEntries(['Fz', 'My', 'Fx', 'Mx', 'Fy', 'Mz'].map((k) => [k, { min: { wert: -1, bez: 'Ständig' }, max: { wert: 1, bez: 'Ständig + Wind +x (quer zum Gleis)' } }])) }] }), (m) => m, true)));
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

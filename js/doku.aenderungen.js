@@ -15,6 +15,8 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
+      { text: 'Ein ausgeblendetes Tragwerk im Lageband anklicken blendet es wieder ein (vorher blieb es halb ausgeblendet: im 3D da, in Band, Schiene und Rechnung nicht).', rechnung: true },
+      { text: 'Kräfte am Jochanschluss: unter jeder Zahl steht ihr Lastfall (G, G + Wind +y …), im Reiter Auflager und im Blatt.' },
       { text: 'Übersichtsskizze der Blätter (Reaktionskräfte, Jochanschluss, Bestandesschutz): die Leiter stehen als kleine Ringe an ihrem Angriffspunkt, auch direkt am Joch oder am Mastaufsatz.' },
       { text: 'Ein neues Blatt startet mit «Schnee ansetzen» ein und «Havariefall rechnen» aus. Gespeicherte Stände behalten ihre Wahl.', rechnung: true },
       { text: 'Blatt «Kräfte am Jochanschluss» zeigt das Achssystem (x quer, y längs, z nach oben). Das Blatt der Reaktionskräfte öffnet ohne die Havariezeilen; das Kästchen «Havariefall» holt sie dazu.' },

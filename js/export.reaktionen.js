@@ -554,10 +554,22 @@ export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = fal
  * die Mitte des Anschlusses. Die erste Fassung vom 8. Oktober führte F und
  * M als zwei Zeilen mit den Spalten x / y / z.
  */
+/**
+ * >>> DER LASTFALL STEHT BEI DER ZAHL (9. Oktober). <<< Weisung: «Lastfall
+ * angeben bei der auswertung jochauflager.» Bisher nur im Titel der Zelle
+ * (Überfahren). Kurz angeschrieben: «G», «G + Wind +y», «G + Schnee».
+ */
+export const fallKurz = (bez) => String(bez ?? '')
+  .replace(/\s*\((quer|längs) zum Gleis\)/g, '')
+  .replace(/\s+leitend$/, '')
+  .replace(/^Ständig \+ /, 'G + ')
+  .replace(/^Ständig.*$/, 'G');
+const mitFall = (x) => (x ? `${f2(x.wert)}<span class="rk-fall">${esc(fallKurz(x.bez))}</span>` : '–');
+
 function anschlussResultierendeHtml(res, mastName) {
   const zeile = (label, einheit, k) => `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
-    <td class="num" title="${esc(k.min?.bez ?? '')}">${k.min ? f2(k.min.wert) : '–'}</td>
-    <td class="num" title="${esc(k.max?.bez ?? '')}">${k.max ? f2(k.max.wert) : '–'}</td></tr>`;
+    <td class="num" title="${esc(k.min?.bez ?? '')}">${mitFall(k.min)}</td>
+    <td class="num" title="${esc(k.max?.bez ?? '')}">${mitFall(k.max)}</td></tr>`;
   return res.map((a) => `<table class="dt rk-kurz rk-jochende">
       <colgroup><col style="width:46%"><col style="width:27%"><col style="width:27%"></colgroup>
       <thead><tr><th><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`)}</b>
@@ -616,8 +628,8 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
     daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
     .filter(Boolean).join(' · ') || 'Linie / Station: –';
-  const paar = (k) => `<td class="num" title="${esc(k.min?.bez ?? '')}">${k.min ? f2(k.min.wert) : '–'}</td>`
-    + `<td class="num" title="${esc(k.max?.bez ?? '')}">${k.max ? f2(k.max.wert) : '–'}</td>`;
+  const paar = (k) => `<td class="num" title="${esc(k.min?.bez ?? '')}">${mitFall(k.min)}</td>`
+    + `<td class="num" title="${esc(k.max?.bez ?? '')}">${mitFall(k.max)}</td>`;
   const SP = [['Fz', 'F_z ↑ (V)', 'kN'], ['My', 'M_y (M,q)', 'kNm'], ['Fx', 'F_x (H,q)', 'kN'],
               ['Mx', 'M_x (M,l)', 'kNm'], ['Fy', 'F_y (H,l)', 'kN'], ['Mz', 'M_z (T)', 'kNm']];
   const tabRes = `<table><colgroup><col style="width:16%">${'<col style="width:7%">'.repeat(12)}</colgroup>
@@ -651,6 +663,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
     .rk-gruppe { text-align: center !important; color: #333; }
     .rk-name b { display: block; font-size: 12px; }
     .rk-x { display: block; color: #666; font-size: 9.5px; }
+    .rk-fall { display: block; color: #666; font-size: 8px; white-space: normal; line-height: 1.15; }
     tbody tr.rk-haupt td { border-top: 1.6px solid #888; }
     .rk-hinweise { margin: 6px 0 0 16px; padding: 0; }
     .rk-hinweise li { margin: 2px 0; }
@@ -668,7 +681,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
       <ul class="rk-hinweise"><li>Kraft des Jochs AUF den Masten, global: x quer zum Gleis, y längs zum Gleis, z nach oben
         (Gewicht des Jochs negativ).</li>
         <li>Momente um die Mitte der Gurtanschlüsse am Masten, rechte Hand.</li>
-        <li>min / max mit Vorzeichen - nicht ±Betrag wie am Mastfuss.</li></ul></div>
+        <li>min / max mit Vorzeichen - nicht ±Betrag wie am Mastfuss; unter jeder Zahl ihr Lastfall (G = ständig).</li></ul></div>
   </div>
   <h2 class="rk-hinweise-titel">Resultierende je Jochende</h2>
   ${res.length ? tabRes : '<p>Keine Anschlüsse im Stabwerk.</p>'}

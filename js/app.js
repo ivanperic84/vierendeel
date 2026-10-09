@@ -3335,6 +3335,19 @@ function aendern(key, wert) {
   }
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
+    /*
+     * >>> EIN AUSGEBLENDETES TRAGWERK ANKLICKEN HOLT ES ZURÜCK (9. Oktober). <<<
+     * Frage: «navigation von ein und ausblenden prüfen, wie geht man vor? wird
+     * alles nach dem einblenden sauber dargestellt». Befund im Browser: der
+     * Klick auf die graue Linie im Lageband machte das Tragwerk zum
+     * gerechneten, liess es aber ausgeblendet - im 3D stand es da, im Band
+     * fehlte sein Mast, die Schiene zeigte «Ende B» statt des Masten und das
+     * Stabwerk rechnete es nicht. Das gerechnete Tragwerk ist nie ausgeblendet.
+     */
+    if (werte.ausgeblendet === true) {
+      werte = { ...werte, ausgeblendet: false };
+      meldeImBalken('Tragwerk wieder eingeblendet.', { dauer: 4000 });
+    }
     mastNachfuehren();
     neuRechnen();
     return;
