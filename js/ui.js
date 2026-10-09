@@ -2519,7 +2519,7 @@ export function querprofilLeisteHtml(werte) {
     if (m.versteckt) {
       const tw = (m.traegt ?? [])[0] ?? '';
       return `<span class="qp-mastgruppe aus" data-rand="${anker(pct)}" style="left:${pct.toFixed(3)}%;top:${hoehe}px">
-        <button type="button" class="qp-mast" ${tw ? `data-qp-tw="${esc(tw)}"` : 'disabled'}
+        <button type="button" class="qp-mast" data-qp-tw="${esc(tw)}"
           title="${esc(`${name} bei x = ${f2q(m.x)} m · ausgeblendet - anklicken blendet sein Tragwerk wieder ein`)}">
           <span class="qp-mast-marke"></span><span class="qp-mast-fuss"></span></button>
         <span class="qp-mastmass">${esc(name)}</span>
