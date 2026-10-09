@@ -225,6 +225,10 @@ export const BLATT_FELDER = [
   // Merker «F_z der Lastblöcke nach oben» (1. Oktober) - er gilt dem ganzen
   // Stand, also allen Tragwerken des Blattes.
   'fzNachOben',
+  // «Havariefall rechnen» gilt dem ganzen Blatt (9. Oktober, Weisung:
+  // «Havariefall rechnen dem ganzen Blatt gehören»). Vorher je Tragwerk -
+  // in einem alten Stand gilt die Wahl des gewählten Tragwerks für alle.
+  'havarieAus',
   // Merker «Begleiteinwirkung ohne γ_Q» (6. Oktober, `psiAnheben`).
   'psiOhneGamma',
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird

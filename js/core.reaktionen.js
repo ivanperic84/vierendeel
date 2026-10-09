@@ -332,6 +332,9 @@ export function skizzeAusModell(dat) {
     // ersten. Die Skizze zeichnet ein schräges Anbauglied rechtwinklig ab
     // seinem Anfang (erst lotrecht, dann waagrecht) und braucht dafür den Sinn.
     if (anbau) p.push(gedreht ? 1 : 0);
+    // Art 3 = Mast (9. Oktober, «hier die masten grau darstellen, da die
+    // joche wichtig sind»): das Blatt des Jochanschlusses nimmt sie zurück.
+    else if (p[4] === 0 && /(?:^|_)(?:MAST|ROHR)_/.test(String(s.name))) p[4] = 3;
     if (gesehen.has(k)) return;
     gesehen.add(k);
     linien.push(p);

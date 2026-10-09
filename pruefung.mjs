@@ -40863,6 +40863,17 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
            !riss.fehler && (riss.roh?.dat?.lasten?.punkt ?? []).every((l) => faelle.has(l.lastfall))
            && faelle.has(`HavarieY|${key}|p`), String(riss.fehler ?? ''));
     }
+    {
+      const zwei = C264.tragwerkHinzu({ ...typUebernehmen({ ...standardwerteApp(), typ: 'J90' }, T.getTragjoch('J90')), L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', havarieAus: true }, 'joch', { L: 15 });
+      wahr('«Havariefall rechnen» gehört dem Blatt: gilt jedem Tragwerk',
+           C264.BLATT_FELDER.includes('havarieAus') && C264.tragwerkeVon(zwei).every((t) => C264.tragwerkSatz(zwei, t.id).havarieAus === true));
+      const RKc = await import(J('core.reaktionen.js'));
+      const sk = RKc.skizzeAusModell({ knoten: [{ name: 'a', x: 0, y: 0, z: 0 }, { name: 'b', x: 0, y: 0, z: 8 }, { name: 'c', x: 5, y: 0, z: 8 }],
+        staebe: [{ name: 'MAST_M1_S1', von: 'a', bis: 'b', art: 'stab' }, { name: 'OGL_S1', von: 'b', bis: 'c', art: 'stab' }] });
+      const svg = RK264.skizzeSvg(sk, [], { mastGrau: true });
+      wahr('Blatt Jochanschluss: die Masten stehen grau in der Skizze, das Joch nicht',
+           (svg.match(/class="sk-mast-grau"/g) ?? []).length === 1 && !RK264.skizzeSvg(sk, []).includes('class="sk-mast-grau"'));
+    }
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

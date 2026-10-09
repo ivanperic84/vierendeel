@@ -1715,8 +1715,9 @@ export const FELDER = [
     // Beim Tragausleger nicht: die Gurte laufen als Gabel am Masten vorbei,
     // das Stabmodell baut keine Konsole in x (28. September).
     standard: 0, schritt: 0.005, min: 0, max: 0.5,
-    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
-                  && tragwerksart(w).key !== 'tragausleger',
+    // Auch am Abfangjoch nicht (9. Oktober, Eingabe-Durchgang): gemessen
+    // ändert das Feld dort das Stabmodell nicht.
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).key === 'joch',
     hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung, in m. '
            + '0 = eine halbe Mastbreite (HEB 240 → 0.120 m); gerechnet wird mit '
            + 'mindestens 0.005 m. Wirkt im Stabwerk und in der AxisVM-Ausleitung.' },
@@ -2082,8 +2083,11 @@ export const FELDER = [
   { key: 'gZusatz', gruppe: 'staendig', typ: 'zahl',
     label: 'Zuschlag ständige Last',
     sym: 'Δg_k', einheit: 'kN/m', standard: 0.0, schritt: 0.05, min: 0,
+    // Nur am Tragjoch (9. Oktober, Eingabe-Durchgang): an Abfangjoch und
+    // Tragausleger kam der Zuschlag im Stabmodell nie an - gezeigt, aber
+    // nicht gerechnet. Weisung: «Felder … die nicht rechnen, ausgeblendet».
     sichtbar: (w) => w.lastHerkunft === 'tabelle'
-                  && tragwerksart(w).key !== 'einzelmast',
+                  && tragwerksart(w).key === 'joch',
     hinweis: 'Kommt zum Eigengewicht dazu — im Stabwerk und in AxisVM zu den Stäben, '
            + 'im Ersatzbalken zur Tabellenlast g_k: Leitungen, Beschilderung, Anschlusswinkel '
            + 'und Stosslaschen, was kein Stab ist.' },

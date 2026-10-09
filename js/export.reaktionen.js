@@ -241,7 +241,7 @@ export function reaktionenKurzHtml(daten) {
  * Gelenk. Ein Anker in Gleisrichtung läge in dieser Ansicht auf dem
  * Masten; er wird seitlich umgeklappt gezeichnet und so angeschrieben.
  */
-export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null } = {}) {
+export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
   // Platz für die Titel über dem höchsten Bauteil.
@@ -272,7 +272,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
    */
   const strich = (kl, a, b, c, d) => `<line${kl} x1="${r1(X(a))}" y1="${r1(Z(b))}" x2="${r1(X(c))}" y2="${r1(Z(d))}"/>`;
   const linien = skizze.linien.map((l) => {
-    const kl = l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"' : '';
+    const kl = l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"'
+      : l[4] === 3 && mastGrau ? ' class="sk-mast-grau"' : '';
     if (l[4] === 2 && Math.abs(l[0] - l[2]) > 0.02 && Math.abs(l[1] - l[3]) > 0.02) {
       const [ax, az, bx, bz] = l[5] === 1 ? [l[2], l[3], l[0], l[1]] : l;
       return strich(kl, ax, az, ax, bz) + strich(kl, ax, bz, bx, bz);
@@ -343,7 +344,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Übersichtsskizze quer zum Gleis">
     <style>line{stroke:#444;stroke-width:0.7}.sk-boden{stroke:#aaa;stroke-dasharray:4 3}
       .sk-seil{stroke:#444;stroke-width:0.8;stroke-dasharray:5 3}
-      .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}
+      .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}.sk-mast-grau{stroke:#b4b4b4}
       .sk-leiter{fill:#fff;stroke:#1d5fa8;stroke-width:1}.sk-leiter-kern{fill:#1d5fa8}
       .sk-neu{stroke:#c62828;stroke-width:2}.sk-neu-punkt{fill:#c62828}
       .sk-lager{stroke:#111;stroke-width:1.4}.sk-schraffur{stroke:#111;stroke-width:0.7}
@@ -750,7 +751,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   <h1>Kräfte am Jochanschluss · Charakteristische Werte</h1>
   <p class="unter">${kopf} · ${esc(daten?.datum ?? '')}</p>
   <div class="oben">
-    <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
+    <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten, mastGrau: true })}
       <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
     <figure>${achsSvgGlobal()}
       <figcaption>Achssystem des Blatts (global, wie im Modell)</figcaption></figure>
