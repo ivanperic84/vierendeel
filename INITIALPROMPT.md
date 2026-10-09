@@ -8,7 +8,7 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 8. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**7152** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**7154** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
 **Git:** zuletzt gepusht am 9. Oktober («versand nachziehen und pushen»); seither örtliche Commits (Jochanschluss vereinfacht und Summe am Mittelmasten, Lageband, Blatt des Jochanschlusses nur mit dem Massgebenden, Eingabe-Durchgang mit behobenem Havarie-Abbruch am Abfangjoch) - NICHT gepusht. Offene Befunde des Durchgangs: CLAUDE.md, *Offene Punkte*. `Versand/` trägt Einzeldatei und Datenpaket vom 9. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
 
@@ -279,7 +279,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7152 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7154 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

@@ -208,10 +208,18 @@ export function reaktionenKurzHtml(daten) {
       spalten.map(([, b]) => `<td class="num"${b === z.gewaehlt && b ? ` title="${esc(b.bez)}"` : ''}>${
         !b ? '–' : b === z.gewaehlt ? f0(b.Vmin.wert) : `${f0(b.Vmin.wert)} / ${f0(b.Vmax.wert)}`}</td>`),
       zul ? `0 / ${f0(zul.Vmax)}` : '');
-    const rest = REAKTION_SPALTEN.filter((s) => hat.has(s.key)).map((s) => zeile(kopfText[s.key], s.einheit,
-      spalten.map(([, b]) => `<td class="num"${b?.[s.key]?.bez ? ` title="${esc(b[s.key].bez)}"` : ''}>${
-        b ? f0(b[s.key]?.wert) : '–'}</td>`),
-      zul ? f0(zul[s.key]) : '')).join('');
+    // Gegliedert wie der Jochanschluss (9. Oktober, mit Bild des Blocks:
+    // «kannst du diese gliederung auch bei den reaktionskräfte übernhmen»).
+    const GRUPPE = { quer: 'Lastfall quer zum Gleis', laengs: 'Lastfall längs zum Gleis', torsion: 'Torsion' };
+    let letzte = null;
+    const rest = REAKTION_SPALTEN.filter((s) => hat.has(s.key)).map((s) => {
+      const kopf = s.richtung !== letzte ? `<tr class="rk-grp"><th colspan="${n + 1}">${GRUPPE[s.richtung] ?? ''}</th></tr>` : '';
+      letzte = s.richtung;
+      return kopf + zeile(kopfText[s.key], s.einheit,
+        spalten.map(([, b]) => `<td class="num"${b?.[s.key]?.bez ? ` title="${esc(b[s.key].bez)}"` : ''}>${
+          b ? f0(b[s.key]?.wert) : '–'}</td>`),
+        zul ? f0(zul[s.key]) : '');
+    }).join('');
     return `<table class="dt rk-kurz">
       <colgroup><col style="width:${100 - breite * n}%">${`<col style="width:${breite}%">`.repeat(n)}</colgroup>
       <thead><tr><th><b>${esc(z.name)}</b> <span class="rk-x">${esc(fund)} · x ${f2(z.x)} m</span></th>
@@ -253,8 +261,24 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   const X = (x) => ox + (x - g.x0) * s;
   const Z = (z) => hoehe - rand - 16 - (z - g.z0) * s;
   const r1 = (v) => v.toFixed(1);
-  const linien = skizze.linien.map((l) =>
-    `<line${l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"' : ''} x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('');
+  /*
+   * >>> ANBAUTEILE RECHTWINKLIG, NICHT DIAGONAL (9. Oktober). <<< Frage mit
+   * Bild (Zusatzleiter am Mastaufsatz als schräge Striche): «warum ist hier
+   * der anschluss so diagonal eingezeichnet?» Das Stabmodell verbindet die
+   * Punkte eines Anbauteils seit dem 4. Oktober DIREKT (weniger Elemente,
+   * starr - die Rechnung ist dieselbe); die Skizze zeichnete diese Stäbe ab.
+   * Sie zeigt ein schräges Glied jetzt wie das 3D-Bild: ab seinem Anfang
+   * erst lotrecht, dann waagrecht.
+   */
+  const strich = (kl, a, b, c, d) => `<line${kl} x1="${r1(X(a))}" y1="${r1(Z(b))}" x2="${r1(X(c))}" y2="${r1(Z(d))}"/>`;
+  const linien = skizze.linien.map((l) => {
+    const kl = l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"' : '';
+    if (l[4] === 2 && Math.abs(l[0] - l[2]) > 0.02 && Math.abs(l[1] - l[3]) > 0.02) {
+      const [ax, az, bx, bz] = l[5] === 1 ? [l[2], l[3], l[0], l[1]] : l;
+      return strich(kl, ax, az, ax, bz) + strich(kl, ax, bz, bx, bz);
+    }
+    return strich(kl, l[0], l[1], l[2], l[3]);
+  }).join('');
   // Die gestrichelte Grundlinie ist weg (2. Oktober, «nimm noch die strichlierte linie raus»).
   // Die Einspannung: ein Strich, darunter Schraffur.
   const einspannung = (x, y) => {
@@ -532,7 +556,7 @@ export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = fal
   if (!liste?.length) return '';
   if (resultierend && liste.resultierende?.length) return anschlussResultierendeHtml(liste.resultierende, mastName);
   const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
-    k.min ? `${f2(k.min.wert)}<br>${f2(k.max.wert)}` : '–'}</td>`;
+    k.min ? `${f1(k.min.wert)}<br>${f1(k.max.wert)}` : '–'}</td>`;
   return `<table class="dt rk-anschluss">
     <colgroup><col style="width:31%"><col style="width:23%"><col style="width:23%"><col style="width:23%"></colgroup>
     <thead><tr><th>Anschluss<br><span class="rk-einheit">min / max [kN]</span></th>
@@ -564,7 +588,9 @@ export const fallKurz = (bez) => String(bez ?? '')
   .replace(/\s+leitend$/, '')
   .replace(/^Ständig \+ /, 'G + ')
   .replace(/^Ständig.*$/, 'G');
-const mitFall = (x) => (x ? `${f2(x.wert)}<span class="rk-fall">${esc(fallKurz(x.bez))}</span>` : '–');
+// Eine Nachkommastelle (9. Oktober: «Die rundung der resultate auf eine
+// kommastelle und nicht zwei») - am Jochanschluss, Reiter und Blatt.
+const mitFall = (x) => (x ? `${f1(Math.abs(x.wert) < 0.05 ? 0 : x.wert)}<span class="rk-fall">${esc(fallKurz(x.bez))}</span>` : '–');
 
 /*
  * >>> EINFACH WIE DIE REAKTIONSKRÄFTE (9. Oktober). <<< Mit Bild des Blocks
@@ -593,11 +619,11 @@ function anschlussResultierendeHtml(res, mastName) {
   const zeile = (label, einheit, k) => {
     const m = betrag(k);
     return `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
-    <td class="num" title="${titel(k)}">${m ? f2(Math.abs(m.wert)) : '–'}</td>
-    <td class="rk-fallspalte">${m && Math.abs(m.wert) >= 0.005 ? esc(fallKurz(m.bez)) : ''}</td></tr>`;
+    <td class="num" title="${titel(k)}">${m ? f1(Math.abs(m.wert)) : '–'}</td>
+    <td class="rk-fallspalte">${m && Math.abs(m.wert) >= 0.05 ? esc(fallKurz(m.bez)) : ''}</td></tr>`;
   };
   const v = (k) => `<tr><th>F_z ↑ (V) min/max <span class="rk-einheit">[kN]</span></th>
-    <td class="num" title="${titel(k)}">${k.min ? `${f2(k.min.wert)} / ${f2(k.max.wert)}` : '–'}</td>
+    <td class="num" title="${titel(k)}">${k.min ? `${f1(k.min.wert)} / ${f1(k.max.wert)}` : '–'}</td>
     <td class="rk-fallspalte">${k.min ? esc(fallKurz(k.min.bez)) : ''}</td></tr>`;
   // Gliederung wie die Köpfe des Reaktionsblatts (9. Oktober: «bei der
   // gliederung die Einwirkungen Quer und Lägns zum Gleis vorgehmen so dass man
@@ -675,7 +701,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   const einer = (k) => {
     const m = betragVon(k);
     return `<td class="num" title="${esc(`min: ${k?.min?.bez ?? '–'} · max: ${k?.max?.bez ?? '–'}`)}">${
-      m ? `${f2(Math.abs(m.wert))}${Math.abs(m.wert) >= 0.005 ? `<span class="rk-fall">${esc(fallKurz(m.bez))}</span>` : ''}` : '–'}</td>`;
+      m ? `${f1(Math.abs(m.wert))}${Math.abs(m.wert) >= 0.05 ? `<span class="rk-fall">${esc(fallKurz(m.bez))}</span>` : ''}` : '–'}</td>`;
   };
   const SP = [['My', '±M_y (M,q)', 'kNm'], ['Fx', '±F_x (H,q)', 'kN'],
               ['Mx', '±M_x (M,l)', 'kNm'], ['Fy', '±F_y (H,l)', 'kN'], ['Mz', '±M_z (T)', 'kNm']];

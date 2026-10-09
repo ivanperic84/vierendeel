@@ -322,11 +322,16 @@ export function skizzeAusModell(dat) {
     const anbau = s.art === 'starr' && laenge > 0.4;
     if (!(s.art === 'stab' || anbau || (s.art === 'link' && laenge > 0.3))) return;
     let p = [r2(a.x), r2(a.z), r2(b.x), r2(b.z)];
-    if (p[0] > p[2] || (p[0] === p[2] && p[1] > p[3])) p = [p[2], p[3], p[0], p[1]];
+    let gedreht = false;
+    if (p[0] > p[2] || (p[0] === p[2] && p[1] > p[3])) { p = [p[2], p[3], p[0], p[1]]; gedreht = true; }
     // Fünfte Stelle: 1 = Seil (langer Link), gestrichelt; 2 = Anbauteil.
     p.push(s.art === 'link' ? 1 : anbau ? 2 : 0);
     if (p[0] === p[2] && p[1] === p[3]) return;
     const k = p.join('|');
+    // Sechste Stelle (9. Oktober): 1 = der Stab läuft vom ZWEITEN Punkt zum
+    // ersten. Die Skizze zeichnet ein schräges Anbauglied rechtwinklig ab
+    // seinem Anfang (erst lotrecht, dann waagrecht) und braucht dafür den Sinn.
+    if (anbau) p.push(gedreht ? 1 : 0);
     if (gesehen.has(k)) return;
     gesehen.add(k);
     linien.push(p);

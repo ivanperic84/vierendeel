@@ -40076,7 +40076,7 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
            && zeilen.slice(0, 6).join('|') === 'F_z ↑ (V) min/max|±M_y (M,q)|±F_x (H,q)|±M_x (M,l)|±F_y (H,l)|±M_z (T)'
            && t.includes('>Einwirkung<') && t.includes('>Lastfall<'), zeilen.slice(0, 6).join(' · '));
       const r0 = an.anschluss.resultierende[0];
-      const gross = Math.max(Math.abs(r0.Fy.min.wert), Math.abs(r0.Fy.max.wert)).toFixed(2);
+      const gross = Math.max(Math.abs(r0.Fy.min.wert), Math.abs(r0.Fy.max.wert)).toFixed(1);
       wahr('… der ±Betrag ist der grössere von |min| und |max|', t.includes(`>${gross}</td>`), gross);
     }
     // Das Blatt (9. Oktober): «für die jochreaktionen auch ein blatt zusammenstellen ähnlich wie Reaktionskräfte».
@@ -40085,7 +40085,7 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
       const d = { anschluss: an.anschluss, skizze: an.skizze, zeilen: [], mastName: (m) => `Mast ${m}` };
       const voll = ER.anschlussBlattHtml(d, {});
       const r1 = an.anschluss.resultierende[0];
-      const f2p = (v) => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2).replace('-', '−');
+      const f2p = (v) => (Math.abs(v) < 0.05 ? 0 : Math.abs(v)).toFixed(1);
       wahr('Blatt «Kräfte am Jochanschluss»: Skizze, Resultierende je Jochende, einzelne Gurte, Hinweise',
            voll.includes('class="rk-skizze"') && voll.includes('Resultierende je Jochende') && voll.includes('Einzelne Gurtanschlüsse')
            && voll.includes(`Mast ${r1.mast}`) && voll.includes(f2p(r1.Fz.min.wert)) && voll.includes(f2p(r1.Fy.max.wert)));
@@ -40820,11 +40820,24 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       const liste = [zeile]; liste.resultierende = [zeile];
       const b = RK264.anschlussBlattHtml({ anschluss: liste });
       wahr('Blatt Jochanschluss: F_z als min / max, die übrigen als ±massgebender Betrag mit Lastfall',
-           b.includes('±F_y (H,l)') && b.includes('±M_x (M,l)') && b.includes('>4.40<span class="rk-fall">G + Wind -y</span>')
-           && b.includes('>0.90<span class="rk-fall">G + Wind +y</span>') && !b.includes('4.10')
-           && b.includes('6.10<span') && b.includes('5.90<span'));
+           b.includes('±F_y (H,l)') && b.includes('±M_x (M,l)') && b.includes('>4.4<span class="rk-fall">G + Wind -y</span>')
+           && b.includes('>0.9<span class="rk-fall">G + Wind +y</span>') && !b.includes('>4.1<')
+           && b.includes('6.1<span') && b.includes('5.9<span') && !/\d\.\d\d</.test(b.split('<h2')[1]));
       wahr('… auch die einzelnen Gurtanschlüsse: ±F_x, ±F_y; ein Nullwert ohne Lastfall',
-           b.includes('±F_x (quer)') && b.includes('±F_y (längs)') && />0\.00<\/td>/.test(b));
+           b.includes('±F_x (quer)') && b.includes('±F_y (längs)') && />0\.0<\/td>/.test(b));
+      {
+        const RKc = await import(J('core.reaktionen.js'));
+        const sk = { grenzen: { x0: 0, x1: 2, z0: 0, z1: 10 }, linien: [[0, 0, 0, 8, 0], [0, 8, 1, 9.5, 2, 0]], leiter: [], fuesse: [] };
+        let svg = '';
+        try { svg = RK264.skizzeSvg(sk, []); } catch { svg = ''; }
+        const n = (svg.match(/class="sk-anbau"/g) ?? []).length;
+        wahr('Skizze: ein schräges Anbauglied steht rechtwinklig da (zwei Striche)', svg === '' ? RKc != null && false : n === 2, `${n}`);
+      }
+      const kz = RK264.reaktionenKurzHtml({ zeilen: [{ name: 'M1', art: 'mast', x: 0, fundament: null,
+        haupt: { Vmin: { wert: 1 }, Vmax: { wert: 2 }, Mq: { wert: 3 }, Hq: { wert: 1 }, Ml: { wert: 4 }, Hl: { wert: 2 }, T: { wert: 0.1 } } }] });
+      wahr('Reaktionskräfte im Reiter: gegliedert in «quer zum Gleis», «längs zum Gleis», «Torsion»',
+           kz.indexOf('Lastfall quer zum Gleis') > 0 && kz.indexOf('Lastfall längs zum Gleis') > kz.indexOf('Lastfall quer zum Gleis')
+           && kz.indexOf('>Torsion<') > kz.indexOf('Lastfall längs zum Gleis'));
     }
     // Abfangjoch auf dem Blatt: Havarie-Lastfälle heissen wie im Blatt (9. Oktober, Eingabe-Durchgang).
     {

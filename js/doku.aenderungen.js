@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-08',
     punkte: [
+      { text: 'Reaktionskräfte im Reiter Auflager: gegliedert in «quer zum Gleis», «längs zum Gleis» und Torsion wie der Jochanschluss. Kräfte am Jochanschluss mit einer Nachkommastelle. Übersichtsskizze der Blätter: Anbauteile rechtwinklig statt schräg gezeichnet.' },
       { text: 'Blatt «Kräfte am Jochanschluss»: nur noch die massgebenden Werte - F_z als min / max, alle übrigen als ±Betrag mit ihrem Lastfall (wie am Mastfuss).' },
       { text: 'Abfangjoch: das Stabwerk brach ab, wenn ein Leiter «kann reissen» trug oder «Havariefall rechnen» aus war («Last auf unbekanntem Lastfall»). Behoben.', rechnung: true },
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
