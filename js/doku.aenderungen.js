@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-08',
     punkte: [
+      { text: 'Tragausleger: ein Anker am Masten wird jetzt im Stabwerk gerechnet (vorher nur gezeigt); das Feld Fusspunkt entfällt dort. Abfangjoch: der Mast steht im Stabwerk in seiner ganzen Länge mit Wind (vorher nur bis zum Träger) - die Mastausnutzung steigt leicht (Beispiel 0.177 → 0.190).', rechnung: true },
       { text: '«Havariefall rechnen» gilt dem ganzen Blatt (allen Tragwerken), nicht mehr je Tragwerk. An Abfangjoch und Tragausleger sind «Zuschlag ständige Last» und (Abfangjoch) «Konsole am Masten» ausgeblendet - sie wirkten dort nicht. Blatt «Kräfte am Jochanschluss»: Masten grau.', rechnung: true },
       { text: 'Reaktionskräfte im Reiter Auflager: gegliedert in «quer zum Gleis», «längs zum Gleis» und Torsion wie der Jochanschluss. Kräfte am Jochanschluss mit einer Nachkommastelle. Übersichtsskizze der Blätter: Anbauteile rechtwinklig statt schräg gezeichnet.' },
       { text: 'Blatt «Kräfte am Jochanschluss»: nur noch die massgebenden Werte - F_z als min / max, alle übrigen als ±Betrag mit ihrem Lastfall (wie am Mastfuss).' },

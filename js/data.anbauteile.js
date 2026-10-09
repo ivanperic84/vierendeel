@@ -1301,6 +1301,23 @@ function einzelmastFussAnheben(roh) {
   const alle = [w, ...(Array.isArray(w.weitere) ? w.weitere : [])];
   const nurEinzel = (x) => alle.filter((t) => Math.abs((Number(t?.xLage) || 0) - x) < 0.1)
     .every((t) => t?.tragwerksart === 'einzelmast');
+  /*
+   * Ebenso am Tragausleger (9. Oktober, «2 ausblenden»): der Fussversatz
+   * stand in der Maske, das Stabmodell las ihn nie. Das Feld ist weg; ein
+   * gespeicherter Versatz an einem Masten, den nur Ausleger tragen, wird 0
+   * (die Mastlänge bleibt, wie sie eingetragen ist).
+   */
+  const nurAusleger = (x) => alle.filter((t) => Math.abs((Number(t?.xLage) || 0) - x) < 0.1)
+    .every((t) => t?.tragwerksart === 'tragausleger');
+  alle.forEach((t) => {
+    if (t?.tragwerksart !== 'tragausleger' || !nurAusleger(Number(t.xLage) || 0)) return;
+    const x = Number(t.xLage) || 0;
+    const m = Array.isArray(w.masten)
+      ? w.masten.find((mm) => Math.abs((Number(mm?.x) || 0) - x) < 0.1) : null;
+    if (!(Number(m?.fuss ?? t.mastFuss) || 0)) return;
+    if (m) m.fuss = 0;
+    t.mastFuss = 0;
+  });
   alle.forEach((t) => {
     if (t?.tragwerksart !== 'einzelmast' || !nurEinzel(Number(t.xLage) || 0)) return;
     const x = Number(t.xLage) || 0;

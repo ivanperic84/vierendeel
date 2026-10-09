@@ -37563,8 +37563,9 @@ if (AJ.abfangDbDa()) {
     .reduce((su, l) => { const st = dd.staebe.find((x) => x.name === l.stab);
       return su + l.wert * Math.abs(K.get(st.von).z - K.get(st.bis).z); }, 0);
   // Der Prüfstand rechnet mit HEB 240 (`standardwerte`): 0.30 kN/m bei EK1.
-  pruef('Mastwind am Abfangjoch-Masten, Gleisrichtung: Tabellenwert × Länge, einmal (EK1, HEB 240)', mw(d, 'WindY'), 0.30 * 7.5, 1e-6, 'kN');
-  pruef('… und in Jochrichtung', mw(d, 'WindX'), 0.30 * 7.5, 1e-6, 'kN');
+  pruef('Mastwind am Abfangjoch-Masten, Gleisrichtung: Tabellenwert × Länge, einmal (EK1, HEB 240)', mw(d, 'WindY'), 0.30 * 8.5, 1e-6, 'kN');
+  // Bis 9. Oktober 0.30 * 7.5: der Mast endete im Modell am Trägeranschluss; jetzt läuft er in seiner Länge (8.50 m).
+  pruef('… und in Jochrichtung', mw(d, 'WindX'), 0.30 * 8.5, 1e-6, 'kN');
   // c) Windstufe und Trasse
   const s0 = LA214.mitTrasse({ windKlasse: '1.3', flSpannweite: 45, trasseRadius: 800 });
   wahr('mitTrasse: Windstufe, Spannweite und Radius der Eingabe; ein gesetztes Feld gilt',
@@ -40873,6 +40874,42 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       const svg = RK264.skizzeSvg(sk, [], { mastGrau: true });
       wahr('Blatt Jochanschluss: die Masten stehen grau in der Skizze, das Joch nicht',
            (svg.match(/class="sk-mast-grau"/g) ?? []).length === 1 && !RK264.skizzeSvg(sk, []).includes('class="sk-mast-grau"'));
+    }
+    // Anker am Tragausleger-Mast und Mastlänge am Abfangjoch im Stabmodell (9. Oktober).
+    {
+      const AX = await import(J('export.axisvm.js'));
+      const V264b = await import(J('core.vierendeel.js'));
+      const modellVon = (x) => V264b.modell({ ...x, beiwerteFest: null }, getProfil(x.profOG), getProfil(x.profUG), getStahl(x.stahl), T.getTragjoch(x.typ));
+      const taS = C264.rechensatz({ ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, mastVorhanden: true, twId: 'MT1', anbauteile: [],
+        ankerTyp: 'U12', ankerH: 6.5, ankerA: 4.5, ankerRichtung: 'y', ankerSeite: 'minus' });
+      let ankerDa264 = true;
+      try { ankerDa264 = (await import(J('data.anker.js'))).ankerTypen().length > 0; } catch { ankerDa264 = false; }
+      if (ankerDa264 && taS.mastAnkerA?.typ) {
+        const bT = AX.stabmodell(modellVon(taS), { satz: taS });
+        wahr('Tragausleger: der Anker am Masten steht im Stabmodell (Stäbe und ein Auflager am Ankerfuss)',
+             bT.staebe.some((s) => /ANKER/.test(s.name)) && bT.auflager.some((a) => /ANKER_.*_F$/.test(a.knoten)),
+             `${bT.staebe.filter((s) => /ANKER/.test(s.name)).length} Stäbe`);
+      }
+      {
+        const AS = await import(J('app.stabwerk.js')), N = await import(J('core.nachbarn.js'));
+        let wA = C264.tragwerkHinzu({ ...typUebernehmen({ ...standardwerteApp(), typ: 'J90' }, T.getTragjoch('J90')), L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' },
+          'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+        wA = C264.tragwerkWeg(wA, 'T1');
+        wA = { ...wA, anbauteile: [] };
+        C264.mastenVon(wA).forEach((m) => { wA = C264.setzeMastAngabe(wA, m.id, 'mastLaenge', 11); });
+        const rsA = N.rechensatzMitNachbarn(wA);
+        const hA = AS.rechneStabwerk({ werte: wA, letzte: { erg: V264b.berechne(rsA, ...N.kernArgumente(rsA)) }, stabwerk: null });
+        const dA = hA.roh?.dat, kA = new Map((dA?.knoten ?? []).map((k) => [k.name, k]));
+        const zug = (dA?.staebe ?? []).filter((s) => /^MAST_M1_S\d+$/.test(s.name));
+        const zA = zug.flatMap((s) => [kA.get(s.von).z, kA.get(s.bis).z]);
+        pruef('Abfangjoch: der Mast läuft im Stabmodell in seiner eingetragenen Länge', Math.max(...zA) - Math.min(...zA), 11, 1e-6, 'm');
+        const wind = (dA?.lasten?.strecke ?? []).filter((l) => /^MAST_M1_S\d+$/.test(l.stab) && l.lastfall === 'WindY')
+          .reduce((su, l) => { const st = zug.find((x) => x.name === l.stab); return su + Math.abs(l.wert) * Math.abs(kA.get(st.von).z - kA.get(st.bis).z); }, 0);
+        const wJeM = Math.abs((dA?.lasten?.strecke ?? []).find((l) => /^MAST_M1_S\d+$/.test(l.stab) && l.lastfall === 'WindY')?.wert ?? 0);
+        pruef('… und trägt seinen Wind über die ganze Länge', wind, wJeM * 11, 1e-6, 'kN');
+      }
+      wahr('Maske: Fussversatz nicht am Tragausleger',
+           /key: 'mastFuss'[\s\S]{0,900}tragwerksart\(w\)\.key !== 'tragausleger'/.test(readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8')));
     }
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));

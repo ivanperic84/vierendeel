@@ -1175,7 +1175,9 @@ export const FELDER = [
     wertAus: amMast('fuss', 'mastFuss'),
     // Nicht am Einzelmasten (30. September, Rückfrage «Ausblenden»): dort
     // regiert die Länge; siehe `einzelmastFussAnheben`.
-    sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast',
+    // Auch nicht am Tragausleger (9. Oktober): das Stabmodell las ihn dort nie.
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast'
+                  && tragwerksart(w).key !== 'tragausleger',
     hinweis: (w) => `Versatz des Fusspunktes gegen die Bezugshöhe, positiv `
            + `nach oben. 0 = Fuss genau ${anschlusshoeheVon(w).toFixed(2)} m `
            + `unter der Jochachse; negativ bei fallendem Gelände oder tieferer `

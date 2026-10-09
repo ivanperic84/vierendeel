@@ -53,7 +53,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, bezugsEbene, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
-import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung } from './core.auflager.js';
+import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung, mastLaengeFuer } from './core.auflager.js';
 import { ankerTraegtDruck, ankerIstDoppelt, doppelankerGeometrie } from './data.anker.js';
 
 /**
@@ -1574,6 +1574,10 @@ function mastKnotenAuf(bau, key, hoehe, endung, streckeEndung = endung) {
     // Über dem Trägeranschluss: der Mast läuft bis dorthin weiter.
     const vor = zug.find((s2) => s2.von === kTop || s2.bis === kTop);
     bau.staebe.push({ ...vor, name: frei, roh: frei, praefix: '', von: kTop, bis: kZiel });
+    // Der Mastwind gilt auch dem verlängerten Stück (9. Oktober).
+    const sl = bau.eigeneLasten?.strecke ?? [];
+    sl.filter((l) => l.stab === vor.name)
+      .forEach((l) => sl.push({ ...l, name: `${l.name}_${streckeEndung}`, stab: frei }));
   } else return null;
   return { knoten: kZiel, x, zFuss };
 }
@@ -1661,8 +1665,37 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
   return bau;
 }
 
+/**
+ * >>> DER MAST DES ABFANGJOCHS IN SEINER LAENGE (9. Oktober). <<<
+ * Befund des Eingabe-Durchgangs, Weisung «1 und 3 ins stabmodell»: das
+ * Modell des Abfangjochs endete am Trägeranschluss - die Mastlänge stand in
+ * der Maske und im 3D, im Stabwerk aber nicht. Der Mast läuft jetzt bis zu
+ * seiner Länge (eingetragen, sonst die Vorgabe wie im Bild), mit seinem Wind.
+ */
+function abfangMastLaenge(bau, satz, opt = {}) {
+  if (!bau?.staebe) return bau;
+  ['A', 'B'].forEach((ende) => {
+    const b = ende === 'B';
+    const H = Number(b && satz.mastHZwei ? satz.mastHB : satz.mastH) || 0;
+    const fuss = Number(b ? satz.mastFussB : satz.mastFuss) || 0;
+    const roh = Number(b && satz.mastZwei ? satz.mastLaengeB : satz.mastLaenge) || 0;
+    const L = roh > 0 ? roh : mastLaengeFuer(satz, H - fuss);
+    if (!(L > 0)) return;
+    const key = opt.mastNamen?.[ende] ?? ende;
+    const re = new RegExp(`^MAST_${key}(_O|_S\\d+)?$`);
+    const zs = bau.staebe.filter((st) => re.test(st.name) && (st.artFest ?? 'stab') === 'stab')
+      .flatMap((st) => [bau.knoten.get(st.von).z, bau.knoten.get(st.bis).z]);
+    if (!zs.length) return;
+    // Nur verlängern: ein Mast, der kürzer eingetragen ist als bis zum Träger, bleibt.
+    if (Math.min(...zs) + L > Math.max(...zs) + 1e-6) mastKnotenAuf(bau, key, L, 'KOPF', 'KO');
+  });
+  return bau;
+}
+
 function abfangAnkerAnbauen(bau, satz, opt = {}) {
   const praefix = opt.praefix ?? '';
+  bau.ankerAus = bau.ankerAus ?? [];
+  bau.auflager = bau.auflager ?? [];
   ['A', 'B'].forEach((ende) => {
     const ak = ende === 'B' ? satz.mastAnkerB : satz.mastAnkerA;
     if (!(ak?.typ && ak.h > 0 && ak.a > 0)) return;
@@ -2621,8 +2654,8 @@ export function stabmodell(m, opt = {}) {
    */
   const satzOpt = opt.satz ?? opt.eingabe ?? null;
   if (tragwerksart(m).key === 'abfangjoch' && satzOpt) {
-    return mastTeileEinsetzen(abfangAnkerAnbauen(abfangBau(satzOpt, opt), satzOpt, opt),
-                              satzOpt, opt);
+    return mastTeileEinsetzen(abfangAnkerAnbauen(abfangMastLaenge(abfangBau(satzOpt, opt), satzOpt, opt),
+                                                 satzOpt, opt), satzOpt, opt);
   }
   /*
    * >>> DER TRAGAUSLEGER EBENSO (28. September, Etappe 2). <<<
@@ -2632,7 +2665,9 @@ export function stabmodell(m, opt = {}) {
    * seit dem 25. September gesperrt (`ohneStabmodell`).
    */
   if (tragwerksart(m).key === 'tragausleger' && satzOpt) {
-    return mastTeileEinsetzen(tragauslegerBau(satzOpt, opt), satzOpt, opt);
+    // Der Anker am Masten (9. Oktober, «1 und 3 ins stabmodell»): derselbe
+    // Anbau wie am Abfangjoch - bisher stand er nur in der Maske.
+    return mastTeileEinsetzen(abfangAnkerAnbauen(tragauslegerBau(satzOpt, opt), satzOpt, opt), satzOpt, opt);
   }
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = opt.sammler ?? sammler(opt.praefix ?? '');
