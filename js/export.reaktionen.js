@@ -347,13 +347,14 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
  * Spaltenköpfe der Tabelle und bleiben.
  */
 export function achsSvg() {
-  return `<svg class="rk-achsen" viewBox="0 0 300 170" width="300" height="170"
+  return `<svg class="rk-achsen" viewBox="0 0 330 204" width="330" height="204"
       xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Achssystem der Tabelle">
     <defs><marker id="rk-pf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
       markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#222"/></marker></defs>
     <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
       .klein{font-size:10px;fill:#555}.titel{font-size:10px;font-weight:600;fill:#222}.mast{stroke:#aaa;stroke-width:1;stroke-dasharray:5 3}
       .fund{fill:none;stroke:#bbb;stroke-width:1}</style>
+    <g transform="translate(0,34)">
     <rect class="fund" x="128" y="58" width="44" height="34"/>
     <line x1="150" y1="58" x2="270" y2="58" marker-end="url(#rk-pf)"/>
     <text x="232" y="50">X</text>
@@ -364,10 +365,11 @@ export function achsSvg() {
     <line x1="150" y1="58" x2="150" y2="150" marker-end="url(#rk-pf)"/>
     <text x="156" y="160">Z</text>
     <text class="klein" x="158" y="140">nach unten</text>
-    <text class="titel" x="4" y="11">Momente – Drehachse</text>
-    <text class="klein" x="4" y="24">M_x (M,l)</text><text class="klein" x="66" y="24">um die X-Achse</text>
-    <text class="klein" x="4" y="36">M_y (M,q)</text><text class="klein" x="66" y="36">um die Y-Achse</text>
-    <text class="klein" x="4" y="48">M_z (T)</text><text class="klein" x="66" y="48">um die Z-Achse</text>
+    </g>
+    <text class="titel" x="176" y="14">Momente – Drehachse</text>
+    <text class="klein" x="176" y="27">M_x (M,l)</text><text class="klein" x="238" y="27">um die X-Achse</text>
+    <text class="klein" x="176" y="39">M_y (M,q)</text><text class="klein" x="238" y="39">um die Y-Achse</text>
+    <text class="klein" x="176" y="51">M_z (T)</text><text class="klein" x="238" y="51">um die Z-Achse</text>
   </svg>`;
 }
 
@@ -588,7 +590,7 @@ export function achsSvgGlobal() {
     <text class="klein" x="6" y="80">nach oben</text>
     <line x1="70" y1="130" x2="122" y2="86" marker-end="url(#rk-pfg)"/>
     <text x="128" y="84">y</text>
-    <text class="klein" x="138" y="98">längs zum Gleis (nach hinten)</text>
+    <text class="klein" x="138" y="98">längs zum Gleis</text>
     <text class="titel" x="176" y="14">Momente – Drehachse</text>
     <text class="klein" x="176" y="27">M_x (M,l)</text><text class="klein" x="238" y="27">um die x-Achse</text>
     <text class="klein" x="176" y="39">M_y (M,q)</text><text class="klein" x="238" y="39">um die y-Achse</text>
