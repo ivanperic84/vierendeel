@@ -585,22 +585,22 @@ function anschlussResultierendeHtml(res, mastName) {
  * man weiss das die achsen gemeint sind»), ebenso im Blatt der Reaktionskräfte.
  */
 export function achsSvgGlobal() {
-  return `<svg class="rk-achsen" viewBox="0 0 330 170" width="330" height="170"
+  return `<svg class="rk-achsen" viewBox="0 0 330 200" width="330" height="200"
       xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Achssystem des Blatts">
     <defs><marker id="rk-pfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
       markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#222"/></marker></defs>
     <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
       .klein{font-size:10px;fill:#555}.mom{font-size:9px;fill:#555}.momt{font-weight:600;fill:#222}</style>
-    <line x1="70" y1="130" x2="190" y2="130" marker-end="url(#rk-pfg)"/>
-    <text x="196" y="134">x</text>
-    <text class="klein" x="110" y="146">quer zum Gleis</text>
-    <line x1="70" y1="130" x2="70" y2="38" marker-end="url(#rk-pfg)"/>
-    <text x="58" y="34">z</text>
-    <text class="klein" x="6" y="80">nach oben</text>
-    <line x1="70" y1="130" x2="122" y2="86" marker-end="url(#rk-pfg)"/>
-    <text x="128" y="84">y</text>
-    <text class="klein" x="138" y="98">längs zum Gleis</text>
-    ${momentBlock(176, 14, false)}
+    <line x1="70" y1="175" x2="210" y2="175" marker-end="url(#rk-pfg)"/>
+    <text x="216" y="179">x</text>
+    <text class="klein" x="120" y="191">quer zum Gleis</text>
+    <line x1="70" y1="175" x2="70" y2="34" marker-end="url(#rk-pfg)"/>
+    <text x="58" y="30">z</text>
+    <text class="klein" x="6" y="100">nach oben</text>
+    <line x1="70" y1="175" x2="136" y2="112" marker-end="url(#rk-pfg)"/>
+    <text x="142" y="108">y</text>
+    <text class="klein" x="156" y="108">längs zum Gleis</text>
+    ${momentBlock(156, 126, false)}
   </svg>`;
 }
 
