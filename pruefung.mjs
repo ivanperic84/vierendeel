@@ -40783,6 +40783,36 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
          && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('class="qp-mastgruppe aus"')
          && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.qp-bandlinie.aus, .qp-bandname.aus, .qp-mastgruppe.aus { opacity: .32; }')
          && !readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.qp-mast.geteilt .qp-mast-fuss'));
+    // Mittelmast: Summe beider Joche im selben Lastfall; Gliederung quer / längs (9. Oktober).
+    {
+      const AS264 = await import(J('app.stabwerk.js'));
+      const N264 = await import(J('core.nachbarn.js'));
+      const V264 = await import(J('core.vierendeel.js'));
+      let wr = { ...typUebernehmen({ ...standardwerteApp(), bearbeiten: false, typ: 'J90' }, T.getTragjoch('J90')),
+        L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 6)] };
+      wr = C264.tragwerkHinzu(wr, 'joch', { L: 15 });
+      const rs = N264.rechensatzMitNachbarn(wr);
+      const hr = AS264.rechneStabwerk({ werte: wr, letzte: { erg: V264.berechne(rs, ...N264.kernArgumente(rs)) }, stabwerk: null });
+      const res = hr.anschluss.resultierende;
+      const su = res.filter((x) => x.summe);
+      const t1 = res.find((x) => x.tw === 'T1' && x.mast === 'M2'), t2 = res.find((x) => x.tw === 'T2' && x.mast === 'M2');
+      wahr('Mittelmast: genau eine Summenzeile, am geteilten Masten, nach dessen letztem Jochende',
+           su.length === 1 && su[0].mast === 'M2' && su[0].teile.join('+') === 'T1+T2'
+           && res.indexOf(su[0]) === res.indexOf(t2) + 1 && res.length === 5, res.map((x) => (x.summe ? 'Σ' : x.tw) + x.mast).join(' '));
+      pruef('… Wind längs trifft beide Joche im selben Fall: F_y der Summe = Summe der beiden', su[0].Fy.max.wert,
+            t1.Fy.max.wert + t2.Fy.max.wert, 1e-6, 'kN');
+      wahr('… F_z der Summe liegt INNERHALB der Summe der beiden Hüllwerte (je Zustand summiert, dann umhüllt)',
+           su[0].Fz.min.wert > t1.Fz.min.wert + t2.Fz.min.wert + 1e-3 && su[0].Fz.max.wert < t1.Fz.max.wert + t2.Fz.max.wert - 1e-3,
+           `${su[0].Fz.min.wert.toFixed(3)} > ${(t1.Fz.min.wert + t2.Fz.min.wert).toFixed(3)} kN`);
+      wahr('… min und max der Summe gehören je einem Lastfall an', typeof su[0].Fz.min.bez === 'string' && su[0].Fz.min.bez.length > 0);
+      const kurz = RK264.anschlussKurzHtml(hr.anschluss, (m) => m, true);
+      wahr('Reiter: Summenzeile «M2 · Summe T1 + T2»; Gliederung «Lastfall quer / längs zum Gleis», «Torsion»',
+           kurz.includes('M2 · Summe T1 + T2') && (kurz.match(/Lastfall quer zum Gleis/g) ?? []).length === 5
+           && (kurz.match(/Lastfall längs zum Gleis/g) ?? []).length === 5 && (kurz.match(/>Torsion</g) ?? []).length === 5);
+      const blatt2 = RK264.anschlussBlattHtml({ anschluss: hr.anschluss });
+      wahr('Blatt: dieselbe Gliederung im Kopf und die Summenzeile', blatt2.includes('Lastfall quer zum Gleis')
+           && blatt2.includes('Lastfall längs zum Gleis') && blatt2.includes('M2 · Summe T1 + T2'));
+    }
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

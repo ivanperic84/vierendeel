@@ -3530,6 +3530,8 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-kurz thead .rk-x { display: block; color: var(--dim); font-weight: 400; font-size: 10px; }
 .rk-kurz tbody th { font-weight: 400; color: var(--on2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-kurz .rk-einheit { color: var(--dim); font-size: 9.5px; }
+.rk-kurz tr.rk-grp th { color: var(--dim); font-size: 9.5px; letter-spacing: .04em; padding-top: 6px; border-bottom: 0; }
+.rk-kurz.rk-summe { background: var(--acc-s); border-radius: 4px; }
 .rk-kurz .rk-fallspalte { color: var(--dim); font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-kurz .rk-fall { display: block; color: var(--dim); font-size: 9px; line-height: 1.15; white-space: normal; }
 .rk-kurz .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

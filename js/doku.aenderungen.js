@@ -15,6 +15,7 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
+      { text: 'Kräfte am Jochanschluss: am Mittelmasten steht zusätzlich die Summe beider Joche (im selben Lastfall summiert); die Grössen sind nach «quer zum Gleis», «längs zum Gleis» und Torsion gegliedert.' },
       { text: 'Lageband: ausgeblendete Tragwerke und ihre Masten stehen blass da (der Mast fehlte bisher); der geteilte Mast hat denselben schmalen Fuss wie die anderen.' },
       { text: 'Ein ausgeblendetes Tragwerk im Lageband anklicken blendet es wieder ein (vorher blieb es halb ausgeblendet: im 3D da, in Band, Schiene und Rechnung nicht).', rechnung: true },
       { text: 'Kräfte am Jochanschluss: im Reiter Auflager je Jochende eine einfache Tabelle wie am Mastfuss (F_z min / max, die übrigen als ±Betrag) mit dem Lastfall daneben; im Blatt steht der Lastfall unter jeder Zahl. Auf einem Blatt mit mehreren Tragwerken heisst der Mast dort richtig (M2 statt M2k0).' },

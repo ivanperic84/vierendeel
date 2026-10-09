@@ -575,6 +575,11 @@ const mitFall = (x) => (x ? `${f2(x.wert)}<span class="rk-fall">${esc(fallKurz(x
  * massgebende Lastfall kurz. Die volle Form min / max mit Vorzeichen bleibt
  * im Blatt.
  */
+/** «T1 · M2» bzw. am Mittelmasten «M2 · Summe T1 + T2». */
+const jochendeName = (a, mastName) => (a.summe
+  ? `${mastName(a.mast)} · Summe ${a.teile.join(' + ')}`
+  : `${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`);
+
 function anschlussResultierendeHtml(res, mastName) {
   const betrag = (k) => {
     const a = k.min, b = k.max;
@@ -591,13 +596,19 @@ function anschlussResultierendeHtml(res, mastName) {
   const v = (k) => `<tr><th>F_z ↑ (V) min/max <span class="rk-einheit">[kN]</span></th>
     <td class="num" title="${titel(k)}">${k.min ? `${f2(k.min.wert)} / ${f2(k.max.wert)}` : '–'}</td>
     <td class="rk-fallspalte">${k.min ? esc(fallKurz(k.min.bez)) : ''}</td></tr>`;
-  return res.map((a) => `<table class="dt rk-kurz rk-jochende">
+  // Gliederung wie die Köpfe des Reaktionsblatts (9. Oktober: «bei der
+  // gliederung die Einwirkungen Quer und Lägns zum Gleis vorgehmen so dass man
+  // besser erkennen kann welche zusammengehören (wind x / y)»).
+  const gruppe = (t) => `<tr class="rk-grp"><th colspan="3">${t}</th></tr>`;
+  return res.map((a) => `<table class="dt rk-kurz rk-jochende${a.summe ? ' rk-summe' : ''}">
       <colgroup><col style="width:42%"><col style="width:26%"><col style="width:32%"></colgroup>
-      <thead><tr><th><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`)}</b>
-          <span class="rk-x" title="${a.anzahl} Gurtanschlüsse">Jochende</span></th>
+      <thead><tr><th><b>${esc(jochendeName(a, mastName))}</b>
+          <span class="rk-x" title="${a.anzahl} Gurtanschlüsse">${a.summe
+            ? 'Mittelmast · beide Joche im selben Lastfall' : 'Jochende'}</span></th>
         <th class="num">Einwirkung</th><th>Lastfall</th></tr></thead>
-      <tbody>${v(a.Fz)}${zeile('±M_y (M,q)', 'kNm', a.My)}${zeile('±F_x (H,q)', 'kN', a.Fx)}${
-        zeile('±M_x (M,l)', 'kNm', a.Mx)}${zeile('±F_y (H,l)', 'kN', a.Fy)}${zeile('±M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
+      <tbody>${v(a.Fz)}${gruppe('Lastfall quer zum Gleis')}${zeile('±M_y (M,q)', 'kNm', a.My)}${zeile('±F_x (H,q)', 'kN', a.Fx)}${
+        gruppe('Lastfall längs zum Gleis')}${zeile('±M_x (M,l)', 'kNm', a.Mx)}${zeile('±F_y (H,l)', 'kN', a.Fy)}${
+        gruppe('Torsion')}${zeile('±M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
 }
 
 /**
@@ -654,10 +665,14 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   const SP = [['Fz', 'F_z ↑ (V)', 'kN'], ['My', 'M_y (M,q)', 'kNm'], ['Fx', 'F_x (H,q)', 'kN'],
               ['Mx', 'M_x (M,l)', 'kNm'], ['Fy', 'F_y (H,l)', 'kN'], ['Mz', 'M_z (T)', 'kNm']];
   const tabRes = `<table><colgroup><col style="width:16%">${'<col style="width:7%">'.repeat(12)}</colgroup>
-    <thead><tr><th rowspan="2">Jochende</th>${SP.map(([, t, e]) => `<th colspan="2" class="rk-gruppe">${t} [${e}]</th>`).join('')}</tr>
+    <thead><tr><th rowspan="3">Jochende</th><th colspan="2" class="rk-gruppe">Vertikalkraft</th>
+        <th colspan="4" class="rk-gruppe">Lastfall quer zum Gleis</th><th colspan="4" class="rk-gruppe">Lastfall längs zum Gleis</th>
+        <th colspan="2" class="rk-gruppe">Torsion</th></tr>
+      <tr>${SP.map(([, t, e]) => `<th colspan="2" class="rk-gruppe">${t} [${e}]</th>`).join('')}</tr>
       <tr>${SP.map(() => '<th class="num">min</th><th class="num">max</th>').join('')}</tr></thead>
-    <tbody>${res.map((a) => `<tr class="rk-haupt"><td class="rk-name"><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mn(a.mast)}`)}</b>
-        <span class="rk-x">${a.anzahl} Gurtanschlüsse</span></td>${SP.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>`;
+    <tbody>${res.map((a) => `<tr class="rk-haupt${a.summe ? ' rk-summe' : ''}"><td class="rk-name"><b>${esc(jochendeName(a, mn))}</b>
+        <span class="rk-x">${a.summe ? 'Mittelmast · beide Joche im selben Lastfall' : `${a.anzahl} Gurtanschlüsse`}</span></td>${
+        SP.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>`;
   const SG = [['Fx', 'F_x (quer)'], ['Fy', 'F_y (längs)'], ['Fz', 'F_z ↑ (lotrecht)']];
   const tabEinzel = einzeln && liste.length ? `<h2 class="rk-hinweise-titel">Einzelne Gurtanschlüsse</h2>
     <table style="width:62%"><colgroup><col style="width:28%">${'<col style="width:12%">'.repeat(6)}</colgroup>
@@ -686,6 +701,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
     .rk-x { display: block; color: #666; font-size: 9.5px; }
     .rk-fall { display: block; color: #666; font-size: 8px; white-space: normal; line-height: 1.15; }
     tbody tr.rk-haupt td { border-top: 1.6px solid #888; }
+    tbody tr.rk-summe td { background: #f3f5fa; }
     .rk-hinweise { margin: 6px 0 0 16px; padding: 0; }
     .rk-hinweise li { margin: 2px 0; }
     .rk-hinweise-titel { font-size: 13px; margin: 12px 0 4px; }
@@ -710,6 +726,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   ${hinweise ? `<h2 class="rk-hinweise-titel">Hinweise</h2><ul class="rk-hinweise">
     <li>Charakteristische Werte aus dem Stabwerk; Hülle über «Ständig» (ganzes G) und «Ständig + Wind / Schnee» je Richtung,
       Wind ohne Abminderung. Der Havariefall ist nicht enthalten.</li>
+    <li>Am Mittelmasten steht zusätzlich die Summe beider Joche: je Lastfall summiert, dann umhüllt (Momente um die Mitte aller Anschlüsse dieses Masten).</li>
     <li>Die Resultierende ist je Zustand über die Gurtanschlüsse summiert und dann umhüllt - sie ist deshalb nicht die Summe
       der Grösstwerte der einzelnen Gurte.</li>
     <li>Die Verteilung auf die Gurte folgt der eingestellten Auflagerbedingung am Masten (welcher Gurt in welcher Richtung hält).</li>

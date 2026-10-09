@@ -492,7 +492,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     if (!gruppen.has(k)) gruppen.set(k, { tw: praefix.replace(/_$/, '') || null, mast: mastOhneHoehe(mast), links: [] });
     gruppen.get(k).links.push(e);
   });
-  const resultierende = [...gruppen.values()].map((g) => {
+  const summeVon = (g) => {
     const pkt = g.links.map((e) => knotenVon.get(e.s.von));
     const r0 = ['x', 'y', 'z'].map((a) => pkt.reduce((s, p) => s + p[a], 0) / pkt.length);
     const namen = ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'];
@@ -519,7 +519,33 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     });
     return { tw: g.tw, mast: g.mast, anzahl: g.links.length, bezug: { x: r0[0], y: r0[1], z: r0[2] },
              ...Object.fromEntries(namen.map((n, c) => [n, huelle[c]])) };
-  }).sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast));
+  };
+  const resultierende = [...gruppen.values()].map(summeVon)
+    .sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast));
+  /*
+   * >>> AM MITTELMASTEN DIE SUMME BEIDER JOCHE (9. Oktober). <<< Weisung, mit
+   * Bild der Tabelle (T1 · M2 und T2 · M2 einzeln): «es wäre noch gut wenn man
+   * bei einem mittelmast die reaktionen der beien joche als summe aufführt, da
+   * meist dierser wert interessiert. diese müssten dann aber dem gleichen
+   * lastfall angehören.» Trägt ein Mast mehr als ein Jochende, kommt nach
+   * dessen letzter Zeile eine Zeile `summe: true`: alle Anschlüsse dieses
+   * Masten JE ZUSTAND summiert, dann die Hülle - die Summe der beiden
+   * Hüllwerte wäre zu gross (Wind +x am einen, −x am anderen Joch). Momente um
+   * die Mitte aller Anschlusspunkte dieses Masten.
+   */
+  const jeMast = new Map();
+  [...gruppen.values()].forEach((g) => {
+    const m = jeMast.get(g.mast) ?? { tw: null, mast: g.mast, links: [], teile: [] };
+    m.links.push(...g.links);
+    if (g.tw && !m.teile.includes(g.tw)) m.teile.push(g.tw);
+    jeMast.set(g.mast, m);
+  });
+  jeMast.forEach((m) => {
+    if (m.teile.length < 2) return;
+    let nach = -1;
+    resultierende.forEach((r, i) => { if (r.mast === m.mast && !r.summe) nach = i; });
+    resultierende.splice(nach + 1, 0, { ...summeVon(m), summe: true, teile: [...m.teile].sort() });
+  });
   const liste = links.map((e) => {
     const [, praefix, mast, gurt, seite] = ANSCHLUSS_LINK.exec(e.s.name);
     const komp = ['Fx', 'Fy', 'Fz'].map((k, r) => {
