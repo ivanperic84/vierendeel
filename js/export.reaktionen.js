@@ -326,6 +326,20 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
 }
 
 /**
+ * Der Block «Momente – Drehachse» der Achsbilder - EINE Form für alle Blätter
+ * (9. Oktober: «Textblock etwas kleiner machen und formatierung an allen
+ * blättern anchziehen»): Titel, darunter Moment und Drehachse in zwei Spalten,
+ * 9 px (die Achsanschriften 10 px).
+ */
+function momentBlock(x, y, gross) {
+  const a = gross ? ['X', 'Y', 'Z'] : ['x', 'y', 'z'];
+  const z = (i, t) => `<text class="mom" x="${x}" y="${y + 11 * (i + 1)}">${t}</text>`
+    + `<text class="mom" x="${x + 52}" y="${y + 11 * (i + 1)}">um die ${a[i]}-Achse</text>`;
+  return `<text class="mom momt" x="${x}" y="${y}">Momente – Drehachse</text>`
+    + z(0, 'M_x (M,l)') + z(1, 'M_y (M,q)') + z(2, 'M_z (T)');
+}
+
+/**
  * Das Achssystem der Tabelle: X quer, Y längs, Z nach unten - Druck auf das
  * Fundament positiv. Eigene Zeichnung, dieselbe Aussage wie die Skizze der
  * Einwirkungen.
@@ -352,7 +366,7 @@ export function achsSvg() {
     <defs><marker id="rk-pf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
       markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#222"/></marker></defs>
     <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
-      .klein{font-size:10px;fill:#555}.titel{font-size:10px;font-weight:600;fill:#222}.mast{stroke:#aaa;stroke-width:1;stroke-dasharray:5 3}
+      .klein{font-size:10px;fill:#555}.mom{font-size:9px;fill:#555}.momt{font-weight:600;fill:#222}.mast{stroke:#aaa;stroke-width:1;stroke-dasharray:5 3}
       .fund{fill:none;stroke:#bbb;stroke-width:1}</style>
     <rect class="fund" x="128" y="58" width="44" height="34"/>
     <line x1="150" y1="58" x2="270" y2="58" marker-end="url(#rk-pf)"/>
@@ -364,10 +378,7 @@ export function achsSvg() {
     <line x1="150" y1="58" x2="150" y2="150" marker-end="url(#rk-pf)"/>
     <text x="156" y="160">Z</text>
     <text class="klein" x="170" y="160">nach unten</text>
-    <text class="titel" x="188" y="98">Momente – Drehachse</text>
-    <text class="klein" x="188" y="111">M_x (M,l)</text><text class="klein" x="250" y="111">um die X-Achse</text>
-    <text class="klein" x="188" y="123">M_y (M,q)</text><text class="klein" x="250" y="123">um die Y-Achse</text>
-    <text class="klein" x="188" y="135">M_z (T)</text><text class="klein" x="250" y="135">um die Z-Achse</text>
+    ${momentBlock(188, 98, true)}
   </svg>`;
 }
 
@@ -579,7 +590,7 @@ export function achsSvgGlobal() {
     <defs><marker id="rk-pfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
       markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#222"/></marker></defs>
     <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
-      .klein{font-size:10px;fill:#555}.titel{font-size:10px;font-weight:600;fill:#222}</style>
+      .klein{font-size:10px;fill:#555}.mom{font-size:9px;fill:#555}.momt{font-weight:600;fill:#222}</style>
     <line x1="70" y1="130" x2="190" y2="130" marker-end="url(#rk-pfg)"/>
     <text x="196" y="134">x</text>
     <text class="klein" x="110" y="146">quer zum Gleis</text>
@@ -589,10 +600,7 @@ export function achsSvgGlobal() {
     <line x1="70" y1="130" x2="122" y2="86" marker-end="url(#rk-pfg)"/>
     <text x="128" y="84">y</text>
     <text class="klein" x="138" y="98">längs zum Gleis</text>
-    <text class="titel" x="176" y="14">Momente – Drehachse</text>
-    <text class="klein" x="176" y="27">M_x (M,l)</text><text class="klein" x="238" y="27">um die x-Achse</text>
-    <text class="klein" x="176" y="39">M_y (M,q)</text><text class="klein" x="238" y="39">um die y-Achse</text>
-    <text class="klein" x="176" y="51">M_z (T)</text><text class="klein" x="238" y="51">um die z-Achse</text>
+    ${momentBlock(176, 14, false)}
   </svg>`;
 }
 

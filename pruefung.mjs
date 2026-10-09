@@ -40744,7 +40744,7 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     const blatt = RK264.anschlussBlattHtml({ anschluss: Object.assign([], { resultierende: [] }) });
     wahr('Blatt «Kräfte am Jochanschluss» zeigt das globale Achssystem (z nach oben)',
          blatt.includes('Achssystem des Blatts') && /nach oben/.test(RK264.achsSvgGlobal())
-         && /Momente – Drehachse/.test(RK264.achsSvgGlobal()) && !/nach unten/.test(RK264.achsSvgGlobal()));
+         && /Momente – Drehachse/.test(RK264.achsSvgGlobal()) && /class="mom momt"/.test(RK264.achsSvg()) && !/nach unten/.test(RK264.achsSvgGlobal()));
     wahr('Neues Blatt: Schnee an, Havariefall aus - nur im frischen Stand, nicht im Schema',
          /schneeAktiv: true, havarieAus: true \};/.test(APP_QUELLE()) && standardwerteApp().schneeAktiv === false
          && standardwerteApp().havarieAus === undefined);
