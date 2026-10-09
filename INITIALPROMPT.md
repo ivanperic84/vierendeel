@@ -12,9 +12,9 @@ Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `da
 
 **Git:** alles gepusht am 9. Oktober (Weisung «ja pushen»); `origin/main` = örtlicher Stand. `Versand/` trägt Einzeldatei und Datenpaket vom 9. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
 
-**Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json`
+**Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-09.json`
 ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
-`Versand/vierendeel_tool_2026-10-08.html`; COM-Brücke `Versand/COM_Bruecke` (mit dem neuen Schalter, aber
+`Versand/vierendeel_tool_2026-10-09.html`; COM-Brücke `Versand/COM_Bruecke` (mit dem neuen Schalter, aber
 noch nicht fertig erprobt - siehe unten).
 
 **Gebaut am 8. Oktober:** Einheitswind mit den Werten der alten Mastberechnung (`Grundlagen/Einheitswind`) als EK0 in der Datenbasis - Tragjoche, Abfangjoche A160-A360, Tragausleger, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger; ein hinterlegter Wert gilt vor der Herleitung und ohne Zuschlag (J90 w_k 0.275 → 0.350). Nachtrag: alte Lampen 0.3 / 0.5 kN, alte Abfangjoche ohne Zuschlag, Gittermast 1.52 kN/m² aus den Tragjochen. **Gittermast IV 45 UL nach der Detailzeichnung berichtigt** (Gurt unten L 100x100x12, Teilung 13 / 15 Stationen, Bleche 12 / 10 mm, Kopf ohne Blech; Beispiel Gurt 0.874 → 0.813, Blech 0.424 → 0.574). ⚠ Lesarten zu bestätigen und offene Punkte zum Gittermast: CLAUDE.md, *Offene Punkte*. Die Datei des Anwenders aus dem Bugreport ist in AxisVM aufgebaut (nur gebaut): läuft durch.
