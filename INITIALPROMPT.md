@@ -10,10 +10,7 @@ zu lesen, bevor etwas geändert wird.
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
 **7133** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
-**Git:** `origin/main` steht auf `5dc0ef6`. Darüber liegen **zwei örtliche Commits** («Gespreizte Masten DGP», «Windlasten auf Joch und Mast von Hand»), die auf den
-Befehl zum Pushen wartet (Weisung 8. Oktober: «auf befehl push warten, ich will zuerst den stand der momentan
-vorhanden ist weitergeben und testen»). `Versand/` (Datenpaket, Einzeldatei, COM_Bruecke) ist der Stand von
-`5dc0ef6`; nach dem Push `node datenpaket.mjs` laufen lassen und Einzeldatei sowie COM_Bruecke nachziehen.
+**Git:** alles gepusht am 9. Oktober (Weisung «ja pushen»); `origin/main` = örtlicher Stand. `Versand/` trägt die Einzeldatei vom 9. Oktober, das Datenpaket vom 8. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
 
 **Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json`
 ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
@@ -22,14 +19,14 @@ noch nicht fertig erprobt - siehe unten).
 
 **Gebaut am 8. Oktober:** Einheitswind mit den Werten der alten Mastberechnung (`Grundlagen/Einheitswind`) als EK0 in der Datenbasis - Tragjoche, Abfangjoche A160-A360, Tragausleger, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger; ein hinterlegter Wert gilt vor der Herleitung und ohne Zuschlag (J90 w_k 0.275 → 0.350). Nachtrag: alte Lampen 0.3 / 0.5 kN, alte Abfangjoche ohne Zuschlag, Gittermast 1.52 kN/m² aus den Tragjochen. **Gittermast IV 45 UL nach der Detailzeichnung berichtigt** (Gurt unten L 100x100x12, Teilung 13 / 15 Stationen, Bleche 12 / 10 mm, Kopf ohne Blech; Beispiel Gurt 0.874 → 0.813, Blech 0.424 → 0.574). ⚠ Lesarten zu bestätigen und offene Punkte zum Gittermast: CLAUDE.md, *Offene Punkte*. Die Datei des Anwenders aus dem Bugreport ist in AxisVM aufgebaut (nur gebaut): läuft durch.
 
-**Gebaut am 8. Oktober, nicht gepusht: gespreizte Masten DGP24/5.5, DGP26/5.5, DGP24/10, DGP26/10** (Tabelle `gespreizt` in
+**Gebaut am 8. Oktober: gespreizte Masten DGP24/5.5, DGP26/5.5, DGP24/10, DGP26/10** (Tabelle `gespreizt` in
 `data/masten.json`, `export.axisvm.gespreizt.js`; unter der Spreizung zwei T-Hälften mit Bindeblechen, darüber das Walzprofil; Kacheln
 «Hälften», «Blech», «Profil»; PyNite 0.000 %; im Browser geprüft). ⚠ Brücke `AddT` in AxisVM nicht erprobt; offene Punkte in CLAUDE.md.
 
-**Gebaut am 8. Oktober, nicht gepusht:** unter *Lasten* sind mit «Werte bearbeiten» auch w_Mast,x / w_Mast,y frei - je Mast
+**Gebaut am 8. Oktober:** unter *Lasten* sind mit «Werte bearbeiten» auch w_Mast,x / w_Mast,y frei - je Mast
 und Richtung in der Mastliste (`windX`, `windY`); «Tabellenwerte» setzt Joch und alle Masten auf die Datenbank zurück. Null ist eine gültige Eingabe; unten rechts im Bild steht «Lasten von Hand (…)».
 
-**Gebaut am 8. Oktober, nicht gepusht:** Blatt «Bestandesschutz» (Knopf im Block, Export; neue Teile rot, Auswahl Gesamt / Joch /
+**Gebaut am 8. Oktober:** Blatt «Bestandesschutz» (Knopf im Block, Export; neue Teile rot, Auswahl Gesamt / Joch /
 Mast / Fundamente; `export.bestand.js`) und am Jochanschluss der Schalter Resultierende je Jochende / Einzelgurte.
 
 **Aufgabenliste:** der Bugreport vom 9. Oktober steht als Liste B1-B9 in CLAUDE.md unter *Offene Punkte* (B1-B7, B9, B10 erledigt; offen B8). Doppelanker seit 9. Oktober mit zwei Seilen und Feld d_A (Vorgabe 3.00 m, bestätigt). Versand ist nachgezogen; der Push wartet weiter auf den Befehl.
