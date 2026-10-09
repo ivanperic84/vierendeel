@@ -10,7 +10,7 @@ zu lesen, bevor etwas geändert wird.
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
 **7140** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
-**Git:** alles gepusht am 9. Oktober (Weisung «ja pushen»); `origin/main` = örtlicher Stand. `Versand/` trägt die Einzeldatei vom 9. Oktober, das Datenpaket vom 8. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
+**Git:** alles gepusht am 9. Oktober (Weisung «ja pushen»); `origin/main` = örtlicher Stand. `Versand/` trägt Einzeldatei und Datenpaket vom 9. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
 
 **Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-08.json`
 ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
