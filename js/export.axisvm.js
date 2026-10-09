@@ -5161,9 +5161,17 @@ export function stabmodellJson(m, opt = {}) {
    * gibt - sonst aus dem Modell, wie vor dem 25. September.
    */
   const havarieQuellen = eingaben.length ? eingaben : [m];
+  /*
+   * «Havariefall rechnen» gehoert dem TRAGWERK (9. Oktober, Befund des
+   * Eingabe-Durchgangs): war er nur am gewaehlten aus, strich das Blatt die
+   * Havarie-Lastfaelle, das Nachbartragwerk schrieb seine Lasten aber weiter
+   * darauf - das Stabwerk brach ab. Gestrichen wird erst, wenn ALLE aus sind.
+   */
+  const havAus = (q) => (eingaben.length ? q.havarieAus : m.havarieAus) === true;
+  const havarieGanzAus = havarieQuellen.every(havAus);
   const havKandidaten = [];
   havarieQuellen.forEach((q) => {
-    (m.havarieAus === true ? [] : havarieKandidaten(q.havarie)).forEach((c) => {
+    (havAus(q) ? [] : havarieKandidaten(q.havarie)).forEach((c) => {
       if (!havKandidaten.some((x) => x.key === c.key)) havKandidaten.push(c);
     });
   });
@@ -5481,7 +5489,7 @@ export function stabmodellJson(m, opt = {}) {
         label: g.key === G_JOCH && artJson === 'tragausleger' ? 'Ständig · Tragausleger' : g.label })),
       // Havarie abgeschaltet: weder die gemeinsamen noch die Leiter-Faelle.
       ...EINWIRKUNGEN.filter((e) => e.key !== 'G')
-        .filter((e) => !(m.havarieAus === true && /^Havarie/.test(e.key)))
+        .filter((e) => !(havarieGanzAus && /^Havarie/.test(e.key)))
         .map((e) => ({ key: e.key, label: e.label, art: 'Others' })),
       // Je reissendem Leiter: Ablenkung und Laengszug in beide Richtungen.
       // Kurze Namen (AxisVM legt den Lastfall unter `label` an); der Leiter

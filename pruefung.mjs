@@ -40813,6 +40813,43 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       wahr('Blatt: dieselbe Gliederung im Kopf und die Summenzeile', blatt2.includes('Lastfall quer zum Gleis')
            && blatt2.includes('Lastfall längs zum Gleis') && blatt2.includes('M2 · Summe T1 + T2'));
     }
+    // Blatt des Jochanschlusses nur mit dem Massgebenden (9. Oktober).
+    {
+      const k = (mn, mx) => ({ min: { wert: mn, bez: 'Ständig + Wind -y (längs zum Gleis)' }, max: { wert: mx, bez: 'Ständig + Wind +y (längs zum Gleis)' } });
+      const zeile = { tw: 'T1', mast: 'M1', gurt: 'UG', seite: 'L', anzahl: 4, Fz: k(-6.1, -5.9), Fx: k(-0.2, 0.9), Fy: k(-4.4, 4.1), Mx: k(-0.5, 0.3), My: k(-0.1, 0.2), Mz: k(0, 0) };
+      const liste = [zeile]; liste.resultierende = [zeile];
+      const b = RK264.anschlussBlattHtml({ anschluss: liste });
+      wahr('Blatt Jochanschluss: F_z als min / max, die übrigen als ±massgebender Betrag mit Lastfall',
+           b.includes('±F_y (H,l)') && b.includes('±M_x (M,l)') && b.includes('>4.40<span class="rk-fall">G + Wind -y</span>')
+           && b.includes('>0.90<span class="rk-fall">G + Wind +y</span>') && !b.includes('4.10')
+           && b.includes('6.10<span') && b.includes('5.90<span'));
+      wahr('… auch die einzelnen Gurtanschlüsse: ±F_x, ±F_y; ein Nullwert ohne Lastfall',
+           b.includes('±F_x (quer)') && b.includes('±F_y (längs)') && />0\.00<\/td>/.test(b));
+    }
+    // Abfangjoch auf dem Blatt: Havarie-Lastfälle heissen wie im Blatt (9. Oktober, Eingabe-Durchgang).
+    {
+      const AS = await import(J('app.stabwerk.js')), N = await import(J('core.nachbarn.js')), V = await import(J('core.vierendeel.js'));
+      const DA = await import(J('data.anbauteile.js'));
+      const re = (w0) => { const w = N.rechensatzMitNachbarn(w0); return AS.rechneStabwerk({ werte: w0, letzte: { erg: V.berechne(w, ...N.kernArgumente(w)) }, stabwerk: null }); };
+      const teil = (x) => ({ ...DA.neuesAnbauteil('leiter-ts-nfl-abf', x), ort: 'joch' });
+      let w = C264.tragwerkHinzu({ ...typUebernehmen({ ...standardwerteApp(), typ: 'J90' }, T.getTragjoch('J90')), L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' },
+        'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+      w = C264.tragwerkWeg(w, 'T1');
+      w.anbauteile = [teil(4.0), teil(8.5)];
+      w = C264.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 6.0 });
+      w.anbauteile = [teil(4.0), teil(8.5)];
+      w = { ...w, havarieAus: false, weitere: (w.weitere ?? []).map((x) => ({ ...x, havarieAus: false })) };
+      const basis = re(w);
+      const aus = re({ ...w, havarieAus: true });
+      wahr('Zwei Abfangjoche: «Havariefall rechnen» nur am gewählten aus - das Stabwerk rechnet weiter',
+           !basis.fehler && !aus.fehler && !aus.ohneModell, String(aus.fehler ?? ''));
+      const key = DA.leiterKennung(w.anbauteile[0], w.anbauteile[0].module[0], 0);
+      const riss = re({ ...w, havarie: { [key]: { reisst: true, name: 'Ts 1' } } });
+      const faelle = new Set((riss.roh?.dat?.lastfaelle ?? []).map((l) => l.key));
+      wahr('… ein Leiter «kann reissen»: gerechnet, jede Last auf einem erklärten Lastfall',
+           !riss.fehler && (riss.roh?.dat?.lasten?.punkt ?? []).every((l) => faelle.has(l.lastfall))
+           && faelle.has(`HavarieY|${key}|p`), String(riss.fehler ?? ''));
+    }
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

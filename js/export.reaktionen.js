@@ -580,12 +580,15 @@ const jochendeName = (a, mastName) => (a.summe
   ? `${mastName(a.mast)} · Summe ${a.teile.join(' + ')}`
   : `${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`);
 
+/** Der massgebende von min und max: der mit dem grösseren Betrag. */
+const betragVon = (k) => {
+  const a = k?.min, b = k?.max;
+  if (!a && !b) return null;
+  return Math.abs(a?.wert ?? 0) >= Math.abs(b?.wert ?? 0) ? a : b;
+};
+
 function anschlussResultierendeHtml(res, mastName) {
-  const betrag = (k) => {
-    const a = k.min, b = k.max;
-    if (!a && !b) return null;
-    return Math.abs(a?.wert ?? 0) >= Math.abs(b?.wert ?? 0) ? a : b;
-  };
+  const betrag = betragVon;
   const titel = (k) => esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`);
   const zeile = (label, einheit, k) => {
     const m = betrag(k);
@@ -660,27 +663,38 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
     daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
     .filter(Boolean).join(' · ') || 'Linie / Station: –';
+  /*
+   * >>> NUR DAS MASSGEBENDE (9. Oktober). <<< Mit Bild des Blatts (je Grösse
+   * min und max, je mit Lastfall): «diese auswertung auf die massgebende
+   * reduzieren (grösster wert bei y und grösster wert bei x, wie bei den
+   * fundamenten)». Wie am Mastfuss: F_z als min / max, alle übrigen als
+   * ±Betrag (der grössere von |min| und |max|) mit seinem Lastfall darunter.
+   */
   const paar = (k) => `<td class="num" title="${esc(k.min?.bez ?? '')}">${mitFall(k.min)}</td>`
     + `<td class="num" title="${esc(k.max?.bez ?? '')}">${mitFall(k.max)}</td>`;
-  const SP = [['Fz', 'F_z ↑ (V)', 'kN'], ['My', 'M_y (M,q)', 'kNm'], ['Fx', 'F_x (H,q)', 'kN'],
-              ['Mx', 'M_x (M,l)', 'kNm'], ['Fy', 'F_y (H,l)', 'kN'], ['Mz', 'M_z (T)', 'kNm']];
-  const tabRes = `<table><colgroup><col style="width:16%">${'<col style="width:7%">'.repeat(12)}</colgroup>
-    <thead><tr><th rowspan="3">Jochende</th><th colspan="2" class="rk-gruppe">Vertikalkraft</th>
-        <th colspan="4" class="rk-gruppe">Lastfall quer zum Gleis</th><th colspan="4" class="rk-gruppe">Lastfall längs zum Gleis</th>
-        <th colspan="2" class="rk-gruppe">Torsion</th></tr>
-      <tr>${SP.map(([, t, e]) => `<th colspan="2" class="rk-gruppe">${t} [${e}]</th>`).join('')}</tr>
-      <tr>${SP.map(() => '<th class="num">min</th><th class="num">max</th>').join('')}</tr></thead>
+  const einer = (k) => {
+    const m = betragVon(k);
+    return `<td class="num" title="${esc(`min: ${k?.min?.bez ?? '–'} · max: ${k?.max?.bez ?? '–'}`)}">${
+      m ? `${f2(Math.abs(m.wert))}${Math.abs(m.wert) >= 0.005 ? `<span class="rk-fall">${esc(fallKurz(m.bez))}</span>` : ''}` : '–'}</td>`;
+  };
+  const SP = [['My', '±M_y (M,q)', 'kNm'], ['Fx', '±F_x (H,q)', 'kN'],
+              ['Mx', '±M_x (M,l)', 'kNm'], ['Fy', '±F_y (H,l)', 'kN'], ['Mz', '±M_z (T)', 'kNm']];
+  const tabRes = `<table><colgroup><col style="width:23%">${'<col style="width:11%">'.repeat(7)}</colgroup>
+    <thead><tr><th rowspan="2">Jochende</th><th colspan="2" class="rk-gruppe">Vertikalkraft F_z ↑ (V) [kN]</th>
+        <th colspan="2" class="rk-gruppe">Lastfall quer zum Gleis</th><th colspan="2" class="rk-gruppe">Lastfall längs zum Gleis</th>
+        <th class="rk-gruppe">Torsion</th></tr>
+      <tr><th class="num">min</th><th class="num">max</th>${SP.map(([, t, e]) => `<th class="num">${t} [${e}]</th>`).join('')}</tr></thead>
     <tbody>${res.map((a) => `<tr class="rk-haupt${a.summe ? ' rk-summe' : ''}"><td class="rk-name"><b>${esc(jochendeName(a, mn))}</b>
         <span class="rk-x">${a.summe ? 'Mittelmast · beide Joche im selben Lastfall' : `${a.anzahl} Gurtanschlüsse`}</span></td>${
-        SP.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>`;
-  const SG = [['Fx', 'F_x (quer)'], ['Fy', 'F_y (längs)'], ['Fz', 'F_z ↑ (lotrecht)']];
+        paar(a.Fz)}${SP.map(([k]) => einer(a[k])).join('')}</tr>`).join('')}</tbody></table>`;
   const tabEinzel = einzeln && liste.length ? `<h2 class="rk-hinweise-titel">Einzelne Gurtanschlüsse</h2>
-    <table style="width:62%"><colgroup><col style="width:28%">${'<col style="width:12%">'.repeat(6)}</colgroup>
-    <thead><tr><th rowspan="2">Anschluss</th>${SG.map(([, t]) => `<th colspan="2" class="rk-gruppe">${t} [kN]</th>`).join('')}</tr>
-      <tr>${SG.map(() => '<th class="num">min</th><th class="num">max</th>').join('')}</tr></thead>
+    <table style="width:62%"><colgroup><col style="width:32%">${'<col style="width:17%">'.repeat(4)}</colgroup>
+    <thead><tr><th rowspan="2">Anschluss</th><th colspan="2" class="rk-gruppe">F_z ↑ (lotrecht) [kN]</th>
+        <th rowspan="2" class="num">±F_x (quer) [kN]</th><th rowspan="2" class="num">±F_y (längs) [kN]</th></tr>
+      <tr><th class="num">min</th><th class="num">max</th></tr></thead>
     <tbody>${liste.map((a, i) => `<tr${i && liste[i - 1].mast !== a.mast ? ' class="rk-haupt"' : ''}><td>${
       esc(`${a.tw ? `${a.tw} · ` : ''}${mn(a.mast)} · ${a.gurt === 'OG' ? 'Obergurt' : 'Untergurt'} ${a.seite === 'L' ? 'links' : 'rechts'}`)}</td>${
-      SG.map(([k]) => paar(a[k])).join('')}</tr>`).join('')}</tbody></table>` : '';
+      paar(a.Fz)}${einer(a.Fx)}${einer(a.Fy)}</tr>`).join('')}</tbody></table>` : '';
   return `<!doctype html><html lang="de"><head><meta charset="utf-8">
   <title>Kräfte am Jochanschluss</title>
   <style>
@@ -718,7 +732,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
       <ul class="rk-hinweise"><li>Kraft des Jochs AUF den Masten, global: x quer zum Gleis, y längs zum Gleis, z nach oben
         (Gewicht des Jochs negativ).</li>
         <li>Momente um die Mitte der Gurtanschlüsse am Masten, rechte Hand.</li>
-        <li>min / max mit Vorzeichen - nicht ±Betrag wie am Mastfuss; unter jeder Zahl ihr Lastfall (G = ständig).</li></ul></div>
+        <li>F_z als min / max mit Vorzeichen; alle übrigen als ±Betrag (der massgebende Wert), darunter sein Lastfall (G = ständig).</li></ul></div>
   </div>
   <h2 class="rk-hinweise-titel">Resultierende je Jochende</h2>
   ${res.length ? tabRes : '<p>Keine Anschlüsse im Stabwerk.</p>'}

@@ -1858,6 +1858,28 @@ export function abfangBau(satz, opt = {}) {
     havarie: satz.havarie ?? null,
   });
   const b = bausteinAusModell(d, opt, (g) => ABFANG_BLATTGRUPPE[g] ?? g);
+  /*
+   * >>> DIE HAVARIE-LASTFAELLE HEISSEN WIE IM BLATT (9. Oktober). <<<
+   * Befund des Eingabe-Durchgangs: das eigene Modell schreibt die Aenderung
+   * des Leiterzugs auf `HavarieY|<Leiter>`; das Blatt erklaert je Leiter
+   * `HavarieY|<Leiter>|p` und `…|m` - und gar keinen Havariefall, wenn er
+   * abgeschaltet ist. Das Stabwerk brach ab («Last auf unbekanntem
+   * Lastfall»), sobald am Abfangjoch ein Leiter «kann reissen» trug oder
+   * «Havariefall rechnen» aus war. Die Richtung des Zugs steht am
+   * Abfangjoch fest (Anbindung): dieselbe Last in beiden Faellen.
+   */
+  if (b.eigeneLasten) {
+    const um = (liste) => (liste ?? []).flatMap((l) => {
+      const fall = String(l.lastfall ?? '');
+      if (!/^Havarie/.test(fall)) return [l];
+      if (satz.havarieAus === true) return [];
+      const t = /^HavarieY\|(.+)$/.exec(fall);
+      if (!t || /\|[pm]$/.test(fall)) return [l];
+      return ['p', 'm'].map((v) => ({ ...l, name: `${l.name}_${v}`, lastfall: `${fall}|${v}` }));
+    });
+    b.eigeneLasten = { ...b.eigeneLasten, punkt: um(b.eigeneLasten.punkt),
+                       moment: um(b.eigeneLasten.moment), strecke: um(b.eigeneLasten.strecke) };
+  }
   return {
     ...b,
     // Fuer den Bericht: was hier steht, ist ein Abfangjoch, kein Tragjoch.
