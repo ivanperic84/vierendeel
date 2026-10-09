@@ -306,6 +306,10 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
   }).join('');
+  // Die Leiter (9. Oktober): ein kleiner Ring mit Punkt an ihrem Angriffspunkt.
+  const leiter = (skizze.leiter ?? []).map((p) =>
+    `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="2.6"/>`
+    + `<circle class="sk-leiter-kern" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="0.9"/>`).join('');
   // Die neuen Bauteile in Rot (8. Oktober, Blatt Bestandesschutz).
   const neu = (daten?.neu?.linien ?? []).map((l) =>
     `<line class="sk-neu" x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('')
@@ -316,13 +320,14 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     <style>line{stroke:#444;stroke-width:0.7}.sk-boden{stroke:#aaa;stroke-dasharray:4 3}
       .sk-seil{stroke:#444;stroke-width:0.8;stroke-dasharray:5 3}
       .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}
+      .sk-leiter{fill:#fff;stroke:#1d5fa8;stroke-width:1}.sk-leiter-kern{fill:#1d5fa8}
       .sk-neu{stroke:#c62828;stroke-width:2}.sk-neu-punkt{fill:#c62828}
       .sk-lager{stroke:#111;stroke-width:1.4}.sk-schraffur{stroke:#111;stroke-width:0.7}
       .sk-anker{stroke:#111;stroke-width:1.2}.sk-umgeklappt{stroke-dasharray:6 3}
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}</style>
-    ${linien}${neu}${marken}${titel}</svg>`;
+    ${linien}${leiter}${neu}${marken}${titel}</svg>`;
 }
 
 /**

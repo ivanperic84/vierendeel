@@ -5089,6 +5089,22 @@ function fahrdrahtKnoten(bau) {
       knoten: f.knoten[0], name: f.name, starr: { knoten: f.knoten, r: f.r } }))];
 }
 
+/**
+ * Die Knoten ALLER Leiter (Drahtwerke), je Knoten einmal - für die
+ * Übersichtsskizze der Blätter (9. Oktober: «kannst du noch bei diesen
+ * abbildungen auch die leiter eintragen»). Ein Leiter direkt am Joch oder am
+ * Mastaufsatz hat keinen langen Stab im Bild; sein Knoten zeigt ihn trotzdem.
+ */
+function leiterKnoten(bau) {
+  const gesehen = new Set();
+  return [...(bau?.arme ?? [])
+    .filter((a) => a?.knoten && a.teil?.rolle === 'drahtwerk' && !gesehen.has(a.knoten)
+      && gesehen.add(a.knoten))
+    .map((a) => ({ knoten: a.knoten, name: a.teil.name ?? a.teil.bauteilName ?? '' })),
+    ...(bau?.fahrdrahtStarr ?? []).map((f) => ({
+      knoten: f.knoten[0], name: f.name, starr: { knoten: f.knoten, r: f.r } }))];
+}
+
 export function stabmodellJson(m, opt = {}) {
   /*
    * EIN FERTIGES MODELL HAT VORRANG.
@@ -5408,6 +5424,7 @@ export function stabmodellJson(m, opt = {}) {
      * Bruecke liest das Feld nicht.
      */
     fahrdraehte: fahrdrahtKnoten(bau),
+    leiter: leiterKnoten(bau),
     // Die Ketten der Anbauteile am Tragausleger als Starrkörper an ihrer
     // Station (nur für die verformte Figur; die Bruecke liest es nicht).
     kettenStarr: bau.kettenStarr ?? [],

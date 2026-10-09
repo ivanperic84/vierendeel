@@ -40748,6 +40748,22 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('Neues Blatt: Schnee an, Havariefall aus - nur im frischen Stand, nicht im Schema',
          /schneeAktiv: true, havarieAus: true \};/.test(APP_QUELLE()) && standardwerteApp().schneeAktiv === false
          && standardwerteApp().havarieAus === undefined);
+    // Leiter in der Übersichtsskizze der Blätter (9. Oktober).
+    {
+      const KR = await import(J('core.reaktionen.js'));
+      const dat = { knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 10, y: 0, z: 0 }, { name: 'L1', x: 4, y: 0.2, z: -0.3 },
+                             { name: 'L2', x: 4, y: -0.2, z: -0.3 }, { name: 'L3', x: 12, y: 0, z: 2 }],
+                    staebe: [{ name: 'S', von: 'A', bis: 'B', art: 'stab' }],
+                    leiter: [{ knoten: 'L1' }, { knoten: 'L2' }, { knoten: 'L3' },
+                             { knoten: 'A', starr: { knoten: ['A', 'B'], r: [1, 0, -2] } }] };
+      const sk = KR.skizzeAusModell(dat);
+      wahr('Skizze: je Leiterknoten ein Punkt in x-z, deckungsgleiche einmal, am Tragausleger Stationsmitte + Hebel',
+           JSON.stringify(sk.leiter) === JSON.stringify([[4, -0.3], [12, 2], [6, -2]]), JSON.stringify(sk.leiter));
+      wahr('… die Grenzen der Skizze schliessen die Leiter ein', sk.grenzen.x1 === 12 && sk.grenzen.z1 === 2 && sk.grenzen.z0 === -2);
+      wahr('… und das Bild zeichnet sie als Ring', (RK264.skizzeSvg(sk, [], {}).match(/class="sk-leiter"/g) ?? []).length === 3);
+      wahr('Die Modelldatei nennt die Leiterknoten (alle Drahtwerke, nicht nur Fahrdrähte)',
+           /leiter: leiterKnoten\(bau\)/.test(readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8')));
+    }
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

@@ -332,8 +332,35 @@ export function skizzeAusModell(dat) {
     linien.push(p);
   });
   if (!linien.length) return null;
-  const xs = linien.flatMap((l) => [l[0], l[2]]), zs = linien.flatMap((l) => [l[1], l[3]]);
-  return { linien, grenzen: { x0: Math.min(...xs), x1: Math.max(...xs),
+  /*
+   * >>> DIE LEITER ALS PUNKTE (9. Oktober). <<< Mit Bild der Skizze: «kannst
+   * du noch bei diesen abbildungen auch die leiter eintragen es kann auch sein
+   * das nur fahrleitung an an joch oder zusatzleiter an Mast mit Aufsarz neu
+   * dazukommen.» Je Leiterknoten der Modelldatei (`leiter`) ein Punkt in x-z;
+   * am Tragausleger (kein eigener Knoten) die Mitte der Station plus Hebel.
+   */
+  const leiter = [];
+  const gesehenL = new Set();
+  (dat?.leiter ?? []).forEach((l) => {
+    let x, z;
+    if (l.starr) {
+      const ks = l.starr.knoten.map((n) => kn.get(n)).filter(Boolean);
+      if (!ks.length) return;
+      x = ks.reduce((a, k) => a + k.x, 0) / ks.length + (l.starr.r?.[0] ?? 0);
+      z = ks.reduce((a, k) => a + k.z, 0) / ks.length + (l.starr.r?.[2] ?? 0);
+    } else {
+      const k = kn.get(l.knoten);
+      if (!k) return;
+      x = k.x; z = k.z;
+    }
+    const p = [r2(x), r2(z)];
+    if (gesehenL.has(p.join('|'))) return;
+    gesehenL.add(p.join('|'));
+    leiter.push(p);
+  });
+  const xs = [...linien.flatMap((l) => [l[0], l[2]]), ...leiter.map((p) => p[0])];
+  const zs = [...linien.flatMap((l) => [l[1], l[3]]), ...leiter.map((p) => p[1])];
+  return { linien, leiter, grenzen: { x0: Math.min(...xs), x1: Math.max(...xs),
                               z0: Math.min(...zs), z1: Math.max(...zs) } };
 }
 
