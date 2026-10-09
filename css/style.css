@@ -2191,8 +2191,9 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .qp-mast.an .qp-mast-fuss { background: var(--acc); }
 .qp-mast.an .qp-mast-marke { border-bottom-color: var(--acc); }
 .qp-mast.an .qp-mast-fuss { background: var(--acc); }
-/* DER GETEILTE MAST traegt zwei Tragwerke - sein Fundament ist breiter. */
-.qp-mast.geteilt .qp-mast-fuss { width: 19px; margin-left: -9.5px; height: 3px; }
+/* Der geteilte Mast steht da wie jeder andere (9. Oktober, mit Bild des
+   Lagebands: «hier den mittleren masten gleich darstellen, nicht mit breitem
+   fuss.»); dass er zwei Tragwerke traegt, zeigen die beiden Linien darueber. */
 
 /* Die Gelaendelinie schliesst die Liste ab - darauf stehen die Masten. */
 .qp-achse { display: flex; margin-top: 1px; }
