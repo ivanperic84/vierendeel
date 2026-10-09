@@ -40778,6 +40778,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('Jochanschluss: der Mast steht ohne die Anschlusshöhe des Linknamens da (M2, nicht M2k0)',
          /mast: mastOhneHoehe\(mast\), links/.test(readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8'))
          && /mast: mastOhneHoehe\(mast\), gurt, seite/.test(readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8')));
+    wahr('Lageband: ausgeblendete Tragwerke und ihre Masten stehen blass da (Mastliste mit den versteckten)',
+         readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes("const masten = mastenVon(werte, 0.1, true).filter((m) => !m.ohneMast);")
+         && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('class="qp-mastgruppe aus"')
+         && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.qp-bandlinie.aus, .qp-bandname.aus, .qp-mastgruppe.aus { opacity: .32; }')
+         && !readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.qp-mast.geteilt .qp-mast-fuss'));
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

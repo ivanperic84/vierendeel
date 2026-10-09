@@ -3187,6 +3187,8 @@ body.datei-ueber::after {
   line-height: 1; color: var(--dim); pointer-events: none; white-space: nowrap;
 }
 .qp-bandname.an { color: var(--acc); }
+/* Ausgeblendet: durchscheinend (9. Oktober) - Linie, Name und Mast. */
+.qp-bandlinie.aus, .qp-bandname.aus, .qp-mastgruppe.aus { opacity: .32; }
 .qp-band .qp-mastmass { padding-top: 34px; font-size: 9px; }
 /* HOEHER IM BAND (30. September): «diese schemaskizze kann etwas höher
    sein, dann wirkt sie nicht so gestaucht.» Mast und Anker im Lageband

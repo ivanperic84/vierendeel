@@ -2229,7 +2229,16 @@ export function querprofilLeisteHtml(werte) {
   const { von, bis } = qpBereich(werte);
   const aktivId = werte.twId ?? 'T1';
   const gewMast = gewaehlterMast(werte);
-  const masten = mastenVon(werte);
+  /*
+   * >>> AUSGEBLENDETES STEHT BLASS DA (9. Oktober). <<< Mit Bild des Bands
+   * (T1 ausgeblendet, sein Mast M1 fehlte): «hier noch die ausgeblendeten
+   * Tragweksteile als transparent darstellen auch den masten der hier nicht
+   * abgebildet wird.» Die Mastliste kommt deshalb MIT den Masten der
+   * ausgeblendeten Tragwerke (`versteckt`); Linie, Name und Mast stehen
+   * durchscheinend da. Ein Klick auf den blassen Masten holt sein Tragwerk
+   * zurück wie der Klick auf die Linie.
+   */
+  const masten = mastenVon(werte, 0.1, true).filter((m) => !m.ohneMast);
 
   /*
    * >>> DIE LINIE SCHWEIGT, WO EIN MAST STEHT. <<<
@@ -2498,7 +2507,7 @@ export function querprofilLeisteHtml(werte) {
         data-qp-tw="${esc(t.id)}"
         style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;top:${top + 7}px"
         title="${esc(titel)}"
-        >${extra}</button><span class="qp-bandname${an ? ' an' : ''}"
+        >${extra}</button><span class="qp-bandname${an ? ' an' : ''}${aus ? ' aus' : ''}"
         style="left:${(links + breit / 2).toFixed(3)}%;top:${top - 3}px"
         data-rand="${anker(links + breit / 2)}">${esc(tragwerkPos(werte, t))}</span>`;
   }).join('');
@@ -2507,6 +2516,15 @@ export function querprofilLeisteHtml(werte) {
     const d = ankerDaten(m);
     const name = mastName(werte, m);
     const pct = qpPct(m.x, von, bis);
+    if (m.versteckt) {
+      const tw = (m.traegt ?? [])[0] ?? '';
+      return `<span class="qp-mastgruppe aus" data-rand="${anker(pct)}" style="left:${pct.toFixed(3)}%;top:${hoehe}px">
+        <button type="button" class="qp-mast" ${tw ? `data-qp-tw="${esc(tw)}"` : 'disabled'}
+          title="${esc(`${name} bei x = ${f2q(m.x)} m · ausgeblendet - anklicken blendet sein Tragwerk wieder ein`)}">
+          <span class="qp-mast-marke"></span><span class="qp-mast-fuss"></span></button>
+        <span class="qp-mastmass">${esc(name)}</span>
+      </span>`;
+    }
     return `<span class="qp-mastgruppe" data-rand="${anker(pct)}" style="left:${pct.toFixed(3)}%;top:${hoehe}px">
         <button type="button" class="qp-mast${an ? ' an' : ''}${(m.traegt ?? []).length > 1 ? ' geteilt' : ''}"
           data-qp-mast="${esc(m.id)}" aria-pressed="${an}"
