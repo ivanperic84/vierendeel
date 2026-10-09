@@ -418,6 +418,12 @@ export function neueTeileSkizze(dat, datBestand) {
  * das Kleinste und das Grösste mit seinem Fall.
  * ========================================================================= */
 const ANSCHLUSS_LINK = /^(.*?)LINK_([^_]+)_(OG|UG)([LR])$/;
+/*
+ * Auf einem Blatt mit mehreren Tragwerken trägt der Mast im Linknamen seine
+ * Anschlusshöhe («M2k0», `anschlussNamen`). In die Anzeige gehört der Mast
+ * (9. Oktober: im Reiter und im Blatt stand «T2 · M2k0»).
+ */
+const mastOhneHoehe = (m) => String(m).replace(/k\d+$/, '');
 
 export function anschlussKraefte(dat, lsg, faelle, anteile) {
   const links = (lsg?.elemente ?? []).filter((e) => e.s.art === 'link' && ANSCHLUSS_LINK.test(e.s.name));
@@ -483,7 +489,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
   links.forEach((e) => {
     const [, praefix, mast] = ANSCHLUSS_LINK.exec(e.s.name);
     const k = `${praefix}|${mast}`;
-    if (!gruppen.has(k)) gruppen.set(k, { tw: praefix.replace(/_$/, '') || null, mast, links: [] });
+    if (!gruppen.has(k)) gruppen.set(k, { tw: praefix.replace(/_$/, '') || null, mast: mastOhneHoehe(mast), links: [] });
     gruppen.get(k).links.push(e);
   });
   const resultierende = [...gruppen.values()].map((g) => {
@@ -526,7 +532,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
       });
       return [k, { min, max }];
     });
-    return { name: e.s.name, tw: praefix.replace(/_$/, '') || null, mast, gurt, seite,
+    return { name: e.s.name, tw: praefix.replace(/_$/, '') || null, mast: mastOhneHoehe(mast), gurt, seite,
              ...Object.fromEntries(komp) };
   }).sort((a, b) => (a.tw ?? '').localeCompare(b.tw ?? '') || a.mast.localeCompare(b.mast)
     || a.gurt.localeCompare(b.gurt) || a.seite.localeCompare(b.seite));

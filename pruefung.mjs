@@ -40770,6 +40770,9 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
          RK264.fallKurz('Ständig + Wind +y (längs zum Gleis)') === 'G + Wind +y' && RK264.fallKurz('Ständig') === 'G'
          && /class="rk-fall"/.test(RK264.anschlussKurzHtml(Object.assign([{}], { resultierende: [{ mast: 'M1', anzahl: 4,
               ...Object.fromEntries(['Fz', 'My', 'Fx', 'Mx', 'Fy', 'Mz'].map((k) => [k, { min: { wert: -1, bez: 'Ständig' }, max: { wert: 1, bez: 'Ständig + Wind +x (quer zum Gleis)' } }])) }] }), (m) => m, true)));
+    wahr('Jochanschluss: der Mast steht ohne die Anschlusshöhe des Linknamens da (M2, nicht M2k0)',
+         /mast: mastOhneHoehe\(mast\), links/.test(readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8'))
+         && /mast: mastOhneHoehe\(mast\), gurt, seite/.test(readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8')));
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }
