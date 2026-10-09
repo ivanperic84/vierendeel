@@ -40745,6 +40745,9 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('Blatt «Kräfte am Jochanschluss» zeigt das globale Achssystem (z nach oben, y nach hinten)',
          blatt.includes('Achssystem des Blatts') && /nach oben/.test(RK264.achsSvgGlobal())
          && /nach hinten/.test(RK264.achsSvgGlobal()) && !/nach unten/.test(RK264.achsSvgGlobal()));
+    wahr('Neues Blatt: Schnee an, Havariefall aus - nur im frischen Stand, nicht im Schema',
+         /schneeAktiv: true, havarieAus: true \};/.test(APP_QUELLE()) && standardwerteApp().schneeAktiv === false
+         && standardwerteApp().havarieAus === undefined);
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

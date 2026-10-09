@@ -339,7 +339,12 @@ let zuletztGezoomt = null;
 function frisch(art = 'joch') {
   // Ein neuer Stand trägt F_z schon nach oben (1. Oktober) - ohne Merker
   // würde er beim nächsten Laden ein zweites Mal umgerechnet.
-  const std = { ...standardwerte(), bearbeiten: false, fzNachOben: true, psiOhneGamma: true };
+  // Startwerte eines NEUEN Blatts (Weisung 9. Oktober, mit Bild des Reiters
+  // Lasten: «Hier als Startwert Schnee aktivieren und Havarie deaktivieren»).
+  // Nur hier, nicht im Schema: ein gespeicherter Stand ohne den Eintrag
+  // rechnet weiter wie bisher (Havarie ein).
+  const std = { ...standardwerte(), bearbeiten: false, fzNachOben: true, psiOhneGamma: true,
+                schneeAktiv: true, havarieAus: true };
   let w = typUebernehmen(std, getTragjoch(std.typ));
   w.anbauteile = [{ ...neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrleitung Gleis 1' }];
   if (art && art !== 'joch') {

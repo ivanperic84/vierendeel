@@ -15,6 +15,7 @@ export const AENDERUNGEN = [
     datum: '2026-10-08',
     punkte: [
       { text: 'Einheitswind (alte Norm): es gelten die Werte der alten Mastberechnung statt der bisherigen Annahmen - Tragjoche J60-J130 0.25 … 0.48 kN/m (J90: 0.35 statt 0.275), Abfangjoche A160-A360 gleich der Profilhöhe (A160: 0.16 statt 0.20), Tragausleger 0.14, Masten, Leiter, Hängestütze, Jochaufsätze, Ausleger. EK1-EK3 bleiben unverändert. Dazu braucht es das Datenpaket vom 8. Oktober.', rechnung: true },
+      { text: 'Ein neues Blatt startet mit «Schnee ansetzen» ein und «Havariefall rechnen» aus. Gespeicherte Stände behalten ihre Wahl.', rechnung: true },
       { text: 'Blatt «Kräfte am Jochanschluss» zeigt das Achssystem (x quer, y längs, z nach oben). Das Blatt der Reaktionskräfte öffnet ohne die Havariezeilen; das Kästchen «Havariefall» holt sie dazu.' },
       { text: 'Leiter, die nur abgezogen werden (Haken «Gewicht» aus, z. B. Fahrdrahtabzug): im 3D gestrichelt mit Doppelpfeil und Marke «Abzug»; sie stehen nicht mehr in der Havarie-Liste und bekommen keinen Bruchfall.', rechnung: true },
       { text: 'Doppelanker: zwei Seile von einem Fundament zu zwei Anschlüssen am Masten. Neues Feld «Abstand des unteren Ankers zum oberen»; die Neigung gilt der Resultierenden beider Seile, nachgewiesen wird die Resultierende gegen 2 × 67 kN, das stärkere Seil steht daneben. Bestehende Doppelanker rechnen neu mit 3.00 m Abstand.', rechnung: true },
