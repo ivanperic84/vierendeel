@@ -1904,7 +1904,8 @@ function anschlussBlockEinfuegen(node) {
       ? 'Je Gurtanschluss die Kraft, die das Joch auf den Masten gibt'
       : 'Je Jochende die Summe der Gurtanschlüsse: Kräfte und Momente um die Mitte des Anschlusses, '
         + 'je Zustand summiert'}; Hülle über «Ständig» und «Ständig + Wind / Schnee», ohne Abminderung
-      des Winds. Der massgebende Zustand steht im Titel der Zelle.</p>
+      des Winds. ${einzeln ? 'Der massgebende Zustand steht im Titel der Zelle.'
+        : 'F_z als min / max, die übrigen als ±Betrag mit ihrem Lastfall; min und max mit Vorzeichen stehen im Blatt.'}</p>
     <button class="btn btn-mini btn-acc" type="button" data-anschluss-blatt
       title="Blatt der Kräfte am Jochanschluss öffnen: Übersicht, Resultierende je Jochende, einzelne Gurte">Blatt mit Skizze
       und Hinweisen …</button>

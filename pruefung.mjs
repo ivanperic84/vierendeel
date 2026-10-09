@@ -40069,10 +40069,15 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
       const ER = await import(J('export.reaktionen.js'));
       const t = ER.anschlussKurzHtml(an.anschluss, (m) => m, true);
       const zeilen = [...t.matchAll(/<tr><th>([^<]+) <span class="rk-einheit">/g)].map((m) => m[1]);
-      wahr('Jochanschluss, Resultierende: je Jochende eine Tabelle wie am Mastfuss (F_z, M_y, F_x, M_x, F_y, M_z; min / max)',
+      // Seit dem 9. Oktober vereinfacht wie die Reaktionskräfte: F_z min / max, die
+      // übrigen als ±Betrag, daneben der Lastfall (vorher je Grösse min und max).
+      wahr('Jochanschluss, Resultierende: je Jochende eine Tabelle wie am Mastfuss (F_z min/max, ±M_y, ±F_x, ±M_x, ±F_y, ±M_z; Einwirkung, Lastfall)',
            (t.match(/class="dt rk-kurz rk-jochende"/g) ?? []).length === 2
-           && zeilen.slice(0, 6).join('|') === 'F_z ↑ (V)|M_y (M,q)|F_x (H,q)|M_x (M,l)|F_y (H,l)|M_z (T)'
-           && t.includes('>min<') && t.includes('>max<'), zeilen.slice(0, 6).join(' · '));
+           && zeilen.slice(0, 6).join('|') === 'F_z ↑ (V) min/max|±M_y (M,q)|±F_x (H,q)|±M_x (M,l)|±F_y (H,l)|±M_z (T)'
+           && t.includes('>Einwirkung<') && t.includes('>Lastfall<'), zeilen.slice(0, 6).join(' · '));
+      const r0 = an.anschluss.resultierende[0];
+      const gross = Math.max(Math.abs(r0.Fy.min.wert), Math.abs(r0.Fy.max.wert)).toFixed(2);
+      wahr('… der ±Betrag ist der grössere von |min| und |max|', t.includes(`>${gross}</td>`), gross);
     }
     // Das Blatt (9. Oktober): «für die jochreaktionen auch ein blatt zusammenstellen ähnlich wie Reaktionskräfte».
     {
@@ -40766,9 +40771,9 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     }
     wahr('Ein ausgeblendetes Tragwerk anklicken blendet es ein (das gerechnete ist nie ausgeblendet)',
          /if \(key === 'tragwerkAktiv'\) \{\s*werte = tauscheAktives\(werte, wert\);[\s\S]{0,900}if \(werte\.ausgeblendet === true\) \{\s*werte = \{ \.\.\.werte, ausgeblendet: false \};/.test(APP_QUELLE()));
-    wahr('Jochanschluss: der Lastfall steht kurz unter der Zahl (Reiter und Blatt)',
+    wahr('Jochanschluss: der Lastfall steht kurz bei der Zahl (Reiter: eigene Spalte, Blatt: unter der Zahl)',
          RK264.fallKurz('Ständig + Wind +y (längs zum Gleis)') === 'G + Wind +y' && RK264.fallKurz('Ständig') === 'G'
-         && /class="rk-fall"/.test(RK264.anschlussKurzHtml(Object.assign([{}], { resultierende: [{ mast: 'M1', anzahl: 4,
+         && /class="rk-fallspalte">G</.test(RK264.anschlussKurzHtml(Object.assign([{}], { resultierende: [{ mast: 'M1', anzahl: 4,
               ...Object.fromEntries(['Fz', 'My', 'Fx', 'Mx', 'Fy', 'Mz'].map((k) => [k, { min: { wert: -1, bez: 'Ständig' }, max: { wert: 1, bez: 'Ständig + Wind +x (quer zum Gleis)' } }])) }] }), (m) => m, true)));
     wahr('Jochanschluss: der Mast steht ohne die Anschlusshöhe des Linknamens da (M2, nicht M2k0)',
          /mast: mastOhneHoehe\(mast\), links/.test(readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8'))

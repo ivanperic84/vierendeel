@@ -566,17 +566,38 @@ export const fallKurz = (bez) => String(bez ?? '')
   .replace(/^Ständig.*$/, 'G');
 const mitFall = (x) => (x ? `${f2(x.wert)}<span class="rk-fall">${esc(fallKurz(x.bez))}</span>` : '–');
 
+/*
+ * >>> EINFACH WIE DIE REAKTIONSKRÄFTE (9. Oktober). <<< Mit Bild des Blocks
+ * (je Grösse min und max, darunter je ein Lastfall): «können wir das nicht auf
+ * die art vereinfacht aufführen wie bei den reaktionskräften?» Im Reiter steht
+ * je Jochende EINE Zahlenspalte wie am Mastfuss: F_z als min / max, die
+ * übrigen als ±Betrag (der grössere von |min| und |max|), daneben der
+ * massgebende Lastfall kurz. Die volle Form min / max mit Vorzeichen bleibt
+ * im Blatt.
+ */
 function anschlussResultierendeHtml(res, mastName) {
-  const zeile = (label, einheit, k) => `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
-    <td class="num" title="${esc(k.min?.bez ?? '')}">${mitFall(k.min)}</td>
-    <td class="num" title="${esc(k.max?.bez ?? '')}">${mitFall(k.max)}</td></tr>`;
+  const betrag = (k) => {
+    const a = k.min, b = k.max;
+    if (!a && !b) return null;
+    return Math.abs(a?.wert ?? 0) >= Math.abs(b?.wert ?? 0) ? a : b;
+  };
+  const titel = (k) => esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`);
+  const zeile = (label, einheit, k) => {
+    const m = betrag(k);
+    return `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
+    <td class="num" title="${titel(k)}">${m ? f2(Math.abs(m.wert)) : '–'}</td>
+    <td class="rk-fallspalte">${m && Math.abs(m.wert) >= 0.005 ? esc(fallKurz(m.bez)) : ''}</td></tr>`;
+  };
+  const v = (k) => `<tr><th>F_z ↑ (V) min/max <span class="rk-einheit">[kN]</span></th>
+    <td class="num" title="${titel(k)}">${k.min ? `${f2(k.min.wert)} / ${f2(k.max.wert)}` : '–'}</td>
+    <td class="rk-fallspalte">${k.min ? esc(fallKurz(k.min.bez)) : ''}</td></tr>`;
   return res.map((a) => `<table class="dt rk-kurz rk-jochende">
-      <colgroup><col style="width:46%"><col style="width:27%"><col style="width:27%"></colgroup>
+      <colgroup><col style="width:42%"><col style="width:26%"><col style="width:32%"></colgroup>
       <thead><tr><th><b>${esc(`${a.tw ? `${a.tw} · ` : ''}${mastName(a.mast)}`)}</b>
-          <span class="rk-x">Jochende · ${a.anzahl} Gurtanschlüsse</span></th>
-        <th class="num">min</th><th class="num">max</th></tr></thead>
-      <tbody>${zeile('F_z ↑ (V)', 'kN', a.Fz)}${zeile('M_y (M,q)', 'kNm', a.My)}${zeile('F_x (H,q)', 'kN', a.Fx)}${
-        zeile('M_x (M,l)', 'kNm', a.Mx)}${zeile('F_y (H,l)', 'kN', a.Fy)}${zeile('M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
+          <span class="rk-x" title="${a.anzahl} Gurtanschlüsse">Jochende</span></th>
+        <th class="num">Einwirkung</th><th>Lastfall</th></tr></thead>
+      <tbody>${v(a.Fz)}${zeile('±M_y (M,q)', 'kNm', a.My)}${zeile('±F_x (H,q)', 'kN', a.Fx)}${
+        zeile('±M_x (M,l)', 'kNm', a.Mx)}${zeile('±F_y (H,l)', 'kN', a.Fy)}${zeile('±M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
 }
 
 /**
