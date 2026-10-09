@@ -561,6 +561,35 @@ function anschlussResultierendeHtml(res, mastName) {
  * @param {object} daten  wie beim Reaktionsblatt (skizze, zeilen, titel, linie, …)
  *                        dazu `anschluss` (Liste mit `.resultierende`) und `mastName`
  */
+/**
+ * >>> ACHSEN AUF DEM BLATT DES JOCHANSCHLUSSES (9. Oktober). <<< Mit Bild des
+ * Blatts: «Hier zur orientierung die system achsen zeigen». Anders als am
+ * Mastfuss gilt hier das globale System des Modells: x quer, y längs, z nach
+ * OBEN. Rechtshändig zeigt y damit vom Betrachter weg (Längsansicht von −y,
+ * wie die Übersicht daneben und das 3D).
+ */
+export function achsSvgGlobal() {
+  return `<svg class="rk-achsen" viewBox="0 0 300 170" width="300" height="170"
+      xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Achssystem des Blatts">
+    <defs><marker id="rk-pfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+      markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#222"/></marker></defs>
+    <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
+      .klein{font-size:10px;fill:#555}</style>
+    <line x1="70" y1="130" x2="190" y2="130" marker-end="url(#rk-pfg)"/>
+    <text x="196" y="134">x</text>
+    <text class="klein" x="110" y="146">quer zum Gleis</text>
+    <line x1="70" y1="130" x2="70" y2="38" marker-end="url(#rk-pfg)"/>
+    <text x="58" y="34">z</text>
+    <text class="klein" x="6" y="80">nach oben</text>
+    <line x1="70" y1="130" x2="122" y2="86" marker-end="url(#rk-pfg)"/>
+    <text x="128" y="84">y</text>
+    <text class="klein" x="138" y="98">längs zum Gleis (nach hinten)</text>
+    <text class="klein" x="170" y="20">M_y (M,q) um y</text>
+    <text class="klein" x="170" y="32">M_x (M,l) um x</text>
+    <text class="klein" x="170" y="44">M_z (T) um z</text>
+  </svg>`;
+}
+
 export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = {}) {
   const liste = daten?.anschluss ?? [];
   const res = liste.resultierende ?? [];
@@ -614,6 +643,8 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
   <div class="oben">
     <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
       <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
+    <figure>${achsSvgGlobal()}
+      <figcaption>Achssystem des Blatts (global, wie im Modell)</figcaption></figure>
     <div style="max-width:330px"><b>Achsen und Vorzeichen</b>
       <ul class="rk-hinweise"><li>Kraft des Jochs AUF den Masten, global: x quer zum Gleis, y längs zum Gleis, z nach oben
         (Gewicht des Jochs negativ).</li>

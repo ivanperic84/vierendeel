@@ -40738,6 +40738,16 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   wahr('Lastfälle: je ein Bruchfall ±y nur für den gestützten Leiter',
        keys.length === 2 && keys.every((k) => k.startsWith('havarie|X2#0|')), keys.join(', '));
   wahr('… auch im Satz je Tragwerk (Blatt, Ausleitung)', C264.tragwerkSatz(w, 'T1').havarie['X1#0'].reisst === false);
+  // 9. Oktober: Achsen auf dem Anschlussblatt, Havarie im Reaktionsblatt beim Start aus.
+  {
+    const RK264 = await import(J('export.reaktionen.js'));
+    const blatt = RK264.anschlussBlattHtml({ anschluss: Object.assign([], { resultierende: [] }) });
+    wahr('Blatt «Kräfte am Jochanschluss» zeigt das globale Achssystem (z nach oben, y nach hinten)',
+         blatt.includes('Achssystem des Blatts') && /nach oben/.test(RK264.achsSvgGlobal())
+         && /nach hinten/.test(RK264.achsSvgGlobal()) && !/nach unten/.test(RK264.achsSvgGlobal()));
+    wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
+         APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
+  }
 }
 
 console.log('\n' + '='.repeat(104));

@@ -786,7 +786,9 @@ function reaktionsDaten() {
 // Was mitkommt, bleibt für die Sitzung gemerkt (30. September: «bestimmen
 // können ob man den havariefall / standardlasten / Hinweistext mit plotten
 // will»).
-let reaktionsWahl = { havarie: true, standard: true, hinweise: true };
+// Havariefall beim Start aus (Weisung 9. Oktober, mit Bild der Leiste: «Hier
+// beim start havarie deaktivieren»); das Kästchen holt ihn dazu.
+let reaktionsWahl = { havarie: false, standard: true, hinweise: true };
 /*
  * >>> DIE HINWEISE DES REAKTIONSBLATTS ALS VORLAGE (1. Oktober). <<<
  * «den textblock bearbeitbar machen und man sollte es als vorlage speichern
