@@ -40911,6 +40911,8 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       wahr('Maske: Fussversatz nicht am Tragausleger',
            /key: 'mastFuss'[\s\S]{0,900}tragwerksart\(w\)\.key !== 'tragausleger'/.test(readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8')));
     }
+    wahr('Schiene: der Anker kommt aus dem Stabwerk, wenn es gilt',
+         readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes("swG?.h?.ankerJe?.[namen[ende]]?.nachweis ?? e.anker[ende]?.nachweis"));
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }

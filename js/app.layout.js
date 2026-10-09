@@ -1166,7 +1166,10 @@ export function zeichneSchienen(app) {
       const gesehen = new Set();
       const teile = [];
       ['A', 'B'].forEach((ende) => {
-        const nw = e.anker[ende]?.nachweis;
+        // Aus dem Stabwerk, wenn es gilt (9. Oktober): die Kachel zeigte den
+        // Anker schon von dort, die Schiene noch den Kern - am Tragausleger
+        // 0.11 neben 0.57 (der Kern kennt den Wind auf den Ausleger nicht).
+        const nw = swG?.h?.ankerJe?.[namen[ende]]?.nachweis ?? e.anker[ende]?.nachweis;
         if (!nw) return;
         const name = namen[ende] || `Ende ${ende}`;
         if (gesehen.has(name)) return;
