@@ -12,6 +12,13 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-10-10',
+    punkte: [
+      { text: 'Lastfalltabelle (Reiter Lasten): die Spalte η zeigt je Lastfall die Zahl des Stabwerks - dieselbe wie der Kopf der Übersicht, wenn man den Fall wählt (Joch, Masten, Knicken). Vorher stand dort der Ersatzbalken (nur das Joch). Fundament, Anker und Gebrauchstauglichkeit zählen nicht in der Zahl eines Falls.' },
+      { text: 'Ablage: die Vorschau erscheint nur noch über dem Knopf «Laden». Sie zeigt die Anbauteile wie im Modell: blau, was einen Leiter trägt, orange, was nur abzieht; je Leiter ein Ring (bei mehreren so viele Ringe), freie Fläche und Signal als kleines Viereck.' },
+    ],
+  },
+  {
     datum: '2026-10-08',
     punkte: [
       { text: 'Tragausleger: ein Anker am Masten wird jetzt im Stabwerk gerechnet (vorher nur gezeigt); das Feld Fusspunkt entfällt dort. Abfangjoch: der Mast steht im Stabwerk in seiner ganzen Länge mit Wind (vorher nur bis zum Träger) - die Mastausnutzung steigt leicht (Beispiel 0.177 → 0.190).', rechnung: true },

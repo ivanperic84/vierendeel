@@ -14,7 +14,10 @@ import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart, sichtbareTragwerke, lageVon, lageOrtsnull,
          kragarme, tragwerkPos, tragwerkName, mastName } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
-import { normalisiereAnbauteil, setzeEigeneVorlagen, vorlagen } from './data.anbauteile.js';
+import { normalisiereAnbauteil, setzeEigeneVorlagen, vorlagen, expandiereAnbauteile,
+         istSignalModul } from './data.anbauteile.js';
+import { anbauKette, bezugsHoehe } from './core.anbauteile.js';
+import { getFlBauteil } from './data.fl.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { abschnitt, esc, icon } from './design.js';
@@ -122,6 +125,21 @@ const eintragEta = (e) => (Number.isFinite(e.kennwerte?.eta) ? e.kennwerte.eta :
  * darunter Tragwerke und Masten beim Namen. Gezeichnet wird nur aus den
  * EINGABEN: nichts wird gerechnet, das Überfahren bleibt ohne Verzug.
  *
+ * >>> ANBAUTEIL, ABZUG, LEITER, FLÄCHE (10. Oktober). <<< Weisung: «in der
+ * vorschau beim projektmanager die vorschau mit unterscheidung anbauteil
+ * abzug und leiter wie im report reaktionskräfte. da sollte man aber noch
+ * eine unterscheidung erkennbar machen der anzahl leiter die hinterlegt ist.
+ * zudem noch die fläche und signale anzeigen mit einer kleinen viereck.
+ * farblich könnte man noch abzug und abauteile die leiter direkt tragen
+ * farblich absetzen. Die vorschau nur wenn man laden überfährt anzeigen.»
+ * Je Baugruppe die Kette wie im 3D (`anbauKette`, x-z), am Joch und am
+ * Masten: blau, wenn sie einen Leiter trägt (Gewicht kommt an), orange, wenn
+ * sie nur abzieht (alle ihre Leiter ohne Gewicht), sonst grau. Je Leiter ein
+ * Ring mit Punkt (wie die Skizze der Reaktionskräfte), bei mehreren Leitern
+ * (Anzahl × Bündel) so viele Ringe nebeneinander, über vier die Zahl; ein
+ * nur abgezogener Leiter ist ein leerer Ring in Orange. Freie Fläche und
+ * Signal sind ein kleines Viereck. Darunter die Legende.
+ *
  * @returns {string} HTML, leer wenn der Stand sich nicht lesen lässt
  */
 export function eintragVorschauHtml(e) {
@@ -142,7 +160,11 @@ export function eintragVorschauHtml(e) {
     : Math.max(8, ...teile.map((q) => q.H + 1)) }));
   const xs = [...teile.flatMap((q) => [q.x0, q.x1]), ...ms.map((q) => q.x)];
   const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const zMax = Math.max(4, ...ms.map((q) => q.l), ...teile.map((q) => q.H + 1));
+  // Auch was über Joch und Mast hinausragt (Jochaufsatz, Rohr) gehört ins Bild.
+  const zTeile = teile.flatMap((q) => (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false)
+    .flatMap((a) => (a.module ?? []).map((m) => (String(a.ort ?? '').startsWith('mast')
+      ? num(a.hMast) : q.H + 0.4) + num(m?.z))));
+  const zMax = Math.max(4, ...ms.map((q) => q.l), ...teile.map((q) => q.H + 1), ...zTeile.map((z) => z + 0.4));
   const B = 300, Hh = 150, rand = 16;
   const s = Math.min((B - 2 * rand) / Math.max(xMax - xMin, 2), (Hh - 2 * rand - 12) / zMax);
   const ox = (B - (xMax - xMin) * s) / 2;
@@ -153,32 +175,113 @@ export function eintragVorschauHtml(e) {
       + `<line class="vs-fuss" x1="${(Number(X(q.x)) - 5).toFixed(1)}" y1="${Z(0)}" x2="${(Number(X(q.x)) + 5).toFixed(1)}" y2="${Z(0)}"/>`
       + `<text x="${X(q.x)}" y="${(Number(Z(0)) + 11).toFixed(1)}" text-anchor="middle">${esc(mastName(w, q.m))}</text>`);
   });
+  /*
+   * Die Baugruppen: Kette, Leiter, Flächen. `welt` legt einen Kettenpunkt
+   * aufs Blatt. Gelesen wird über `expandiereAnbauteile` (dieselben Teile wie
+   * im 3D); lässt sich eine Gruppe nicht lesen, bleibt ein Strich.
+   */
+  const zaehl = { leiter: 0, abzug: 0, kasten: 0 };
+  const symbole = [];
+  const leiterN = (t) => {
+    const n = Math.max(1, Math.round(Number(t?.anzahl) || 1));
+    const m = /-x(\d+)$/.exec(String(t?.bauteil ?? ''));
+    return n * (m ? Number(m[1]) : 1);
+  };
+  const istKasten = (a, t) => {
+    const m = (a.module ?? [])[t.modulIndex];
+    if (m && istSignalModul(m)) return true;
+    try { return getFlBauteil(t.bauteil)?.freieFlaeche === true; } catch { return false; }
+  };
+  const gruppeZeichnen = (a, meine, kette, welt) => {
+    const dw = meine.filter((t) => t.rolle === 'drahtwerk');
+    const abz = (t) => t.wirkung?.G === false;
+    const kl = !dw.length ? 'vs-teil' : dw.every(abz) ? 'vs-abzug' : 'vs-traegt';
+    (kette.glieder ?? []).forEach((g) => {
+      const p = welt(g.von), r = welt(g.bis);
+      if (Math.hypot(Number(X(p[0])) - Number(X(r[0])), Number(Z(p[1])) - Number(Z(r[1]))) < 0.3) return;
+      linien.push(`<line class="${kl}" x1="${X(p[0])}" y1="${Z(p[1])}" x2="${X(r[0])}" y2="${Z(r[1])}"/>`);
+    });
+    (kette.belegung ?? []).forEach(({ teil: t, punkt }) => {
+      if (!punkt) return;
+      const [px, pz] = welt(punkt);
+      const cx = Number(X(px)), cy = Number(Z(pz));
+      if (t.rolle === 'drahtwerk') {
+        const n = leiterN(t), ab = abz(t);
+        zaehl[ab ? 'abzug' : 'leiter'] += n;
+        const k = Math.min(n, 4), d = 5.2;
+        for (let i = 0; i < k; i++) {
+          const x = (cx + (i - (k - 1) / 2) * d).toFixed(1);
+          symbole.push(`<circle class="${ab ? 'vs-abzugring' : 'vs-leiter'}" cx="${x}" cy="${cy.toFixed(1)}" r="2.3"/>`
+            + (ab ? '' : `<circle class="vs-leiterkern" cx="${x}" cy="${cy.toFixed(1)}" r="0.8"/>`));
+        }
+        if (n > 4) symbole.push(`<text class="vs-zahl" x="${(cx + 2 * d + 1).toFixed(1)}" y="${(cy + 3).toFixed(1)}">×${n}</text>`);
+      } else if (t.art === 'modul' && istKasten(a, t)) {
+        zaehl.kasten += 1;
+        symbole.push(`<rect class="vs-kasten" x="${(cx - 2.6).toFixed(1)}" y="${(cy - 2.6).toFixed(1)}" width="5.2" height="5.2"/>`);
+      }
+    });
+  };
   teile.forEach((q) => {
-    if (q.art === 'einzelmast') return;
     const jd = q.art === 'joch' ? Math.max(0.3, num(q.t.jd, 500) / 1000) : 0.16;
     if (q.art === 'joch') {
       linien.push(`<rect class="vs-joch" x="${X(Math.min(q.x0, q.x1))}" y="${Z(q.H + jd / 2)}" width="${(Math.abs(q.x1 - q.x0) * s).toFixed(1)}" height="${Math.max(2, jd * s).toFixed(1)}"/>`);
-      (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false && !String(a.ort ?? '').startsWith('mast'))
-        .forEach((a) => {
-          const x = q.x0 + num(a.x);
-          const unten = a.befestigung !== 'oben';
-          linien.push(`<line class="vs-teil" x1="${X(x)}" y1="${Z(q.H)}" x2="${X(x)}" y2="${Z(q.H + (unten ? -1.4 : 1.4))}"/>`);
-        });
-    } else {
+    } else if (q.art !== 'einzelmast') {
       linien.push(`<line class="vs-joch" x1="${X(q.x0)}" y1="${Z(q.H)}" x2="${X(q.x1)}" y2="${Z(q.H)}"/>`);
       if (q.art === 'tragausleger') {
         const m0 = ms.find((mm) => Math.abs(mm.x - q.x0) < 0.2);
         linien.push(`<line class="vs-seil" x1="${X(q.x0)}" y1="${Z(m0 ? m0.l : q.H + 4)}" x2="${X(q.x0 + q.seite * q.L * 0.82)}" y2="${Z(q.H)}"/>`);
       }
     }
+    const aktive = (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false);
+    let flach = [];
+    try { flach = expandiereAnbauteile(aktive, { ek: 'EK1' }); } catch { flach = []; }
+    aktive.forEach((roh) => {
+      let a;
+      try { a = normalisiereAnbauteil(roh); } catch { return; }
+      const meine = flach.filter((t) => t.baugruppe === a.id);
+      const amMast = String(a.ort ?? '').startsWith('mast');
+      try {
+        if (amMast) {
+          const soll = a.ort === 'mastB' ? q.x1 : q.x0;
+          const mast = ms.find((mm) => a.mastId && mm.m.id === a.mastId)
+            ?? ms.reduce((b, mm) => (!b || Math.abs(mm.x - soll) < Math.abs(b.x - soll) ? mm : b), null);
+          if (!mast || !meine.length) return;
+          const kette = anbauKette(meine, { x0: 0, zAn: 0, amMast: true });
+          gruppeZeichnen(a, meine, kette, (p) => [mast.x + (p.x ?? 0), num(a.hMast) + (p.z ?? 0)]);
+          return;
+        }
+        if (q.art === 'einzelmast') return;
+        const zOG = q.H + jd / 2, zUG = q.H - jd / 2;
+        // Am Ausleger nach links ist nur die Station gespiegelt, die Teile nicht.
+        const stat = q.art === 'tragausleger' ? q.x0 + q.seite * num(a.x) : q.x0 + num(a.x);
+        if (!meine.length) {
+          const unten = a.befestigung !== 'oben';
+          linien.push(`<line class="vs-teil" x1="${X(stat)}" y1="${Z(q.H)}" x2="${X(stat)}" y2="${Z(q.H + (unten ? -1.4 : 1.4))}"/>`);
+          return;
+        }
+        const mitTraeger = meine.some((t) => (t.rolle ?? '') === 'traeger');
+        const tr = meine.find((t) => (t.rolle ?? '') === 'traeger') ?? meine[0];
+        const bef = a.befestigung === 'beide' ? 'durchgehend' : a.befestigung;
+        const kette = anbauKette(meine, { x0: num(a.x),
+          zAn: bezugsHoehe({ befestigung: bef, z: tr?.z ?? 0, mitTraeger }, zOG, zUG) });
+        gruppeZeichnen(a, meine, kette, (p) => [stat + ((p.x ?? 0) - num(a.x)), p.z ?? 0]);
+      } catch { /* diese Gruppe bleibt ohne Bild */ }
+    });
   });
+  const glyph = (innen) => `<svg viewBox="0 0 10 10" width="10" height="10">${innen}</svg>`;
+  const legende = [
+    zaehl.leiter ? `<span>${glyph('<circle class="vs-leiter" cx="5" cy="5" r="3"/><circle class="vs-leiterkern" cx="5" cy="5" r="1"/>')}Leiter getragen (${zaehl.leiter})</span>` : '',
+    zaehl.abzug ? `<span>${glyph('<circle class="vs-abzugring" cx="5" cy="5" r="3"/>')}nur Abzug (${zaehl.abzug})</span>` : '',
+    zaehl.kasten ? `<span>${glyph('<rect class="vs-kasten" x="2" y="2" width="6" height="6"/>')}Fläche / Signal (${zaehl.kasten})</span>` : '',
+  ].filter(Boolean).join('');
   const liste = teile.map((q) => `<li>${esc(`${tragwerkPos(w, q.t)} · ${tragwerkName(q.t, w)}`)}${
     (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false).length
       ? ` · ${(q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false).length} Anbauteile` : ''}</li>`).join('');
   const mastText = ms.map((q) => `${mastName(w, q.m)} ${q.m.profil ?? ''}`.trim()).join(' · ');
   return `<div class="ab-vs-titel">${esc(e.name ?? '')}${e.projekt ? ` <span>· ${esc(e.projekt)}</span>` : ''}</div>
     <svg class="ab-vs-bild" viewBox="0 0 ${B} ${Hh}" width="${B}" height="${Hh}" aria-hidden="true">
-      <line class="vs-boden" x1="6" y1="${Z(0)}" x2="${B - 6}" y2="${Z(0)}"/>${linien.join('')}</svg>
+      <line class="vs-boden" x1="6" y1="${Z(0)}" x2="${B - 6}" y2="${Z(0)}"/>${linien.join('')}${symbole.join('')}</svg>
+    ${legende ? `<div class="ab-vs-legende">${legende}</div>` : ''}
     <ul class="ab-vs-liste">${liste}</ul>
     ${mastText ? `<div class="ab-vs-masten">${esc(mastText)}</div>` : ''}`;
 }
@@ -508,15 +611,16 @@ export async function zeichneSchublade(app) {
   });
 
   /*
-   * Die Vorschau beim Überfahren einer Zeile (B7). Ein schwebendes Fenster
-   * neben dem Zeiger; über den Knöpfen der Zeile und beim Tippen in einer
-   * Zelle bleibt es weg, damit es nichts verdeckt, was man bedienen will.
+   * Die Vorschau (B7) - seit dem 10. Oktober nur über dem Knopf «Laden»
+   * («Die vorschau nur wenn man laden überfährt anzeigen»): ein schwebendes
+   * Fenster neben dem Zeiger; über der übrigen Zeile bleibt es weg.
    */
   let vs = document.getElementById('ab-vorschau');
   const vsWeg = () => { if (vs) vs.hidden = true; };
   n.querySelectorAll('.ab-tabelle tbody tr[data-id]').forEach((tr) => {
+    const knopf = tr.querySelector('[data-laden]');
+    if (!knopf) return;
     const zeige = (ev) => {
-      if (ev.target.closest('button, [contenteditable]') || document.activeElement?.isContentEditable) { vsWeg(); return; }
       const e = alle.find((x) => x.id === tr.dataset.id);
       if (!vs) { vs = document.createElement('div'); vs.id = 'ab-vorschau'; vs.className = 'ab-vorschau'; document.body.appendChild(vs); }
       if (vs.dataset.id !== tr.dataset.id) {
@@ -530,8 +634,9 @@ export async function zeichneSchublade(app) {
       const y = ev.clientY + 18 + b.height > window.innerHeight ? ev.clientY - b.height - 12 : ev.clientY + 18;
       vs.style.left = `${Math.max(8, x)}px`; vs.style.top = `${Math.max(8, y)}px`;
     };
-    tr.addEventListener('mousemove', zeige);
-    tr.addEventListener('mouseleave', vsWeg);
+    knopf.addEventListener('mousemove', zeige);
+    knopf.addEventListener('mouseleave', vsWeg);
+    knopf.addEventListener('click', vsWeg);
   });
   n.addEventListener('scroll', vsWeg, { passive: true, capture: true });
 

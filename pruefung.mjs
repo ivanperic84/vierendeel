@@ -40582,8 +40582,8 @@ titel('262  Bugreport B3-B7: Gruppenname, «neu», Serie, Überstand, Vorschau')
     wahr('… am Joch ohne Verjüngung (J90/20 m) bleibt jedes Blech waagrecht',
          neu.staebe.filter((q) => /BH_U_/.test(q.name) && (q.art ?? 'stab') === 'stab').every((q) => !q.lcsZ || Math.abs(q.lcsZ[0]) < 1e-9));
   }
-  wahr('… ohne lesbaren Stand keine Vorschau; verdrahtet beim Überfahren der Zeile',
-       AB.eintragVorschauHtml({ name: 'x' }) === '' && readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes("tr.addEventListener('mousemove', zeige);")
+  wahr('… ohne lesbaren Stand keine Vorschau; verdrahtet beim Überfahren des Knopfs «Laden» (10. Oktober)',
+       AB.eintragVorschauHtml({ name: 'x' }) === '' && readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes("knopf.addEventListener('mousemove', zeige);")
        && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.ab-vorschau {'));
 }
 
@@ -40916,6 +40916,62 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
          APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
   }
+}
+
+/*
+ * 10. Oktober: «die ausnutzung unter lastfallkombination ist nicht die gleiche
+ * wie unter übersicht. in der vorschau beim projektmanager die vorschau mit
+ * unterscheidung anbauteil abzug und leiter wie im report reaktionskräfte. da
+ * sollte man aber noch eine unterscheidung erkennbar machen der anzahl leiter
+ * die hinterlegt ist. zudem noch die fläche und signale anzeigen mit einer
+ * kleinen viereck. farblich könnte man noch abzug und abauteile die leiter
+ * direkt tragen farblich absetzen. Die vorschau nur wenn man laden überfährt
+ * anzeigen.»
+ */
+{
+  const ABL = await import(J('app.ablage.js'));
+  const UIK = await import(J('ui.js'));
+  const fd = 'drahtwerk-n-fl-cu-107';
+  const basis = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 260', mastVorhanden: true, tragwerksart: 'joch',
+                  twId: 'T1', mastH: 7.5, kragMasten: true, kragA: 0, kragB: 0, xNachweis: 8 };
+  const vs = ABL.eintragVorschauHtml({ name: 'Probe', werte: { ...basis, anbauteile: [
+    { id: 'A1', name: 'Abzug', x: 5, befestigung: 'unten', module: [{ bauteil: 'anbauteil-haengestuetze-od-haengerohr', z: -1.35 }, { bauteil: fd, z: -2.7, wirktG: false }] },
+    { id: 'A2', name: 'Bündel', x: 10, befestigung: 'oben', module: [{ bauteil: 'drahtwerk-cu-95-x2', z: 0.4, anzahl: 1 }] },
+    { id: 'A3', name: 'Viele', x: 14, befestigung: 'oben', module: [{ bauteil: 'drahtwerk-cu-95', z: 0.4, anzahl: 6 }] },
+    { id: 'A4', name: 'Stütze leer', x: 17, befestigung: 'unten', module: [{ bauteil: 'anbauteil-haengestuetze-od-haengerohr', z: -1.35 }] },
+  ] } });
+  const anz = (re) => (vs.match(re) ?? []).length;
+  wahr('Vorschau: Abzug orange mit leerem Ring, tragende Gruppe blau, Anbauteil ohne Leiter grau',
+       vs.includes('class="vs-abzug"') && anz(/class="vs-abzugring" cx="[\d.]+" cy="[\d.]+" r="2.3"/g) === 1
+       && vs.includes('class="vs-teil"'), vs.replace(/\s+/g, ' ').slice(0, 300));
+  wahr('… Anzahl der Leiter: Bündel × 2 = zwei Ringe, sechs Leiter = vier Ringe und «×6»',
+       anz(/class="vs-leiter" cx="[\d.]+" cy="[\d.]+" r="2.3"/g) === 6 && vs.includes('>×6</text>'),
+       `Ringe ${anz(/class="vs-leiter" cx/g)}`);
+  wahr('… Legende mit den Stückzahlen', vs.includes('Leiter getragen (8)') && vs.includes('nur Abzug (1)'),
+       (/ab-vs-legende">([\s\S]*?)<\/div>/.exec(vs)?.[1] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '));
+  let frei = null;
+  try { frei = (await import(J('data.fl.js'))).flBauteile().find((b) => b.freieFlaeche)?.id ?? null; } catch { frei = null; }
+  if (frei) {
+    const vf = ABL.eintragVorschauHtml({ name: 'F', werte: { ...basis, anbauteile: [
+      { id: 'F1', name: 'Fläche', x: 6, befestigung: 'unten', module: [{ bauteil: frei, z: -1, aQuer: 1, aLaengs: 1, eigengewicht: 0.5 }] }] } });
+    wahr('… freie Fläche bzw. Signal als kleines Viereck', vf.includes('class="vs-kasten" x=') && vf.includes('Fläche / Signal (1)'));
+  }
+  // Lastfalltabelle
+  const kombi = { einwirkungen: [], lastfaelle: [
+    { key: 'a', bez: 'A', nachweis: true, beiwerte: {}, eta: 0.30, istMassgebend: true },
+    { key: 'b', bez: 'B', nachweis: true, beiwerte: {}, eta: 0.20 },
+    { key: 'c', bez: 'C', nachweis: true, beiwerte: {}, eta: 0.10 }] };
+  const ohne = UIK.kombiMatrixHtml(kombi, null, { vorlaeufig: true });
+  const mit = UIK.kombiMatrixHtml(kombi, null, { stabwerk: { a: { eta: 0.41, name: 'Joch' }, b: { eta: 0.69, name: 'Mast M1' } } });
+  wahr('Lastfalltabelle: ohne Stabwerk der Ersatzbalken, so angeschrieben',
+       ohne.includes('Ersatzbalken · vorläufig') && ohne.includes('>0.300'));
+  wahr('… mit Stabwerk dessen Zahl je Fall, «massgebend» folgt ihr, ein Fall ohne Stabwerk ist markiert',
+       mit.includes('>0.690') && mit.includes('>0.410') && !mit.includes('>0.300')
+       && /data-lf-wahl="b"[\s\S]{0,260}<b>massgebend<\/b>/.test(mit) && !/data-lf-wahl="a"[\s\S]{0,200}<b>massgebend/.test(mit)
+       && /0\.100<span class="ablage-meta"> EB<\/span>/.test(mit) && mit.includes('Mast M1'));
+  wahr('… die App reicht je Lastfall die Zahl des Stabwerks (imFall, wie der Kopf der Übersicht)',
+       /function kombiEtaStabwerk\(\)[\s\S]{0,900}g\.h\.imFall\?\.\(l\.key\)[\s\S]{0,200}ui\.etaImFall\(bauteileMitStabwerk/.test(APP_QUELLE())
+       && APP_QUELLE().includes('{ stabwerk: kombiEtaStabwerk(),'));
 }
 
 console.log('\n' + '='.repeat(104));

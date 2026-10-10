@@ -10691,18 +10691,32 @@ export function verdrahteOptionen(container, werte, onChange) {
  * Die beiden charakteristischen Lastfälle sind kein Tragsicherheitsnachweis;
  * ihr η ist zum Vergleich angegeben und grau gesetzt.
  */
-export function kombiMatrixHtml(kombi, normensatz) {
+export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
   if (!kombi?.lastfaelle?.length) return '';
+  /*
+   * >>> DIESELBE ZAHL WIE DIE ÜBERSICHT (10. Oktober). <<<
+   * «die ausnutzung unter lastfallkombination ist nicht die gleiche wie
+   * unter übersicht.» Gilt das Stabwerk, steht je Lastfall seine Zahl
+   * (`opt.stabwerk`: key -> { eta, name }) - Joch, Masten und Knicken im
+   * Fall, wie der Kopf der Übersicht bei gewähltem Fall; «massgebend» folgt
+   * ihr. Ohne Stabwerk der Ersatzbalken (nur das Joch), so angeschrieben.
+   */
+  const sw = opt.stabwerk && Object.keys(opt.stabwerk).length ? opt.stabwerk : null;
+  const etaVon = (k) => (sw?.[k.key] ? sw[k.key].eta : k.eta);
+  const bestSw = sw ? kombi.lastfaelle.filter((k) => k.nachweis && sw[k.key])
+    .reduce((a, b) => (!a || sw[b.key].eta > sw[a.key].eta ? b : a), null) : null;
+  const massg = (k) => (bestSw ? k === bestSw : k.istMassgebend);
+  const quelle = sw ? 'Stabwerk' : (opt.vorlaeufig ? 'Ersatzbalken · vorläufig' : 'Ersatzbalken');
   const ein = kombi.einwirkungen;
   const satz = normensatz
     ? `Beiwerte nach ${esc(normensatz.label)}`
     : 'Beiwerte von Hand gesetzt';
 
   const zeile = (k, i) => `
-    <tr class="lf-zeile${k.istMassgebend ? ' aktiv' : ''}${k.nachweis ? '' : ' char'}" data-lf-wahl="${esc(k.key)}"
+    <tr class="lf-zeile${massg(k) ? ' aktiv' : ''}${k.nachweis ? '' : ' char'}" data-lf-wahl="${esc(k.key)}"
         title="Anklicken: diesen Lastfall im 3D, oben und rechts zeigen">
       <td>LF${i + 1} · ${esc(k.bez)}
-        ${k.istMassgebend ? '<br><b>massgebend</b>' : ''}
+        ${massg(k) ? '<br><b>massgebend</b>' : ''}
         ${k.angepasst ? '<br><span class="ablage-meta">angepasst</span>' : ''}
         ${k.nachweis ? '' : '<br><span class="ablage-meta">charakteristisch</span>'}
         ${k.doppeltZu ? `<br><span class="ablage-meta warnton"
@@ -10712,7 +10726,10 @@ export function kombiMatrixHtml(kombi, normensatz) {
         return `<td class="beiwert num${b ? '' : ' null'}${b < 0 ? ' minus' : ''}"
           >${f2(b)}</td>`;
       }).join('')}
-      <td class="num stark ${k.nachweis ? ampel(k.eta) : ''}">${f3(k.eta)}</td>
+      <td class="num stark ${k.nachweis ? ampel(etaVon(k)) : ''}" title="${esc(sw?.[k.key]
+        ? `Aus dem Stabwerk, massgebend im Fall: ${sw[k.key].name}. Ohne Fundament, Anker und Gebrauchstauglichkeit (eigene Lastniveaus).`
+        : `Aus dem Ersatzbalken (Joch)${sw ? ' - dieser Fall steht nicht im Stabwerk' : ''}.`)}">${f3(etaVon(k))}${
+        sw && !sw[k.key] ? '<span class="ablage-meta"> EB</span>' : ''}</td>
       <td class="lf-tasten">
         <button class="btn btn-mini" data-lf="${esc(k.key)}" type="button"
                 title="Beiwerte dieses Lastfalls anpassen">${icon('optionen', 12)}</button>
@@ -10727,7 +10744,7 @@ export function kombiMatrixHtml(kombi, normensatz) {
     <div class="tabellenrahmen"><table class="dt kombi">
       <thead><tr><th>Lastfall</th>
         ${ein.map((e) => `<th class="num">${esc(e.label)}</th>`).join('')}
-        <th class="num">η</th><th></th></tr></thead>
+        <th class="num" title="Ausnutzung im Lastfall · ${esc(quelle)}">η<br><span class="ablage-meta">${esc(quelle)}</span></th><th></th></tr></thead>
       <tbody>${kombi.lastfaelle.map(zeile).join('')}</tbody>
     </table></div>
     <div class="lf-fuss">

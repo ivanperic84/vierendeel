@@ -688,6 +688,34 @@ function stabwerkAnsicht() {
   return stabwerkFallMerk.h ? { ...g, h: stabwerkFallMerk.h, einzel: true } : null;
 }
 
+/*
+ * >>> DIE LASTFALLTABELLE ZEIGT DIE ZAHL DER ÜBERSICHT (10. Oktober). <<<
+ * Gemeldet: «die ausnutzung unter lastfallkombination ist nicht die gleiche
+ * wie unter übersicht.» Die Spalte η der Tabelle kam aus dem Ersatzbalken
+ * (nur das Joch), die Übersicht aus dem Stabwerk. Gilt das Stabwerk, steht
+ * je Lastfall dieselbe Zahl wie im Kopf der Übersicht, wenn man den Fall
+ * wählt (`imFall`, `etaImFall`: Joch, Masten, Knicken des gerechneten
+ * Tragwerks). Einmal je Stabwerksergebnis gerechnet.
+ */
+let kombiEtaMerk = null;
+function kombiEtaStabwerk() {
+  const g = stabwerkGilt();
+  const bt = letzte?.urteil?.bauteile;
+  if (!g || !bt || !letzte?.kombi?.lastfaelle) return null;
+  if (kombiEtaMerk?.quelle === g.h && kombiEtaMerk.tw === werte.twId) return kombiEtaMerk.je;
+  const je = {};
+  const knick = ui.knickJe(letzte.bemessung ?? letzte.erg);
+  letzte.kombi.lastfaelle.forEach((l) => {
+    try {
+      const h = g.h.imFall?.(l.key);
+      const m = h ? ui.etaImFall(bauteileMitStabwerk(bt, h, { jochKey: g.jochKey, knick })) : null;
+      if (m) je[l.key] = m;
+    } catch { /* der Fall bleibt beim Kern */ }
+  });
+  kombiEtaMerk = { quelle: g.h, tw: werte.twId, je };
+  return je;
+}
+
 /**
  * >>> DIE DATEN DER TABELLE DER REAKTIONSKRÄFTE (30. September). <<<
  * Aus dem Stabwerk (alle Auflager des Blattes), dazu was nur die Anwendung
@@ -1477,7 +1505,9 @@ function neuRechnen(neuZeichnen = true) {
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
-          komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)),
+          komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
+                  { stabwerk: kombiEtaStabwerk(),
+                    vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }),
           /*
            * >>> DIE BÜGELSCHRAUBEN SCHON BEI DER EINGABE (7. Oktober). <<<
            * «… oder ich bekomme schon bei der eingabe der steifigkeit eine
