@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Tastenkürzel: «r» löst die Nachrechnung aus (Stabwerk jetzt rechnen). Die Ziffern 1 … 9 wählen die Plotgrösse in der Reihenfolge der Knopfleiste (η, σ_v, σ, M, V, N, T, w, η w); Positionen liegt neu auf «x», Bauteile neutral auf «c». Die Übersicht («?») ist nachgeführt.' },
       { text: 'Lastfalltabelle (Reiter Lasten): die Spalte η zeigt je Lastfall die Zahl des Stabwerks - dieselbe wie der Kopf der Übersicht, wenn man den Fall wählt (Joch, Masten, Knicken). Vorher stand dort der Ersatzbalken (nur das Joch). Fundament, Anker und Gebrauchstauglichkeit zählen nicht in der Zahl eines Falls.' },
       { text: 'Ablage: die Vorschau erscheint nur noch über dem Knopf «Laden». Sie zeigt die Anbauteile wie im Modell: blau, was einen Leiter trägt, orange, was nur abzieht; je Leiter ein Ring (bei mehreren so viele Ringe), freie Fläche und Signal als kleines Viereck.' },
     ],

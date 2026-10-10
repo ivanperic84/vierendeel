@@ -143,7 +143,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
-import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, seiteAusklappen } from './app.layout.js';
+import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
          setzWahlZeigen, setzWahlWeg, signalZusammenstellen, gruppenKopie } from './app.setzen.js';
 
@@ -5784,7 +5784,7 @@ function zeigeSpeicherstand() { aktualisiereProjektKnopf(); }
  */
 const TASTEN = [
   { id: 'hilfe', taste: '?', text: 'Diese Übersicht', tun: () => dialogTasten() },
-  { taste: 'Esc', text: 'Abbrechen, Dialog schliessen', still: true },
+  { taste: 'Esc', text: 'Abbrechen: Menü, Setzen, Dialog, Ablage, offene Bauteilkarte, Auswahl', still: true },
   { taste: 'Strg Z', text: 'Rückgängig', still: true },
   { taste: 'Strg ⇧ Z', text: 'Wiederherstellen', still: true },
 
@@ -5804,8 +5804,26 @@ const TASTEN = [
   { gruppe: 'Aufgetragene Grösse' },
   // Die Reihenfolge ist die von MODI, nicht eine eigene: sonst liefe die
   // Nummer der Taste der Reihenfolge der Knopfleiste davon.
-  { taste: '1 … 7', text: 'η · σ_v · σ · M · V · Positionen · neutral',
-    still: true },
+  /*
+   * >>> NACHGEFÜHRT (10. Oktober, «Tastenkürzel auf aktualität checken»). <<<
+   * Hier stand «1 … 7 · η · σ_v · σ · M · V · Positionen · neutral» - seit N,
+   * T, w und η w dazugekommen sind, trafen die Tasten 6 und 7 N und T, und
+   * Positionen / Bauteile waren per Taste nicht mehr zu erreichen. Die Zeile
+   * liest ihre Namen jetzt aus der SICHTBAREN Knopfleiste (`modiFuer`), die
+   * Ziffern reichen bis 9; Positionen und Bauteile haben eigene Tasten.
+   */
+  { taste: '1 … 9', still: true,
+    get text() { return plotListe().slice(0, 9).map((m) => m.kurz).join(' · '); } },
+  { id: 'positionen', taste: 'x', text: 'Positionen (Farbe je Teil)', tun: () => plotWahl('positionen') },
+  { id: 'neutral', taste: 'c', text: 'Bauteile neutral', tun: () => plotWahl('neutral') },
+
+  { gruppe: 'Rechnen' },
+  /*
+   * «Nachrechnung auslösen ergänzen als kürzel» (10. Oktober): dasselbe wie
+   * der Knopf der Stabwerksleiste. Verändert das Tragwerk nicht.
+   */
+  { id: 'rechnen', taste: 'r', text: 'Nachrechnung auslösen (Stabwerk jetzt rechnen)',
+    tun: () => nachrechnen() },
 
   { gruppe: 'Bauen' },
   { id: 'setzen', taste: 'b', text: 'Bauteil setzen',
@@ -5819,7 +5837,34 @@ const TASTEN = [
   { id: 'bauteildaten', taste: 'k', text: 'Bauteildaten',
     tun: () => dialogBauteildaten() },
   { id: 'handbuch', taste: 'h', text: 'Handbuch', tun: () => dialogHandbuch(app) },
+
+  // Was die Maus und das 3D-Bild selbst verstehen - zur Auskunft, nicht belegbar.
+  { gruppe: 'Im 3D-Bild (Bild angeklickt)' },
+  { taste: '← → ↑ ↓', text: 'Drehen; mit Umschalt schieben', still: true },
+  { taste: '+  −', text: 'Hinein- und herauszoomen', still: true },
+  { taste: 'Strg Klick', text: 'Anbauteile mehrfach auswählen (auch in der Liste)', still: true },
+  { taste: 'Strg Ziehen', text: 'Anbauteil oder Angriffspunkt als Kopie ablegen', still: true },
 ];
+
+/** Die Plotgrössen, wie die Knopfleiste sie gerade zeigt. */
+function plotListe() { return modiFuer(nachweisart); }
+function plotWahl(key) {
+  if (!plotListe().some((m) => m.key === key)) return;
+  ansicht.modus = key;
+  ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
+}
+
+/** Die Nachrechnung von Hand: das Stabwerk jetzt, sonst der Kern. */
+function nachrechnen() {
+  if (verfahrenVon(werte) === 'stabwerk') {
+    stabwerkRechnen();
+    meldeImBalken(stabwerk?.fehler ? `Stabwerk nicht gerechnet: ${stabwerk.fehler}`
+      : stabwerk?.ohneModell ? `Stabwerk: ${stabwerk.ohneModell}` : 'Stabwerk neu gerechnet.');
+  } else {
+    neuRechnen();
+    meldeImBalken('Neu gerechnet (Ersatzbalken).');
+  }
+}
 
 /**
  * Die WIRKSAME Taste eines Kuerzels: die eigene Belegung, sonst die Vorgabe.
@@ -6146,7 +6191,8 @@ function blickAuf(key) {
 
 /** Die aufgetragene Groesse ueber ihre Nummer waehlen. */
 function plotNummer(n) {
-  const mo = MODI[n - 1];
+  // Die Nummer zählt in der Leiste, die man sieht (10. Oktober).
+  const mo = plotListe()[n - 1];
   if (!mo) return;
   ansicht.modus = mo.key;
   ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
@@ -6234,7 +6280,7 @@ function tastendruck(e) {
   if (imFeld || e.altKey || document.querySelector('.dialog')) return;
   if (werte?.tastenkuerzel === false) return;
 
-  if (e.key >= '1' && e.key <= '7') { e.preventDefault(); plotNummer(+e.key); return; }
+  if (e.key >= '1' && e.key <= '9') { e.preventDefault(); plotNummer(+e.key); return; }
   const t = TASTEN.find((x) => x.tun && tasteVon(x)
     && tasteVon(x).toLowerCase() === e.key.toLowerCase());
   if (!t) return;
@@ -6253,7 +6299,7 @@ function dialogTasten() {
   dialog('Tastenkürzel',
     `<table class="dt tasten">${zeilen}</table>
      <p class="notiz">Kürzel wirken nicht, während in einem Eingabefeld
-       geschrieben wird. Keines von ihnen verändert das Tragwerk.
+       geschrieben wird oder ein Dialog offen ist. Keines von ihnen verändert das Tragwerk.
        Belegen lassen sie sich unter <b>Optionen · Darstellung ·
        Bedienung</b>.</p>`,
     '<button class="btn" data-zu>Schliessen</button>');

@@ -40974,6 +40974,19 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        && APP_QUELLE().includes('{ stabwerk: kombiEtaStabwerk(),'));
 }
 
+/* 10. Oktober: «Tastenkürzel auf aktualität checken und Nachrechnung auslösen
+ * ergänzen als kürzel.» */
+{
+  const q = APP_QUELLE();
+  wahr('Tastenkürzel: «r» löst die Nachrechnung aus (Stabwerk jetzt, sonst der Kern)',
+       q.includes("{ id: 'rechnen', taste: 'r'") && /function nachrechnen\(\) \{\s*if \(verfahrenVon\(werte\) === 'stabwerk'\) \{\s*stabwerkRechnen\(\);/.test(q));
+  wahr('… die Ziffern zählen in der sichtbaren Plotleiste, bis 9; Positionen und Bauteile mit eigener Taste',
+       q.includes("const mo = plotListe()[n - 1];") && q.includes("e.key >= '1' && e.key <= '9'")
+       && q.includes("{ id: 'positionen', taste: 'x'") && q.includes("{ id: 'neutral', taste: 'c'") && !q.includes("taste: '1 … 7'"));
+  const tasten = [...q.matchAll(/\{ id: '(\w+)', taste: '(.)'/g)].map((m) => m[2]);
+  wahr('… keine Taste doppelt vergeben', new Set(tasten).size === tasten.length && tasten.length >= 17, tasten.join(' '));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
