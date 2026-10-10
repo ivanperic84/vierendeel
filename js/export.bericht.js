@@ -399,7 +399,8 @@ function blattMassgebend(d) {
   const rows = [
     [{ v: 'Massgebender Stab je Teil – Zwischenwerte', s: STIL.TITEL }],
     [{ v: `f_yd = ${Number(sw.fyd).toFixed(2)} N/mm². Winkel: σ = |N|/A + |k_y·z − k_z·y| (Hauptachsen mit I_yz); `
-         + 'sonst σ = |N|/A + |M_y|/W_y + |M_z|/W_z (+ σ_ω); Bleche σ_v = √(σ² + 3τ²), τ = 1.5·V/A.', s: STIL.NOTIZ }],
+         + 'sonst σ = |N|/A + |M_y|/W_y + |M_z|/W_z (+ σ_ω); Bleche σ_v = √(σ² + 3τ²), τ = 1.5·V/A. '
+         + 'Stehende Bleche plastisch (falls gewählt): η = N/N_pl + M_y/M_pl,y + M_z/M_pl,z, σ = η · f_yd.', s: STIL.NOTIZ }],
     [],
     [K('Teil'), K('Stab'), K('Kombination'), K('Ende'), K('N [kN]'), K('M_y [kNm]'), K('M_z [kNm]'),
      K('A'), K('σ_N'), K('σ_M bzw. σ_My'), K('σ_Mz'), K('σ_ω'), K('τ'), K('σ [N/mm²]'), K('η')],
@@ -408,6 +409,15 @@ function blattMassgebend(d) {
     const x = t?.detail;
     if (!x) return;
     const winkel = x.art === 'winkel';
+    // Stehendes Blech plastisch (10. Oktober): kein σ, sondern die Anteile
+    // der linearen Interaktion; A am Anschnitt mit t = min(Blech, Schenkel).
+    if (x.art === 'blechPl') {
+      rows.push([T(name), T(t.wo ?? ''), T(t.bez ?? ''), T(x.ende), N3(x.N), N3(x.My), N3(x.Mz),
+        T(`${x.A.toFixed(0)} mm² (t ${x.tEff} mm)`), T(`plastisch: N ${x.anteilN.toFixed(3)}`),
+        T(`M_y ${x.anteilMy.toFixed(3)}`), T(`M_z ${x.anteilMz.toFixed(3)}`), T(''),
+        T(`ρ ${x.rho.toFixed(3)}`), N2(x.sig), N3(t.eta)]);
+      return;
+    }
     rows.push([T(name), T(t.wo ?? ''), T(t.bez ?? ''), T(x.ende), N3(x.N), N3(x.My), N3(x.Mz),
       T(winkel ? `${x.A.toFixed(1)} mm²` : `${(x.A * 1e4).toFixed(2)} cm²`), N2(x.sigN),
       N2(winkel ? x.sigM : x.sigMy), winkel ? T('') : N2(x.sigMz), N2(x.sigW ?? 0),

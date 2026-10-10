@@ -41238,6 +41238,72 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        && stQ.includes('.filter((z) => z.id !== ARBEITS_ZEICHNUNG)'));
 }
 
+// ===========================================================================
+titel('265  Stehende Bleche plastisch (Schalter); liegende bleiben elastisch');
+
+/*
+ * Weisung 10. Oktober, im Wortlaut: «schalter wie mast plastisch, entscheid
+ * beim user ob bei alten jochen angesetzt wird. liegende bleche elastisch
+ * belassen. kein kehlnahtdachweis. durchgeschweisste naht exc 2 klasse.»
+ * Auf Rückfrage «Ein Schalter + Hinweis» und «min(Blech, Schenkel)».
+ */
+{
+  const SN = await import(J('core.stabnachweis.js'));
+  const DA = await import(J('data.anbauteile.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const SB = await import(J('export.stabbericht.js'));
+  const CO = await import(J('core.constants.js'));
+
+  // a) Handrechnung am Rechteck 100 × 10, Schenkel 9: t_eff 9, W_pl.
+  const fyd = 235 / 1.05;
+  const f = new Float64Array(12); f[0] = -2; f[1] = 3; f[4] = 0.05; f[5] = 0.8;
+  const pl = SN.blechPlastisch(f, 100, 10, 9, fyd);
+  const Mplz = 9 * 100 * 100 / 4 * fyd / 1e6, Mply = 100 * 81 / 4 * fyd / 1e6, Npl = 900 * fyd / 1000;
+  pruef('M_pl,z = t · b² / 4 · f_yd mit t = min(10, 9)', pl.Mplz, Mplz, 1e-12, 'kNm');
+  pruef('η = N/N_pl + M_y/M_pl,y + M_z/M_pl,z', pl.eta, 2 / Npl + 0.05 / Mply + 0.8 / Mplz, 1e-12);
+  wahr('Schub unter 0.5 V_pl mindert nicht', pl.rho === 0 && pl.tEff === 9);
+  const fv = new Float64Array(12); fv[1] = 0.75 * 900 * fyd / Math.sqrt(3) / 1000;
+  pruef('… über 0.5 V_pl: ρ = (2V/V_pl − 1)²', SN.blechPlastisch(fv, 100, 10, 9, fyd).rho, 0.25, 1e-12);
+  wahr('Nur stehende Bleche (BV_L/BV_R, auch mit Präfix)', SN.istStehendesBlech('BV_L_3_2')
+       && SN.istStehendesBlech('T2_BV_R_0_2') && !SN.istStehendesBlech('BH_U_3_2') && !SN.istStehendesBlech('BL_O3_2'));
+
+  // b) Gemessen J90/20 m, HEB 260, NT-Ausleger bei 2 m (Stabwerk).
+  const basis = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+                  anbauteile: [DA.neuesAnbauteil('hs-nt-ausleger', 2)] };
+  const lauf = (w) => { const ws = N.rechensatzMitNachbarn(w); const erg = V.berechne(ws, ...N.kernArgumente(ws));
+    return AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }); };
+  const el = lauf(basis), plh = lauf({ ...basis, blechPlastisch: true });
+  const maxVon = (h, pr) => Math.max(...Object.values(h.jeStab).filter((z) => pr(z)).map((z) => z.eta ?? 0));
+  const bv = (z) => SN.istStehendesBlech(z.name), bh = (z) => /(^|_)BH_/.test(z.name), gu = (z) => z.rolle === 'gurt';
+  wahr('Stehende Bleche: plastisch deutlich kleiner (J90/20 m, NT-Ausleger bei 2 m)',
+       maxVon(plh, bv) < maxVon(el, bv) * 0.75, `BV ${maxVon(el, bv).toFixed(4)} → ${maxVon(plh, bv).toFixed(4)}`);
+  pruef('Liegende Bleche unverändert elastisch', maxVon(plh, bh), maxVon(el, bh), 1e-12);
+  pruef('Gurte unverändert', maxVon(plh, gu), maxVon(el, gu), 1e-12);
+  const best = Object.values(plh.jeStab).filter(bv).reduce((p, q) => ((q.eta ?? 0) > (p.eta ?? 0) ? q : p));
+  const blechTeil = (h) => Object.values(h.teile ?? {}).find((t) => t.teil === 'blech')?.eta ?? null;
+  wahr('… das Bindeblech des Jochs folgt dem Grösseren aus stehend (plastisch) und liegend (elastisch)',
+       Math.abs(blechTeil(plh) - Math.max(maxVon(plh, bv), maxVon(plh, bh))) < 1e-9,
+       `Bindeblech ${blechTeil(el)?.toFixed(4)} → ${blechTeil(plh)?.toFixed(4)} · massgebend stehend ${best.name}`);
+
+  // c) Oberfläche und Bericht.
+  wahr('Schalter im Schema (Vorgabe aus) und als Feld des Blattes',
+       FELDER.find((x) => x.key === 'blechPlastisch')?.standard === false
+       && CO.BLATT_FELDER.includes('blechPlastisch'));
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Seitenleiste: Schalter unter den Nachweiskacheln (nur Tragjoch), Hinweis beim alten Joch',
+       uiQ.includes('data-nw-blechplastisch') && uiQ.includes("opt.beiFeld('blechPlastisch', e.target.checked)")
+       && uiQ.includes('opt.blechPlastisch && opt.jochAlt')
+       && APP_QUELLE().includes("bauweise(getTragjoch(werte.typ)) === 'alt'")
+       && APP_QUELLE().includes("blechSchalter: tragwerksart(werte).key === 'joch'"));
+  const html = SB.stabFormelHtml({ wo: 'BV_L_1_2', bez: 'Wind +y', eta: pl.eta, detail: { ...pl, etaEl: 0.5 } }, fyd);
+  wahr('Bericht: Formel der Interaktion mit t_eff, EXC 2 und elastischem Vergleich',
+       html.includes('plastisch nachgewiesen') && html.includes('EXC 2') && html.includes('M<sub>pl,z</sub>')
+       && html.includes('Zum Vergleich elastisch'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

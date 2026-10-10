@@ -149,6 +149,30 @@ export function stabFormelHtml(z, fyd) {
     ${formel('η', 'σ / f<sub>yd</sub>', `${zahl(d.sig, 2)} / ${zahl(fyd, 2)}`, zahl(z.eta, 3))}
     <p>${urteilMarke(z.eta)}</p>`;
   }
+  /*
+   * Stehendes Blech plastisch (10. Oktober, `blechPlastisch` in
+   * core.stabnachweis.js): lineare Interaktion am Anschnitt, t = min(Blech,
+   * Gurtschenkel), Stumpfnaht durchgeschweisst (EXC 2).
+   */
+  if (d.art === 'blechPl') {
+    const red = d.rho > 0 ? ` · (1 − ρ), ρ = ${zahl(d.rho, 3)}` : '';
+    return `${kopf}
+    <p class="klein">Stehendes Blech ${zahl(d.b, 0)} × ${zahl(d.t, 0)} mm, plastisch nachgewiesen (Rechteck,
+    Klasse 1). Am Anschnitt t = min(Blech ${zahl(d.t, 0)}, Gurtschenkel ${
+      Number.isFinite(d.tSchenkel) ? zahl(d.tSchenkel, 0) : '–'}) = ${zahl(d.tEff, 0)} mm - die durchgeschweisste
+    Stumpfnaht (EXC 2) trägt wie das schwächere Teil (EN 1993-1-8, 4.7.1). Schnittgrössen linear-elastisch,
+    Querschnitt plastisch; Schub nach EN 1993-1-1, 6.2.8.</p>
+    ${formel('V<sub>pl</sub>', 'b · t · f<sub>yd</sub> / √3', `${zahl(d.b, 0)} · ${zahl(d.tEff, 0)} · ${zahl(fyd, 2)} / √3`, zahl(d.Vpl, 2), 'kN')}
+    ${formel('N<sub>pl</sub>', `b · t · f<sub>yd</sub>${red}`, '', zahl(d.Npl, 2), 'kN')}
+    ${formel('M<sub>pl,y</sub>', `b · t² / 4 · f<sub>yd</sub>${red}`, '', zahl(d.Mply, 4), 'kNm')}
+    ${formel('M<sub>pl,z</sub>', `t · b² / 4 · f<sub>yd</sub>${red}`, '', zahl(d.Mplz, 4), 'kNm')}
+    ${formel('η', '|N|/N<sub>pl</sub> + |M<sub>y</sub>|/M<sub>pl,y</sub> + |M<sub>z</sub>|/M<sub>pl,z</sub>',
+      `${zahl(d.anteilN, 3)} + ${zahl(d.anteilMy, 3)} + ${zahl(d.anteilMz, 3)}`, zahl(z.eta, 3))}
+    ${d.V / d.Vpl > d.anteilN + d.anteilMy + d.anteilMz
+      ? `<p class="klein">Massgebend ist der Schub: V / V<sub>pl</sub> = ${zahl(d.V, 3)} / ${zahl(d.Vpl, 2)}.</p>` : ''}
+    <p class="klein">Zum Vergleich elastisch: η = ${zahl(d.etaEl, 3)}.</p>
+    <p>${urteilMarke(z.eta)}</p>`;
+  }
   // Rechteck, I-Profil, U-Profil: N/A + M/W (+ Wölbspannung, + Schub am Blech).
   const A = d.A * 1e4, Wy = d.Wy * 1e6, Wz = d.Wz * 1e6;      // cm², cm³
   const blech = Number.isFinite(d.tau);
@@ -251,7 +275,9 @@ function grundlagen(d) {
     Stabenden aus den Endkräften gerechnet, an den Masten zusätzlich alle
     0.5 m aus Endkräften und Gleichlast des Stabes - am Winkel über die
     Hauptachsen mit dem Deviationsmoment, sonst als N/A + M/W, an den
-    Bindeblechen als Vergleichsspannung mit dem Schub. Seilanker tragen nur
+    Bindeblechen als Vergleichsspannung mit dem Schub${w.blechPlastisch === true
+      ? ' - die <b>stehenden Bleche plastisch</b> (W<sub>pl</sub> am Anschnitt, t = min(Blech, Gurtschenkel), Stumpfnaht durchgeschweisst, EXC 2; lineare Interaktion), die liegenden elastisch'
+      : ''}. Seilanker tragen nur
     Zug (Ausfall über Hilfslastfälle). Die <b>Stabilität</b> der Masten
     (SIA 263, Gleichung 50) wird mit den Kräften aus diesem Stabwerk
     nachgewiesen. Anker und Fundament stehen auf den charakteristischen

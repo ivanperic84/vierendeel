@@ -218,6 +218,8 @@ export const BLATT_FELDER = [
   'torsionModell', 'torsionsverteilung', 'gurtaufteilung', 'knotenbereich',
   'endfeldZuschlag', 'schiefeBiegung', 'spannungsmodell', 'ebenenUeberlagerung',
   'mastPlastisch', 'knickenJoch', 'schraubenGrenze',
+  // Stehende Bleche plastisch (10. Oktober) - eine Art des Nachweises.
+  'blechPlastisch',
   // Ansicht
   'projektion', 'blickwinkel', 'tastenkuerzel', 'modellTransparenz',
   'modellSchrift', 'modellSchriftLast', 'modellSchriftMass',

@@ -11,7 +11,7 @@ import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
-         setzeDatenbank } from './data.tragjoche.js';
+         setzeDatenbank, bauweise } from './data.tragjoche.js';
 import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
@@ -2069,6 +2069,12 @@ function zeichneAuswertung() {
                            // tragen seine Stäbe dieses Präfix.
                            twId: werte.twId,
                            plastisch: werte.mastPlastisch === true,
+                           // Stehende Bleche plastisch (10. Oktober); bei einem
+                           // Joch alter Bauweise ein Hinweis (Entscheid beim Anwender).
+                           blechPlastisch: werte.blechPlastisch === true,
+                           blechSchalter: tragwerksart(werte).key === 'joch',
+                           jochAlt: (() => { try { return bauweise(getTragjoch(werte.typ)) === 'alt'; }
+                                             catch { return false; } })(),
                            nachweisart,
                            // Die Referenzhöhe im GZG-Block (30. September).
                            gzg: { gzgReferenz: werte.gzgReferenz, fdHoehe: werte.fdHoehe },

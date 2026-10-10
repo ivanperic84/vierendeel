@@ -438,8 +438,10 @@ export function rechneStabwerk(app, aufruf = {}) {
   // Der Gurt am Anschnitt oder in der Blechachse (4. Oktober) - dieselbe
   // Option wie beim Ersatzbalken.
   const knotenbereich = satz.knotenbereich ?? 'anschnitt';
+  // Stehende Bleche plastisch (10. Oktober) - ein Schalter des Blattes.
+  const blechPlastisch = satz.blechPlastisch === true;
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
-    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast });
+    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch });
   /*
    * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
    * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
@@ -669,7 +671,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   // `auswertung` (9. Oktober): womit die Hülle gerechnet ist - die Gegenrechnung
   // mit AxisVM wertet fremde Schnittgrössen genau so aus (core.axisvergleich.js).
   Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo,
-    auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast } } },
+    auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch } } },
                                           enumerable: false });
   /*
    * >>> DIE AUSWERTUNG IM GEWÄHLTEN LASTFALL (4. Oktober). <<<
@@ -743,7 +745,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   Object.defineProperty(ergebnis, 'imFall', { enumerable: false, value: (key) => {
     const lf = alleFaelleS.find((l) => l.key === key);
     if (!lf) return null;
-    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich, fydMast });
+    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich, fydMast, blechPlastisch });
     let kn = null;
     if (knick) {
       kn = {};

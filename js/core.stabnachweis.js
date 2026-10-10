@@ -317,6 +317,62 @@ export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null) {
 }
 
 /**
+ * >>> STEHENDE BLECHE PLASTISCH (10. Oktober). <<<
+ *
+ * Frage mit dem Detail der Werkstattzeichnung (stehendes Blech stumpf an die
+ * Schenkelspitze, HV mit Gegenlage, durchgeschweisst; liegendes Blech mit
+ * Doppelkehlnaht a4): «Prüfe ob man die stehenden Bleche die an den Gurten
+ * durchgeschweisst sind auch plastisch nachweissen kann». Darauf im Wortlaut:
+ * «schalter wie mast plastisch, entscheid beim user ob bei alten jochen
+ * angesetzt wird. liegende bleche elastisch belassen. kein kehlnahtdachweis.
+ * durchgeschweisste naht exc 2 klasse.» Auf Rückfrage «Ein Schalter +
+ * Hinweis» und «min(Blech, Schenkel)».
+ *
+ * - Vollrechteck: kein örtliches Beulen, Klasse 1; W_pl = 1.5 · W_el.
+ * - Die Schnittgrössen bleiben linear-elastisch (EN 1993-1-1, 5.4.2), nur
+ *   der Querschnitt am Anschnitt (= an der Naht) wird plastisch geprüft.
+ * - Die durchgeschweisste Stumpfnaht trägt wie das schwächere Teil
+ *   (EN 1993-1-8, 4.7.1): gerechnet mit t = min(Blech, Gurtschenkel).
+ * - Interaktion linear wie am Masten: N/N_pl + |M_y|/M_pl,y + |M_z|/M_pl,z;
+ *   Schub nach EN 1993-1-1, 6.2.8: über 0.5 V_pl mindert (1 − ρ) die
+ *   Streckgrenze, V ≤ V_pl ist eine eigene Grenze.
+ *
+ * @param {ArrayLike<number>} f  12 Endkräfte des Lösers (kN, kNm)
+ * @param {number} b     Blechbreite [mm]
+ * @param {number} t     Blechdicke [mm]
+ * @param {number} tSchenkel  Dicke des Gurtschenkels [mm] (oder null)
+ * @param {number} fyd   [N/mm²]
+ * @returns {object}  massgebendes Ende mit η und Zwischenwerten
+ */
+export function blechPlastisch(f, b, t, tSchenkel, fyd) {
+  const tEff = Number.isFinite(tSchenkel) && tSchenkel > 0 ? Math.min(t, tSchenkel) : t;
+  const A = b * tEff;                                   // mm²
+  let best = null;
+  [0, 6].forEach((k) => {
+    const N = Math.abs(f[k]), My = Math.abs(f[k + 4]), Mz = Math.abs(f[k + 5]);
+    const V = Math.max(Math.abs(f[k + 1]), Math.abs(f[k + 2]));
+    const Vpl = A * fyd / Math.sqrt(3) / 1000;          // kN
+    const rho = V > 0.5 * Vpl ? Math.min(1, (2 * V / Vpl - 1) ** 2) : 0;
+    const fr = fyd * (1 - rho);
+    const Npl = A * fr / 1000;                          // kN
+    const Mply = b * tEff * tEff / 4 * fr / 1e6;        // kNm, aus der Ebene
+    const Mplz = tEff * b * b / 4 * fr / 1e6;           // kNm, in der Ebene
+    const lin = (Npl > 0 ? N / Npl : Infinity) + (Mply > 0 ? My / Mply : Infinity)
+      + (Mplz > 0 ? Mz / Mplz : Infinity);
+    const eta = Math.max(lin, Vpl > 0 ? V / Vpl : Infinity);
+    if (!best || eta > best.eta) {
+      best = { art: 'blechPl', ende: k === 0 ? 'i' : 'j', eta, N: f[k], My: f[k + 4], Mz: f[k + 5],
+               V, b, t, tSchenkel: tSchenkel ?? null, tEff, A, Vpl, rho, Npl, Mply, Mplz,
+               anteilN: N / Npl, anteilMy: My / Mply, anteilMz: Mz / Mplz };
+    }
+  });
+  return best;
+}
+
+/** Stehendes Bindeblech des Tragjochs (BV_L_…, BV_R_…, auch mit Präfix). */
+export const istStehendesBlech = (name) => /(?:^|_)BV_[LR]_/.test(String(name));
+
+/**
  * >>> SCHNITTGROESSEN IM STAB (2. Oktober). <<<
  *
  * Frage zum Verlauf «Ausnutzung über die Höhe» des Masten: «warum ist das
@@ -430,6 +486,24 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     (dat.gittermasten ?? []).forEach((g) => Object.entries(g.anschnitt ?? {})
       .forEach(([k, h]) => { if (h > 0) gitterAnschnitt.set(k, h); }));
   }
+  /*
+   * Stehende Bleche plastisch (10. Oktober, `blechPlastisch`): die dünnste
+   * Schenkeldicke der Gurte je Tragwerk (Präfix vor OG/UG), denn die
+   * Stumpfnaht trägt wie das schwächere Teil. Ober- und Untergurt können
+   * verschiedene Winkel tragen; das Blech hängt an beiden - die kleinere gilt.
+   */
+  const schenkelT = new Map();
+  if (opt.blechPlastisch === true) {
+    dat.staebe.forEach((st) => {
+      const m = /^(.*?)(?:OG|UG)(?:L|R)_S\d+$/.exec(st.name);
+      if (!m || stabRolle(st.name, st.art) !== 'gurt') return;
+      let p = null;
+      try { p = getProfil(qsMap.get(st.querschnitt)?.profil); } catch { p = null; }
+      if (!(p?.t > 0)) return;
+      const vor = schenkelT.get(m[1]);
+      schenkelT.set(m[1], vor == null ? p.t : Math.min(vor, p.t));
+    });
+  }
   const je = new Map();
   const gruppen = {};
   // Je Bauteil der Reihe (Joch T1, Mast M2 …) das grösste eta.
@@ -497,6 +571,21 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
           .map(([x, e]) => ({ ...stabSpannung(qs, schnittImStab(f, L, x), rolle), ende: e, xi: x }))
           .filter((k) => Number.isFinite(k.sig));
         if (kand.length) s = kand.reduce((p, q) => (q.sig > p.sig ? q : p));
+      }
+    }
+    /*
+     * Stehendes Blech plastisch (10. Oktober): das η kommt aus der linearen
+     * Interaktion am Anschnitt; als σ steht η · f_yd da, damit Vergleich,
+     * Hülle und Bild weiter über σ laufen. Die elastischen Werte bleiben im
+     * Detail (`el`). Liegende Bleche bleiben elastisch (Weisung).
+     */
+    if (opt.blechPlastisch === true && rolle === 'blech' && istStehendesBlech(st.name)) {
+      const qs = qsMap.get(st.querschnitt);
+      const [bB, tB] = qs?.form === 'Rectangle' ? qs.parameter : [];
+      if (bB > 0 && tB > 0 && fyd > 0) {
+        const pr = /^(.*?)BV_[LR]_/.exec(st.name)?.[1] ?? '';
+        const pl = blechPlastisch(f, bB, tB, schenkelT.get(pr) ?? null, fyd);
+        s = { ...pl, sig: pl.eta * fyd, el: s, etaEl: s.sig / fyd };
       }
     }
     /*

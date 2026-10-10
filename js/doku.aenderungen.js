@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-10-11',
+    punkte: [
+      { text: 'Neu unter den Nachweiskacheln des Tragjochs: «Stehende Bleche plastisch nachweisen» (Vorgabe aus). Die stehenden Bindebleche (Stumpfnaht durchgeschweisst, EXC 2) werden am Anschnitt mit W_pl und t = min(Blech, Gurtschenkel) nachgewiesen, Interaktion linear, Schub nach EN 1993-1-1, 6.2.8. Die liegenden Bleche bleiben elastisch. Bei einem Joch alter Bauweise steht ein Hinweis - ob die Reserve dort angesetzt wird, entscheidet der Anwender. Gilt im Stabwerk.', rechnung: true },
+    ],
+  },
+  {
     datum: '2026-10-10',
     punkte: [
       { text: 'Die hinterlegte Querprofil-Zeichnung bleibt beim Neuladen der Seite erhalten, auch wenn das Tragwerk noch nicht in der Ablage gespeichert ist.' },

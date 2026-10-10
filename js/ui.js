@@ -6137,18 +6137,35 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  * Geometrie, sondern die Art des Nachweises - und steht deshalb dort, wo
  * dessen Ergebnis steht.
  */
-function plastischHtml(opt, mitMast) {
-  if (!mitMast || typeof opt?.beiFeld !== 'function') return '';
-  return `<div class="nw-plastisch">
+function plastischHtml(opt, mitMast, mitBlech = false) {
+  if ((!mitMast && !mitBlech) || typeof opt?.beiFeld !== 'function') return '';
+  /*
+   * STEHENDE BLECHE PLASTISCH (10. Oktober, Weisung: «schalter wie mast
+   * plastisch, entscheid beim user ob bei alten jochen angesetzt wird»).
+   * Ein Schalter; ist das Joch alter Bauweise, sagt ein Hinweis, dass der
+   * Entscheid beim Anwender liegt (Rückfrage «Ein Schalter + Hinweis»).
+   */
+  const blech = mitBlech ? `
+    <label class="schalter"><input type="checkbox" data-nw-blechplastisch${
+      opt.blechPlastisch ? ' checked' : ''}><span>Stehende Bleche plastisch nachweisen</span></label>
+    <p class="notiz">Am Anschnitt W_pl = 1.5 · W_el mit t = min(Blech, Gurtschenkel),
+      Stumpfnaht durchgeschweisst (EXC 2); Interaktion linear N/N_pl + M_y/M_pl,y + M_z/M_pl,z,
+      Schub nach EN 1993-1-1, 6.2.8. Liegende Bleche bleiben elastisch. Gilt im Stabwerk.</p>${
+      opt.blechPlastisch && opt.jochAlt ? `
+    <p class="notiz warn">Joch alter Bauweise: Nahtgüte und Werkstoff des Bestands sind nicht
+      belegt - ob die plastische Reserve hier angesetzt wird, entscheidet der Anwender.</p>` : ''}` : '';
+  return `<div class="nw-plastisch">${mitMast ? `
     <label class="schalter"><input type="checkbox" data-nw-plastisch${
       opt.plastisch ? ' checked' : ''}><span>Mast plastisch nachweisen</span></label>
     <p class="notiz">W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2.
-      Interaktion linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.</p></div>`;
+      Interaktion linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.</p>` : ''}${blech}</div>`;
 }
 
 function verdrahtePlastisch(node, opt) {
   node.querySelector('[data-nw-plastisch]')?.addEventListener('change', (e) =>
     opt.beiFeld('mastPlastisch', e.target.checked));
+  node.querySelector('[data-nw-blechplastisch]')?.addEventListener('change', (e) =>
+    opt.beiFeld('blechPlastisch', e.target.checked));
 }
 
 function nichtGefuehrtHtml(urteil) {
@@ -8488,7 +8505,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${stabwerkLeiste(opt)}
     ${zeigtTrag ? `${abschnitt('Nachweise')}
     ${nachweisGruppenHtml(nwGruppen)}
-    ${plastischHtml(opt, Boolean(erg.mast))}
+    ${plastischHtml(opt, Boolean(erg.mast), opt.blechSchalter === true)}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
     ${zeigtTrag ? rueckhaltInfoHtml(swG) : ''}

@@ -1407,6 +1407,18 @@ export const FELDER = [
     sichtbar: (w) => mastDa(w),
     hinweis: 'W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2. Interaktion '
            + 'linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.'},
+  /*
+   * STEHENDE BLECHE PLASTISCH (10. Oktober), im Wortlaut: «schalter wie mast
+   * plastisch, entscheid beim user ob bei alten jochen angesetzt wird.
+   * liegende bleche elastisch belassen. kein kehlnahtdachweis.
+   * durchgeschweisste naht exc 2 klasse.» Ein Schalter für alle Joche; bei
+   * einem Joch alter Bauweise steht ein Hinweis (Rückfrage «Ein Schalter +
+   * Hinweis»). Gerechnet im Stabwerk (`blechPlastisch`, core.stabnachweis.js).
+   */
+  { key: 'blechPlastisch', gruppe: 'blech', typ: 'schalter', versteckt: true,
+    label: 'Stehende Bleche plastisch nachweisen', standard: false,
+    hinweis: 'W_pl = 1.5 · W_el am Anschnitt, t = min(Blech, Gurtschenkel); '
+           + 'Stumpfnaht durchgeschweisst, EXC 2. Liegende Bleche bleiben elastisch.'},
   /* =========================================================================
    * ZUGANKER UND DRUCKSTUETZE AM MASTEN
    * =========================================================================

@@ -5,12 +5,14 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-## Stand 8. Oktober 2026 - hier weitermachen
+## Stand 11. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**7205** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**7217** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
 **Git:** zuletzt gepusht am 9. Oktober («versand nachziehen und pushen»); seither örtliche Commits (Jochanschluss vereinfacht und Summe am Mittelmasten, Lageband, Blatt des Jochanschlusses nur mit dem Massgebenden, Eingabe-Durchgang mit behobenem Havarie-Abbruch am Abfangjoch) - am Abend des 9. Oktober gepusht (Weisung «pushen»); danach bis `f59b949` gepusht (Anker am Tragausleger-Mast, Mastlänge am Abfangjoch, Schiene). Am 10. Oktober gepusht (Weisung «pushen»): Lastfalltabelle mit der Zahl des Stabwerks, Vorschau der Ablage mit Leiter / Abzug / Fläche nur über «Laden», Tastenkürzel nachgeführt («r» Nachrechnung, 1 … 9 Plotgrössen, x / c). Danach ein Commit, ebenfalls auf Weisung gepusht (alles ist gepusht): die Hintergrundzeichnung übersteht das Neuladen (Zeichnung des Arbeitsstands in IndexedDB). Davor sieben Commits, auf Weisung «ja pushen» am 10. Oktober abends gepusht, Einzeldatei in `Versand/` auf diesem Stand (der siebte: Rückhaltekraft als begrenzter Halt - `core.stabrueckhalt.js`, Hilfslastfall je Leiter, Haltekraft als Faktor der Kombination, auch in der COM-Datei; der sechste: Grösstwert 0.5 kN je Leiter, Einstellung im Reiter Lasten; der fünfte: Rückhaltekraft auch am Tragausleger und Info in der Übersicht, wenn sie Gurt oder Bindeblech höher belastet; der vierte: Rückhaltekraft der Leiter direkt am Joch - Schalter und Prozentzahl unter Optionen, Kraft p · Z gegen den Wind längs im Lastfall Wind y, auch in der AxisVM-Datei -, dazu Anbauteile beim Überfahren im 3D markiert; der dritte: Dateinamen ab der Liniennummer ohne «AxisVM», auch als Vorschlag beim PDF-Druck; Vorschau der Ablage hell und mit neuen Teilen): Leiter in den Blättern als Punkt und Blatt Bestandesschutz mit einer Farbsprache; Fundament-η = grösster Basiswert, das Urteil folgt dem Ablauf (entschieden «Basiswert weiterführen», CLAUDE.md, *Entschieden*). Offene Befunde des Durchgangs: CLAUDE.md, *Offene Punkte*. `Versand/` trägt Einzeldatei und Datenpaket vom 9. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
+
+**11. Oktober, örtlich committet, nicht gepusht:** Schalter «Stehende Bleche plastisch nachweisen» (Tragjoch, Stabwerk; t = min(Blech, Schenkel), lineare Interaktion, Hinweis bei alten Jochen; liegende Bleche elastisch, kein Kehlnahtnachweis) - CLAUDE.md, *Entschieden*.
 
 **Datenstand** (`data/*.json`, örtlich, nie pushen): Datenpaket `Versand/Vierendeel_Datenpaket_2026-10-09.json`
 ist aktuell (Einheitswind EK0 aus der Mast-Mappe, Wind Ts/Fd halb/halb, Leiter-Traverse einseitig, Signalsymbole); Einzeldatei
@@ -228,8 +230,8 @@ mit falscher Linklage; PyNite-Links.
 > `node pruefung.mjs` — der muss grün sein, bevor du etwas änderst.
 >
 > Halte dich an die stehenden Vorgaben: **gepusht wird nur ein grüner Stand**
-> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober) - **den örtlichen
-> Commit «Gespreizte Masten DGP» nicht pushen**, bis ich es sage (8. Oktober);
+> (Prüfstand und Durchgang; meine Weisung vom 2. Oktober) - und nur auf meine
+> Weisung;
 > `data/*.json` nie pushen, Änderungen daran als Datenpaket nach `Versand/`;
 > kein Projektmaterial des Betreibers in verfolgte Dateien (keine
 > Zeichnungs- oder Projektnummern, kein Betreibername, nicht `data/*.json`,
@@ -279,7 +281,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7205 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7217 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/
