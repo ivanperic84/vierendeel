@@ -100,10 +100,13 @@ export const formel = (sym, form, eingesetzt, erg, einheit = '') =>
   + (eingesetzt ? ` = <span class="ein">${eingesetzt}</span>` : '')
   + ` = <b>${erg}</b>${einheit ? ` ${einheit}` : ''}</div>`;
 
-export const urteilMarke = (eta, ueber = false) => {
+export const urteilMarke = (eta, ueber = null) => {
   if (eta === null || eta === undefined) return '<span class="marke offen">ohne η</span>';
-  const ok = !ueber && eta <= 1 + 1e-9;
-  return `<span class="marke ${ok ? 'ok' : 'nok'}">${ok ? 'erfüllt' : 'NICHT erfüllt'}</span>`;
+  // Ohne Angabe entscheidet die Zahl; mit Angabe das Urteil des Bauteils
+  // (10. Oktober: ein ausgeglichenes Fundament hat η > 1 und ist zulässig).
+  const ok = ueber === null ? eta <= 1 + 1e-9 : !ueber;
+  const text = ok ? (eta > 1 + 1e-9 ? 'erfüllt (ausgeglichen)' : 'erfüllt') : 'NICHT erfüllt';
+  return `<span class="marke ${ok ? 'ok' : 'nok'}">${text}</span>`;
 };
 
 export const bild = (inhalt, titel) => inhalt
@@ -147,9 +150,9 @@ function deckblatt(d) {
       ['Datum', esc(werte.datum || datum || '')],
       ['Programm', esc(fassung ?? '')],
     ])}
-    <div class="gesamturteil ${bt && !bt.ueber && bt.eta <= 1 ? 'ok' : 'nok'}">
+    <div class="gesamturteil ${bt && !bt.ueber ? 'ok' : 'nok'}">
       <div class="gz">η = ${zahl(bt?.eta, 3)}</div>
-      <div>${bt && !bt.ueber && bt.eta <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'}
+      <div>${bt && !bt.ueber ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'}
         ${bt?.massgebend ? ` · massgebend: ${esc(bt.massgebend.name)}` : ''}</div>
       ${urteil?.anzahlVerletzt ? `<div class="klein">${urteil.anzahlVerletzt} Konstruktionsprüfung(en) verletzt — siehe Kapitel {{K_PRUEF}}</div>` : ''}
       ${urteil?.nichtGefuehrt?.length ? `<div class="klein">${urteil.nichtGefuehrt.length} Nachweis(e) nicht geführt — siehe Kapitel {{K_NG}}</div>` : ''}

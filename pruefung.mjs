@@ -7402,7 +7402,7 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const aq = APP_QUELLE();
     wahr('Die Fussleiste urteilt ueber alle Bauteile',
          /urteil\.bauteile = bauteilUrteil\(/.test(aq)
-         && /const gut = e <= 1 && !bt\?\.ueber/.test(aq));
+         && /const gut = \(bt \? !bt\.ueber : e <= 1\)/.test(aq));
     wahr('Der Bericht fuehrt das Gesamturteil',
          readFileSync(join(HIER, 'js', 'export.bericht.js'), 'utf8').includes("B('Gesamturteil')"));
     wahr('Der Mastnachweis steht im Ergebnis', Number.isFinite(etaMast));
@@ -29117,7 +29117,7 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
     const erg = V116.berechne(s2, ...N116.kernArgumente(s2));
     erg.fundament = F116.fundamentNachweis(k, s2);
     // Kuenstlich ueberschritten - gesucht ist der WEG ins Urteil.
-    erg.fundament.A.eta = 1.4;
+    erg.fundament.A.eta = 1.4; erg.fundament.A.ok = false;   // seit dem 10. Oktober trägt `ok` das Urteil
     const mit = CH116.bauteilUrteil(erg, null, 'joch');
     wahr('Das Fundament steht im Urteil',
          mit.liste.some((b) => b.key === 'fundament'),
@@ -32347,7 +32347,7 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
        `Kern ${hs.kombi.huellkurve.mast.A.stabil.eta.toFixed(3)}`);
   pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 5.4213, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.445
   // Seit dem Ablauf (7. Oktober) heisst die Stelle «quer: T» (Schritt 2, hart).
-  wahr('… massgebend T', /: T$/.test(fT.A.massgebend.was) && fT.A.stufe === 'nicht', fT.A.massgebend.was);
+  wahr('… massgebend T', /T$/.test(fT.A.massgebend.was) && fT.A.stufe === 'nicht', fT.A.massgebend.was);   // 10. Oktober: der Basiswert «Torsionsmoment T»
   const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
   // Seilwinkel 30°, Mastlänge H + b (28. September): 2.103 -> 2.1146.
   pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
@@ -40988,6 +40988,49 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        && q.includes("{ id: 'positionen', taste: 'x'") && q.includes("{ id: 'neutral', taste: 'c'") && !q.includes("taste: '1 … 7'"));
   const tasten = [...q.matchAll(/\{ id: '(\w+)', taste: '(.)'/g)].map((m) => m[2]);
   wahr('… keine Taste doppelt vergeben', new Set(tasten).size === tasten.length && tasten.length >= 17, tasten.join(' '));
+}
+
+/*
+ * 10. Oktober, Fundament: «bei den fundamenten nimmt zudem die ausnutzung ab
+ * mit den neuen bauteilen, das ist nicht ganz nach vollziehbar.» Auf
+ * Rückfrage «Basiswert weiterführen»: η = der grösste Basiswert, auch wenn
+ * der Ablauf ausgleicht; das Urteil trägt `ok`.
+ */
+{
+  const F = await import(J('core.fundament.js'));
+  const SNf = await import(J('core.stabnachweis.js'));
+  const z = { Mst: 67.5, Mver: 67.5, Mtot: 135, Hst: 8.5, Hver: 8.5, Htot: 17, V: 150, T: 10, Mvermax: 100, redM: 1, redH: 4 };
+  const e = (Hver, Mver) => ({ Mst: 0, Mver, Mtot: Mver, Hst: 0, Hver, Htot: Hver, V: 20, T: 0 });
+  const a1 = F.fundamentAblauf(e(7.93, 49.0), z), a2 = F.fundamentAblauf(e(8.62, 52.8), z);
+  wahr('Ablauf: unter dem Basiswert «basis», knapp darüber «angepasst» - die Prüfung auf dem Weg fällt (0.933 → 0.782)',
+       a1.ergebnis === 'basis' && a2.ergebnis === 'angepasst' && a2.eta < a1.eta, `${a1.eta.toFixed(3)} → ${a2.eta.toFixed(3)}`);
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const DA = await import(J('data.anbauteile.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const basis = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260' };
+  const stab = (w) => { const ws = N.rechensatzMitNachbarn(w);
+    return AS.rechneStabwerk({ werte: w, letzte: { erg: V.berechne(ws, ...N.kernArgumente(ws)) }, stabwerk: null }); };
+  const at = (id, x, extra = {}) => ({ ...DA.neuesAnbauteil(id, x), ...extra });
+  const bestand = [at('hs-fahrdraht', 6), at('hs-fahrdraht', 10), at('hs-fahrdraht', 14)];
+  const nw = { ...(standardwerte().nachweise ?? {}), bestandesschutz: true };
+  const h = stab({ ...basis, nachweise: nw, anbauteile: [...bestand, at('hs-nt-ausleger', 2, { neu: true })] });
+  const zf = (h.bestand?.zeilen ?? []).filter((q) => q.gruppe === 'fundament');
+  wahr('Bestandesschutz: kein Fundament verliert mit den neuen Bauteilen an Ausnutzung',
+       zf.length === 2 && zf.every((q) => q.neu >= q.alt - 1e-9), zf.map((q) => `${q.name} ${q.alt.toFixed(3)} → ${q.neu.toFixed(3)}`).join(' · '));
+  const f1 = h.fundamentJe?.M1;
+  wahr('… Fundament M1: η über 1.00 (Basiswert H_ver), ausgeglichen und zulässig',
+       Boolean(f1) && f1.eta > 1 && f1.ok === true && f1.ausgeglichen === true && f1.stufe === 'angepasst',
+       f1 ? `η ${f1.eta.toFixed(3)} · ${f1.massgebend?.kurz}` : '–');
+  const bt = SNf.bauteileMitStabwerk({ liste: [{ key: 'fundament', name: 'Fundament M1', eta: 0.5 }] }, h, {});
+  wahr('… im Urteil nicht «über»: die Zahl steht, das Urteil folgt dem Ablauf',
+       bt.liste[0].eta > 1 && bt.liste[0].ueber === false && bt.liste[0].ausgeglichen === true && bt.ueber === false,
+       `η ${bt.liste[0].eta?.toFixed(3)} ueber ${bt.liste[0].ueber}`);
+  const NB = await import(J('export.nachweisbericht.js'));
+  wahr('Bericht: die Marke eines Bauteils folgt seinem Urteil («erfüllt (ausgeglichen)»), ohne Angabe der Zahl',
+       NB.urteilMarke(1.02, false).includes('erfüllt (ausgeglichen)') && NB.urteilMarke(1.02).includes('NICHT erfüllt')
+       && NB.urteilMarke(0.9, true).includes('NICHT erfüllt') && NB.urteilMarke(0.9).includes('>erfüllt<'));
 }
 
 console.log('\n' + '='.repeat(104));

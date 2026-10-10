@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Fundament: die Ausnutzung ist der grösste Basiswert und steigt immer mit der Last. Gleicht der Ablauf eine Überschreitung aus, steht η über 1.00 mit dem Vermerk «mit abgeminderten Werten ZULÄSSIG» (gelb, das Urteil bleibt erfüllt). Vorher fiel die Zahl an dieser Stelle (z. B. 0.933 → 0.782 statt → 1.015).', rechnung: true },
       { text: 'Blatt Bestandesschutz: Zeichnung und Balken in derselben Farbsprache - grau der Bestand, rot die neuen Bauteile bzw. die Ausnutzung mit ihnen; hellrot, solange die Zunahme eingehalten ist, voll rot mit «!» darüber. Die Leiter stehen in den Übersichtsskizzen der Blätter als einfacher Punkt.' },
       { text: 'Tastenkürzel: «r» löst die Nachrechnung aus (Stabwerk jetzt rechnen). Die Ziffern 1 … 9 wählen die Plotgrösse in der Reihenfolge der Knopfleiste (η, σ_v, σ, M, V, N, T, w, η w); Positionen liegt neu auf «x», Bauteile neutral auf «c». Die Übersicht («?») ist nachgeführt.' },
       { text: 'Lastfalltabelle (Reiter Lasten): die Spalte η zeigt je Lastfall die Zahl des Stabwerks - dieselbe wie der Kopf der Übersicht, wenn man den Fall wählt (Joch, Masten, Knicken). Vorher stand dort der Ersatzbalken (nur das Joch). Fundament, Anker und Gebrauchstauglichkeit zählen nicht in der Zahl eines Falls.' },

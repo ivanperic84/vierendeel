@@ -458,15 +458,41 @@ export function fundamentNachweis(kombi, satz) {
     });
     const richt = Object.values(ablauf);
     let eta = schlimmste.eta, ok = nw.every((q) => q.ok), stufe = ok ? 'basis' : 'nicht';
+    let ausgeglichen = false;
     if (richt.length === 2) {
       const r = richt.reduce((a, b) => (b.eta > a.eta ? b : a));
-      eta = r.eta;
       ok = richt.every((x) => x.ergebnis !== 'nicht');
       stufe = !ok ? 'nicht' : richt.some((x) => x.ergebnis === 'angepasst') ? 'angepasst' : 'basis';
-      const m = r.massgebend;
-      schlimmste = { key: `ablauf-${r.richtung}`, was: `${r.richtung}: ${m.was}`,
-        kurz: `${r.richtung} · Schritt ${r.schritt}`, wert: m.wert, zul: m.zul, eta: r.eta,
-        einheit: m.einheit, lastfall: m.lastfall, bez: m.bez, fall: m.lastfall };
+      /*
+       * >>> DAS η IST DER GRÖSSTE BASISWERT (10. Oktober). <<< Gemeldet am
+       * Blatt Bestandesschutz: «bei den fundamenten nimmt zudem die
+       * ausnutzung ab mit den neuen bauteilen, das ist nicht ganz nach
+       * vollziehbar.» Gemessen: das η war das grösste Verhältnis der
+       * Prüfungen AUF DEM WEG des Ablaufs; eine Überschreitung, die er
+       * ausgleicht, zählte nicht - sobald eine Basisgrösse ihren Wert
+       * überschritt, FIEL die Zahl (H_ver 7.93 → 8.62 kN bei zulässig 8.5:
+       * η 0.933 → 0.782). Auf Rückfrage: «Basiswert weiterführen».
+       *
+       * η = der grösste der Basiswerte (`schlimmste` aus den
+       * Einzelnachweisen), auch wenn der Ablauf ausgleicht - es steigt mit
+       * der Last und kann dann über 1.00 liegen, OBWOHL das Fundament mit
+       * abgeminderten Werten zulässig ist. Das Urteil trägt deshalb `ok`
+       * (und `ausgeglichen`), nicht die Zahl. Sagt der Ablauf «grösseres
+       * Fundament», gilt das Grössere aus Basiswert und Prüfung des Wegs.
+       */
+      ausgeglichen = ok && schlimmste.eta > 1 + 1e-9;
+      if (!ok && r.eta > schlimmste.eta) {
+        const m = r.massgebend;
+        eta = r.eta;
+        schlimmste = { key: `ablauf-${r.richtung}`, was: `${r.richtung}: ${m.was}`,
+          kurz: `${r.richtung} · Schritt ${r.schritt}`, wert: m.wert, zul: m.zul, eta: r.eta,
+          einheit: m.einheit, lastfall: m.lastfall, bez: m.bez, fall: m.lastfall };
+      } else {
+        eta = schlimmste.eta;
+        schlimmste = { ...schlimmste, fall: schlimmste.fall ?? schlimmste.lastfall,
+          kurz: `${schlimmste.kurz ?? schlimmste.was ?? schlimmste.key} · ${
+            stufe === 'basis' ? 'Basiswerte' : stufe === 'angepasst' ? 'ausgeglichen' : 'nicht zulässig'}` };
+      }
     }
 
     /*
@@ -486,7 +512,7 @@ export function fundamentNachweis(kombi, satz) {
 
     proEnde[ende] = {
       typ: f.typ, gewaehlt: f.gewaehlt, gelaende: f.gelaende, nachweise: nw,
-      massgebend: schlimmste, eta, ok, stufe, ablauf, abheben,
+      massgebend: schlimmste, eta, ok, stufe, ausgeglichen, ablauf, abheben,
     };
   });
 

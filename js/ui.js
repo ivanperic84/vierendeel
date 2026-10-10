@@ -6302,7 +6302,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
   const eKopf = einzelLastfall ? (imFall?.eta ?? (mn?.etaMitStabilitaet ?? mn?.eta ?? 0)) : eBem;
   const werKopf = imFall ? imFall.name : (!einzelLastfall && bt?.massgebend ? bt.massgebend.name : null);
-  const zustand = (bt?.ueber || eBem > 1) ? 'nok' : 'ok';
+  const zustand = (bt ? bt.ueber : eBem > 1) ? 'nok' : 'ok';
   const offeneNw = urteil?.nichtGefuehrt?.length ?? 0;
   const ohneKnicken = mn?.knickenGefuehrt === false;
   const urteilText = einzelLastfall
@@ -7718,9 +7718,11 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         .join('\n');
       fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
-          ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · abgemindert' : ''}`
+          ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · mit abgeminderten Werten ZULÄSSIG' : ''}`
           + ` · ${q.massgebend.kurz ?? q.massgebend.key}`,
-        ampelU(q.eta), {
+        // η ist der grösste Basiswert (10. Oktober); gleicht der Ablauf aus,
+        // liegt er über 1.00 und das Fundament ist zulässig - gelb, nicht rot.
+        q.ausgeglichen ? (ampelU(q.eta) ? 'warn' : '') : ampelU(q.eta), {
           ...(fF ? { fall: fF.kurz } : {}),
           titel: `${fF ? `Massgebende Kombination: ${fF.voll}
 
@@ -7729,6 +7731,8 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
                + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
                + `beim Anker. Quer und längs zum Gleis werden EINZELN `
                + `nachgewiesen, nicht überlagert. Gelände ${gelaendeVon(q.gelaende).text}.`
+               + `\n\nη ist der grösste Basiswert. Gleicht der Ablauf eine Überschreitung aus, `
+               + `liegt er über 1.00, und das Fundament ist mit abgeminderten Werten zulässig.`
                + `${abl ? `\n\nAblauf der Fundamentbestimmung:\n${abl}` : ''}`
                + `\n\nBasiswerte:\n${alle}${hebt}`,
         }));

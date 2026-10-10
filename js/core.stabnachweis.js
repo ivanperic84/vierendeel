@@ -1041,7 +1041,8 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       fundamentDa = true;
       if (f && Number.isFinite(f.eta)) {
         dazu({ key: 'fundament', name: x.name, eta: f.eta, quelle: 'stabwerk',
-               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false,
+               ausgeglichen: f.ausgeglichen === true });
       }
       return;
     }
@@ -1067,7 +1068,8 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       const f = id ? h?.fundamentJe?.[id] : null;
       if (f && Number.isFinite(f.eta)) {
         dazu({ key: 'fundament', name: x.name, eta: f.eta, quelle: 'stabwerk',
-               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false,
+               ausgeglichen: f.ausgeglichen === true });
         return;
       }
     }
@@ -1077,7 +1079,8 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
   if (ta && !fundamentDa && Number.isFinite(ta.fundament?.A?.eta)) {
     const f = ta.fundament.A;
     dazu({ key: 'fundament', name: `Fundament ${taId}`, eta: f.eta, quelle: 'stabwerk',
-           fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+           fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false,
+           ausgeglichen: f.ausgeglichen === true });
   }
   // Dieselbe Regel wie bauteilUrteil: ein nicht lieferbares Bauteil vor
   // jeder Zahl, sonst das grösste eta.

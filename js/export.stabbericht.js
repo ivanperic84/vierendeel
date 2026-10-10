@@ -98,7 +98,7 @@ export function blattUrteil(d) {
     if (m.fundament && Number.isFinite(m.fundament.eta)) {
       nimm({ key: `fundament:${m.id}`, name: `Fundament ${m.anzeige}`, eta: m.fundament.eta,
              fall: m.fundament.massgebend?.lastfall, bez: m.fundament.massgebend?.bez,
-             gruppe: 'fundament' });
+             ueber: m.fundament.ok === false, gruppe: 'fundament' });
     }
   });
   const massgebend = liste.reduce((best, x) => {
@@ -197,7 +197,9 @@ const artText = (tw) => ({
 
 function deckblatt(d, U) {
   const b = d.blatt ?? {};
-  const gut = U.eta !== null && !U.ueber && U.eta <= 1 + 1e-9;
+  // Das Urteil je Bauteil trägt `ueber` (10. Oktober: ein ausgeglichenes
+  // Fundament hat η > 1 und ist zulässig).
+  const gut = U.eta !== null && !U.ueber;
   return `<section class="deckblatt">
     <p class="ueber">Statischer Nachweis · Stabwerk</p>
     <h1>${esc(b.name || 'Querprofil')}</h1>

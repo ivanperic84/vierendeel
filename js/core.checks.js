@@ -2036,7 +2036,9 @@ export function bauteilUrteil(erg, nachweise, art = null) {
     ['A', 'B'].forEach((ende) => {
       const q = erg?.fundament?.[ende];
       if (!q || q.fehlt || !q.nachweise?.length) return;
-      dazu('fundament', `Fundament ${namen[ende] || ende}`, q.eta);
+      // Das Urteil trägt `ok`, nicht die Zahl (10. Oktober: η = Basiswert, der
+      // über 1.00 liegen kann, wenn der Ablauf ausgleicht).
+      dazu('fundament', `Fundament ${namen[ende] || ende}`, q.eta, q.ok === false);
     });
   }
   // Das massgebende: ein nicht lieferbares Bauteil vor jeder Zahl.

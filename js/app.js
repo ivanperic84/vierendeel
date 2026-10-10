@@ -2904,7 +2904,9 @@ function aktualisiereFuss(erg, urteil, joch) {
   // sagte «Nachweis nicht erfuellt», waehrend das Urteil gruen dastand - eine
   // Klemme zehn Zentimeter zu weit rechts genuegte. Zwei Anzeigen derselben
   // Sache, die einander widersprechen, sind schlimmer als eine.
-  const gut = e <= 1 && !bt?.ueber && urteil.bindendVerletzt !== true;
+  // Mit Bauteilliste trägt sie das Urteil (10. Oktober: ein ausgeglichenes
+  // Fundament hat η > 1 und ist zulässig).
+  const gut = (bt ? !bt.ueber : e <= 1) && urteil.bindendVerletzt !== true;
   // Ohne Urteil (nicht geführt, nicht nachgewiesen) gelb wie die Kachel.
   const farbe = urteil.tragwerkGefuehrt === false ? 'var(--warn)'
     : (gut ? 'var(--ok)' : 'var(--fail)');
