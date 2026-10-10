@@ -39,6 +39,7 @@
  * als `app` (siehe das Kontextobjekt in app.js).
  * ---------------------------------------------------------------------------
  */
+import { rueckhaltVon } from './data.anbauteile.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
@@ -684,6 +685,30 @@ export function rechneStabwerk(app, aufruf = {}) {
       } catch (e) {
         ergebnis.bestand = { anzahl, fehler: String(e?.message ?? e) };
       }
+    }
+  }
+  /*
+   * >>> WAS DIE RÜCKHALTEKRAFT AM JOCH KOSTET (10. Oktober). <<< Weisung: «bei
+   * der rückhaltekraft info einblenden wenn sie zu mehrauslastung führt bei
+   * den tragjochblechen.» Ist sie eingeschaltet, rechnet dasselbe Blatt noch
+   * einmal OHNE sie (Kern und Stabwerk wie hier); verglichen werden Gurte und
+   * Bindebleche je Tragwerk. Die Anzeige nennt, was mit Rückhalt höher liegt.
+   */
+  if (!aufruf.ohneBestand && !aufruf.ohneRueckhalt && rueckhaltVon(satz) > 0) {
+    try {
+      const wO = { ...app.werte, rueckhaltAn: false };
+      const sO = rechensatzMitNachbarn(wO);
+      const ergO = berechne(sO, ...kernArgumente(sO));
+      const hO = rechneStabwerk({ ...app, werte: wO, letzte: { ...app.letzte, erg: ergO } },
+                                { ohneBestand: true, ohneRueckhalt: true });
+      const zeilen = Object.keys(ergebnis.teile ?? {}).filter((k) => /\|(blech|OG|UG|UPE)$/.test(k))
+        .map((k) => ({ key: k, teil: k.split('|')[1], tw: /^tragwerk:(.+)\|/.exec(k)?.[1] ?? null,
+                       ohne: hO?.teile?.[k]?.eta ?? null, mit: ergebnis.teile[k].eta }))
+        .filter((z) => Number.isFinite(z.ohne) && Number.isFinite(z.mit));
+      ergebnis.rueckhalt = { prozent: rueckhaltVon(satz) * 100, zeilen,
+        mehr: zeilen.filter((z) => z.mit > z.ohne + 5e-4) };
+    } catch (e) {
+      ergebnis.rueckhalt = { fehler: String(e?.message ?? e), zeilen: [], mehr: [] };
     }
   }
   const torsion = nachweiseAuswahl(satz.nachweise).torsionMast;

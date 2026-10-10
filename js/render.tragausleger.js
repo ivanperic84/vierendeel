@@ -35,7 +35,7 @@ import { tragauslegerModell } from './export.axisvm.tragausleger.js';
 import { getTragausleger } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
-import { baugruppeSumme } from './data.anbauteile.js';
+import { baugruppeSumme, rueckhaltVon } from './data.anbauteile.js';
 import { anbauKette, istFahrdraht } from './core.anbauteile.js';
 import { ziehAngabe } from './render.3d.js';
 import { ekVonWindklasse } from './core.lasten.js';
@@ -184,7 +184,7 @@ export function auslegerSzene(satz, opt = {}) {
   const sOpt = { ek: ekVonWindklasse(satz.windKlasse), R: Number(satz.trasseRadius) || 0,
                  spannweite: Number(satz.flSpannweite) || 0,
                  // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober).
-                 artWahl: satz.havarie ?? null };
+                 artWahl: satz.havarie ?? null, rueckhalt: rueckhaltVon(satz) };
   const xG = (x) => sp * x;
   /*
    * >>> DIE ANBAUTEILE LASSEN SICH ANKLICKEN (4. Oktober). <<< Gemeldet:

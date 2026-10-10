@@ -7138,6 +7138,28 @@ export function verdrahteNachweisart(node, opt) {
  * Grenzfeder K_X (`buegelGrenzfeder`), ein zweiter übernimmt sie. Zählt
  * zum Urteil nur, wenn die Gruppe «Auflager Joch» geführt wird.
  * ========================================================================= */
+/**
+ * >>> RÜCKHALTEKRAFT: WO SIE DAS JOCH HÖHER BELASTET (10. Oktober). <<<
+ * «bei der rückhaltekraft info einblenden wenn sie zu mehrauslastung führt
+ * bei den tragjochblechen.» Aus dem Vergleich des Stabwerks mit und ohne
+ * Rückhalt (`rueckhalt`, app.stabwerk.js): steht nur da, wenn ein Bindeblech
+ * (oder ein Gurt) MIT Rückhalt höher ausgenutzt ist als ohne.
+ */
+export function rueckhaltInfoHtml(sw) {
+  const r = sw?.rueckhalt;
+  if (!r || !r.mehr?.length) return '';
+  const NAME = { blech: 'Bindeblech', OG: 'Obergurt', UG: 'Untergurt', UPE: 'Gurt UPE' };
+  const zeilen = [...r.mehr].sort((a, b) => (a.teil === 'blech' ? -1 : 0) - (b.teil === 'blech' ? -1 : 0))
+    .map((z) => `<li>${esc(NAME[z.teil] ?? z.teil)}${z.tw ? ` ${esc(z.tw)}` : ''}: η ${f3(z.ohne)} → <b>${f3(z.mit)}</b>${
+      z.mit > 1 && z.ohne <= 1 ? ' — <b>damit überschritten</b>' : ''}</li>`).join('');
+  const blech = r.mehr.some((z) => z.teil === 'blech');
+  return `<div class="rh-info${r.mehr.some((z) => z.mit > 1) ? ' nok' : ''}" role="note">
+    <b>Rückhaltekraft (${Number(r.prozent.toFixed(1))} % · Z) belastet ${blech ? 'die Bindebleche' : 'das Joch'} mehr</b>
+    <ul>${zeilen}</ul>
+    <span>ohne → mit Rückhaltekraft, aus dem Stabwerk. Masten und Fundamente werden entlastet; die Kraft am Leiterpunkt
+      geht örtlich in Gurt und Bleche.</span></div>`;
+}
+
 export function buegelBlockHtml(opt, urteil) {
   const sw = stabwerkFuehrt(opt, false);
   const b = sw?.buegel ?? null;
@@ -8468,6 +8490,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
+    ${zeigtTrag ? rueckhaltInfoHtml(swG) : ''}
     ${zeigtTrag ? buegelBlockHtml(opt, urteil) : ''}
     ${zeigtTrag ? bestandBlockHtml(swG) : ''}
     ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und

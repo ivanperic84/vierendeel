@@ -2037,8 +2037,8 @@ export const FELDER = [
    * (Einwirkungen); die Regel steht in data.anbauteile.js (`rueckhaltVon`).
    */
   { key: 'rueckhaltAn', optionenDialog: true, gruppe: 'ein', typ: 'schalter',
-    label: 'Rückhaltekraft der Leiter am Joch ansetzen', standard: false,
-    hinweis: 'Leiter, die direkt am Tragjoch befestigt sind (ohne Hängestütze, Aufsatz oder '
+    label: 'Rückhaltekraft der Leiter am Joch / Tragausleger ansetzen', standard: false,
+    hinweis: 'Leiter, die direkt am Tragjoch oder Tragausleger befestigt sind (ohne Hängestütze, Aufsatz oder '
       + 'Ausleger), halten das Joch über die Nachbartragwerke zurück: je Leiter eine Kraft '
       + 'p · Z (Leiterzug bei +5 °C) längs zum Gleis, GEGEN den Wind. Nur in den Fällen mit '
       + 'Wind längs; nicht im Havariefall, nicht an einseitig abgefangenen und nicht an nur '

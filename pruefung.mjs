@@ -41064,11 +41064,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   const V = await import(J('core.vierendeel.js'));
   const CHr = await import(J('core.checks.js'));
   const at = (id, x, extra = {}) => ({ ...DA.neuesAnbauteil(id, x), ...extra });
-  wahr('Rückhalt: aus ohne Schalter, 10 % als Vorgabe, nur am Tragjoch',
+  wahr('Rückhalt: aus ohne Schalter, 10 % als Vorgabe, am Tragjoch und am Tragausleger',
        DA.rueckhaltVon({}) === 0 && DA.rueckhaltVon({ rueckhaltAn: true }) === 0.10
        && DA.rueckhaltVon({ rueckhaltAn: true, rueckhaltProzent: 5 }) === 0.05
        && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'einzelmast' }) === 0
-       && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'tragausleger' }) === 0
+       && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'tragausleger' }) === 0.10
        && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'abfangjoch' }) === 0);
   const direkt = at('leiter-rfl', 5), haengt = at('hs-nt-ausleger', 10);
   const Zd = (direkt.module ?? []).reduce((a, m) => a + FLr.leiterzug(m.bauteil) * (m.anzahl ?? 1), 0);
@@ -41114,6 +41114,34 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        && SCH.FELDER.find((f) => f.key === 'rueckhaltAn')?.standard === false
        && SCH.FELDER.find((f) => f.key === 'rueckhaltProzent')?.standard === 10
        && SCH.OPTIONEN_ABSCHNITTE.some((x) => x.keys.includes('rueckhaltAn') && x.keys.includes('rueckhaltProzent')));
+  /*
+   * Nachtrag 10. Oktober: «bei tragausleger die rückhaltekraft auch mit nehmen.
+   * … bei der rückhaltekraft info einblenden wenn sie zu mehrauslastung führt
+   * bei den tragjochblechen.»
+   */
+  wahr('Info: der Vergleich ohne → mit Rückhalt steht am Ergebnis; das Bindeblech liegt höher (3 × R-FL)',
+       b.h.rueckhalt?.mehr?.some((z) => z.teil === 'blech' && Math.abs(z.ohne - bl(a.h)) < 1e-9 && Math.abs(z.mit - bl(b.h)) < 1e-9)
+       && a.h.rueckhalt === undefined,
+       (b.h.rueckhalt?.mehr ?? []).map((z) => `${z.teil} ${z.ohne.toFixed(3)} → ${z.mit.toFixed(3)}`).join(' · '));
+  {
+    const UIr = await import(J('ui.js'));
+    const html = UIr.rueckhaltInfoHtml(b.h);
+    wahr('… die Übersicht blendet sie ein, mit beiden Zahlen; ohne Mehrauslastung nichts',
+         html.includes('belastet die Bindebleche mehr') && html.includes(bl(a.h).toFixed(3)) && html.includes(bl(b.h).toFixed(3))
+         && UIr.rueckhaltInfoHtml(a.h) === '' && UIr.rueckhaltInfoHtml({ rueckhalt: { prozent: 10, zeilen: [], mehr: [] } }) === '');
+    const mitHs = lauf({ ...basis, rueckhaltAn: true, anbauteile: [5, 10, 15].flatMap((x) => [at('hs-fahrdraht', x), at('kw-nfl-joch', x + 0.3)]) });
+    wahr('… drei Gleise mit Hängestütze + Kettenwerk am Joch: das Bindeblech sinkt, keine Info dazu',
+         !(mitHs.h.rueckhalt?.mehr ?? []).some((z) => z.teil === 'blech'),
+         (mitHs.h.rueckhalt?.zeilen ?? []).map((z) => `${z.teil} ${z.ohne.toFixed(3)} → ${z.mit.toFixed(3)}`).join(' · '));
+    const ta = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, mastVorhanden: true, twId: 'T1',
+                 mastProfil: 'HEB 260', mastH: 7.5, anbauteile: [at('leiter-rfl', 8)] };
+    const tA = lauf(ta), tB = lauf({ ...ta, rueckhaltAn: true });
+    const pyT = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
+    pruef('Tragausleger: die Rückhaltekraft des direkt befestigten Leiters steht im Lastfall WindY', pyT(tB.h) - pyT(tA.h), -0.10 * Zd, 1e-6, 'kN');
+    wahr('… und entlastet den Masten', tB.h.bauteile['mast:M1']?.eta < tA.h.bauteile['mast:M1']?.eta
+         || Object.values(tB.h.bauteile).some((v, i) => v.eta < Object.values(tA.h.bauteile)[i].eta),
+         Object.entries(tB.h.bauteile).map(([k, v]) => `${k} ${tA.h.bauteile[k]?.eta.toFixed(3)} → ${v.eta.toFixed(3)}`).join(' · '));
+  }
   const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'), rQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Anbauteilliste: Überfahren einer Zeile markiert das Teil im 3D leicht (hoverTeile)',
        uiQ.includes("beiAnbauHover?.([`AT${i}`, `AT_${i + 1}`]);") && uiQ.includes("z.addEventListener('mouseleave', () => beiAnbauHover?.(null));")

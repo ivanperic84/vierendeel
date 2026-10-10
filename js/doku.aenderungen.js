@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Rückhaltekraft: gilt auch für Leiter direkt am Tragausleger. Belastet sie Gurt oder Bindeblech höher als ohne, steht in der Übersicht ein Hinweis mit beiden Zahlen (ohne → mit).', rechnung: true },
       { text: 'Neu unter Optionen → Einwirkungen: «Rückhaltekraft der Leiter am Joch ansetzen» mit Prozentzahl (Vorgabe aus, 10 % des Leiterzugs bei +5 °C). Leiter, die direkt am Tragjoch befestigt sind, halten es gegen den Wind längs zurück - Masten und Fundamente werden entlastet, das Bindeblech kann steigen. In der AxisVM-Datei eine Last im Lastfall Wind y.', rechnung: true },
       { text: 'Anbauteilliste: beim Überfahren einer Zeile wird das Teil im 3D leicht markiert.' },
       { text: 'Dateinamen: die Modelldatei beginnt mit der Liniennummer (ohne «AxisVM», ohne «L», ohne «anschnitt_mast»), z. B. «600_Ort_KM12.345_J90_L20.0m.json». Beim «Drucken / als PDF sichern» eines Blatts wird derselbe Name mit der Art vorgeschlagen («…_Reaktionskraefte»).' },

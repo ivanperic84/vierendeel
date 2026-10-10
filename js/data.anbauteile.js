@@ -1397,7 +1397,7 @@ export function havarieEinsetzen(flach, lf) {
  * dem Vorzeichen der Kombination um, wirkt nur in den Fällen mit Wind längs
  * (auch im Betriebswind, mit dessen Beiwert) und nie im Havariefall. In der
  * AxisVM-Datei ist sie eine Last im Lastfall WindY - rein linear.
- * WO: nur am Tragjoch, nur an Baugruppen, die NUR aus Leitern bestehen
+ * WO: am Tragjoch und am Tragausleger, nur an Baugruppen, die NUR aus Leitern bestehen
  * (direkt am Joch, ohne Hängestütze, Aufsatz, Ausleger), nicht an einseitig
  * abgefangenen und nicht an nur abgezogenen Leitern (Gewicht abgewählt).
  * Blattfelder `rueckhaltAn` (Vorgabe aus) und `rueckhaltProzent` (10).
@@ -1406,7 +1406,9 @@ export const RUECKHALT_PROZENT = 10;
 /** Der Anteil p (0 … 1) für einen Satz - 0, wenn aus oder kein Tragjoch. */
 export function rueckhaltVon(inp) {
   if (inp?.rueckhaltAn !== true) return 0;
-  if ((inp?.tragwerksart ?? 'joch') !== 'joch') return 0;
+  // Auch am Tragausleger (Nachtrag 10. Oktober: «bei tragausleger die
+  // rückhaltekraft auch mit nehmen»); nicht an Abfangjoch und Einzelmast.
+  if (!['joch', 'tragausleger'].includes(inp?.tragwerksart ?? 'joch')) return 0;
   const p = Number(inp.rueckhaltProzent);
   return (Number.isFinite(p) && p >= 0 ? p : RUECKHALT_PROZENT) / 100;
 }

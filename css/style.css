@@ -3652,3 +3652,9 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .aend-liste { margin: 0 0 6px 18px; padding: 0; line-height: 1.45; }
 .aend-liste li { margin: 2px 0; }
 .aend-rechnung { display: inline-block; min-width: 1.2em; text-align: center; color: var(--warn, #d9a441); font-weight: 600; }
+
+/* Rückhaltekraft: Info, wenn sie das Joch höher belastet (10. Oktober). */
+.rh-info { margin: 8px 0; padding: 7px 9px; border: 1px solid var(--warn); border-left-width: 3px; border-radius: 6px;
+  background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 11.5px; color: var(--on); }
+.rh-info.nok { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 9%, transparent); }
+.rh-info ul { margin: 3px 0 3px 16px; padding: 0; } .rh-info span { color: var(--on2); font-size: 10.5px; }
