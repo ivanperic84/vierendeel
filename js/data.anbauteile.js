@@ -1378,8 +1378,42 @@ export function havarieEinsetzen(flach, lf) {
   });
 }
 
+/* ===========================================================================
+ * >>> DIE RÜCKHALTEKRAFT DER LEITER AM JOCH (10. Oktober). <<<
+ * ===========================================================================
+ * Weisung: «kannst du eine rückhaltekraft definieren beim drahtwerk
+ * aktivierbar machen die direkt am joch … angebracht sind. … diese kraft
+ * wirkt stabilisierend auf das tragwerk, es erzeugt aufgrund der verdrehung
+ * und verformung eine kraft die in gegenrichtung wikt, da die kettenwerke
+ * die nachbartragwerke aktivieren. die kraft sollte unter optionen
+ * aktivierbar sein und mit einer prozentzahl (voreinstellwert 10%) der
+ * leiterzugkraft (Temperatur +5°) angesetzt werden können.» Nach der Messung
+ * (feste Kraft an tief hängenden Leitern verdreht das Joch: Bindeblech
+ * 0.798 → 1.884) eingegrenzt: «die rückhaltekraft soll nur bei einem Joch
+ * wirken wo die leiter direkt befestigt sind», dann «so einbauen».
+ *
+ * WIE: eine Kraft p · Z(+5 °C) je Leiter am Leiterpunkt, längs zum Gleis,
+ * GEGEN den Wind - sie steht in der Gruppe «Wind y» und kehrt deshalb mit
+ * dem Vorzeichen der Kombination um, wirkt nur in den Fällen mit Wind längs
+ * (auch im Betriebswind, mit dessen Beiwert) und nie im Havariefall. In der
+ * AxisVM-Datei ist sie eine Last im Lastfall WindY - rein linear.
+ * WO: nur am Tragjoch, nur an Baugruppen, die NUR aus Leitern bestehen
+ * (direkt am Joch, ohne Hängestütze, Aufsatz, Ausleger), nicht an einseitig
+ * abgefangenen und nicht an nur abgezogenen Leitern (Gewicht abgewählt).
+ * Blattfelder `rueckhaltAn` (Vorgabe aus) und `rueckhaltProzent` (10).
+ * ========================================================================= */
+export const RUECKHALT_PROZENT = 10;
+/** Der Anteil p (0 … 1) für einen Satz - 0, wenn aus oder kein Tragjoch. */
+export function rueckhaltVon(inp) {
+  if (inp?.rueckhaltAn !== true) return 0;
+  if ((inp?.tragwerksart ?? 'joch') !== 'joch') return 0;
+  const p = Number(inp.rueckhaltProzent);
+  return (Number.isFinite(p) && p >= 0 ? p : RUECKHALT_PROZENT) / 100;
+}
+
 export function expandiereAnbauteile(liste, o = {}) {
   const { ek = 'EK2', R = 0, spannweite = 0 } = o;
+  const pRueck = Number(o.rueckhalt) > 0 ? Number(o.rueckhalt) : 0;
   // Die Auswahl der reissenden Leiter; ohne sie gelten die alten Merker.
   const auswahl = o.havarie ?? null;
   const kandidaten = havarieKandidaten(auswahl);
@@ -1403,6 +1437,11 @@ export function expandiereAnbauteile(liste, o = {}) {
     // Erst die Anteile DIESER Baugruppe sammeln: die Umverteilung des Windes
     // braucht sie vollständig nebeneinander, um den Träger zu finden.
     const teile = [];
+    // Direkt am Joch: die Baugruppe besteht nur aus Leitern (Rückhalt, 10. Oktober).
+    const amJochDirekt = pRueck > 0 && !String(a.ort ?? '').startsWith('mast')
+      && (a.module ?? []).filter((m) => m.aktiv !== false && m.bauteil).every((m) => {
+        try { return getFlBauteil(m.bauteil).rolle === 'drahtwerk'; } catch { return false; }
+      });
 
     // --- Module aus der Lasttabelle ----------------------------------------
     (a.module ?? []).forEach((m, i) => {
@@ -1588,6 +1627,12 @@ export function expandiereAnbauteile(liste, o = {}) {
         kraefte.WindX.Fx = ohneFd(w.Qx, wFd?.Qx ?? 0);
         kraefte.WindY.Fy = ohneFd(w.Qy, wFd?.Qy ?? 0);
       }
+      // Die Rückhaltekraft: p · Z(+5 °C) gegen den Wind längs (siehe oben).
+      let rueckhalt = 0;
+      if (amJochDirekt && drahtwerk && !einseitig && m.wirktG !== false) {
+        rueckhalt = pRueck * leiterzug(m.bauteil) * n;
+        kraefte.WindY.Fy -= rueckhalt;
+      }
       let havarieJe = null;
       let festeRichtung = false;
       const leiter = drahtwerk ? leiterKennung(a, m, i) : null;
@@ -1665,6 +1710,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         // Rechnung ein - noch nicht: der Havariefall (Bruch eines
         // Kettenwerks) waehlt spaeter darueber aus.
         kettenwerk: m.kettenwerk ?? null,
+        ...(rueckhalt ? { rueckhalt } : {}),
         kraefte,
       });
     });

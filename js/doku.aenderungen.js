@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Neu unter Optionen → Einwirkungen: «Rückhaltekraft der Leiter am Joch ansetzen» mit Prozentzahl (Vorgabe aus, 10 % des Leiterzugs bei +5 °C). Leiter, die direkt am Tragjoch befestigt sind, halten es gegen den Wind längs zurück - Masten und Fundamente werden entlastet, das Bindeblech kann steigen. In der AxisVM-Datei eine Last im Lastfall Wind y.', rechnung: true },
+      { text: 'Anbauteilliste: beim Überfahren einer Zeile wird das Teil im 3D leicht markiert.' },
       { text: 'Dateinamen: die Modelldatei beginnt mit der Liniennummer (ohne «AxisVM», ohne «L», ohne «anschnitt_mast»), z. B. «600_Ort_KM12.345_J90_L20.0m.json». Beim «Drucken / als PDF sichern» eines Blatts wird derselbe Name mit der Art vorgeschlagen («…_Reaktionskraefte»).' },
       { text: 'Ablage-Vorschau: im hellen Design hell; Leiter als Punkt, Abzug als kurzer Strich, Fläche / Signal als grösseres Viereck; als «neu» gekennzeichnete Anbauteile rot.' },
       { text: 'Fundament: die Ausnutzung ist der grösste Basiswert und steigt immer mit der Last. Gleicht der Ablauf eine Überschreitung aus, steht η über 1.00 mit dem Vermerk «mit abgeminderten Werten ZULÄSSIG» (gelb, das Urteil bleibt erfüllt). Vorher fiel die Zahl an dieser Stelle (z. B. 0.933 → 0.782 statt → 1.015).', rechnung: true },

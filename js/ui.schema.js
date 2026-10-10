@@ -2032,6 +2032,22 @@ export const FELDER = [
     hinweis: 'Reduziert allen Wind - Joch, Masten, Anbauteile, Leiter, Abfangjoch, '
       + 'Tragausleger - über die Beiwerte der Lastfälle: Wind x und Wind y × 0.74 in jeder '
       + 'Kombination, auch im Betriebswind und in der AxisVM-Ausleitung.' },
+  /*
+   * >>> RÜCKHALTEKRAFT DER LEITER AM JOCH (10. Oktober). <<< Unter Optionen
+   * (Einwirkungen); die Regel steht in data.anbauteile.js (`rueckhaltVon`).
+   */
+  { key: 'rueckhaltAn', optionenDialog: true, gruppe: 'ein', typ: 'schalter',
+    label: 'Rückhaltekraft der Leiter am Joch ansetzen', standard: false,
+    hinweis: 'Leiter, die direkt am Tragjoch befestigt sind (ohne Hängestütze, Aufsatz oder '
+      + 'Ausleger), halten das Joch über die Nachbartragwerke zurück: je Leiter eine Kraft '
+      + 'p · Z (Leiterzug bei +5 °C) längs zum Gleis, GEGEN den Wind. Nur in den Fällen mit '
+      + 'Wind längs; nicht im Havariefall, nicht an einseitig abgefangenen und nicht an nur '
+      + 'abgezogenen Leitern. Entlastet Masten und Fundamente; am Joch kann das Bindeblech '
+      + 'steigen. In AxisVM eine Last im Lastfall Wind y (linear).' },
+  { key: 'rueckhaltProzent', optionenDialog: true, gruppe: 'ein', typ: 'zahl',
+    label: 'Rückhaltekraft', sym: 'p', einheit: '% von Z', standard: 10, schritt: 1, min: 0, max: 100,
+    sichtbar: (w) => w.rueckhaltAn === true,
+    hinweis: 'Anteil der Leiterzugkraft bei +5 °C je Leiter. Vorgabe 10 %.' },
   { key: 'schneeAktiv', gruppe: 'schnee', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
@@ -2512,7 +2528,7 @@ export const OPTIONEN_ABSCHNITTE = [
            'ebenenUeberlagerung', 'gurtaufteilung', 'spannungsmodell'] },
   { thema: 'modell', titel: 'Knoten und Bindebleche',
     keys: ['knotenbereich', 'endfeldZuschlag', 'schiefeBiegung'] },
-  { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft'] },
+  { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft', 'rueckhaltAn', 'rueckhaltProzent'] },
   { thema: 'einwirkung', titel: 'Lastbeiwerte',
     keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { thema: 'einwirkung', titel: 'Widerstand', keys: ['gammaM0'] },

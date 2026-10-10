@@ -42,7 +42,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, anbauGruppe,
          leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
-         SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen } from './data.anbauteile.js';
+         SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen , rueckhaltVon } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -3668,6 +3668,15 @@ const auchBeimVerlassen = (inp, ev, fn) => {
 /** Rückruf für das Hervorheben im 3D; app.js setzt ihn beim Start. */
 let beiDrahtwerk = null;
 export function setzeDrahtwerkWahl(fn) { beiDrahtwerk = fn; }
+/*
+ * >>> ANBAUTEIL ÜBERFAHREN: IM 3D LEICHT MARKIERT (10. Oktober). <<< Weisung:
+ * «beim überfahren der anbauteile diese in der 3d leicht farblich markieren
+ * wie bei den leitern.» Die Zeile der Anbauteilliste meldet ihre Kennungen
+ * (`AT<i>`, an Abfangjoch und Tragausleger `AT_<i+1>`); gezeichnet wird nur
+ * das 3D neu, die Leiste nicht.
+ */
+let beiAnbauHover = null;
+export function setzeAnbauHover(fn) { beiAnbauHover = fn; }
 
 /** Einwirkungsklasse aus der gewählten Windstufe. */
 const ekVonWerten = (w) =>
@@ -4328,7 +4337,9 @@ const trasseVon = (w) => ({ ek: ekVonWerten(w), R: w.trasseRadius,
   spannweite: w.flSpannweite,
   // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober) - die
   // Anzeige rechnet wie der Kern.
-  artWahl: w.havarie ?? null, artVorgabe: abfangVorgabeFuer(tragwerksart(w).key) });
+  artWahl: w.havarie ?? null, artVorgabe: abfangVorgabeFuer(tragwerksart(w).key),
+  // Rückhaltekraft der Leiter am Joch (10. Oktober) - die Anzeige rechnet wie der Kern.
+  rueckhalt: rueckhaltVon(w) });
 
 /** Auswahlliste in einer Modulzeile. */
 function modWahl(i, k, feld, label, wert, optionen) {
@@ -5637,6 +5648,12 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
   // Rechtsklick auf die Zeile: dasselbe Menü wie im Modell, mit «Duplizieren».
   container.querySelectorAll('.at-zeile').forEach((z) => {
+    // Überfahren markiert das Teil im 3D leicht (10. Oktober).
+    z.addEventListener('mouseenter', () => {
+      const i = +z.closest('.at-karte')?.dataset.idx;
+      if (Number.isInteger(i)) beiAnbauHover?.([`AT${i}`, `AT_${i + 1}`]);
+    });
+    z.addEventListener('mouseleave', () => beiAnbauHover?.(null));
     z.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       beiAnbauKontext?.(+z.closest('.at-karte').dataset.idx, [e.clientX, e.clientY]);

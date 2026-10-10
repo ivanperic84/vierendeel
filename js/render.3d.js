@@ -2954,6 +2954,8 @@ export class Modellansicht {
    */
   auswahlAufheben() {
     this.hervorTeile = null;
+    // In der Liste überfahrene Anbauteile (10. Oktober): leichter als die Auswahl.
+    this.hoverTeile = null;
     this.markierung = null;
     this.fokus = null;
     this.detail = null;
@@ -4716,6 +4718,15 @@ export class Modellansicht {
         c.fill();
         c.globalAlpha = 0.95;
         c.lineWidth = 1.8 * this._s;
+        c.strokeStyle = t.acc ?? '#4aa3df';
+        c.stroke();
+      } else if (this.hoverTeile?.size && [...this.hoverTeile].some(trifft)) {
+        // Nur überfahren (Anbauteilliste): ein leichter Schimmer, dünne Kante.
+        c.globalAlpha = 0.24;
+        c.fillStyle = t.acc ?? '#4aa3df';
+        c.fill();
+        c.globalAlpha = 0.7;
+        c.lineWidth = 1.0 * this._s;
         c.strokeStyle = t.acc ?? '#4aa3df';
         c.stroke();
       }

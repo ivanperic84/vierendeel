@@ -33,7 +33,7 @@ export function stahlMastVon(inp, stahl) {
 }
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
-import { expandiereAnbauteile, amMast, ortVon, havarieEinsetzen } from './data.anbauteile.js';
+import { expandiereAnbauteile, amMast, ortVon, havarieEinsetzen, rueckhaltVon } from './data.anbauteile.js';
 import { mastNachweise, mastNachweiseHuelle } from './core.mast.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
@@ -668,6 +668,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
       havarie: inp.havarie,
+    // Rückhaltekraft der direkt am Joch befestigten Leiter (10. Oktober).
+    rueckhalt: rueckhaltVon(inp),
   });
   // Der gewählte Lastfall liefert die Beiwerte je Einwirkungsgruppe.
   // beiwerteFest übergeht ihn - gebraucht für das Auflagerblatt, das die
@@ -1244,6 +1246,7 @@ export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
       havarie: inp.havarie,
+    rueckhalt: rueckhaltVon(inp),
   });
   const uebersicht = lastfallUebersicht({ ...inp, anbauteileFlach: flach },
                                         char, flach);

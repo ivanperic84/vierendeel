@@ -41048,6 +41048,78 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        && NB.urteilMarke(0.9, true).includes('NICHT erfüllt') && NB.urteilMarke(0.9).includes('>erfüllt<'));
 }
 
+/*
+ * 10. Oktober, Rückhaltekraft: «kannst du eine rückhaltekraft definieren beim
+ * drahtwerk aktivierbar machen … unter optionen aktivierbar … mit einer
+ * prozentzahl (voreinstellwert 10%) der leiterzugkraft (Temperatur +5°)»,
+ * eingegrenzt «nur bei einem Joch … wo die leiter direkt befestigt sind».
+ * Dazu: «beim überfahren der anbauteile diese in der 3d leicht farblich
+ * markieren wie bei den leitern.»
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const FLr = await import(J('data.fl.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const CHr = await import(J('core.checks.js'));
+  const at = (id, x, extra = {}) => ({ ...DA.neuesAnbauteil(id, x), ...extra });
+  wahr('Rückhalt: aus ohne Schalter, 10 % als Vorgabe, nur am Tragjoch',
+       DA.rueckhaltVon({}) === 0 && DA.rueckhaltVon({ rueckhaltAn: true }) === 0.10
+       && DA.rueckhaltVon({ rueckhaltAn: true, rueckhaltProzent: 5 }) === 0.05
+       && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'einzelmast' }) === 0
+       && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'tragausleger' }) === 0
+       && DA.rueckhaltVon({ rueckhaltAn: true, tragwerksart: 'abfangjoch' }) === 0);
+  const direkt = at('leiter-rfl', 5), haengt = at('hs-nt-ausleger', 10);
+  const Zd = (direkt.module ?? []).reduce((a, m) => a + FLr.leiterzug(m.bauteil) * (m.anzahl ?? 1), 0);
+  const ohne = DA.expandiereAnbauteile([direkt, haengt], { ek: 'EK1', spannweite: 40 });
+  const mit = DA.expandiereAnbauteile([direkt, haengt], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10 });
+  const sumY = (l, id) => l.filter((t) => t.baugruppe === id).reduce((a, t) => a + (t.kraefte.WindY.Fy ?? 0), 0);
+  pruef('… am direkt befestigten Leiter: Wind y um 10 % · Z(+5 °C) kleiner', sumY(mit, direkt.id) - sumY(ohne, direkt.id), -0.10 * Zd, 1e-9, 'kN');
+  pruef('… an der Hängestütze mit Ausleger: nichts', sumY(mit, haengt.id) - sumY(ohne, haengt.id), 0, 1e-12, 'kN');
+  wahr('… nur in der Gruppe Wind y: ständig, Wind x, Schnee und Havarie unverändert',
+       ['G', 'WindX', 'Schnee', 'HavarieX', 'HavarieY'].every((g) => mit.every((t, i) =>
+         ['Fx', 'Fy', 'Fz'].every((f) => Math.abs((t.kraefte[g]?.[f] ?? 0) - (ohne[i].kraefte[g]?.[f] ?? 0)) < 1e-12))));
+  const abz = { ...direkt, id: 'ABZ', module: direkt.module.map((m) => ({ ...m, wirktG: false })) };
+  const eins = DA.expandiereAnbauteile([direkt], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10,
+    artWahl: Object.fromEntries(direkt.module.map((m, i) => [`${direkt.id}#${i}`, { art: 'einseitig' }])) });
+  wahr('… nicht am nur abgezogenen und nicht am einseitig abgefangenen Leiter; nicht am Masten',
+       DA.expandiereAnbauteile([abz], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10 }).every((t) => !t.rueckhalt)
+       && eins.every((t) => !t.rueckhalt)
+       && DA.expandiereAnbauteile([{ ...direkt, ort: 'mastA', hMast: 6 }], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10 }).every((t) => !t.rueckhalt));
+  const basis = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260',
+                  anbauteile: [at('leiter-rfl', 5), at('leiter-rfl', 10), at('leiter-rfl', 15)] };
+  const lauf = (w) => { const ws = N.rechensatzMitNachbarn(w); const erg = V.berechne(ws, ...N.kernArgumente(ws));
+    return { erg, h: AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) }; };
+  const a = lauf(basis), b = lauf({ ...basis, rueckhaltAn: true, rueckhaltProzent: 10 });
+  const py = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
+  pruef('Stabwerk und AxisVM-Datei: die Rückhaltekraft steht als Last im Lastfall WindY (3 × R-FL, 10 %)', py(b.h) - py(a.h), -0.10 * 3 * Zd, 1e-6, 'kN');
+  wahr('… keine Last auf einem Havarie-Lastfall kommt dazu',
+       (b.h.roh.dat.lasten.punkt ?? []).filter((l) => /^Havarie/.test(l.lastfall)).length
+       === (a.h.roh.dat.lasten.punkt ?? []).filter((l) => /^Havarie/.test(l.lastfall)).length);
+  const mast = (h) => h.bauteile['mast:M1'].eta, fu = (h) => h.fundamentJe.M1.eta, bl = (h) => h.teile['tragwerk|blech'].eta;
+  wahr('Gemessen J90/20 m, HEB 260, 3 × R-FL direkt: Mast und Fundament sinken, das Bindeblech steigt',
+       mast(b.h) < mast(a.h) - 0.2 && fu(b.h) < fu(a.h) - 0.2 && bl(b.h) > bl(a.h),
+       `Mast ${mast(a.h).toFixed(3)} → ${mast(b.h).toFixed(3)} · Fundament ${fu(a.h).toFixed(3)} → ${fu(b.h).toFixed(3)} · Blech ${bl(a.h).toFixed(3)} → ${bl(b.h).toFixed(3)}`);
+  wahr('… der Kern folgt (Mast des Ersatzbalkens sinkt), und ein Hinweis nennt die Annahme',
+       V.vergleichKombinationen(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true }), ...N.kernArgumente(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true }))).huellkurve.mast.A.eta
+         < V.vergleichKombinationen(N.rechensatzMitNachbarn(basis), ...N.kernArgumente(N.rechensatzMitNachbarn(basis))).huellkurve.mast.A.eta - 0.2
+       && CHr.hinweise(b.erg.modell, {}).some((x) => /Rückhaltekraft der Leiter ANGESETZT/.test(x))
+       && !CHr.hinweise(a.erg.modell, {}).some((x) => /Rückhaltekraft/.test(x)));
+  const C = await import(J('core.constants.js'));
+  const SCH = await import(J('ui.schema.js'));
+  wahr('Blattfelder und Optionen: Schalter (Vorgabe aus) und Prozentzahl (10) unter Einwirkungen',
+       C.BLATT_FELDER.includes('rueckhaltAn') && C.BLATT_FELDER.includes('rueckhaltProzent')
+       && SCH.FELDER.find((f) => f.key === 'rueckhaltAn')?.standard === false
+       && SCH.FELDER.find((f) => f.key === 'rueckhaltProzent')?.standard === 10
+       && SCH.OPTIONEN_ABSCHNITTE.some((x) => x.keys.includes('rueckhaltAn') && x.keys.includes('rueckhaltProzent')));
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'), rQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Anbauteilliste: Überfahren einer Zeile markiert das Teil im 3D leicht (hoverTeile)',
+       uiQ.includes("beiAnbauHover?.([`AT${i}`, `AT_${i + 1}`]);") && uiQ.includes("z.addEventListener('mouseleave', () => beiAnbauHover?.(null));")
+       && rQ.includes('this.hoverTeile?.size && [...this.hoverTeile].some(trifft)') && APP_QUELLE().includes('ansicht.hoverTeile = neu;'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

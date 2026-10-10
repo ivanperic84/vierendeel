@@ -7288,6 +7288,14 @@ export async function start() {
     ansicht.hervorTeile = teile?.length ? new Set(teile) : null;
     ansicht.zeichne();
   });
+  // Anbauteil in der Liste überfahren: leicht markiert im 3D (10. Oktober).
+  ui.setzeAnbauHover((teile) => {
+    if (!ansicht) return;
+    const neu = teile?.length ? new Set(teile) : null;
+    if (!neu && !ansicht.hoverTeile) return;
+    ansicht.hoverTeile = neu;
+    ansicht.zeichne();
+  });
   ui.setzeAnbauHandler({
     /*
      * EIN WEG ZUM SETZEN, NICHT ZWEI.

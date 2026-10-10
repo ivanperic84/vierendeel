@@ -1787,6 +1787,16 @@ export function hinweise(m, opt = {}) {
       + `${ohneTabH.map((t2) => t2.name ?? 'Leiter').join(', ')}. `
       + 'Kalt zieht der Leiter stärker — der Havariefall steht zu günstig da.');
   }
+  // Rückhaltekraft der Leiter am Joch (10. Oktober) - eine Annahme, die man sehen muss.
+  {
+    const rh = (m.anbauteileFlach ?? []).filter((t2) => t2?.rueckhalt > 0);
+    if (rh.length) {
+      const su = rh.reduce((a2, t2) => a2 + t2.rueckhalt, 0);
+      h.push(`Rückhaltekraft der Leiter ANGESETZT (Optionen → Einwirkungen): ${rh.length} Leiter direkt am Joch, `
+        + `zusammen ${su.toFixed(2)} kN charakteristisch längs zum Gleis gegen den Wind. `
+        + 'Sie entlastet Masten und Fundamente und setzt voraus, dass die Nachbartragwerke die Leiter halten.');
+    }
+  }
   if (m.havarieAus === true) {
     h.push('Havariefall ABGESCHALTET (Lasten → Havarie): kein Havarienachweis, '
       + 'und die AxisVM-Ausleitung führt keine Havarie-Lastfälle.');
