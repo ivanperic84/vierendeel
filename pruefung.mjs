@@ -41230,6 +41230,12 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   wahr('Anbauteilliste: Überfahren einer Zeile markiert das Teil im 3D leicht (hoverTeile)',
        uiQ.includes("beiAnbauHover?.([`AT${i}`, `AT_${i + 1}`]);") && uiQ.includes("z.addEventListener('mouseleave', () => beiAnbauHover?.(null));")
        && rQ.includes('this.hoverTeile?.size && [...this.hoverTeile].some(trifft)') && APP_QUELLE().includes('ansicht.hoverTeile = neu;'));
+  // Die hinterlegte Zeichnung übersteht das Neuladen (10. Oktober).
+  const stQ = readFileSync(join(HIER, 'js', 'store.js'), 'utf8');
+  wahr('Hintergrundzeichnung: zum Arbeitsstand gesichert (auch ohne Eintrag der Ablage), beim Start geholt, nicht im Ablage-Paket',
+       APP_QUELLE().includes('if (await zeichnungBeimStart(app)) {') && APP_QUELLE().includes('zum Arbeitsstand (10. Oktober).')
+       && APP_QUELLE().includes('store.zeichnungLoeschen(store.ARBEITS_ZEICHNUNG)')
+       && stQ.includes('.filter((z) => z.id !== ARBEITS_ZEICHNUNG)'));
 }
 
 console.log('\n' + '='.repeat(104));

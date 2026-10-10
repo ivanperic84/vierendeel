@@ -398,9 +398,19 @@ export async function zeichnungLoeschen(id) {
   await tx('readwrite', (st) => st.delete(id), ZEICHNUNGEN);
 }
 
-/** Alle Zeichnungen - gebraucht beim Ausleiten des ganzen Projekts. */
+/**
+ * Die Zeichnung des ARBEITSSTANDS (10. Oktober, gemeldet: «wenn ich einen
+ * refresh mache verliere ich die zeichnung im hintergrund»). Der Arbeitsstand
+ * liegt im localStorage, ein Bild passt dort nicht hinein - es liegt unter
+ * dieser festen Kennung neben den Zeichnungen der Ablage und gehört zu
+ * keinem Eintrag.
+ */
+export const ARBEITS_ZEICHNUNG = '__arbeitsstand__';
+
+/** Alle Zeichnungen der Ablage - gebraucht beim Ausleiten des ganzen Projekts. */
 export async function zeichnungenAlle() {
-  return (await tx('readonly', (st) => st.getAll(), ZEICHNUNGEN)) ?? [];
+  return ((await tx('readonly', (st) => st.getAll(), ZEICHNUNGEN)) ?? [])
+    .filter((z) => z.id !== ARBEITS_ZEICHNUNG);
 }
 
 // --- Das ganze Projekt als Paket --------------------------------------------

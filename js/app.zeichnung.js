@@ -105,8 +105,50 @@ export async function zeichnungEinlegen(app, blob, name = 'Zeichnung') {
   }
 }
 
-/** In die Ablage, sobald das Tragwerk eine Id hat. */
+/*
+ * >>> DIE ZEICHNUNG ÜBERSTEHT DAS NEULADEN (10. Oktober). <<<
+ *
+ * Gemeldet: «wenn ich einen refresh mache verliere ich die zeichnung im
+ * hintergrund.» Zwei Lücken: beim Start holte niemand die Zeichnung, und
+ * ohne Eintrag in der Ablage (keine Id) wurde sie gar nicht gesichert.
+ * Jetzt liegt die Zeichnung des Arbeitsstands unter einer festen Kennung
+ * (store.ARBEITS_ZEICHNUNG) und wird nachgeführt, sobald sich Bild oder
+ * Einmessung ändern - auch wenn sie WEGFÄLLT (entfernt, neues Querprofil,
+ * Eintrag ohne Zeichnung geladen). Geschrieben wird nur bei einer Änderung:
+ * der Abgleich hängt an jedem Speichern des Arbeitsstands.
+ */
+let arbeitBereit = false;       // erst nach dem Holen beim Start - sonst löschte das erste Speichern das Bild
+let arbeitMerker = null;        // { daten, kal } des zuletzt geschriebenen Stands
+
+export function zeichnungArbeitsstand(app) {
+  if (!arbeitBereit || !app.ansicht) return;
+  const z = app.ansicht.zeichnung ?? null;
+  const kal = z ? JSON.stringify(z.kalibrierung ?? null) : null;
+  if ((arbeitMerker?.daten ?? null) === (z?.daten ?? null) && (arbeitMerker?.kal ?? null) === kal) return;
+  arbeitMerker = z ? { daten: z.daten, kal } : null;
+  (z ? store.zeichnungSichern(store.ARBEITS_ZEICHNUNG, {
+        daten: z.daten, breite: z.breite, hoehe: z.hoehe, art: z.art,
+        name: z.name, kalibrierung: z.kalibrierung })
+     : store.zeichnungLoeschen(store.ARBEITS_ZEICHNUNG)).catch(() => {});
+}
+
+/** Beim Start: die Zeichnung des Arbeitsstands, sonst die des Eintrags der Ablage. */
+export async function zeichnungBeimStart(app) {
+  try {
+    const da = await store.zeichnungLaden(store.ARBEITS_ZEICHNUNG).catch(() => null);
+    await zeichnungHolen(app, da ? store.ARBEITS_ZEICHNUNG : (app.projekt.id ?? null));
+    const z = app.ansicht.zeichnung;
+    arbeitMerker = z && da ? { daten: z.daten, kal: JSON.stringify(z.kalibrierung ?? null) } : null;
+  } finally {
+    arbeitBereit = true;
+  }
+  zeichnungArbeitsstand(app);
+  return Boolean(app.ansicht.zeichnung);
+}
+
+/** In die Ablage, sobald das Tragwerk eine Id hat; zum Arbeitsstand immer. */
 export async function zeichnungSichernFallsMoeglich(app) {
+  zeichnungArbeitsstand(app);
   const z = app.ansicht.zeichnung;
   if (!z || !app.projekt.id) return;
   await store.zeichnungSichern(app.projekt.id, {
@@ -178,6 +220,7 @@ export function zeichnungWaehlen(app) {
 export async function zeichnungEntfernen(app) {
   app.ansicht.zeichnung = null;
   app.ansicht.zeichne();
+  zeichnungArbeitsstand(app);
   try { await store.zeichnungLoeschen(app.projekt.id); } catch { /* nie gesichert */ }
   zeichnungMenueEnde(app);
 }

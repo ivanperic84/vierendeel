@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Die hinterlegte Querprofil-Zeichnung bleibt beim Neuladen der Seite erhalten, auch wenn das Tragwerk noch nicht in der Ablage gespeichert ist.' },
       { text: 'Rückhaltekraft als begrenzter Halt: der Leiterpunkt ist längs zum Gleis gehalten, die Haltekraft ist nur so gross wie nötig und höchstens der eingestellte Wert. Bei vollem Wind ist der Halt meist ausgeschöpft (Zahlen wie bisher), bei wenig Wind wirkt weniger. Die AxisVM-Datei führt je Leiter einen Hilfslastfall, die Haltekraft steht als Faktor in den Kombinationen.', rechnung: true },
       { text: 'Rückhaltekraft: einstellbar im Reiter Lasten (beim Wind) statt unter Optionen; neu ein Grösstwert je Leiter (Vorgabe 0.5 kN, 0 = ohne Grenze) - angesetzt wird das Kleinere aus p · Z und dem Grösstwert.', rechnung: true },
       { text: 'Rückhaltekraft: gilt auch für Leiter direkt am Tragausleger. Belastet sie Gurt oder Bindeblech höher als ohne, steht in der Übersicht ein Hinweis mit beiden Zahlen (ohne → mit).', rechnung: true },

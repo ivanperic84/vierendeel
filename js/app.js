@@ -141,7 +141,7 @@ import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeic
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
 import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextAnbauSeite, kontextTrasse, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
-import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
+import { zeichnungArbeitsstand, zeichnungBeimStart, zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
@@ -549,6 +549,8 @@ function speichern() {
       JSON.stringify({ werte, projekt, thema, ts: entwurfTs,
                        gesichert: gesicherteSignatur }));
   } catch { /* Ablage nicht verfügbar, kein Grund abzubrechen */ }
+  // Die hinterlegte Zeichnung gehört zum Arbeitsstand (10. Oktober).
+  zeichnungArbeitsstand(app);
 }
 
 const jochVonTyp = (w = werte) =>
@@ -7359,6 +7361,13 @@ export async function start() {
   neuRechnen();
   requestAnimationFrame(() => ansicht.passeGroesseAn());
   new ResizeObserver(() => ansicht.passeGroesseAn()).observe(ui.el('viewer'));
+
+  // Die hinterlegte Zeichnung des Arbeitsstands (10. Oktober: sie ging beim
+  // Neuladen verloren). Vor dem Startwunsch - «neu» soll sie wieder leeren.
+  if (await zeichnungBeimStart(app)) {
+    baueModellWerkzeuge(app);
+    ansicht.zeichne();
+  }
 
   // Sprungliste der installierten Anwendung (shortcuts im Manifest). Zuletzt,
   // damit der gewünschte Dialog über einem fertigen Arbeitsblatt steht und
