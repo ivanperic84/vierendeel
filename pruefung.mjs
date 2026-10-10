@@ -41304,6 +41304,82 @@ titel('265  Stehende Bleche plastisch (Schalter); liegende bleiben elastisch');
        && html.includes('Zum Vergleich elastisch'));
 }
 
+// ===========================================================================
+titel('266  Eingabe-Durchgang 9. Oktober bereinigt: Lage Abfangjoch, Masskette, Schieber');
+
+/*
+ * Weisung 11. Oktober: «die Eingabe-Durchgang vom 9. Oktober bereinigen.»
+ * Befunde aus CLAUDE.md, Offene Punkte: Lage x am Abfangjoch springt auf
+ * −0.5; das Feld Masskette nimmt ungültigen Text an; Schieber zeigen
+ * gerundete Werte.
+ */
+{
+  const C = await import(J('core.constants.js'));
+  const { blattA } = await import(new URL('./modell_beispiele.mjs', import.meta.url).href);
+  const w = blattA();
+  const lagen = [0.1, 0.5, -0.3, 6].map((x) => C.freieLage(w, w.twId, x).x);
+  wahr('Abfangjoch (zwei A160/12.5 m übereinander, Masten 0 / 12): eine Lage im Feld springt auf 0 zurück, nicht auf −0.5',
+       lagen.every((x) => Math.abs(x) < 1e-9), lagen.join(' · '));
+  pruef('… am fremden Masten rechts (12) bleibt die Lage stehen', C.freieLage(w, w.twId, 12).x, 12, 1e-9, 'm');
+  const t = C.tragwerkeVon(w)[0];
+  pruef('bereichVon am Abfangjoch: von Mast zu Mast (L − 2 ü)', C.bereichVon(t)[1] - C.bereichVon(t)[0],
+        12.5 - 2 * C.abfangUeberstand(t), 1e-9, 'm');
+
+  const r = C.massketteLesen('15 a20 hallo 735 12.3.4', 7.35);
+  wahr('Masskette: was keine Zahl ist, steht in «fremd»', r.fremd.join(' ') === 'a20 hallo 12.3.4', r.fremd.join(' '));
+  wahr('… Trennzeichen nach einer Zahl zählen nicht als fremd', C.massketteLesen('15, 209; 735', 7.35).fremd.length === 0);
+  const fM = FELDER.find((f) => f.key === 'masskette');
+  const n1 = fM.notiz({ masskette: '15 a20 735', L: 7.35 }), n2 = fM.notiz({ masskette: '15 209 735', L: 20 });
+  wahr('… die Notiz am Feld nennt Gelesenes, Nichtgelesenes und die Gegenprobe zur Jochlänge',
+       n1.includes('NICHT GELESEN: a20') && n2.includes('Die Kette endet bei 7.35 m') && fM.notiz({ masskette: 'abc', L: 7 }).includes('KEINE ZAHL')
+       && fM.notiz({ masskette: '', L: 7 }) === null, n1);
+
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Schieber: Griff am gespeicherten Wert (step="any"), Raster beim Ziehen über data-raster ab min',
+       uiQ.includes('data-raster="${rngSchritt}"') && uiQ.includes('min="${f.min}" max="${mx}" step="any"')
+       && uiQ.includes('Math.round((v - m0) / r) * r'));
+}
+
+// ===========================================================================
+titel('267  Abfangjoch: Mast B verschoben - nächste Länge, Überstand passt sich an');
+
+/*
+ * Befund des Eingabe-Durchgangs vom 9. Oktober: Mast B um 5 cm verschoben
+ * gab eine Länge ausserhalb des Sortiments. Auf Rückfrage (11. Oktober)
+ * «Nächste Länge, Überstand passt sich an».
+ */
+{
+  const C = await import(J('core.constants.js'));
+  const UIa = await import(J('ui.js'));
+  const AJx = await import(J('data.abfangjoche.js'));
+  const { blattA, rechne } = await import(new URL('./modell_beispiele.mjs', import.meta.url).href);
+  let w = blattA();
+  w = C.tragwerkWeg(w, C.tragwerkeVon(w)[1].id);
+  w = { ...w, L: 10 };
+  const mB = C.mastenVon(w)[1];
+  const zieh = (ziel) => UIa.mastStelleSetzen(w, UIa.mastRollen(w, mB.id), ziel);
+  pruef('abfangJsIst: im Bereich gilt der Wunsch', AJx.abfangJsIst('A160', 10.5, 9.55), 9.55, 1e-12, 'm');
+  pruef('… ausserhalb die grösste Stützweite', AJx.abfangJsIst('A160', 10.5, 9.2), 10.0, 1e-12, 'm');
+  const w1 = zieh(9.55), t1 = C.tragwerkeVon(w1)[0];
+  wahr('A160/10 m, Mast B 9.50 → 9.55: Länge 10.5 m, Überstand (10.5 − 9.55)/2, Mast steht bei 9.55',
+       Math.abs(t1.L - 10.5) < 1e-9 && Math.abs(C.abfangUeberstand(t1) - 0.475) < 1e-9
+       && Math.abs(C.mastLagen(t1)[1] - 9.55) < 1e-9, `L ${t1.L} · ü ${C.abfangUeberstand(t1)} · Masten ${C.mastLagen(t1)}`);
+  const h1 = rechne(w1);
+  wahr('… das Stabwerk rechnet (Länge im Sortiment)', !h1.fehler && Object.values(h1.teile ?? {}).some((t) => t.eta > 0),
+       h1.fehler ?? Object.values(h1.teile).map((t) => `${t.teil} ${t.eta?.toFixed(3)}`).join(' '));
+  const t2 = C.tragwerkeVon(zieh(9.2))[0];
+  wahr('… 9.20: die Länge bleibt 10 m (kürzeste, die trägt), Überstand 0.40', Math.abs(t2.L - 10) < 1e-9
+       && Math.abs(C.abfangUeberstand(t2) - 0.4) < 1e-9);
+  const t3 = C.tragwerkeVon(zieh(12.05))[0];
+  wahr('… über dem Typ (A160 endet bei 12.50 m): Abstand ohne Überstand, gemerkt für das passende Joch',
+       Math.abs(t3.L - 12.05) < 1e-9 && Math.abs(t3.abfangJs - 12.05) < 1e-9);
+  wahr('Hinweis nennt das passende Joch auch ohne geführte Länge',
+       APP_QUELLE().includes('diese Länge `\n        + `führt das Sortiment nicht'));
+  // Ohne Eintrag wie bisher: grösste Stützweite, 25 cm Überstand.
+  pruef('Ohne abfangJs: Überstand der grössten Stützweite', C.abfangUeberstand({ tragwerksart: 'abfangjoch', abfangTyp: 'A160', L: 10 }),
+        0.25, 1e-9, 'm');
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

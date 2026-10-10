@@ -378,6 +378,8 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
         nurDaten: skripte, verortung: verortungKurz(app.werte),
         knotenbereich: knotenmodell, auflagerModell,
         anbauteile: aktSatz.anbauteile ?? [],
+        // Der Mastabstand des Tragwerks (11. Oktober, `abfangJsIst`).
+        abfangJs: aktSatz.abfangJs,
         // Die Auflagerbedingung je Gurt - vorn und hinten getrennt.
         auflagerLinks: aktSatz.auflagerLinks, auflagerVorgabe: app.werte.auflagerVorgabe,
         // Die eingetragene Konsole (29. September): sie kam hier nie an -

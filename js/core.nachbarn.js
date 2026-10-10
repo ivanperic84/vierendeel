@@ -106,6 +106,8 @@ function abfangEinmal(w, satzA, stahl, anbauteile) {
   const sKl = String(satzA.schneeKlasse ?? '1.25');
   return abfangAuswertung({
     typ: w.abfangTyp, jt: Number(w.L),
+    // Der Mastabstand des Tragwerks (11. Oktober, `abfangJsIst`).
+    abfangJs: w.abfangJs ?? satzA.abfangJs,
     // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
     gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
     wk: abfangWind(a2, satzA.ek ?? 'EK2'),

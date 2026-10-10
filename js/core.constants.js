@@ -11,7 +11,7 @@
 // Nur fuer die Anschrift des Einzelmasten (tragwerkName) - core.auflager
 // haengt allein an den Datentabellen, ein Kreis entsteht nicht.
 import { einzelmastLaenge, mastLaengeFuer } from './core.auflager.js';
-import { abfangMasse } from './data.abfangjoche.js';
+import { abfangJsIst } from './data.abfangjoche.js';
 import { istGittermast, getMastprofil } from './data.masten.js';
 
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
@@ -475,7 +475,17 @@ export function tragwerkBeiX(w, x, tol = 0.3) {
  */
 export function bereichVon(t, x0 = null) {
   const a = x0 === null ? lageVon(t) : x0;
-  const L = tragwerksart(t).masten >= 2 ? (Number(t?.L) || 0) : 0;
+  /*
+   * >>> BEIM ABFANGJOCH DIE STÜTZWEITE (11. Oktober). <<< Befund des
+   * Eingabe-Durchgangs vom 9. Oktober: «Lage x zeigt nach der Eingabe 0.1
+   * den Wert −0.5 und kehrt nicht zurück». Gemessen an zwei A160/12.5 m
+   * übereinander (Masten bei 0 und 12): jede Lage gab −0.5 - der Bereich
+   * reichte bis zur TRÄGERlänge 12.5, der eigene zweite Mast bei 12 lag
+   * damit «im Feld» und schob das Joch auf 12 − 12.5. Von Mast zu Mast
+   * heisst beim Abfangjoch L − 2 · Überstand (wie `mastLagen`).
+   */
+  const L = tragwerksart(t).masten >= 2
+    ? (Number(t?.L) || 0) - 2 * abfangUeberstand(t) : 0;
   const [kA, kB] = kragarme(t);
   return [a + kA, a + Math.max(kA, L - kB)];
 }
@@ -727,9 +737,11 @@ export function abfangUeberstand(t) {
   if (tragwerksart(t).key !== 'abfangjoch') return 0;
   const L = Number(t?.L) || 0;
   try {
-    const z = abfangMasse(t?.abfangTyp, L);
-    if (!z?.js) return 0;
-    return Math.max(0, Math.round((L - z.js[1]) / 2 * 1e6) / 1e6);
+    // Die gespeicherte Stützweite, wenn sie im Bereich der Länge liegt
+    // (11. Oktober, `abfangJsIst`), sonst die grösste.
+    const js = abfangJsIst(t?.abfangTyp, L, t?.abfangJs);
+    if (!(js > 0)) return 0;
+    return Math.max(0, Math.round((L - js) / 2 * 1e6) / 1e6);
   } catch { return 0; }
 }
 
@@ -2348,7 +2360,16 @@ export function massketteLesen(text, L = 0) {
     .filter((v) => Number.isFinite(v) && v >= 0);
   const werte = [...new Set(roh.map((v) => Math.round(v * 10) / 1000))]
     .sort((a, b) => a - b);
-  if (!werte.length) return { werte: [], hinweis: null };
+  /*
+   * >>> WAS NICHT GELESEN WURDE, WIRD GENANNT (11. Oktober). <<< Befund des
+   * Eingabe-Durchgangs vom 9. Oktober: «das Feld Masskette nimmt ungültigen
+   * Text an» - «15 a20 hallo 735» gab still [0.15, 0.20, 7.35]. Gelesen wird
+   * weiter grosszügig; ein Stück, das keine Zahl ist (Buchstaben, «12.3.4»),
+   * steht aber in `fremd`, und die Notiz am Feld nennt es.
+   */
+  const fremd = String(text ?? '').split(/[\s;/|]+/).filter(Boolean)
+    .filter((t) => !/^\d+(?:[.,]\d+)?[.,]?$/.test(t));
+  if (!werte.length) return { werte: [], hinweis: null, fremd };
   /*
    * DAS LETZTE MASS IST DIE JOCHLÄNGE - und damit die Gegenprobe.
    *
@@ -2361,7 +2382,7 @@ export function massketteLesen(text, L = 0) {
     ? `Die Kette endet bei ${ende.toFixed(2)} m, das Joch ist ${L.toFixed(2)} m `
       + 'lang. Sind es Zentimeter, und gehört die Kette zu diesem Joch?'
     : null;
-  return { werte, hinweis };
+  return { werte, hinweis, fremd };
 }
 
 /**

@@ -52,7 +52,7 @@
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangMasse,
          abfangRandmasse, abfangQuersteife,
-         abfangLaengen, abfangjoche } from './data.abfangjoche.js';
+         abfangLaengen, abfangjoche, abfangJsIst } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { abfangkraft } from './data.fl.js';
 import { baugruppeSumme, leiterKennung } from './data.anbauteile.js';
@@ -204,11 +204,13 @@ export function abfangLastQuer(q) {
  *
  * @returns {{von: number, bis: number, mittel: number}|null} [m]
  */
-export function abfangStuetzweite(typ, jt) {
+export function abfangStuetzweite(typ, jt, wunsch = null) {
   const z = abfangMasse(typ, jt);
   if (!z?.js) return null;
   const [von, bis] = z.js;
-  return { von, bis, mittel: (von + bis) / 2 };
+  // `ist`: die Stützweite, die gilt - die gespeicherte des Tragwerks, wenn
+  // sie im Bereich liegt, sonst die grösste (11. Oktober, `abfangJsIst`).
+  return { von, bis, mittel: (von + bis) / 2, ist: abfangJsIst(typ, jt, wunsch) ?? bis };
 }
 
 /* ===========================================================================
@@ -585,10 +587,10 @@ export const ABFANG_GURT_DAEMPFUNG = 1.0;
  * Genommen wird deshalb das GROESSTE Feld - der Randabstand, wenn er groesser
  * ist als die Teilung. Das ist die Stelle, an der der Nachweis faellt.
  */
-export function abfangRahmenfeld(typ, jt) {
+export function abfangRahmenfeld(typ, jt, jsWunsch = null) {
   const ein = abfangBlechstationen(typ, jt);
   if (!ein) return null;
-  const sw = abfangStuetzweite(typ, jt);
+  const sw = abfangStuetzweite(typ, jt, jsWunsch);
   /*
    * >>> DIE STATIONEN ZAEHLEN AB JOCHENDE, DIE AUFLAGER LIEGEN INNEN. <<<
    *
@@ -601,7 +603,7 @@ export function abfangRahmenfeld(typ, jt) {
    * kleinsten Ueberstand und damit das laengste Randfeld - die sichere
    * Seite.
    */
-  const js = sw ? sw.bis : jt;
+  const js = sw ? sw.ist : jt;
   const ue = Math.max(0, (jt - js) / 2);
   const st = ein.stationen;
   /*
@@ -1478,11 +1480,11 @@ export function abfangAuswertung(o = {}) {
   const { typ, jt } = o;
   if (!abfangRechenbar(typ, jt)) return null;
   const q = abfangQuerschnitt(typ);
-  const rf = abfangRahmenfeld(typ, jt);
+  const rf = abfangRahmenfeld(typ, jt, o.abfangJs);
   const ein = abfangBlechstationen(typ, jt);
   if (!rf || !ein) return null;
-  const sw = abfangStuetzweite(typ, jt);
-  const js = sw ? sw.bis : jt;
+  const sw = abfangStuetzweite(typ, jt, o.abfangJs);
+  const js = sw ? sw.ist : jt;
   const ue = Math.max(0, (jt - js) / 2);
   const gG = Number(o.gammaG) || 1.3;
   const gQ = Number(o.gammaQ) || 1.3;

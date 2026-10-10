@@ -1375,6 +1375,21 @@ function rechneTragwerk(werte, joch) {
                : 'Kein Joch des Sortiments trägt diese Stützweite.'));
       }
     }
+    /*
+     * OHNE GEFÜHRTE LÄNGE (11. Oktober): reicht der Typ für den Mastabstand
+     * nicht (A160 endet bei 12.50 m, die Masten stehen 12.05 m auseinander),
+     * setzt das Verschieben den Abstand ohne Überstand als Länge - das
+     * Sortiment führt sie nicht, und der Hinweis oben fehlte, weil er eine
+     * geführte Länge voraussetzt. Jetzt nennt er auch hier das passende Joch.
+     */
+    if (mA && mB && !sw) {
+      const js = Math.abs(mB.x - mA.x);
+      const v = abfangFuerStuetzweite(werte.abfangTyp, js);
+      hinw.push(`Abfangjoch ${werte.abfangTyp} / ${Number(werte.L).toFixed(2)} m: diese Länge `
+        + `führt das Sortiment nicht, die Masten stehen ${js.toFixed(2)} m auseinander. `
+        + (v ? `Passend wäre ${v.typ} / ${v.L.toFixed(2)} m.`
+             : 'Kein Joch des Sortiments trägt diese Stützweite.'));
+    }
   }
   const urteil = urteilKonstruktion(checks, werte.nachweise,
                                     tragwerksart(werte).key);
@@ -2279,7 +2294,7 @@ function szeneVonNebenanRoh(t, zeichnen) {
     if (tragwerksart(satz).key === 'abfangjoch') {
       // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
       return mastTeileNebenan(abfangSzene(satz.abfangTyp, Number(satz.L),
-                         { anbauteile: satz.anbauteile ?? [],
+                         { anbauteile: satz.anbauteile ?? [], abfangJs: satz.abfangJs,
                            mast: abfangMastAngabe(satz), lager: satz,
                            mastZeichnen: zeichnen,
                            ...abfangLastAngaben(satz) }), satz);
@@ -2420,6 +2435,7 @@ function blattSzene(erg) {
   const eigen = ta ?? (tragwerksart(werte).key === 'abfangjoch'
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
+                    abfangJs: werte.abfangJs,
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
                     masten: abfangMastenAngabe(
                       rechensatz(werte), erg.modell.federn?.namen),

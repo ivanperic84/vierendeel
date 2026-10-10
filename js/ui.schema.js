@@ -22,7 +22,7 @@
 import { TRAGWERKSARTEN, tragwerksart,
          gewaehlterMast, mastName, mastNameAmEnde,
          tragwerkPos, tragwerkeVon,
-         anschlusshoehe } from './core.constants.js';
+         anschlusshoehe, massketteLesen } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
@@ -564,6 +564,14 @@ export const FELDER = [
     hinweis: 'Aktuelles Sortiment A160–A360, darunter die Altbauweise nach '
            + 'ihrer Profilbezeichnung. Der Nachweis des Abfangjochs wird noch '
            + 'nicht geführt.' },
+  /*
+   * DER MASTABSTAND DES ABFANGJOCHS (11. Oktober, `abfangJsIst`): gesetzt
+   * beim Verschieben eines Masten; gilt, wenn er im Stützweitenbereich der
+   * Länge liegt, sonst die grösste Stützweite. 0 = Vorgabe.
+   */
+  { key: 'abfangJs', gruppe: 'geo', typ: 'zahl', versteckt: true,
+    label: 'Mastabstand Abfangjoch', einheit: 'm', standard: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'abfangjoch' },
   {
     key: 'massVariante', optionenDialog: true, gruppe: 'geo', typ: 'auswahl', label: 'Hebelarme aus',
     standard: 'schwerpunkt', optionen: opt(MASSVARIANTEN),
@@ -666,6 +674,23 @@ export const FELDER = [
     hinweis: 'Masse über dem Joch in cm ab linkem Jochende, wie auf der '
            + 'Zeichnung. Letztes Mass gleich Jochlänge. Leer lassen, wo keine '
            + 'Kette angeschrieben ist.',
+    /*
+     * Was gelesen wurde, steht unter dem Feld (11. Oktober, Befund des
+     * Eingabe-Durchgangs: «nimmt ungültigen Text an»): Anzahl und Bereich der
+     * Masse, was nicht gelesen wurde, und die Gegenprobe «letztes Mass =
+     * Jochlänge» - sie stand in `massketteLesen` und wurde nirgends gezeigt.
+     */
+    notiz: (w) => {
+      if (!String(w.masskette ?? '').trim()) return null;
+      const r = massketteLesen(w.masskette, Number(w.L) || 0);
+      const teile = [];
+      teile.push(r.werte.length
+        ? `Gelesen: ${r.werte.length} Masse, ${r.werte[0].toFixed(2)} … ${r.werte[r.werte.length - 1].toFixed(2)} m.`
+        : 'KEINE ZAHL GELESEN - die Kette wirkt nicht.');
+      if (r.fremd?.length) teile.push(`NICHT GELESEN: ${r.fremd.slice(0, 5).join(' ')}${r.fremd.length > 5 ? ' …' : ''}.`);
+      if (r.hinweis) teile.push(r.hinweis);
+      return teile.join(' ');
+    },
   },
   { key: 'a1', fein: true, gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
     sichtbar: (w) => tragwerksart(w).key === 'joch',

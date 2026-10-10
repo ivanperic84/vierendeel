@@ -159,7 +159,7 @@ export function abfangSzene(typ, jt, opt = {}) {
   const p = getGurtprofil(auf.gurtprofil);
   const ein = abfangBlechstationen(typ, jt);
   const bl = abfangBindeblech(typ);
-  const sw = abfangStuetzweite(typ, jt);
+  const sw = abfangStuetzweite(typ, jt, opt.abfangJs ?? opt.lager?.abfangJs);
 
   /*
    * DIE WERTE JE STELLE - aus der Reihe des Gurtnachweises.
@@ -191,7 +191,7 @@ export function abfangSzene(typ, jt, opt = {}) {
   const hG = p.h / 100;                   // Profilhöhe [m]
   const bG = p.b / 100;                   // Flanschbreite [m]
   const zf = (p.h - p.tf) / 2 / 100;      // Flanschmitte über der Schwerachse
-  const js = sw ? sw.bis : jt;
+  const js = sw ? sw.ist : jt;
   const ue = Math.max(0, (jt - js) / 2);
 
   /*

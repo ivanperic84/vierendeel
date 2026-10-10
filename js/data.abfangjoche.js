@@ -396,6 +396,27 @@ export function abfangMasse(typ, jt) {
 }
 
 /**
+ * >>> DIE STÜTZWEITE, DIE GILT (11. Oktober). <<<
+ *
+ * Befund des Eingabe-Durchgangs vom 9. Oktober: Mast B des Abfangjochs um
+ * 5 cm verschoben gab eine Trägerlänge ausserhalb des Sortiments (das
+ * Stabwerk rechnete nicht). Auf Rückfrage «Nächste Länge, Überstand passt
+ * sich an»: das Tragwerk merkt sich seinen Mastabstand (`abfangJs`); liegt
+ * er im Stützweitenbereich der gewählten Länge, gilt er, und der Überstand
+ * je Seite ist (jt − js) / 2. Ohne Eintrag (oder ausserhalb) gilt wie bisher
+ * die grösste Stützweite der Länge (Entscheid 20. September).
+ *
+ * @returns {number|null} js [m], null ohne geführte Länge
+ */
+export function abfangJsIst(typ, jt, wunsch = null) {
+  const z = abfangMasse(typ, jt);
+  if (!z?.js) return null;
+  const w = Number(wunsch);
+  if (w > 0 && w >= z.js[0] - 1e-6 && w <= z.js[1] + 1e-6) return w;
+  return z.js[1];
+}
+
+/**
  * DIE QUERVERSTEIFUNG - ab A240.
  *
  * >>> NICHT AN JEDER STATION STEHT EIN BLECH. <<<

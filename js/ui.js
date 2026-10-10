@@ -15,7 +15,7 @@ import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon, stabZuordnung,
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
-         ABFANG_VERLAEUFE, abfangBlechstationen } from './core.abfangjoch.js';
+         ABFANG_VERLAEUFE, abfangBlechstationen, abfangStuetzweite } from './core.abfangjoch.js';
 import { auflagerDiagrammHtml, verdrahteAuflagerLinks, ohneMastHtml }
   from './ui.auflagerlinks.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
@@ -764,6 +764,22 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       let v;
       if (feld.typ === 'zahl' || feld.typ === 'schieber') {
         v = parseFloat(inp.value); if (!Number.isFinite(v)) return;
+        /*
+         * >>> DER SCHIEBER RASTET BEIM ZIEHEN, ZEIGT ABER DEN WERT (11. Oktober). <<<
+         * Befund des Eingabe-Durchgangs vom 9. Oktober: «Schieber zeigen
+         * gerundete Werte (Aufhängung b 4.5 statt 4.65 …)». Mit `step` = grobe
+         * Stufe setzte der Browser den Griff auf die Stufe - er stand bei
+         * 4.5, gerechnet wurde mit 4.65. Jetzt `step="any"` (der Griff steht
+         * am gespeicherten Wert), gerastet wird hier beim Ziehen, ab `min`
+         * wie zuvor der Browser.
+         */
+        const r = Number(inp.dataset.raster);
+        if (inp.type === 'range' && r > 0) {
+          const m0 = Number(inp.min) || 0;
+          v = Math.round((m0 + Math.round((v - m0) / r) * r) * 1e9) / 1e9;
+          const mxR = Number(inp.max);
+          if (Number.isFinite(mxR) && v > mxR) v = mxR;
+        }
       }
       else if (feld.typ === 'schalter') v = inp.checked;
       else if (feld.zahl) v = parseFloat(inp.value);
@@ -1510,10 +1526,27 @@ export function mastStelleSetzen(werte, r, xZiel) {
    */
   const abfang = (t) => tragwerksart(t).key === 'abfangjoch';
   const jsVon = (t, L) => L - 2 * abfangUeberstand({ ...t, L });
-  const abfangLaengeFuer = (t, js) => {
+  /*
+   * >>> NÄCHSTE LÄNGE, DER ÜBERSTAND PASST SICH AN (11. Oktober). <<<
+   * Befund des Eingabe-Durchgangs vom 9. Oktober: Mast B um 5 cm verschoben
+   * (12.00 → 12.05 m) gab L = 12.05 ohne Überstand - ausserhalb des
+   * Sortiments, das Stabwerk rechnete nicht. Auf Rückfrage «Nächste Länge,
+   * Überstand passt sich an»: gewählt wird die KÜRZESTE geführte Länge,
+   * deren Stützweitenbereich den Mastabstand trägt (12.05 → A160/13 m,
+   * Überstand 0.475 m), und der Mastabstand wird als `abfangJs` gemerkt
+   * (`abfangJsIst`). Führt der Typ keine passende Länge, bleibt es beim
+   * Abstand ohne Überstand, und der Hinweis nennt das passende Joch.
+   */
+  const abfangWahl = (t, js) => {
     let gefuehrt = [];
     try { gefuehrt = abfangLaengen(t.abfangTyp); } catch { gefuehrt = []; }
-    return [...gefuehrt, js].find((L) => Math.abs(jsVon(t, L) - js) < 1e-6) ?? js;
+    const r6w = (v) => Math.round(v * 1e6) / 1e6;
+    const L = [...gefuehrt].sort((a, b) => a - b)
+      .find((Lg) => { const z = abfangStuetzweite(t.abfangTyp, Lg);
+                      return z && js >= z.von - 1e-6 && js <= z.bis + 1e-6; });
+    // Ohne passende Länge bleibt der Abstand gemerkt: wählt man danach das
+    // Joch, das der Hinweis nennt, bleiben die Masten stehen.
+    return L != null ? { L, js: r6w(js) } : { L: r6w(js), js: r6w(js) };
   };
   const kB = r.alsB ? kragarme(r.alsB.t)[1] : 0;
   const kA = r.alsA ? kragarme(r.alsA.t)[0] : 0;
@@ -1540,13 +1573,15 @@ export function mastStelleSetzen(werte, r, xZiel) {
       const b = bereichVonTyp(t);
       const r6 = (v) => Math.round(v * 1e6) / 1e6;
       let lage = xZiel - kA;
-      let L = abfang(t) ? abfangLaengeFuer(t, Number(mB.x) - xZiel) : ende - lage;
+      const wahl = abfang(t) ? abfangWahl(t, Number(mB.x) - xZiel) : null;
+      let L = wahl ? wahl.L : ende - lage;
       if (L < b.min) L = b.min;
       if (L > b.max) L = b.max;
-      lage = abfang(t) ? r6(Number(mB.x) - jsVon(t, L)) : r6(ende - L);
+      const jsNeu = wahl && Math.abs(L - wahl.L) < 1e-9 ? wahl.js : 0;
+      lage = abfang(t) ? r6(Number(mB.x) - jsVon({ ...t, abfangJs: jsNeu }, L)) : r6(ende - L);
       const dx = r6(lage - (Number(t.xLage) || 0));
       return tragwerkAendern(werte, t.id, (q) => {
-        const f = { xLage: lage, L: r6(L) };
+        const f = { xLage: lage, L: r6(L), ...(abfang(t) ? { abfangJs: jsNeu } : {}) };
         f.anbauteile = (q.anbauteile ?? []).map((a) => (a && !amMast(a)
           && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) - dx) } : a));
         if (Number.isFinite(Number(q.xNachweis))) f.xNachweis = r6(Number(q.xNachweis) - dx);
@@ -1583,11 +1618,14 @@ export function mastStelleSetzen(werte, r, xZiel) {
      * (30. September).
      */
     const tB = r.alsB.t;
-    const roh = abfang(tB) ? abfangLaengeFuer(tB, Math.max(0, x - r.alsB.x0))
-                           : Math.max(0, x - r.alsB.x0) + kB;
+    const wahlB = abfang(tB) ? abfangWahl(tB, Math.max(0, x - r.alsB.x0)) : null;
+    const roh = wahlB ? wahlB.L : Math.max(0, x - r.alsB.x0) + kB;
     const L = freieLaenge(werte, tB.id, roh, r.alsA ? [r.alsA.t.id] : []).L;
-    x = r.alsB.x0 + (abfang(tB) ? jsVon(tB, L) : L - kB);
+    // Hält `freieLaenge` die Länge an, gilt wieder die grösste Stützweite.
+    const jsB = wahlB && Math.abs(L - wahlB.L) < 1e-9 ? wahlB.js : 0;
+    x = r.alsB.x0 + (abfang(tB) ? jsVon({ ...tB, abfangJs: jsB }, L) : L - kB);
     setzeAn(r.alsB.t.id, 'L', L);
+    if (abfang(tB)) setzeAn(r.alsB.t.id, 'abfangJs', jsB);
   }
   if (r.alsA) setzeAn(r.alsA.t.id, 'xLage', x - kA);
   return werte;
@@ -2732,8 +2770,8 @@ export function feldHtml(f, wert, werte) {
     const rngSchritt = (typeof f.zugSchritt === 'function' ? f.zugSchritt(werte) : f.zugSchritt) ?? f.schritt;
     const mx = feldMax(f, werte);
     inp = `<div class="zahlfeld">
-             <input class="rng" type="range" data-feld="${f.key}"
-               min="${f.min}" max="${mx}" step="${rngSchritt}" value="${wert}"${dis}>
+             <input class="rng" type="range" data-feld="${f.key}" data-raster="${rngSchritt}"
+               min="${f.min}" max="${mx}" step="any" value="${wert}"${dis}>
              <input type="number" id="${id}" data-feld="${f.key}" class="kurz"
                value="${wert}" step="${f.schritt}" min="${f.min}" max="${mx}"${dis}>
              <span class="einheit">${esc(f.einheit ?? '')}</span></div>

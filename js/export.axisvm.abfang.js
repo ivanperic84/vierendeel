@@ -140,7 +140,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       + 'kein Modell. Ohne sie stünden die Bleche irgendwo.');
   }
   const bl = abfangBindeblech(typ);
-  const sw = abfangStuetzweite(typ, jt);
+  const sw = abfangStuetzweite(typ, jt, opt.abfangJs);
   /*
    * >>> DER TRAEGER IST jt LANG, NICHT js. <<<
    *
@@ -159,7 +159,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Ueberstand ue = (jt - js)/2 eingerueckt, und er kragt an beiden Enden
    * darueber hinaus.
    */
-  const js = sw ? sw.bis : jt;
+  const js = sw ? sw.ist : jt;
   const ue = Math.max(0, (jt - js) / 2);
   const L = jt;
   const e = q.e / 100;                       // cm -> m, Achsabstand im Feld
@@ -1845,6 +1845,8 @@ export function abfangBau(satz, opt = {}) {
   const d = abfangAxisvmModell(satz.abfangTyp, Number(satz.L), {
     knotenmodell: opt.knotenmodell ?? 'anschnitt',
     anbauteile: satz.anbauteile ?? [],
+    // Der Mastabstand des Tragwerks (11. Oktober, `abfangJsIst`).
+    abfangJs: satz.abfangJs,
     auflagerLinks: satz.auflagerLinks,
     auflagerVorgabe: opt.auflagerVorgabe,
     L_FL: Number(satz.L_FL) || 0,
