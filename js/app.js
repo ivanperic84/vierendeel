@@ -26,7 +26,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          LASTARTEN, mastTeileSzene } from './render.3d.js';
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
-         stabwerkBerichtDaten } from './app.bericht.js';
+         stabwerkBerichtDaten, setzeDruckStamm } from './app.bericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml, anschlussBlattHtml } from './export.reaktionen.js';
 import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
 import { axisVergleich, istAxisErgebnis } from './core.axisvergleich.js';
@@ -37,7 +37,7 @@ import { exportiereAxisvm, exportiereDxf, exportiereJson,
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
-import { APP_NAME, verortung, fangeAufMasskette,
+import { APP_NAME, verortung, dateiStamm, fangeAufMasskette,
          tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
          tragwerksart,
          tragwerkTeil,
@@ -7277,6 +7277,8 @@ export async function start() {
     : { id: t.id, text: t.text, taste: t.taste, jetzt: tasteVon(t),
         still: t.still || !t.id })));
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);
+  // Der Vorschlag beim PDF-Druck heisst wie die Modelldatei (10. Oktober).
+  setzeDruckStamm(() => dateiStamm(werte));
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
   // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.
   ui.setzeSortimentSuche(() => dialogSortiment(app));

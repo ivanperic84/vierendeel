@@ -9209,7 +9209,7 @@ titel('36  Der Weg von der Ausleitung in AxisVM');
       { knotenmodell: km, auflagerModell: am });
     namen.add(r.name);
     wahr(`Der Name nennt ${km} und ${am}`,
-         r.name.includes(km) && r.name.endsWith(`_${am}.json`), r.name);
+         (km === 'anschnitt' ? !r.name.includes('anschnitt') : r.name.includes(km)) && r.name.endsWith(`_${am}.json`), r.name);   // 10. Oktober: die Vorgabe «anschnitt» steht nicht mehr im Namen
   }));
   pruef('Sechs Einstellungen, sechs verschiedene Namen', namen.size, 6, 1e-12, 'Stk');
 
@@ -9246,7 +9246,7 @@ titel('36  Der Weg von der Ausleitung in AxisVM');
       stahl: getStahl(wV.stahl), joch: T.getTragjoch('J90') },
       { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
     wahr('Der Dateiname traegt sie vorne, in derselben Reihenfolge',
-         rV.name.startsWith('AxisVM_L999_Beispielort_KM012.345_'), rV.name);
+         rV.name.startsWith('999_Beispielort_KM012.345_J90_L') && !/AxisVM|anschnitt/.test(rV.name), rV.name);   // 10. Oktober: ohne «AxisVM», Linie ohne «L», ohne «anschnitt»
     // Sonderzeichen und Leerzeichen taugen nicht in einen Dateinamen.
     wahr('Und vertraegt Leerzeichen im Ortsnamen',
          verortungKurz({ ortschaft: 'Bahnhof Nord' }) === 'Bahnhof-Nord',
@@ -33583,7 +33583,7 @@ titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner
   if (typ) {
     const r = AB154.exportiereAbfangJson(typ, 11, { nurDaten: true });
     wahr('Abfangjoch mit nurDaten: Name und Text, kein Download',
-         /^AxisVM_Abfangjoch_/.test(r.name) && JSON.parse(r.text).knoten.length === r.kennzahlen.knoten);
+         /^Abfangjoch_/.test(r.name) && JSON.parse(r.text).knoten.length === r.kennzahlen.knoten);
   }
 }
 
@@ -40944,11 +40944,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     { id: 'A4', name: 'Stütze leer', x: 17, befestigung: 'unten', module: [{ bauteil: 'anbauteil-haengestuetze-od-haengerohr', z: -1.35 }] },
   ] } });
   const anz = (re) => (vs.match(re) ?? []).length;
-  wahr('Vorschau: Abzug orange mit leerem Ring, tragende Gruppe blau, Anbauteil ohne Leiter grau',
-       vs.includes('class="vs-abzug"') && anz(/class="vs-abzugring" cx="[\d.]+" cy="[\d.]+" r="2.3"/g) === 1
+  wahr('Vorschau: Abzug orange mit kurzem waagrechtem Strich, tragende Gruppe blau, Anbauteil ohne Leiter grau',
+       vs.includes('class="vs-abzug"') && anz(/<line class="vs-abzugstrich" x1=/g) === 2 /* Bild + Legende */
        && vs.includes('class="vs-teil"'), vs.replace(/\s+/g, ' ').slice(0, 300));
-  wahr('… Anzahl der Leiter: Bündel × 2 = zwei Ringe, sechs Leiter = vier Ringe und «×6»',
-       anz(/class="vs-leiter" cx="[\d.]+" cy="[\d.]+" r="2.3"/g) === 6 && vs.includes('>×6</text>'),
+  wahr('… Anzahl der Leiter: Bündel × 2 = zwei Punkte, sechs Leiter = vier Punkte und «×6»',
+       anz(/class="vs-leiter" cx="[\d.]+" cy="[\d.]+" r="2"\/>/g) === 6 && vs.includes('>×6</text>') && !vs.includes('vs-leiterkern'),
        `Ringe ${anz(/class="vs-leiter" cx/g)}`);
   wahr('… Legende mit den Stückzahlen', vs.includes('Leiter getragen (8)') && vs.includes('nur Abzug (1)'),
        (/ab-vs-legende">([\s\S]*?)<\/div>/.exec(vs)?.[1] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '));
@@ -40957,7 +40957,22 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   if (frei) {
     const vf = ABL.eintragVorschauHtml({ name: 'F', werte: { ...basis, anbauteile: [
       { id: 'F1', name: 'Fläche', x: 6, befestigung: 'unten', module: [{ bauteil: frei, z: -1, aQuer: 1, aLaengs: 1, eigengewicht: 0.5 }] }] } });
-    wahr('… freie Fläche bzw. Signal als kleines Viereck', vf.includes('class="vs-kasten" x=') && vf.includes('Fläche / Signal (1)'));
+    wahr('… freie Fläche bzw. Signal als Viereck (7 px)', vf.includes('class="vs-kasten" x=') && vf.includes('width="7.2"') && vf.includes('Fläche / Signal (1)'));
+    const vn = ABL.eintragVorschauHtml({ name: 'N', werte: { ...basis, anbauteile: [
+      { id: 'N1', name: 'neu', x: 6, neu: true, befestigung: 'oben', module: [{ bauteil: 'drahtwerk-cu-95', z: 0.4 }] },
+      { id: 'N2', name: 'alt', x: 9, befestigung: 'oben', module: [{ bauteil: 'drahtwerk-cu-95', z: 0.4 }] }] } });
+    wahr('… eine als «neu» gekennzeichnete Baugruppe steht rot da, samt Leiter; die Legende zählt sie',
+         vn.includes('class="vs-leiter vs-neu"') && (vn.match(/class="vs-leiter"/g) ?? []).length >= 1
+         && /<line class="vs-neu" x1="[\d.]+" y1="[\d.]+" x2=/.test(vn) && vn.includes('neu (1)'));
+    const CK = await import(J('core.constants.js'));
+    const ABx = await import(J('app.bericht.js'));
+    ABx.setzeDruckStamm(() => CK.dateiStamm({ linie: '600', ortschaft: 'Bahnhof Nord', km: '12.345', typ: 'J90', L: 20 }));
+    wahr('Dateinamen: Stamm «Linie_Ort_KM_Typ_Länge», beim PDF-Druck mit der Art dahinter',
+         CK.dateiStamm({ linie: '600', typ: 'J90', L: 20 }) === '600_J90_L20.0m'
+         && ABx.druckName('Reaktionskräfte') === '600_Bahnhof-Nord_KM12.345_J90_L20.0m_Reaktionskraefte'
+         && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.ab-vorschau { position: fixed; z-index: 400; pointer-events: none; width: 320px; padding: 9px 10px;'),
+         ABx.druckName('Reaktionskräfte'));
+    ABx.setzeDruckStamm(() => '');
   }
   // Lastfalltabelle
   const kombi = { einwirkungen: [], lastfaelle: [

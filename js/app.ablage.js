@@ -140,6 +140,15 @@ const eintragEta = (e) => (Number.isFinite(e.kennwerte?.eta) ? e.kennwerte.eta :
  * nur abgezogener Leiter ist ein leerer Ring in Orange. Freie Fläche und
  * Signal sind ein kleines Viereck. Darunter die Legende.
  *
+ * Nachtrag selber Tag: «kannst du da die neu anbauteile sichtbar machen falls
+ * es solche hat in den tragwerken bei der vorschau. die leiter mit einfachem
+ * punkt darstellen und die abzüge mit einem horizontalem kurzen strich.
+ * dafür die flächenquadrat etwas grösser machen.» - ein Leiter ist ein
+ * gefüllter Punkt (bei mehreren so viele Punkte), ein nur abgezogener ein
+ * kurzer waagrechter Strich, das Viereck 7 statt 5 px; eine als «neu»
+ * gekennzeichnete Baugruppe (Bestandesschutz) steht ROT da, mit ihren
+ * Leitern und Flächen, und die Legende zählt sie.
+ *
  * @returns {string} HTML, leer wenn der Stand sich nicht lesen lässt
  */
 export function eintragVorschauHtml(e) {
@@ -180,7 +189,7 @@ export function eintragVorschauHtml(e) {
    * aufs Blatt. Gelesen wird über `expandiereAnbauteile` (dieselben Teile wie
    * im 3D); lässt sich eine Gruppe nicht lesen, bleibt ein Strich.
    */
-  const zaehl = { leiter: 0, abzug: 0, kasten: 0 };
+  const zaehl = { leiter: 0, abzug: 0, kasten: 0, neu: 0 };
   const symbole = [];
   const leiterN = (t) => {
     const n = Math.max(1, Math.round(Number(t?.anzahl) || 1));
@@ -195,7 +204,10 @@ export function eintragVorschauHtml(e) {
   const gruppeZeichnen = (a, meine, kette, welt) => {
     const dw = meine.filter((t) => t.rolle === 'drahtwerk');
     const abz = (t) => t.wirkung?.G === false;
-    const kl = !dw.length ? 'vs-teil' : dw.every(abz) ? 'vs-abzug' : 'vs-traegt';
+    const neu = a.neu === true;
+    if (neu) zaehl.neu += 1;
+    const kl = neu ? 'vs-neu' : !dw.length ? 'vs-teil' : dw.every(abz) ? 'vs-abzug' : 'vs-traegt';
+    const nk = neu ? ' vs-neu' : '';
     (kette.glieder ?? []).forEach((g) => {
       const p = welt(g.von), r = welt(g.bis);
       if (Math.hypot(Number(X(p[0])) - Number(X(r[0])), Number(Z(p[1])) - Number(Z(r[1]))) < 0.3) return;
@@ -210,14 +222,15 @@ export function eintragVorschauHtml(e) {
         zaehl[ab ? 'abzug' : 'leiter'] += n;
         const k = Math.min(n, 4), d = 5.2;
         for (let i = 0; i < k; i++) {
-          const x = (cx + (i - (k - 1) / 2) * d).toFixed(1);
-          symbole.push(`<circle class="${ab ? 'vs-abzugring' : 'vs-leiter'}" cx="${x}" cy="${cy.toFixed(1)}" r="2.3"/>`
-            + (ab ? '' : `<circle class="vs-leiterkern" cx="${x}" cy="${cy.toFixed(1)}" r="0.8"/>`));
+          const xi = cx + (i - (k - 1) / 2) * d;
+          symbole.push(ab
+            ? `<line class="vs-abzugstrich${nk}" x1="${(xi - 2.2).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(xi + 2.2).toFixed(1)}" y2="${cy.toFixed(1)}"/>`
+            : `<circle class="vs-leiter${nk}" cx="${xi.toFixed(1)}" cy="${cy.toFixed(1)}" r="2"/>`);
         }
         if (n > 4) symbole.push(`<text class="vs-zahl" x="${(cx + 2 * d + 1).toFixed(1)}" y="${(cy + 3).toFixed(1)}">×${n}</text>`);
       } else if (t.art === 'modul' && istKasten(a, t)) {
         zaehl.kasten += 1;
-        symbole.push(`<rect class="vs-kasten" x="${(cx - 2.6).toFixed(1)}" y="${(cy - 2.6).toFixed(1)}" width="5.2" height="5.2"/>`);
+        symbole.push(`<rect class="vs-kasten${nk}" x="${(cx - 3.6).toFixed(1)}" y="${(cy - 3.6).toFixed(1)}" width="7.2" height="7.2"/>`);
       }
     });
   };
@@ -270,9 +283,10 @@ export function eintragVorschauHtml(e) {
   });
   const glyph = (innen) => `<svg viewBox="0 0 10 10" width="10" height="10">${innen}</svg>`;
   const legende = [
-    zaehl.leiter ? `<span>${glyph('<circle class="vs-leiter" cx="5" cy="5" r="3"/><circle class="vs-leiterkern" cx="5" cy="5" r="1"/>')}Leiter getragen (${zaehl.leiter})</span>` : '',
-    zaehl.abzug ? `<span>${glyph('<circle class="vs-abzugring" cx="5" cy="5" r="3"/>')}nur Abzug (${zaehl.abzug})</span>` : '',
-    zaehl.kasten ? `<span>${glyph('<rect class="vs-kasten" x="2" y="2" width="6" height="6"/>')}Fläche / Signal (${zaehl.kasten})</span>` : '',
+    zaehl.leiter ? `<span>${glyph('<circle class="vs-leiter" cx="5" cy="5" r="2.6"/>')}Leiter getragen (${zaehl.leiter})</span>` : '',
+    zaehl.abzug ? `<span>${glyph('<line class="vs-abzugstrich" x1="1.5" y1="5" x2="8.5" y2="5"/>')}nur Abzug (${zaehl.abzug})</span>` : '',
+    zaehl.kasten ? `<span>${glyph('<rect class="vs-kasten" x="1.5" y="1.5" width="7" height="7"/>')}Fläche / Signal (${zaehl.kasten})</span>` : '',
+    zaehl.neu ? `<span>${glyph('<line class="vs-neu" x1="1" y1="5" x2="9" y2="5"/>')}neu (${zaehl.neu})</span>` : '',
   ].filter(Boolean).join('');
   const liste = teile.map((q) => `<li>${esc(`${tragwerkPos(w, q.t)} · ${tragwerkName(q.t, w)}`)}${
     (q.t.anbauteile ?? []).filter((a) => a && a.aktiv !== false).length

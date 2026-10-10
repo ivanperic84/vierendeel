@@ -505,7 +505,7 @@ export function exportiereStabwerk(werte, d, erg) {
     ...(jochModell ? [blattProfile(jochModell)] : []),
   ];
   const wo = verortungKurz(werte);
-  const name = `Vierendeel_Stabwerk${wo ? `_${wo}` : ''}`
+  const name = `${wo ? `${wo}_` : ''}Stabwerk`
     + `_${(d.tragwerke ?? []).map((tw) => tw.pos).join('-') || 'Blatt'}.xlsx`;
   herunterladen(arbeitsmappe(blaetter), name);
   return name;

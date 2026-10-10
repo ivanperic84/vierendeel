@@ -346,6 +346,24 @@ function berichtStabwerk(app, wahl) {
  * Leiste - { optionen: [{key, label}], zustand: {key: bool}, bauen(zustand)
  * -> html }. Ein Klick baut das Dokument neu; gedruckt wird, was dasteht.
  */
+/*
+ * >>> DER NAME BEIM PDF-DRUCK (10. Oktober). <<< «kann man das so auch für
+ * den pdf plott übernehmen und als zusatz mit den jeweiligen art ergänzen
+ * (reaktionskräfte etc.)»: der Browser schlägt beim «als PDF sichern» den
+ * Titel des gedruckten Dokuments vor. Er heisst deshalb wie die Modelldatei
+ * (`dateiStamm`) und hängt die Art an: «600_Ort_KM12.3_J90_L20.0m_Reaktionskraefte».
+ */
+let druckStamm = () => '';
+export function setzeDruckStamm(fn) { druckStamm = fn; }
+export function druckName(titel) {
+  const art = String(titel ?? '').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  let st = '';
+  try { st = druckStamm() ?? ''; } catch { st = ''; }
+  return [st, art].filter(Boolean).join('_');
+}
+
 export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
   document.getElementById('bericht-ebene')?.remove();
   const ebene = document.createElement('div');
@@ -364,7 +382,17 @@ export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
   document.body.appendChild(ebene);
   const rahmen = ebene.querySelector('iframe');
   rahmen.srcdoc = html;
-  ebene.querySelector('#bericht-drucken').onclick = () => rahmen.contentWindow?.print();
+  ebene.querySelector('#bericht-drucken').onclick = () => {
+    const name = druckName(titel);
+    // Der Titel des Blatts UND des Fensters: welcher gilt, hält der Browser.
+    try { if (rahmen.contentDocument) rahmen.contentDocument.title = name; } catch { /* bleibt */ }
+    const alt = document.title;
+    document.title = name;
+    const zurueck = () => { document.title = alt; rahmen.contentWindow?.removeEventListener('afterprint', zurueck); };
+    rahmen.contentWindow?.addEventListener('afterprint', zurueck);
+    setTimeout(zurueck, 60000);
+    rahmen.contentWindow?.print();
+  };
   ebene.querySelectorAll('[data-bericht-wahl]').forEach((k) => {
     k.onchange = () => {
       // Was auf dem Blatt bearbeitet wurde, übersteht den Neuaufbau.

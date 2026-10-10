@@ -5680,8 +5680,15 @@ function dateiname(inp, opt, m, endung) {
   // Die Verortung zuerst: so stehen die Tragwerke eines Projekts im Ordner
   // beieinander, statt sich nach dem Jochtyp zu sortieren.
   const wo = verortungKurz(inp);
-  return `AxisVM${wo ? `_${wo}` : ''}_${inp.typ ?? 'frei'}`
-       + `_L${Number(inp.L).toFixed(1)}m_${km}_${am}.${endung}`;
+  /*
+   * >>> OHNE «AxisVM», OHNE «anschnitt_mast» (10. Oktober). <<< Weisung, siehe
+   * `dateiStamm` (core.constants.js). Knoten- und Auflagermodell stehen nur
+   * noch im Namen, wenn sie von der Vorgabe ABWEICHEN (meine Lesart: zwei
+   * verschiedene Modelle desselben Jochs sollen sich weiter unterscheiden).
+   */
+  const zusatz = `${km !== 'anschnitt' ? `_${km}` : ''}${am !== auflagerVorgabe(m) ? `_${am}` : ''}`;
+  return `${wo ? `${wo}_` : ''}${inp.typ ?? 'frei'}`
+       + `_L${Number(inp.L).toFixed(1)}m${zusatz}.${endung}`;
 }
 
 /**

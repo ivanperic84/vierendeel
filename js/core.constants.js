@@ -2282,9 +2282,33 @@ export function verortung(w, trenner = ' · ') {
 export function verortungKurz(w) {
   const rein = (v) => String(v ?? '').trim()
     .replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '');
-  return [w?.linie ? `L${rein(w.linie)}` : null,
+  // Die Liniennummer OHNE «L» (10. Oktober: «direkt mit den der liniennummer
+  // beginnen, hier aber ohne L»).
+  return [w?.linie ? rein(w.linie) : null,
           rein(w?.ortschaft) || null,
           w?.km ? `KM${rein(w.km)}` : null].filter(Boolean).join('_');
+}
+
+/**
+ * >>> DER STAMM JEDES DATEINAMENS (10. Oktober). <<< Weisung: «die
+ * ausgeleitete datei ohne Axisvm sondern direkt mit den der liniennummer
+ * beginnen, hier aber ohne L. das anschnitt mast am schluss weglassen. kann
+ * man das so auch für den pdf plott übernehmen und als zusatz mit den
+ * jeweiligen art ergänzen (reaktionskräfte etc.)». Verortung, dann Typ und
+ * Länge des gerechneten Tragwerks: «600_Bahnhof-Nord_KM12.345_J90_L20.0m».
+ * Modelldatei, Excel und der Vorschlag beim PDF-Druck hängen ihre Art an.
+ */
+export function dateiStamm(w) {
+  const wo = verortungKurz(w);
+  const art = tragwerksart(w).key;
+  const L = Number(w?.L);
+  const lang = Number.isFinite(L) && L > 0 ? `_L${L.toFixed(1)}m` : '';
+  const rein = (v) => String(v ?? '').trim().replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '');
+  const was = art === 'einzelmast' ? `Mast${w?.mastProfil ? `_${rein(w.mastProfil)}` : ''}`
+    : art === 'abfangjoch' ? `${rein(w?.abfangTyp) || 'Abfangjoch'}${lang}`
+    : art === 'tragausleger' ? `Tragausleger${lang}`
+    : `${rein(w?.typ) || 'frei'}${lang}`;
+  return `${wo ? `${wo}_` : ''}${was}`;
 }
 
 /**

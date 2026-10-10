@@ -107,7 +107,7 @@ const radius = (p, rueckfall) => (Number(p?.r) > 0 ? Math.round(p.r * 100) / 10 
  */
 export function exportiereAbfangJson(typ, jt, opt = {}) {
   const d = abfangAxisvmModell(typ, jt, opt);
-  const name = `AxisVM_Abfangjoch_${typ}_${Number(jt).toFixed(1)}m.json`;
+  const name = `${opt.verortung ? `${opt.verortung}_` : ''}Abfangjoch_${typ}_L${Number(jt).toFixed(1)}m.json`;
   const text = JSON.stringify(d, null, 1);
   // `nurDaten`: der Aufrufer legt die Datei selbst ab - zusammen mit den
   // Skripten der Bruecke in einen gewaehlten Ordner (29. September).

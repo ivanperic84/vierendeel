@@ -3493,7 +3493,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 [data-bestand-blatt] { margin: 8px 0 0; }
 /* Vorschau eines gespeicherten Eintrags beim Überfahren (9. Oktober, B7). */
 .ab-vorschau { position: fixed; z-index: 400; pointer-events: none; width: 320px; padding: 9px 10px;
-  background: var(--su2, #1b1d24); border: 1px solid var(--acc); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  background: var(--s1); border: 1px solid var(--acc); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.45);
   font-size: 11px; color: var(--on); }
 .ab-vorschau[hidden] { display: none; }
 .ab-vs-titel { font-weight: 600; margin-bottom: 4px; } .ab-vs-titel span { color: var(--on2); font-weight: 400; }
@@ -3505,10 +3505,12 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .ab-vs-bild .vs-teil { stroke: var(--on2); stroke-width: 1.1; }
 .ab-vs-bild .vs-traegt { stroke: var(--acc); stroke-width: 1.4; }
 .ab-vs-bild .vs-abzug { stroke: var(--warn); stroke-width: 1.4; }
-.ab-vorschau .vs-leiter { fill: var(--su2, #1b1d24); stroke: var(--acc); stroke-width: 1; }
-.ab-vorschau .vs-leiterkern { fill: var(--acc); }
-.ab-vorschau .vs-abzugring { fill: none; stroke: var(--warn); stroke-width: 1.2; }
+.ab-vorschau .vs-leiter { fill: var(--acc); stroke: none; }
+.ab-vorschau .vs-abzugstrich { stroke: var(--warn); stroke-width: 2; stroke-linecap: round; }
 .ab-vorschau .vs-kasten { fill: var(--on2); stroke: var(--on); stroke-width: 0.6; }
+/* Neu (Bestandesschutz): rot, wie im Blatt. */
+.ab-vorschau line.vs-neu { stroke: var(--fail); stroke-width: 1.8; }
+.ab-vorschau circle.vs-neu, .ab-vorschau rect.vs-neu { fill: var(--fail); stroke: none; }
 .ab-vs-bild text.vs-zahl { fill: var(--acc); }
 .ab-vs-legende { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0 0 4px; color: var(--on2); font-size: 10.5px; }
 .ab-vs-legende span { display: inline-flex; align-items: center; gap: 3px; }

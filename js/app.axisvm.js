@@ -9,7 +9,7 @@
  * ---------------------------------------------------------------------------
  */
 import { mastenVon, rechensatz, sichtbareTragwerke, tragwerkSatz,
-         tragwerksart } from './core.constants.js';
+         tragwerksart, verortungKurz } from './core.constants.js';
 import { berechne, modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
@@ -352,7 +352,10 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
         const d = stabwerkDatei(app.werte, app.letzte.erg, { knotenmodell });
         d.bericht = berichtPlan(app);
         const text = JSON.stringify(d, null, 1);
-        const name = `AxisVM_${typ}_L${jt.toFixed(1)}m_${knotenmodell}_blatt.json`;
+        // Name wie die übrigen Ausleitungen (10. Oktober): Verortung, Typ, Länge.
+        const wo = verortungKurz(app.werte);
+        const name = `${wo ? `${wo}_` : ''}${typ}_L${jt.toFixed(1)}m${
+          knotenmodell !== 'anschnitt' ? `_${knotenmodell}` : ''}_blatt.json`;
         if (!skripte) {
           const a = document.createElement('a');
           a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -372,7 +375,7 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
     return (skripte ? (f) => mitSkripten(app, 'COM-Ausleitung', f)
                     : (f) => app.handlung('COM-Ausleitung', f))(
       () => exportiereAbfangJson(typ, jt, {
-        nurDaten: skripte,
+        nurDaten: skripte, verortung: verortungKurz(app.werte),
         knotenbereich: knotenmodell, auflagerModell,
         anbauteile: aktSatz.anbauteile ?? [],
         // Die Auflagerbedingung je Gurt - vorn und hinten getrennt.
