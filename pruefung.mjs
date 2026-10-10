@@ -41092,7 +41092,7 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
                   anbauteile: [at('leiter-rfl', 5), at('leiter-rfl', 10), at('leiter-rfl', 15)] };
   const lauf = (w) => { const ws = N.rechensatzMitNachbarn(w); const erg = V.berechne(ws, ...N.kernArgumente(ws));
     return { erg, h: AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) }; };
-  const a = lauf(basis), b = lauf({ ...basis, rueckhaltAn: true, rueckhaltProzent: 10 });
+  const a = lauf(basis), b = lauf({ ...basis, rueckhaltAn: true, rueckhaltProzent: 10, rueckhaltMax: 0 });   // 0 = ohne Grenze
   const py = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
   pruef('Stabwerk und AxisVM-Datei: die Rückhaltekraft steht als Last im Lastfall WindY (3 × R-FL, 10 %)', py(b.h) - py(a.h), -0.10 * 3 * Zd, 1e-6, 'kN');
   wahr('… keine Last auf einem Havarie-Lastfall kommt dazu',
@@ -41103,17 +41103,40 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        mast(b.h) < mast(a.h) - 0.2 && fu(b.h) < fu(a.h) - 0.2 && bl(b.h) > bl(a.h),
        `Mast ${mast(a.h).toFixed(3)} → ${mast(b.h).toFixed(3)} · Fundament ${fu(a.h).toFixed(3)} → ${fu(b.h).toFixed(3)} · Blech ${bl(a.h).toFixed(3)} → ${bl(b.h).toFixed(3)}`);
   wahr('… der Kern folgt (Mast des Ersatzbalkens sinkt), und ein Hinweis nennt die Annahme',
-       V.vergleichKombinationen(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true }), ...N.kernArgumente(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true }))).huellkurve.mast.A.eta
+       V.vergleichKombinationen(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true, rueckhaltMax: 0 }), ...N.kernArgumente(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true, rueckhaltMax: 0 }))).huellkurve.mast.A.eta
          < V.vergleichKombinationen(N.rechensatzMitNachbarn(basis), ...N.kernArgumente(N.rechensatzMitNachbarn(basis))).huellkurve.mast.A.eta - 0.2
        && CHr.hinweise(b.erg.modell, {}).some((x) => /Rückhaltekraft der Leiter ANGESETZT/.test(x))
        && !CHr.hinweise(a.erg.modell, {}).some((x) => /Rückhaltekraft/.test(x)));
   const C = await import(J('core.constants.js'));
   const SCH = await import(J('ui.schema.js'));
-  wahr('Blattfelder und Optionen: Schalter (Vorgabe aus) und Prozentzahl (10) unter Einwirkungen',
-       C.BLATT_FELDER.includes('rueckhaltAn') && C.BLATT_FELDER.includes('rueckhaltProzent')
+  /*
+   * Nachtrag: «einen maximalen grenzwert angeben können, da die Trgseile R-FL
+   * sonst zu hoch werden mit 10% -> 1.2 kN Rückhaltekraft. als Voreinstellwert
+   * 0.5 kN ansetzen als Maximum. führe das aktivieren der rückhaltekraft unter
+   * lasten auf zum einstellen.»
+   */
+  wahr('Blattfelder im Reiter Lasten (Wind): Schalter (aus), Prozentzahl (10), Grösstwert (0.5 kN)',
+       ['rueckhaltAn', 'rueckhaltProzent', 'rueckhaltMax'].every((k) => C.BLATT_FELDER.includes(k)
+         && SCH.FELDER.find((f) => f.key === k)?.gruppe === 'ein' && !SCH.FELDER.find((f) => f.key === k)?.optionenDialog)
        && SCH.FELDER.find((f) => f.key === 'rueckhaltAn')?.standard === false
        && SCH.FELDER.find((f) => f.key === 'rueckhaltProzent')?.standard === 10
-       && SCH.OPTIONEN_ABSCHNITTE.some((x) => x.keys.includes('rueckhaltAn') && x.keys.includes('rueckhaltProzent')));
+       && SCH.FELDER.find((f) => f.key === 'rueckhaltMax')?.standard === 0.5
+       && !SCH.OPTIONEN_ABSCHNITTE.some((x) => x.keys.includes('rueckhaltAn')));
+  wahr('Grösstwert: Vorgabe 0.5 kN, 0 = ohne Grenze',
+       DA.rueckhaltMaxVon({}) === 0.5 && DA.rueckhaltMaxVon({ rueckhaltMax: 0.8 }) === 0.8 && DA.rueckhaltMaxVon({ rueckhaltMax: 0 }) === Infinity
+       && DA.rueckhaltOpt({ rueckhaltAn: true }).rueckhaltMax === 0.5 && DA.rueckhaltOpt({}).rueckhalt === 0);
+  {
+    const gek = DA.expandiereAnbauteile([direkt], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10, rueckhaltMax: 0.5 });
+    const frei = DA.expandiereAnbauteile([direkt], { ek: 'EK1', spannweite: 40, rueckhalt: 0.10 });
+    wahr('… je Leiter min(p · Z, R_max): kein Leiter über 0.5 kN, ein kleinerer Wert bleibt',
+         gek.filter((t) => t.rueckhalt).length > 0
+         && gek.every((t, i) => !t.rueckhalt || Math.abs(t.rueckhalt - Math.min(frei[i].rueckhalt, 0.5 * (t.anzahl ?? 1))) < 1e-12),
+         gek.filter((t) => t.rueckhalt).map((t, i) => `${t.bauteilName}: ${frei.filter((x) => x.rueckhalt)[i].rueckhalt.toFixed(2)} → ${t.rueckhalt.toFixed(2)} kN`).join(' · '));
+    const c = lauf({ ...basis, rueckhaltAn: true });
+    wahr('Gemessen mit der Vorgabe (10 %, höchstens 0.5 kN), 3 × R-FL direkt: zwischen ohne und unbegrenzt',
+         mast(c.h) < mast(a.h) && mast(c.h) > mast(b.h) && bl(c.h) < bl(b.h),
+         `Mast ${mast(a.h).toFixed(3)} → ${mast(c.h).toFixed(3)} (unbegrenzt ${mast(b.h).toFixed(3)}) · Fundament ${fu(a.h).toFixed(3)} → ${fu(c.h).toFixed(3)} · Blech ${bl(a.h).toFixed(3)} → ${bl(c.h).toFixed(3)} (unbegrenzt ${bl(b.h).toFixed(3)}) · Rückhalt Σ ${(py(a.h) - py(c.h)).toFixed(2)} kN`);
+  }
   /*
    * Nachtrag 10. Oktober: «bei tragausleger die rückhaltekraft auch mit nehmen.
    * … bei der rückhaltekraft info einblenden wenn sie zu mehrauslastung führt
@@ -41129,13 +41152,13 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('… die Übersicht blendet sie ein, mit beiden Zahlen; ohne Mehrauslastung nichts',
          html.includes('belastet die Bindebleche mehr') && html.includes(bl(a.h).toFixed(3)) && html.includes(bl(b.h).toFixed(3))
          && UIr.rueckhaltInfoHtml(a.h) === '' && UIr.rueckhaltInfoHtml({ rueckhalt: { prozent: 10, zeilen: [], mehr: [] } }) === '');
-    const mitHs = lauf({ ...basis, rueckhaltAn: true, anbauteile: [5, 10, 15].flatMap((x) => [at('hs-fahrdraht', x), at('kw-nfl-joch', x + 0.3)]) });
+    const mitHs = lauf({ ...basis, rueckhaltAn: true, rueckhaltMax: 0, anbauteile: [5, 10, 15].flatMap((x) => [at('hs-fahrdraht', x), at('kw-nfl-joch', x + 0.3)]) });
     wahr('… drei Gleise mit Hängestütze + Kettenwerk am Joch: das Bindeblech sinkt, keine Info dazu',
          !(mitHs.h.rueckhalt?.mehr ?? []).some((z) => z.teil === 'blech'),
          (mitHs.h.rueckhalt?.zeilen ?? []).map((z) => `${z.teil} ${z.ohne.toFixed(3)} → ${z.mit.toFixed(3)}`).join(' · '));
     const ta = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, mastVorhanden: true, twId: 'T1',
                  mastProfil: 'HEB 260', mastH: 7.5, anbauteile: [at('leiter-rfl', 8)] };
-    const tA = lauf(ta), tB = lauf({ ...ta, rueckhaltAn: true });
+    const tA = lauf(ta), tB = lauf({ ...ta, rueckhaltAn: true, rueckhaltMax: 0 });
     const pyT = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
     pruef('Tragausleger: die Rückhaltekraft des direkt befestigten Leiters steht im Lastfall WindY', pyT(tB.h) - pyT(tA.h), -0.10 * Zd, 1e-6, 'kN');
     wahr('… und entlastet den Masten', tB.h.bauteile['mast:M1']?.eta < tA.h.bauteile['mast:M1']?.eta

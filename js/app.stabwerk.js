@@ -39,7 +39,7 @@
  * als `app` (siehe das Kontextobjekt in app.js).
  * ---------------------------------------------------------------------------
  */
-import { rueckhaltVon } from './data.anbauteile.js';
+import { rueckhaltVon, rueckhaltMaxVon } from './data.anbauteile.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
@@ -705,7 +705,7 @@ export function rechneStabwerk(app, aufruf = {}) {
         .map((k) => ({ key: k, teil: k.split('|')[1], tw: /^tragwerk:(.+)\|/.exec(k)?.[1] ?? null,
                        ohne: hO?.teile?.[k]?.eta ?? null, mit: ergebnis.teile[k].eta }))
         .filter((z) => Number.isFinite(z.ohne) && Number.isFinite(z.mit));
-      ergebnis.rueckhalt = { prozent: rueckhaltVon(satz) * 100, zeilen,
+      ergebnis.rueckhalt = { prozent: rueckhaltVon(satz) * 100, max: rueckhaltMaxVon(satz), zeilen,
         mehr: zeilen.filter((z) => z.mit > z.ohne + 5e-4) };
     } catch (e) {
       ergebnis.rueckhalt = { fehler: String(e?.message ?? e), zeilen: [], mehr: [] };

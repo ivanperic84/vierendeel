@@ -1413,9 +1413,31 @@ export function rueckhaltVon(inp) {
   return (Number.isFinite(p) && p >= 0 ? p : RUECKHALT_PROZENT) / 100;
 }
 
+/*
+ * >>> DER GRÖSSTWERT JE LEITER (10. Oktober, Nachtrag). <<< Weisung: «einen
+ * maximalen grenzwert angeben können, da die Trgseile R-FL sonst zu hoch
+ * werden mit 10% -> 1.2 kN Rückhaltekraft. als Voreinstellwert 0.5 kN
+ * ansetzen als Maximum.» Die Kraft je Leiter ist min(p · Z, Maximum);
+ * Blattfeld `rueckhaltMax` [kN], Vorgabe 0.5, 0 = ohne Grenze. Je Modul der
+ * Lasttabelle (ein Kettenwerk aus Tragseil und Fahrdraht zählt als EIN
+ * Leiter, wie in der Havarie), mal seine Anzahl.
+ */
+export const RUECKHALT_MAX = 0.5;
+export function rueckhaltMaxVon(inp) {
+  const m = Number(inp?.rueckhaltMax);
+  if (inp?.rueckhaltMax === '' || inp?.rueckhaltMax == null || !Number.isFinite(m) || m < 0) return RUECKHALT_MAX;
+  return m === 0 ? Infinity : m;
+}
+/** Beides für `expandiereAnbauteile`: { rueckhalt, rueckhaltMax }. */
+export function rueckhaltOpt(inp) {
+  const p = rueckhaltVon(inp);
+  return p > 0 ? { rueckhalt: p, rueckhaltMax: rueckhaltMaxVon(inp) } : { rueckhalt: 0 };
+}
+
 export function expandiereAnbauteile(liste, o = {}) {
   const { ek = 'EK2', R = 0, spannweite = 0 } = o;
   const pRueck = Number(o.rueckhalt) > 0 ? Number(o.rueckhalt) : 0;
+  const maxRueck = Number(o.rueckhaltMax) > 0 ? Number(o.rueckhaltMax) : Infinity;
   // Die Auswahl der reissenden Leiter; ohne sie gelten die alten Merker.
   const auswahl = o.havarie ?? null;
   const kandidaten = havarieKandidaten(auswahl);
@@ -1632,7 +1654,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       // Die Rückhaltekraft: p · Z(+5 °C) gegen den Wind längs (siehe oben).
       let rueckhalt = 0;
       if (amJochDirekt && drahtwerk && !einseitig && m.wirktG !== false) {
-        rueckhalt = pRueck * leiterzug(m.bauteil) * n;
+        rueckhalt = Math.min(pRueck * leiterzug(m.bauteil), maxRueck) * n;
         kraefte.WindY.Fy -= rueckhalt;
       }
       let havarieJe = null;

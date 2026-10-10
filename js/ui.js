@@ -42,7 +42,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, anbauGruppe,
          leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
-         SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen , rueckhaltVon } from './data.anbauteile.js';
+         SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen , rueckhaltOpt } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -4339,7 +4339,7 @@ const trasseVon = (w) => ({ ek: ekVonWerten(w), R: w.trasseRadius,
   // Anzeige rechnet wie der Kern.
   artWahl: w.havarie ?? null, artVorgabe: abfangVorgabeFuer(tragwerksart(w).key),
   // Rückhaltekraft der Leiter am Joch (10. Oktober) - die Anzeige rechnet wie der Kern.
-  rueckhalt: rueckhaltVon(w) });
+  ...rueckhaltOpt(w) });
 
 /** Auswahlliste in einer Modulzeile. */
 function modWahl(i, k, feld, label, wert, optionen) {
@@ -7154,7 +7154,7 @@ export function rueckhaltInfoHtml(sw) {
       z.mit > 1 && z.ohne <= 1 ? ' — <b>damit überschritten</b>' : ''}</li>`).join('');
   const blech = r.mehr.some((z) => z.teil === 'blech');
   return `<div class="rh-info${r.mehr.some((z) => z.mit > 1) ? ' nok' : ''}" role="note">
-    <b>Rückhaltekraft (${Number(r.prozent.toFixed(1))} % · Z) belastet ${blech ? 'die Bindebleche' : 'das Joch'} mehr</b>
+    <b>Rückhaltekraft (${Number(r.prozent.toFixed(1))} % · Z${Number.isFinite(r.max) ? `, höchstens ${f2(r.max)} kN je Leiter` : ''}) belastet ${blech ? 'die Bindebleche' : 'das Joch'} mehr</b>
     <ul>${zeilen}</ul>
     <span>ohne → mit Rückhaltekraft, aus dem Stabwerk. Masten und Fundamente werden entlastet; die Kraft am Leiterpunkt
       geht örtlich in Gurt und Bleche.</span></div>`;

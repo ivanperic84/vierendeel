@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-10',
     punkte: [
+      { text: 'Rückhaltekraft: einstellbar im Reiter Lasten (beim Wind) statt unter Optionen; neu ein Grösstwert je Leiter (Vorgabe 0.5 kN, 0 = ohne Grenze) - angesetzt wird das Kleinere aus p · Z und dem Grösstwert.', rechnung: true },
       { text: 'Rückhaltekraft: gilt auch für Leiter direkt am Tragausleger. Belastet sie Gurt oder Bindeblech höher als ohne, steht in der Übersicht ein Hinweis mit beiden Zahlen (ohne → mit).', rechnung: true },
       { text: 'Neu unter Optionen → Einwirkungen: «Rückhaltekraft der Leiter am Joch ansetzen» mit Prozentzahl (Vorgabe aus, 10 % des Leiterzugs bei +5 °C). Leiter, die direkt am Tragjoch befestigt sind, halten es gegen den Wind längs zurück - Masten und Fundamente werden entlastet, das Bindeblech kann steigen. In der AxisVM-Datei eine Last im Lastfall Wind y.', rechnung: true },
       { text: 'Anbauteilliste: beim Überfahren einer Zeile wird das Teil im 3D leicht markiert.' },

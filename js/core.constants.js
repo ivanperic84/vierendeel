@@ -206,7 +206,7 @@ export const BLATT_FELDER = [
   // Wind × 0.74 im grossflächigen Überbauungsgebiet (6. Oktober).
   'windReduktion',
   // Rückhaltekraft der Leiter am Joch (10. Oktober) - eine Annahme des Blattes.
-  'rueckhaltAn', 'rueckhaltProzent',
+  'rueckhaltAn', 'rueckhaltProzent', 'rueckhaltMax',
   // Echtzeit oder Knopf beim Stabwerk (6. Oktober) - eine Einstellung des Blattes.
   'stabwerkAuslosung',
   // Die Regel des Bestandesschutzes (6. Oktober) gilt dem Blatt.

@@ -42,7 +42,7 @@ import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung, tragausleg
          tragauslegerBlechachsen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { getMastprofil, getStegrichtung, mastWindBeide, mastWindHand } from './data.masten.js';
-import { baugruppeSumme, rueckhaltVon } from './data.anbauteile.js';
+import { baugruppeSumme, rueckhaltOpt } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
@@ -187,7 +187,7 @@ export function tragauslegerModell(satz, opt = {}) {
                  // Abfangart je Leiter: einseitig = halbe Spannweite (3. Oktober).
                  artWahl: satz.havarie ?? null,
                  // Rückhaltekraft der direkt befestigten Leiter (10. Oktober).
-                 rueckhalt: rueckhaltVon(satz) };
+                 ...rueckhaltOpt(satz) };
   const teile = (satz.anbauteile ?? [])
     .filter((a) => a?.aktiv !== false && (a.ort ?? 'joch') === 'joch')
     .map((a) => ({ a, s: baugruppeSumme(a, sOpt) }));

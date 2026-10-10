@@ -2033,21 +2033,29 @@ export const FELDER = [
       + 'Tragausleger - über die Beiwerte der Lastfälle: Wind x und Wind y × 0.74 in jeder '
       + 'Kombination, auch im Betriebswind und in der AxisVM-Ausleitung.' },
   /*
-   * >>> RÜCKHALTEKRAFT DER LEITER AM JOCH (10. Oktober). <<< Unter Optionen
-   * (Einwirkungen); die Regel steht in data.anbauteile.js (`rueckhaltVon`).
+   * >>> RÜCKHALTEKRAFT DER LEITER AM JOCH (10. Oktober). <<< Die Regel steht in
+   * data.anbauteile.js (`rueckhaltVon`). Zuerst unter Optionen; seit dem
+   * Nachtrag («führe das aktivieren der rückhaltekraft unter lasten auf zum
+   * einstellen») im Reiter Lasten beim Wind, mit dem Grösstwert je Leiter.
    */
-  { key: 'rueckhaltAn', optionenDialog: true, gruppe: 'ein', typ: 'schalter',
+  { key: 'rueckhaltAn', gruppe: 'ein', typ: 'schalter',
+    sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
     label: 'Rückhaltekraft der Leiter am Joch / Tragausleger ansetzen', standard: false,
     hinweis: 'Leiter, die direkt am Tragjoch oder Tragausleger befestigt sind (ohne Hängestütze, Aufsatz oder '
       + 'Ausleger), halten das Joch über die Nachbartragwerke zurück: je Leiter eine Kraft '
       + 'p · Z (Leiterzug bei +5 °C) längs zum Gleis, GEGEN den Wind. Nur in den Fällen mit '
       + 'Wind längs; nicht im Havariefall, nicht an einseitig abgefangenen und nicht an nur '
-      + 'abgezogenen Leitern. Entlastet Masten und Fundamente; am Joch kann das Bindeblech '
+      + 'abgezogenen Leitern. Je Leiter höchstens der Grösstwert darunter. Entlastet Masten und Fundamente; am Joch kann das Bindeblech '
       + 'steigen. In AxisVM eine Last im Lastfall Wind y (linear).' },
-  { key: 'rueckhaltProzent', optionenDialog: true, gruppe: 'ein', typ: 'zahl',
+  { key: 'rueckhaltProzent', gruppe: 'ein', typ: 'zahl',
     label: 'Rückhaltekraft', sym: 'p', einheit: '% von Z', standard: 10, schritt: 1, min: 0, max: 100,
-    sichtbar: (w) => w.rueckhaltAn === true,
+    sichtbar: (w) => w.rueckhaltAn === true && ['joch', 'tragausleger'].includes(tragwerksart(w).key),
     hinweis: 'Anteil der Leiterzugkraft bei +5 °C je Leiter. Vorgabe 10 %.' },
+  { key: 'rueckhaltMax', gruppe: 'ein', typ: 'zahl',
+    label: 'Rückhaltekraft höchstens', sym: 'R_max', einheit: 'kN je Leiter', standard: 0.5, schritt: 0.1, min: 0,
+    sichtbar: (w) => w.rueckhaltAn === true && ['joch', 'tragausleger'].includes(tragwerksart(w).key),
+    hinweis: 'Grösstwert je Leiter: angesetzt wird min(p · Z, R_max). Vorgabe 0.5 kN '
+      + '(10 % eines Tragseils R-FL wären 1.2 kN). 0 = ohne Grenze.' },
   { key: 'schneeAktiv', gruppe: 'schnee', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false,
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
@@ -2528,7 +2536,7 @@ export const OPTIONEN_ABSCHNITTE = [
            'ebenenUeberlagerung', 'gurtaufteilung', 'spannungsmodell'] },
   { thema: 'modell', titel: 'Knoten und Bindebleche',
     keys: ['knotenbereich', 'endfeldZuschlag', 'schiefeBiegung'] },
-  { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft', 'rueckhaltAn', 'rueckhaltProzent'] },
+  { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft'] },
   { thema: 'einwirkung', titel: 'Lastbeiwerte',
     keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { thema: 'einwirkung', titel: 'Widerstand', keys: ['gammaM0'] },
