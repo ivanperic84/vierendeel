@@ -38441,6 +38441,8 @@ titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
     wahr('Blatt: die neuen Teile aus dem Unterschied der beiden Stabmodelle - nur das Teil bei x = 5 m',
          b.neu.linien.length > 0 && xs.every((x) => Math.abs(x - 5) < 2.6) && !xs.some((x) => Math.abs(x - 10) < 0.5),
          `${b.neu.linien.length} Linien, ${b.neu.punkte.length} Punkte, x ${Math.min(...xs).toFixed(2)} … ${Math.max(...xs).toFixed(2)}`);
+    wahr('… rote Punkte nur an den Leitern des neuen Teils (10. Oktober), nicht an Klemmen und Stützenmitte',
+         b.neu.punkte.length === 1, `${b.neu.punkte.length} Punkte`);
     wahr('… ohne neues Teil nichts Rotes; kein Gurtstab gilt als neu',
          hB.bestand?.neu === undefined && b.neu.linien.every((l) => !(Math.abs(l[1] - l[3]) < 1e-9 && Math.abs(l[0] - l[2]) > 3)));
     const ges = EB.bestandZeilenFuer(b, 'gesamt');
@@ -40766,7 +40768,8 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       wahr('Skizze: je Leiterknoten ein Punkt in x-z, deckungsgleiche einmal, am Tragausleger Stationsmitte + Hebel',
            JSON.stringify(sk.leiter) === JSON.stringify([[4, -0.3], [12, 2], [6, -2]]), JSON.stringify(sk.leiter));
       wahr('… die Grenzen der Skizze schliessen die Leiter ein', sk.grenzen.x1 === 12 && sk.grenzen.z1 === 2 && sk.grenzen.z0 === -2);
-      wahr('… und das Bild zeichnet sie als Ring', (RK264.skizzeSvg(sk, [], {}).match(/class="sk-leiter"/g) ?? []).length === 3);
+      wahr('… und das Bild zeichnet sie als einfachen Punkt (10. Oktober, kein Ring mit Kern)', (RK264.skizzeSvg(sk, [], {}).match(/class="sk-leiter"/g) ?? []).length === 3
+           && !RK264.skizzeSvg(sk, [], {}).includes('sk-leiter-kern') && RK264.skizzeSvg(sk, [], {}).includes('.sk-leiter{fill:#1d5fa8;stroke:none}'));
       wahr('Die Modelldatei nennt die Leiterknoten (alle Drahtwerke, nicht nur Fahrdrähte)',
            /leiter: leiterKnoten\(bau\)/.test(readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8')));
     }

@@ -241,7 +241,7 @@ export function reaktionenKurzHtml(daten) {
  * Gelenk. Ein Anker in Gleisrichtung läge in dieser Ansicht auf dem
  * Masten; er wird seitlich umgeklappt gezeichnet und so angeschrieben.
  */
-export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false } = {}) {
+export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false, bestandGrau = false } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
   // Platz für die Titel über dem höchsten Bauteil.
@@ -331,10 +331,13 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
   }).join('');
-  // Die Leiter (9. Oktober): ein kleiner Ring mit Punkt an ihrem Angriffspunkt.
+  /*
+   * Die Leiter an ihrem Angriffspunkt - seit dem 10. Oktober ein einfacher
+   * Punkt («bei der darstellung der leiter in den reaktionsblättern kein
+   * bullseye sonder nur einen einfachen punkt machen»), vorher Ring mit Punkt.
+   */
   const leiter = (skizze.leiter ?? []).map((p) =>
-    `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="2.6"/>`
-    + `<circle class="sk-leiter-kern" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="0.9"/>`).join('');
+    `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.9"/>`).join('');
   // Die neuen Bauteile in Rot (8. Oktober, Blatt Bestandesschutz).
   const neu = (daten?.neu?.linien ?? []).map((l) =>
     `<line class="sk-neu" x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('')
@@ -345,7 +348,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     <style>line{stroke:#444;stroke-width:0.7}.sk-boden{stroke:#aaa;stroke-dasharray:4 3}
       .sk-seil{stroke:#444;stroke-width:0.8;stroke-dasharray:5 3}
       .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}.sk-mast-grau{stroke:#b4b4b4}
-      .sk-leiter{fill:#fff;stroke:#1d5fa8;stroke-width:1}.sk-leiter-kern{fill:#1d5fa8}
+      .sk-leiter{fill:#1d5fa8;stroke:none}
+      ${bestandGrau ? '.sk-anbau{stroke:#8a9099}.sk-leiter{fill:#8a9099}' : ''}
       .sk-neu{stroke:#c62828;stroke-width:2}.sk-neu-punkt{fill:#c62828}
       .sk-lager{stroke:#111;stroke-width:1.4}.sk-schraffur{stroke:#111;stroke-width:0.7}
       .sk-anker{stroke:#111;stroke-width:1.2}.sk-umgeklappt{stroke-dasharray:6 3}

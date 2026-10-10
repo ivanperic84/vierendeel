@@ -403,16 +403,31 @@ export function neueTeileSkizze(dat, datBestand) {
     gesehen.add(k);
     linien.push(p);
   });
-  const punkte = [];
-  const gesehenP = new Set();
-  (dat.knoten ?? []).forEach((k) => {
-    if (altK.has(k.name) || !ANBAU_NAME.test(k.name)) return;
-    const p = [r2(k.x), r2(k.z)];
-    if (gesehenP.has(p.join('|'))) return;
-    gesehenP.add(p.join('|'));
-    punkte.push(p);
-  });
-  return { linien, punkte };
+  /*
+   * >>> ROTE PUNKTE NUR AN DEN LEITERN (10. Oktober). <<< Mit Bild der
+   * Skizze: «hier die punkte bei der aufhängung und beim wind auf
+   * hängestütze weglassen, da es sonst wie die leiter aussehen». Vorher
+   * bekam jeder neue Knoten eines Anbauteils einen Punkt (Klemmen,
+   * Stützenmitte). Jetzt nur die Knoten, an denen ein Leiter hängt
+   * (`dat.leiter`). Hat ein neues Teil weder Stab noch Leiter im Bild,
+   * bleiben seine Punkte - sonst stünde es gar nicht da.
+   */
+  const leiterKn = new Set((dat.leiter ?? []).map((l) => l.knoten).filter(Boolean));
+  const sammle = (nur) => {
+    const punkte = [];
+    const gesehenP = new Set();
+    (dat.knoten ?? []).forEach((k) => {
+      if (altK.has(k.name) || !ANBAU_NAME.test(k.name)) return;
+      if (nur && !leiterKn.has(k.name)) return;
+      const p = [r2(k.x), r2(k.z)];
+      if (gesehenP.has(p.join('|'))) return;
+      gesehenP.add(p.join('|'));
+      punkte.push(p);
+    });
+    return punkte;
+  };
+  const anLeitern = sammle(true);
+  return { linien, punkte: anLeitern.length || linien.length ? anLeitern : sammle(false) };
 }
 
 /* ===========================================================================
