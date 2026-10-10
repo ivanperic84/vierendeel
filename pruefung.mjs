@@ -41094,7 +41094,65 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     return { erg, h: AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) }; };
   const a = lauf(basis), b = lauf({ ...basis, rueckhaltAn: true, rueckhaltProzent: 10, rueckhaltMax: 0 });   // 0 = ohne Grenze
   const py = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
-  pruef('Stabwerk und AxisVM-Datei: die Rückhaltekraft steht als Last im Lastfall WindY (3 × R-FL, 10 %)', py(b.h) - py(a.h), -0.10 * 3 * Zd, 1e-6, 'kN');
+  /*
+   * Seit dem Entscheid «Ja, begrenzter Halt» (10. Oktober) steht im Stabwerk
+   * der Wind längs ROH da; je gehaltenem Leiter führt die Datei einen
+   * Hilfslastfall (1 kN längs), die Haltekraft steht als Faktor in den
+   * Kombinationen (core.stabrueckhalt.js).
+   */
+  const SR = await import(J('core.stabrueckhalt.js'));
+  pruef('Stabwerk: der Wind längs steht roh in der Datei (kein fester Abzug mehr)', py(b.h) - py(a.h), 0, 1e-9, 'kN');
+  {
+    const pk = SR.rueckhaltPunkte(b.h.roh.dat);
+    const kb = b.h.roh.dat.kombinationen.find((k) => k.key === 'windYp');
+    const fw = kb.anteile.find((x) => x.lastfall === 'WindY').faktor;
+    wahr('… je Leiter ein Hilfslastfall in der Datei (erklärt, 1 kN längs), R = 10 % · Z',
+         pk.length === 3 && pk.every((q) => Math.abs(q.max - 0.10 * Zd) < 1e-3 && Math.abs(q.einheit - 1) < 1e-9
+           && b.h.roh.dat.lastfaelle.some((lf) => lf.key === q.key && lf.hilfsfall === true)),
+         pk.map((q) => `${q.key} R ${q.max.toFixed(2)}`).join(' · '));
+    wahr('… bei vollem Wind ist jeder Halt ausgeschöpft: Faktor = −R × Beiwert des Winds',
+         pk.every((q) => Math.abs((kb.anteile.find((x) => x.lastfall === q.key)?.faktor ?? 0) + q.max * fw) < 1e-6)
+         && b.h.rueckhalt.halte.every((x) => x.ausgeschoepft && Math.abs(x.f - x.max) < 1e-6),
+         `Beiwert ${fw} · ` + b.h.rueckhalt.halte.map((x) => `${x.f.toFixed(2)}/${x.max.toFixed(2)}`).join(' '));
+    wahr('… kein Halt in Kombinationen ohne Wind längs (Wind quer, Havarie, ständig)',
+         b.h.roh.dat.kombinationen.filter((k) => !k.anteile.some((x) => x.lastfall === 'WindY' && x.faktor))
+           .every((k) => !k.anteile.some((x) => String(x.lastfall).startsWith(SR.RUECKHALT_FALL))));
+    // Wenig Wind und ein hoher Anteil: der Punkt ist GEHALTEN, die Kraft kleiner als R.
+    const c = lauf({ ...basis, windKlasse: '1.0', rueckhaltAn: true, rueckhaltProzent: 30, rueckhaltMax: 0 });
+    const pc = SR.rueckhaltPunkte(c.h.roh.dat);
+    const kc = c.h.roh.dat.kombinationen.find((k) => k.key === 'windYp');
+    const lsg = c.h.roh.lsg;
+    const wege = pc.map((q) => kc.anteile.reduce((su, an) => { const uv = lsg.u.get(an.lastfall); if (!uv) return su;
+      return su + an.faktor * q.lasten.reduce((x, l) => x + l.wert * uv[lsg.knotenIdx.get(l.knoten) * 6 + l.c], 0); }, 0));
+    wahr('Begrenzter Halt (Einheitswind, 30 %): die Leiterpunkte bewegen sich längs nicht, die Kraft bleibt unter R',
+         wege.every((u) => Math.abs(u) < 1e-9) && c.h.rueckhalt.halte.every((x) => !x.ausgeschoepft && x.f < x.max - 0.5),
+         `Weg ${wege.map((u) => (u * 1000).toExponential(1)).join(' ')} mm · ` + c.h.rueckhalt.halte.map((x) => `${x.f.toFixed(2)}/${x.max.toFixed(2)} kN`).join(' '));
+    // Tragseil und Fahrdraht am selben Knoten sind EIN Halt (sonst singulär, Halt fiele auf null).
+    const kw = lauf({ ...basis, rueckhaltAn: true, rueckhaltMax: 0, anbauteile: [at('kw-nfl-joch', 10)] });
+    const pkw = SR.rueckhaltPunkte(kw.h.roh.dat);
+    wahr('… zwei Leiter am selben Punkt (Kettenwerk N-FL am Joch) sind ein Halt mit der Summe der Grösstwerte',
+         pkw.length === 1 && kw.h.rueckhalt.halte.length === 1 && kw.h.rueckhalt.halte[0].f > 0.1,
+         kw.h.rueckhalt.halte.map((x) => `${x.f.toFixed(2)}/${x.max.toFixed(2)} kN`).join(' '));
+    // Die COM-Datei: der Aufrufer löst den Halt und schreibt die Faktoren hinein.
+    const AXr = await import(J('export.axisvm.js'));
+    const wR = N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true, rueckhaltMax: 0 });
+    let dCom = null;
+    AXr.exportiereJson(wR, { modell: V.modell, profOG: getProfil(wR.profOG), profUG: getProfil(wR.profUG),
+      stahl: getStahl(wR.stahl), joch: T.getTragjoch('J90') },
+      { nurDaten: true, eingaben: [wR], rueckhaltHalt: true,
+        datFertig: (d) => { AS.rueckhaltInDatei(d, [wR], { eigengewicht: true }); dCom = d; } });
+    const kCom = dCom?.kombinationen.find((k) => k.key === 'windYp');
+    wahr('AxisVM-Datei (COM): Hilfslastfälle und Haltekräfte als Faktoren der Kombination - linear nachrechenbar',
+         Boolean(dCom) && dCom.lastfaelle.filter((lf) => String(lf.key).startsWith(SR.RUECKHALT_FALL)).length === 3
+         && kCom.anteile.filter((x) => String(x.lastfall).startsWith(SR.RUECKHALT_FALL)).length === 3
+         && kCom.anteile.filter((x) => String(x.lastfall).startsWith(SR.RUECKHALT_FALL))
+              .every((x) => Math.abs(x.faktor - kb.anteile.find((y) => y.lastfall === x.lastfall).faktor) < 1e-3),
+         (kCom?.anteile ?? []).filter((x) => String(x.lastfall).startsWith('Rueckhalt')).map((x) => x.faktor.toFixed(3)).join(' '));
+    const ohneFlag = AXr.stabmodellJson(V.modell(wR, getProfil(wR.profOG), getProfil(wR.profUG), getStahl(wR.stahl), T.getTragjoch('J90')), { eingabe: wR });
+    wahr('… ohne den Halt (SAF, DXF, PyNite) bleibt es bei der festen Kraft im Lastfall WindY',
+         !ohneFlag.lastfaelle.some((lf) => String(lf.key).startsWith(SR.RUECKHALT_FALL))
+         && Math.abs(ohneFlag.lasten.punkt.filter((q) => q.lastfall === 'WindY' && q.richtung === 'Y').reduce((su, q) => su + q.wert, 0) + 0.10 * 3 * Zd) < 1e-6);
+  }
   wahr('… keine Last auf einem Havarie-Lastfall kommt dazu',
        (b.h.roh.dat.lasten.punkt ?? []).filter((l) => /^Havarie/.test(l.lastfall)).length
        === (a.h.roh.dat.lasten.punkt ?? []).filter((l) => /^Havarie/.test(l.lastfall)).length);
@@ -41160,7 +41218,10 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
                  mastProfil: 'HEB 260', mastH: 7.5, anbauteile: [at('leiter-rfl', 8)] };
     const tA = lauf(ta), tB = lauf({ ...ta, rueckhaltAn: true, rueckhaltMax: 0 });
     const pyT = (h) => (h.roh?.dat?.lasten?.punkt ?? []).filter((l) => l.lastfall === 'WindY' && l.richtung === 'Y').reduce((su, l) => su + l.wert, 0);
-    pruef('Tragausleger: die Rückhaltekraft des direkt befestigten Leiters steht im Lastfall WindY', pyT(tB.h) - pyT(tA.h), -0.10 * Zd, 1e-6, 'kN');
+    wahr('Tragausleger: der direkt befestigte Leiter bekommt seinen Hilfslastfall (1 kN längs auf die beiden Gurtknoten), der Wind bleibt roh',
+         Math.abs(pyT(tB.h) - pyT(tA.h)) < 1e-9 && SR.rueckhaltPunkte(tB.h.roh.dat).length === 1
+         && Math.abs(SR.rueckhaltPunkte(tB.h.roh.dat)[0].einheit - 1) < 1e-9 && tB.h.rueckhalt.halte[0].f > 0.1,
+         tB.h.rueckhalt.halte.map((x) => `${x.f.toFixed(2)}/${x.max.toFixed(2)} kN${x.ausgeschoepft ? ' ausgeschöpft' : ''}`).join(' '));
     wahr('… und entlastet den Masten', tB.h.bauteile['mast:M1']?.eta < tA.h.bauteile['mast:M1']?.eta
          || Object.values(tB.h.bauteile).some((v, i) => v.eta < Object.values(tA.h.bauteile)[i].eta),
          Object.entries(tB.h.bauteile).map(([k, v]) => `${k} ${tA.h.bauteile[k]?.eta.toFixed(3)} → ${v.eta.toFixed(3)}`).join(' · '));

@@ -1793,7 +1793,8 @@ export function hinweise(m, opt = {}) {
     if (rh.length) {
       const su = rh.reduce((a2, t2) => a2 + t2.rueckhalt, 0);
       h.push(`Rückhaltekraft der Leiter ANGESETZT (Lasten → Wind): ${rh.length} Leiter direkt am Träger, `
-        + `zusammen ${su.toFixed(2)} kN charakteristisch längs zum Gleis gegen den Wind. `
+        + `zusammen höchstens ${su.toFixed(2)} kN charakteristisch längs zum Gleis gegen den Wind `
+        + '(im Stabwerk als begrenzter Halt: nur so viel wie nötig; im Ersatzbalken die volle Kraft). '
         + 'Sie entlastet Masten und Fundamente und setzt voraus, dass die Nachbartragwerke die Leiter halten.');
     }
   }

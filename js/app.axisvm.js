@@ -14,7 +14,7 @@ import { berechne, modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { esc } from './design.js';
-import { stabwerkDatei } from './app.stabwerk.js';
+import { stabwerkDatei, rueckhaltInDatei } from './app.stabwerk.js';
 import { mitTrasse } from './core.lasten.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { KNOTENMODELLE, auflagerAngebot, auflagerVorgabe, exportiereAxisvm, exportiereDxf, exportiereJson } from './export.axisvm.js';
@@ -436,6 +436,12 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
               eingaben: (sichtbareTragwerke(app.werte) ?? [])
                 .map((t) => tragwerkSatz(app.werte, t.id)),
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
+  // Der begrenzte Halt der Leiter (10. Oktober) nur in der COM-Datei: sie
+  // führt die Hilfsfälle, und die Kombinationen tragen die Haltekräfte.
+  if (format === 'json') {
+    o.rueckhaltHalt = true;
+    o.datFertig = (d) => { rueckhaltInDatei(d, o.eingaben, { eigengewicht: true }); };
+  }
   // Alle vier Wege durch dieselbe Klammer: was hier bricht, bricht sichtbar.
   const name = { json: 'COM-Ausleitung', dxf: 'DXF-Ausleitung',
                  pynite: 'PyNite-Ausleitung' }[format] ?? 'SAF-Ausleitung';

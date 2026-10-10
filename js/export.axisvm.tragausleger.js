@@ -48,6 +48,7 @@ import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
 import { flLastwerte, getFlBauteil, EINHEIT_EBENEN } from './data.fl.js';
 import { anbauKette, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
+import { rueckhaltSchluessel } from './core.stabrueckhalt.js';
 
 /** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
 export const TA_WIND_BAUSTEIN = 'anbauteil-tragausleger-uebergreifend-fix';
@@ -505,6 +506,19 @@ export function tragauslegerModell(satz, opt = {}) {
                               knoten: [nm('V', i), nm('H', i)],
                               r: [r6(r[0] + xA - xs[i]), r6(r[1]), r6(r[2])] });
       }
+      /*
+       * >>> DER BEGRENZTE HALT (10. Oktober, core.stabrueckhalt.js). <<< Mit
+       * `rueckhaltHalt` der Wind längs roh und je gehaltenem Leiter ein
+       * Hilfsfall: 1 kN längs zum Gleis an seinem Punkt, wie jede Kraft des
+       * Teils starr auf die Station umgesetzt (Kraft und M = r x F).
+       */
+      const rhHalt = opt.rueckhaltHalt && tp.rueckhalt > 0 ? tp.rueckhalt : 0;
+      if (rhHalt > 0) {
+        const fallR = rueckhaltSchluessel(`${satz.twId ?? 'TA'}_${k}_${(s.teile ?? []).indexOf(tp)}`, rhHalt);
+        const smR = summen[fallR] ?? (summen[fallR] = { F: [0, 0, 0], M: [0, 0, 0] });
+        smR.F[1] += 1;
+        smR.M[0] += -r[2]; smR.M[2] += r[0];
+      }
       EINWIRKUNGEN.forEach((ew) => {
         /*
          * DIE HAVARIE NOCH NICHT (28. September). Das Blatt führt sie je
@@ -518,7 +532,7 @@ export function tragauslegerModell(satz, opt = {}) {
         }
         const q = tp.kraefte?.[ew.key];
         if (!q) return;
-        const F = [sp * (q.Fx ?? 0), q.Fy ?? 0, -(q.Fz ?? 0)];
+        const F = [sp * (q.Fx ?? 0), (q.Fy ?? 0) + (ew.key === 'WindY' ? rhHalt : 0), -(q.Fz ?? 0)];
         const add = (fall, art, v) => {
           if (!v.some((w) => w)) return;
           const sm = summen[fall] ?? (summen[fall] = { F: [0, 0, 0], M: [0, 0, 0] });
@@ -663,7 +677,7 @@ function spiegeln(d) {
  * @param {object} opt  { praefix, mastNamen, knotenmodell }
  */
 export function tragauslegerBau(satz, opt = {}) {
-  const d = tragauslegerModell(satz);
+  const d = tragauslegerModell(satz, { rueckhaltHalt: opt.rueckhaltHalt === true });
   const b = bausteinAusModell(d, opt);
   return { ...b, hinweise: d.hinweise, tragausleger: d.tragausleger };
 }

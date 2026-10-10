@@ -2042,11 +2042,14 @@ export const FELDER = [
     sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
     label: 'Rückhaltekraft der Leiter am Joch / Tragausleger ansetzen', standard: false,
     hinweis: 'Leiter, die direkt am Tragjoch oder Tragausleger befestigt sind (ohne Hängestütze, Aufsatz oder '
-      + 'Ausleger), halten das Joch über die Nachbartragwerke zurück: je Leiter eine Kraft '
-      + 'p · Z (Leiterzug bei +5 °C) längs zum Gleis, GEGEN den Wind. Nur in den Fällen mit '
+      + 'Ausleger), halten es über die Nachbartragwerke zurück: der Leiterpunkt ist längs zum Gleis '
+      + 'GEHALTEN, die Haltekraft ist nur so gross wie nötig und höchstens p · Z (Leiterzug bei '
+      + '+5 °C) bzw. der Grösstwert darunter. Gerechnet im Stabwerk; der Ersatzbalken (vorläufige '
+      + 'Anzeige) setzt die volle Kraft an. Nur in den Fällen mit '
       + 'Wind längs; nicht im Havariefall, nicht an einseitig abgefangenen und nicht an nur '
       + 'abgezogenen Leitern. Je Leiter höchstens der Grösstwert darunter. Entlastet Masten und Fundamente; am Joch kann das Bindeblech '
-      + 'steigen. In AxisVM eine Last im Lastfall Wind y (linear).' },
+      + 'steigen. In der AxisVM-Datei je Leiter ein Hilfslastfall, die Haltekraft als Faktor '
+      + 'der Kombination (linear).' },
   { key: 'rueckhaltProzent', gruppe: 'ein', typ: 'zahl',
     label: 'Rückhaltekraft', sym: 'p', einheit: '% von Z', standard: 10, schritt: 1, min: 0, max: 100,
     sichtbar: (w) => w.rueckhaltAn === true && ['joch', 'tragausleger'].includes(tragwerksart(w).key),

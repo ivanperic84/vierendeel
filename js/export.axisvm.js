@@ -45,6 +45,7 @@ import { mastWindHand } from './data.masten.js';
 import { havarieKandidaten, expandiereAnbauteile } from './data.anbauteile.js';
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle, ekVonWindklasse } from './core.lasten.js';
+import { RUECKHALT_FALL, rueckhaltSchluessel, rueckhaltLastfaelle } from './core.stabrueckhalt.js';
 import { verortung, verortungKurz, tragwerksart,
          tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
          anzahlTragwerke, anschlusshoehe, lageOrtsnull, stossEnden, stossMasse }
@@ -2534,7 +2535,10 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * denken, ein Merkmal durchzureichen.
    */
   const lastenBauen = (o) => {
-    const teilLasten = teile.map(({ bau, m }) => lasten(m, bau, o));
+    // Begrenzter Halt (10. Oktober): die Kennung des Hilfsfalls trägt die
+    // Nummer des Tragwerks, damit zwei Joche nicht denselben Schlüssel bilden.
+    const teilLasten = teile.map(({ bau, m }, twNr) => lasten(m, bau,
+      { ...o, rueckhaltHalt: opt.rueckhaltHalt === true, twNr }));
     // Streckenlasten auf demselben Stab, im selben Fall und derselben
     // Richtung stammen vom geteilten Masten, den jedes Tragwerk belastet -
     // einmal genuegt (siehe oben).
@@ -4401,6 +4405,20 @@ export function lasten(m, bau, opt = {}) {
      * Wurzel der Kette an - am Anschluss des Teils -, nicht am Leiterpunkt.
      */
     const havKn = m.havarieInAchse === true && arm.wurzel ? arm.wurzel : arm.knoten;
+    /*
+     * >>> DER BEGRENZTE HALT DER LEITER (10. Oktober, core.stabrueckhalt.js). <<<
+     * Mit `rueckhaltHalt` (Stabwerk der Anwendung und die AxisVM-Datei
+     * daraus) steht der Wind längs ROH da - die feste Rückhaltekraft, die das
+     * Teil in seinen Kräften trägt (Ersatzbalken), kommt wieder dazu - und
+     * der Leiterpunkt bekommt seinen Hilfslastfall: 1 kN längs zum Gleis.
+     * Die Haltekraft selbst bestimmt das Stabwerk je Kombination.
+     */
+    const rhHalt = opt.rueckhaltHalt
+      ? (arm.teil.teile ?? [arm.teil]).reduce((su, t) => su + (t?.rueckhalt > 0 ? t.rueckhalt : 0), 0) : 0;
+    if (rhHalt > 0) {
+      punkt.push({ name: `RH${k}_Y`, knoten: arm.knoten, richtung: 'Y', wert: 1,
+                   lastfall: rueckhaltSchluessel(`${opt.twNr ?? 0}_${arm.knoten}`, rhHalt) });
+    }
     EINWIRKUNGEN.forEach((e) => {
       // Alle Lastblöcke desselben Anschlusspunktes wirken am selben Knoten
       // und werden je Gruppe aufsummiert.
@@ -4411,6 +4429,7 @@ export function lasten(m, bau, opt = {}) {
                  Fz: sum.Fz + (q.Fz ?? 0), Mxx: sum.Mxx + (q.Mxx ?? 0),
                  Myy: sum.Myy + (q.Myy ?? 0), Mzz: sum.Mzz + (q.Mzz ?? 0) };
       }, { Fx: 0, Fy: 0, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 });
+      if (rhHalt > 0 && e.key === 'WindY') kr.Fy += rhHalt;
       const paare = [
         ['X', kr.Fx ?? 0], ['Y', kr.Fy ?? 0], ['Z', -(kr.Fz ?? 0)],
       ];
@@ -5156,7 +5175,7 @@ export function stabmodellJson(m, opt = {}) {
   // Vom Blatt die GETRENNTE Form (siehe stabmodellBlatt); ohne Blatt
   // gleich so gebaut.
   const l = opt.bau?.lastenGetrennt ?? opt.bau?.lasten
-         ?? lasten(m, bau, { gTrennen: true });
+         ?? lasten(m, bau, { gTrennen: true, rueckhaltHalt: opt.rueckhaltHalt === true });
   const stahl = m.stahl.name;
   const starrModell = opt.starrModell ?? 'koerper';
   // Für die Drehlage der Gurtwinkel, siehe lcs(). Dieselben Werte wie in
@@ -5534,6 +5553,9 @@ export function stabmodellJson(m, opt = {}) {
         { key: `HavarieY|${c.key}|p`, label: `Havarie L${i + 1} Zug +y`, art: 'Others', leiter: c.name },
         { key: `HavarieY|${c.key}|m`, label: `Havarie L${i + 1} Zug -y`, art: 'Others', leiter: c.name },
       ]),
+      // Begrenzter Halt der Leiter (10. Oktober): je Leiter ein Hilfsfall.
+      ...rueckhaltLastfaelle([...l.punkt, ...l.moment].map((q) => String(q.lastfall))
+        .filter((f) => f.startsWith(RUECKHALT_FALL))),
     ],
     /*
      * DIE KOMBINATIONEN DER ANWENDUNG, damit AxisVM dieselben rechnet.
@@ -5710,6 +5732,9 @@ export function exportiereJson(inp, deps, opt = {}) {
   // Modell selbst führt sie nicht mit.
   opt = { ...opt, eingabe: inp, bau: blattWennMehrere(inp, deps, opt) };
   const d = stabmodellJson(m, opt);
+  // Nachbearbeitung durch den Aufrufer (10. Oktober: der begrenzte Halt der
+  // Leiter wird im Stabwerk gelöst und als Faktoren in die Kombinationen geschrieben).
+  if (typeof opt.datFertig === 'function') opt.datFertig(d);
   // Plan für den Statikbericht in AxisVM (7. Oktober, Schalter -Statikbericht der Brücke).
   if (opt.bericht) d.bericht = opt.bericht;
   const name = dateiname(inp, opt, m, 'json');

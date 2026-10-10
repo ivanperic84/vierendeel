@@ -7157,7 +7157,8 @@ export function rueckhaltInfoHtml(sw) {
     <b>Rückhaltekraft (${Number(r.prozent.toFixed(1))} % · Z${Number.isFinite(r.max) ? `, höchstens ${f2(r.max)} kN je Leiter` : ''}) belastet ${blech ? 'die Bindebleche' : 'das Joch'} mehr</b>
     <ul>${zeilen}</ul>
     <span>ohne → mit Rückhaltekraft, aus dem Stabwerk. Masten und Fundamente werden entlastet; die Kraft am Leiterpunkt
-      geht örtlich in Gurt und Bleche.</span></div>`;
+      geht örtlich in Gurt und Bleche.${(r.halte ?? []).length ? ` Haltekraft je Leiter (charakteristisch): ${
+        r.halte.map((x) => `${f2(x.f)}${x.ausgeschoepft ? ' (ausgeschöpft)' : ` von ${f2(x.max)}`}`).join(' · ')} kN.` : ''}</span></div>`;
 }
 
 export function buegelBlockHtml(opt, urteil) {

@@ -40,6 +40,7 @@
  * ---------------------------------------------------------------------------
  */
 import { rueckhaltVon, rueckhaltMaxVon } from './data.anbauteile.js';
+import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL } from './core.stabrueckhalt.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
@@ -335,10 +336,31 @@ export function stabwerkDatei(werte, erg, opt = {}) {
   const saetze = (sichtbareTragwerke(werte) ?? []).map((t) => tragwerkSatz(werte, t.id));
   const eingaben = [satz, ...saetze.filter((s) => s.twId !== satz.twId)];
   const { dat } = stabwerkModell(werte, erg, satz, eingaben,
-    { knotenmodell: 'anschnitt', gTrennen: true, ...opt, eigengewicht: 'staebe' });
+    { knotenmodell: 'anschnitt', gTrennen: true, ...opt, eigengewicht: 'staebe', rueckhaltHalt: true });
+  // Der begrenzte Halt der Leiter (10. Oktober): hier gelöst, damit AxisVM
+  // dieselben Haltekräfte als Faktoren der Hilfsfälle LINEAR nachrechnet.
+  rueckhaltInDatei(dat, eingaben, { eigengewicht: false });
   // AxisVM setzt das Eigengewicht je Stab selbst an (`AddBeamSelfWeight`).
   dat.lasten.strecke = dat.lasten.strecke.filter((l) => !/(^|_)EG_/.test(l.name ?? ''));
   return dat;
+}
+
+/**
+ * >>> DER BEGRENZTE HALT IN EINER MODELLDATEI (10. Oktober). <<< Für die
+ * Ausleitung nach AxisVM: die Datei führt je gehaltenem Leiter den
+ * Hilfslastfall (1 kN längs); hier löst der eigene Löser sie einmal und
+ * schreibt die Haltekraft je Kombination als Faktor in `kombinationen`.
+ * AxisVM rechnet danach linear dasselbe. Ohne gehaltenen Leiter nichts.
+ * `eigengewicht: true`, wenn die Datei ihr Eigengewicht nicht als Last führt
+ * (COM-Datei eines einzelnen Tragwerks: AxisVM setzt es selbst an).
+ */
+export function rueckhaltInDatei(dat, eingaben, { eigengewicht = true } = {}) {
+  const punkte = rueckhaltPunkte(dat);
+  if (!punkte.length) return null;
+  const lsg = loese(dat, { eigengewicht });
+  const faelle = (eingaben ?? []).flatMap((s) => lastfaelle(s))
+    .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  return rueckhaltHalten(dat, lsg, punkte, faelle);
 }
 
 export function rechneStabwerk(app, aufruf = {}) {
@@ -371,7 +393,8 @@ export function rechneStabwerk(app, aufruf = {}) {
   const t0 = Date.now();
   let dat = null; let lsg = null; let bau = null; let seile = [];
   // Eigengewicht aus den Stäben wie AxisVM (6. Oktober).
-  const opt = { knotenmodell: 'anschnitt', eigengewicht: 'staebe', gTrennen: true };
+  // `rueckhaltHalt`: die Leiter mit Rückhalt als begrenzter Halt (10. Oktober).
+  const opt = { knotenmodell: 'anschnitt', eigengewicht: 'staebe', gTrennen: true, rueckhaltHalt: true };
   try {
     ({ dat, bau } = stabwerkModell(werte, erg, satz, eingaben, opt));
     // Seilanker nur auf Zug (30. September): je Seil ein Hilfsfall, VOR dem
@@ -406,6 +429,9 @@ export function rechneStabwerk(app, aufruf = {}) {
    */
   const alleFaelleS = eingaben.flatMap((s) => lastfaelle(s))
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  // Zuerst der Halt der Leiter (er schreibt seine Faktoren in die
+  // Kombinationen), dann der Ausfall der Seile mit ihm zusammen.
+  const haltInfo = rueckhaltHalten(dat, lsg, rueckhaltPunkte(dat), alleFaelleS);
   const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).
@@ -706,6 +732,8 @@ export function rechneStabwerk(app, aufruf = {}) {
                        ohne: hO?.teile?.[k]?.eta ?? null, mit: ergebnis.teile[k].eta }))
         .filter((z) => Number.isFinite(z.ohne) && Number.isFinite(z.mit));
       ergebnis.rueckhalt = { prozent: rueckhaltVon(satz) * 100, max: rueckhaltMaxVon(satz), zeilen,
+        // Je gehaltenem Leiter die grösste Haltekraft (charakteristisch) und ob sie ausgeschöpft ist.
+        halte: haltInfo.groesste,
         mehr: zeilen.filter((z) => z.mit > z.ohne + 5e-4) };
     } catch (e) {
       ergebnis.rueckhalt = { fehler: String(e?.message ?? e), zeilen: [], mehr: [] };
