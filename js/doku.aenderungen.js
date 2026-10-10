@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-11',
     punkte: [
+      { text: 'Rückhaltekraft: Karte, Gruppenkopf und 3D-Pfeile zeigen den Wind längs ohne Abzug und die Rückhaltekraft getrennt als «Halt ≤ R» (Grösstwert). Was der Halt wirklich trägt, rechnet das Stabwerk und nennt die Übersicht. Die Rechnung ändert sich nicht.' },
       { text: 'Abfangjoch: wird ein Mast verschoben, wählt die Anwendung die kürzeste Länge des Sortiments, deren Stützweitenbereich den neuen Mastabstand trägt, und passt den Überstand an (z. B. A160, Masten 9.50 → 9.55 m: 10.5 m mit 0.475 m Überstand). Vorher entstand eine Länge ausserhalb des Sortiments, die das Stabwerk nicht rechnete. Reicht der Typ nicht, nennt ein Hinweis das passende Joch.', rechnung: true },
       { text: 'Abfangjoch: die Lage x lässt sich wieder eingeben (sprang vorher auf −0.5).' },
       { text: 'Schieber: der Griff steht am eingegebenen Wert (vorher auf der groben Stufe); beim Ziehen rastet er wie bisher. Masskette: unter dem Feld steht, wie viele Masse gelesen wurden, was nicht gelesen wurde und ob das letzte Mass zur Jochlänge passt.' },

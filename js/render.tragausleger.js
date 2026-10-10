@@ -37,7 +37,7 @@ import { getGurtprofil } from './data.profiles.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { baugruppeSumme, rueckhaltOpt } from './data.anbauteile.js';
 import { anbauKette, istFahrdraht } from './core.anbauteile.js';
-import { ziehAngabe } from './render.3d.js';
+import { ziehAngabe, haltVektor } from './render.3d.js';
 import { ekVonWindklasse } from './core.lasten.js';
 import { bauteilFarbe } from './design.js';
 import { prisma, platte, stab, schraegerStab, quader, walzProfilPoly,
@@ -236,9 +236,13 @@ export function auslegerSzene(satz, opt = {}) {
                     fahrdraht: istFahrdraht(tp), abzug: tp.rolle === 'drahtwerk' && tp.wirkung?.G === false && tp.wirkung?.ablenk !== false,
                     titel: `${tp.name ?? ''} · Angriffspunkt`,
                     zieh: ziehAngabe(kette, tp) });
-      Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k]) => {
+      Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k0]) => {
         const art0 = LASTART[gruppe];
-        if (!art0 || !k) return;
+        if (!art0 || !k0) return;
+        // Wind längs roh, der Halt als eigener Pfeil (11. Oktober, `haltVektor`).
+        const halt = gruppe === 'WindY' && tp.rueckhalt > 0 ? -tp.rueckhalt : 0;
+        const k = halt ? { ...k0, Fy: (k0.Fy ?? 0) - halt } : k0;
+        if (halt) vektoren.push(haltVektor(halt, pAn, teil, tp.name ?? at.name ?? '', pfeilLaenge(halt)));
         [{ w: k.Fz, ri: [0, 0, -1], nm: 'F_z' }, { w: k.Fy, ri: [0, 1, 0], nm: 'F_y' },
          { w: k.Fx, ri: [1, 0, 0], nm: 'F_x' }].forEach((pf) => {
           if (!pf.w) return;

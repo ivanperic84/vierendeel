@@ -107,6 +107,20 @@ export const LASTARTEN = [
 ];
 
 /** Einwirkungsgruppe der Rechnung -> Lastart der Darstellung. */
+/**
+ * Der Pfeil der Rückhaltekraft (11. Oktober): gegen den Wind längs, mit dem
+ * Grösstwert angeschrieben («Halt ≤ …») - die Haltekraft selbst bestimmt das
+ * Stabwerk (begrenzter Halt, core.stabrueckhalt.js) und nennt die Übersicht.
+ * `halt` mit Vorzeichen in y, `laenge` die Pfeillänge der aufrufenden Szene.
+ */
+export function haltVektor(halt, p, teil, name, laenge) {
+  return { gruppe: 'last', art: 'last', lastart: 'windY', p, teil, halt: true,
+           v: [0, Math.sign(halt) * laenge, 0],
+           text: `Halt ≤ ${Math.abs(halt).toFixed(2)} kN`,
+           titel: `${name} · Rückhaltekraft, begrenzter Halt gegen den Wind längs: höchstens `
+             + `${Math.abs(halt).toFixed(2)} kN - die Haltekraft rechnet das Stabwerk (Übersicht)` };
+}
+
 export const LASTART_VON_GRUPPE = {
   G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee',
 };
@@ -1358,6 +1372,7 @@ export function erzeugeSzene(m, erg) {
             titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
           });
         });
+        if (k.halt) vektoren.push(haltVektor(k.halt, pAn, teilKey, t.name, pfeilLaenge(k.halt)));
       });
 
       // Bemassung des Teils: Höhe z und Versatz y, jedes an seinem Ort.

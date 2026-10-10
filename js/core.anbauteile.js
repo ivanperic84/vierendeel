@@ -801,6 +801,18 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
         Fx: b * (k.Fx ?? 0), Fy: b * (k.Fy ?? 0), Fz: b * (k.Fz ?? 0),
         Mxx: b * (k.Mxx ?? 0), Myy: b * (k.Myy ?? 0), Mzz: b * (k.Mzz ?? 0),
       };
+      /*
+       * >>> DER HALT GETRENNT VOM WIND (11. Oktober). <<< Offener Punkt der
+       * Rückhaltekraft: «Karte und 3D-Pfeile zeigen noch die feste Kraft».
+       * Im Kern steckt die Kraft fest in Wind y (vorläufige Anzeige); das
+       * Stabwerk rechnet sie als begrenzten Halt. Für das Bild steht hier
+       * der Wind längs ROH und der Halt mit seinem Grösstwert getrennt
+       * (`halt`, gegen den Wind) - die Haltekraft selbst nennt die Übersicht.
+       */
+      if (e.key === 'WindY' && a.rueckhalt > 0) {
+        proGruppe.WindY.Fy = b * ((k.Fy ?? 0) + a.rueckhalt);
+        proGruppe.WindY.halt = -b * a.rueckhalt;
+      }
     });
 
     ausgewertet.push({

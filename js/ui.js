@@ -4351,23 +4351,33 @@ function lastblockListeHtml(a, i) {
 const GRUPPEN_FARBEN = ['#e4572e', '#f2a541', '#e6d04a', '#6fbf73', '#3fb6b2',
   '#4a90d9', '#9b7ede', '#d86fb0'];
 
+/*
+ * >>> DIE RÜCKHALTEKRAFT GETRENNT (11. Oktober). <<< Offener Punkt: «Karte
+ * und 3D-Pfeile zeigen noch die feste Kraft». F_y ist der Wind längs ROH,
+ * dahinter «Halt ≤ R» - der Grösstwert; was der Halt wirklich trägt, rechnet
+ * das Stabwerk (begrenzter Halt) und nennt die Übersicht.
+ */
+const mitHalt = (txt, R) => (R > 0.005 ? `${txt === '–' ? '' : `${txt} · `}Halt ≤ ${f2(R)}` : txt);
+
 function gruppeKraft(teile, trasse) {
   const s = { x: 0, y: 0, z: 0 };
+  let R = 0;
   (teile ?? []).filter((a) => a && a.aktiv !== false).forEach((a) => {
     const su = baugruppeSumme(a, trasse);
-    s.x += su.Gx + su.Qx; s.y += su.Gy + su.Qy; s.z -= su.Gz + su.Qz;
+    s.x += su.Gx + su.Qx; s.y += su.Gy + su.Qy + (su.halt ?? 0); s.z -= su.Gz + su.Qz;
+    R += su.halt ?? 0;
   });
-  return [['F_x', s.x], ['F_y', s.y], ['F_z', s.z]]
+  return mitHalt([['F_x', s.x], ['F_y', s.y], ['F_z', s.z]]
     .filter(([, v]) => Math.abs(v) > 0.005)
-    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
+    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–', R);
 }
 
 function baugruppeKraft(a, trasse) {
   const su = baugruppeSumme(a, trasse);
   // F_z nach oben (rechte Hand, 1. Oktober).
-  return [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy], ['F_z', -(su.Gz + su.Qz)]]
+  return mitHalt([['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy + (su.halt ?? 0)], ['F_z', -(su.Gz + su.Qz)]]
     .filter(([, v]) => Math.abs(v) > 0.005)
-    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
+    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–', su.halt ?? 0);
 }
 
 /** Trasseangaben aus den Eingabewerten. */

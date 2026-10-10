@@ -1780,6 +1780,9 @@ export function baugruppeSumme(a, o = {}) {
     Qx: s('WindX', 'Fx'), Qy: s('WindY', 'Fy'), Qz: s('Schnee', 'Fz'),
     Mxx: s('G', 'Mxx'), Myy: s('G', 'Myy'), Mzz: s('G', 'Mzz'),
     alpha: teile.find((t) => t.rolle === 'drahtwerk')?.alpha ?? 0,
+    // Die Rückhaltekraft (Grösstwert, steckt in Qy mit −R) - für die Anzeige
+    // getrennt (11. Oktober): Karte und Gruppenkopf zeigen Wind roh + Halt.
+    halt: teile.reduce((x, t) => x + (t.rueckhalt > 0 ? t.rueckhalt : 0), 0),
     module: teile.length, teile,
   };
 }

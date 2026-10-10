@@ -41380,6 +41380,50 @@ titel('267  Abfangjoch: Mast B verschoben - nächste Länge, Überstand passt si
         0.25, 1e-9, 'm');
 }
 
+// ===========================================================================
+titel('268  Rückhaltekraft: Karte und 3D zeigen Wind roh und den Halt getrennt');
+
+/*
+ * Weisung 11. Oktober zu den offenen Punkten der Rückhaltekraft («Die
+ * Haltekraft skaliert mit dem Windbeiwert (meine Lesart). Karte und
+ * 3D-Pfeile zeigen noch die feste Kraft.»): «abschliessen».
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const R3 = await import(J('render.3d.js'));
+  const RT = await import(J('render.tragausleger.js'));
+  const at = (id, x) => DA.neuesAnbauteil(id, x);
+  const basis = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+                  L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260',
+                  rueckhaltAn: true, rueckhaltProzent: 10, rueckhaltMax: 0.5,
+                  anbauteile: [at('leiter-rfl', 10)] };
+  const satz = N.rechensatzMitNachbarn(basis);
+  const e = berechne(satz, ...N.kernArgumente(satz));
+  const sz = R3.erzeugeSzene(e.modell, e);
+  const halt = sz.vektoren.filter((v) => v.halt);
+  const windY = sz.vektoren.filter((v) => !v.halt && v.lastart === 'windY' && /^F_y/.test(v.text ?? ''));
+  wahr('Tragjoch: ein eigener Pfeil «Halt ≤ …» gegen den Wind längs', halt.length > 0
+       && halt.every((v) => /^Halt ≤ /.test(v.text)), halt.map((v) => v.text).join(' · '));
+  const roh = DA.baugruppeSumme(basis.anbauteile[0], { ek: 'EK1', R: 0, spannweite: 40 });
+  const mitR = DA.baugruppeSumme(basis.anbauteile[0], { ek: 'EK1', R: 0, spannweite: 40, rueckhalt: 0.1, rueckhaltMax: 0.5 });
+  pruef('baugruppeSumme führt den Halt (Grösstwert) getrennt', mitR.halt, 0.5, 1e-9, 'kN');
+  pruef('… Wind längs roh = Qy + Halt (gleich wie ohne Rückhalt)', mitR.Qy + mitR.halt, roh.Qy, 1e-9, 'kN');
+  // R-FL trägt längs keinen eigenen Wind (roh 0): vorher stand dort der Halt als «F_y = −0.65 kN».
+  wahr('… kein Windpfeil längs mit der festen Kraft (R-FL: roh 0, also keiner)', Math.abs(roh.Qy) < 1e-9
+       && windY.length === 0, windY.map((v) => v.text).join(' · '));
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Karte und Gruppenkopf: F_y roh, dahinter «Halt ≤ R»',
+       uiQ.includes("`${txt === '–' ? '' : `${txt} · `}Halt ≤ ${f2(R)}`") && uiQ.includes("su.Gy + su.Qy + (su.halt ?? 0)"));
+  // Tragausleger: derselbe Pfeil.
+  const ta = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, mastVorhanden: true, twId: 'MT1',
+               mastProfil: 'HEB 260', mastH: 7.5, rueckhaltAn: true, rueckhaltMax: 0.5, anbauteile: [at('leiter-rfl', 8)] };
+  const szT = RT.auslegerSzene(N.rechensatzMitNachbarn(ta),
+    { mast: { profil: 'HEB 260', hoehe: 7.5, ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' } });
+  wahr('Tragausleger: ebenfalls «Halt ≤ …»', szT.vektoren.some((v) => v.halt && /^Halt ≤ 0\.50 kN$/.test(v.text)),
+       szT.vektoren.filter((v) => v.halt).map((v) => v.text).join(' · '));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
