@@ -7825,9 +7825,9 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
           ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · mit abgeminderten Werten ZULÄSSIG' : ''}`
           + ` · ${q.massgebend.kurz ?? q.massgebend.key}`,
-        // η ist der grösste Basiswert (10. Oktober); gleicht der Ablauf aus,
-        // liegt er über 1.00 und das Fundament ist zulässig - gelb, nicht rot.
-        q.ausgeglichen ? (ampelU(q.eta) ? 'warn' : '') : ampelU(q.eta), {
+        // η ist das des Ablaufs (11. Oktober): über 1.00 genau dann, wenn
+        // das Fundament nicht zulässig ist - die Ampel folgt der Zahl.
+        ampelU(q.eta), {
           ...(fF ? { fall: fF.kurz } : {}),
           titel: `${fF ? `Massgebende Kombination: ${fF.voll}
 
@@ -7836,8 +7836,11 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
                + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
                + `beim Anker. Quer und längs zum Gleis werden EINZELN `
                + `nachgewiesen, nicht überlagert. Gelände ${gelaendeVon(q.gelaende).text}.`
-               + `\n\nη ist der grösste Basiswert. Gleicht der Ablauf eine Überschreitung aus, `
-               + `liegt er über 1.00, und das Fundament ist mit abgeminderten Werten zulässig.`
+               + `\n\nη ist das grösste Verhältnis der Prüfungen, die der Ablauf auf seinem Weg `
+               + `verlangt (über 1.00 nur, wenn das Fundament nicht zulässig ist).`
+               + `${Number.isFinite(q.etaBasis) ? ` Grösster Basiswert ${f3(q.etaBasis)}`
+                 + `${q.massgebendBasis ? ` (${q.massgebendBasis.was ?? q.massgebendBasis.key})` : ''}`
+                 + ' - er gilt für den Vergleich des Bestandesschutzes.' : ''}`
                + `${abl ? `\n\nAblauf der Fundamentbestimmung:\n${abl}` : ''}`
                + `\n\nBasiswerte:\n${alle}${hebt}`,
         }));

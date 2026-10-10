@@ -2642,7 +2642,10 @@ abgeminderten Werten</i> (der Schritt steht dabei), <i>grösseres Fundament
 nötig</i>. Das η ist das grösste Verhältnis der Prüfungen, die auf dem
 gegangenen Weg eingehalten sein müssen; eine Überschreitung, die der Ablauf
 ausgleicht, zählt nicht - sie ist der Grund der Abminderung. In der Tabelle
-des Berichts steht sie deshalb als «ausgeglichen».</p>
+des Berichts steht sie deshalb als «ausgeglichen». Das η liegt damit genau
+dann über 1.00, wenn das Fundament nicht zulässig ist. Nur der Vergleich des
+<b>Bestandesschutzes</b> nimmt den grössten <b>Basiswert</b> - er steigt mit
+der Last, auch wo der Ablauf ausgleicht (Weisung 11. Oktober).</p>
 <p>Beispiel (DP22 auf DP1a / 2.1, 14°–33° horizontal): M_st 41.1 kNm über
 seinem Basiswert, M_ver 27.4 und M_tot 68.5 kNm im Rahmen → <b>zulässig in
 Schritt 6</b>, wie die alte Maststatik-Mappe.</p>

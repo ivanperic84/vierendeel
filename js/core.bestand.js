@@ -112,7 +112,11 @@ export function bestandVergleich(neu, bestand, regel = {}) {
   });
   const jeMast = (feld, titel, gruppe = 'mast') => {
     const ids = new Set([...Object.keys(neu?.[feld] ?? {}), ...Object.keys(bestand?.[feld] ?? {})]);
-    const eta = (v) => v?.eta ?? v?.nachweis?.eta;
+    // Am Fundament vergleicht der Bestandesschutz den grössten BASISWERT
+    // (Weisung 11. Oktober: «η über 1.00 und trotzdem «zulässig» dies sollte
+    // nur für die abklärung bestandesschutz gelten»), nicht das η des
+    // Ablaufs - es steigt mit der Last, auch wenn der Ablauf ausgleicht.
+    const eta = (v) => v?.etaBasis ?? v?.eta ?? v?.nachweis?.eta;
     [...ids].forEach((id) => dazu(`${titel} ${id}`, eta(bestand?.[feld]?.[id]), eta(neu?.[feld]?.[id]), gruppe));
   };
   jeMast('knick', 'Knicken');

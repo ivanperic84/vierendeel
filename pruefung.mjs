@@ -41035,13 +41035,28 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   wahr('Bestandesschutz: kein Fundament verliert mit den neuen Bauteilen an Ausnutzung',
        zf.length === 2 && zf.every((q) => q.neu >= q.alt - 1e-9), zf.map((q) => `${q.name} ${q.alt.toFixed(3)} → ${q.neu.toFixed(3)}`).join(' · '));
   const f1 = h.fundamentJe?.M1;
-  wahr('… Fundament M1: η über 1.00 (Basiswert H_ver), ausgeglichen und zulässig',
-       Boolean(f1) && f1.eta > 1 && f1.ok === true && f1.ausgeglichen === true && f1.stufe === 'angepasst',
-       f1 ? `η ${f1.eta.toFixed(3)} · ${f1.massgebend?.kurz}` : '–');
+  /*
+   * 11. Oktober: «η über 1.00 und trotzdem «zulässig» dies sollte nur für
+   * die abklärung bestandesschutz gelten, und bei den üblichen nachweisen den
+   * fundamentflow umsetzen und als ausnutzung korrekt ausweisen.» Auf
+   * Rückfrage «Prüfung auf dem Weg» / «Ja, Basiswert»: η = das des Ablaufs,
+   * der Basiswert (`etaBasis`) gilt nur dem Bestandesschutz.
+   */
+  wahr('… Fundament M1: η des Ablaufs unter 1.00 (Schritt 6), Basiswert H_ver über 1.00, ausgeglichen und zulässig',
+       Boolean(f1) && f1.eta < 1 && f1.etaBasis > 1 && f1.ok === true && f1.ausgeglichen === true
+       && f1.stufe === 'angepasst' && /Schritt 6/.test(f1.massgebend?.kurz ?? ''),
+       f1 ? `η ${f1.eta.toFixed(3)} · ${f1.massgebend?.kurz} · Basis ${f1.etaBasis?.toFixed(3)}` : '–');
+  const zM1 = zf.find((q) => /M1/.test(q.name));
+  pruef('… der Bestandesschutz vergleicht den Basiswert', zM1?.neu, f1?.etaBasis, 1e-12);
   const bt = SNf.bauteileMitStabwerk({ liste: [{ key: 'fundament', name: 'Fundament M1', eta: 0.5 }] }, h, {});
-  wahr('… im Urteil nicht «über»: die Zahl steht, das Urteil folgt dem Ablauf',
-       bt.liste[0].eta > 1 && bt.liste[0].ueber === false && bt.liste[0].ausgeglichen === true && bt.ueber === false,
+  wahr('… im Urteil: η ≤ 1.00 und nicht «über» - Zahl und Urteil sagen dasselbe',
+       bt.liste[0].eta < 1 && bt.liste[0].ueber === false && bt.ueber === false,
        `η ${bt.liste[0].eta?.toFixed(3)} ueber ${bt.liste[0].ueber}`);
+  const F2 = F.fundamentAblauf(e(20, 52.8), z);
+  wahr('Ablauf «nicht zulässig» gibt ein η über 1.00', F2.ergebnis !== 'nicht' || F2.eta > 1, `${F2.ergebnis} ${F2.eta.toFixed(3)}`);
+  wahr('Kachel: Ampel folgt der Zahl (kein Gelb für ein ausgeglichenes η > 1)',
+       readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('das Fundament nicht zulässig ist - die Ampel folgt der Zahl.')
+       && !readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes("q.ausgeglichen ? (ampelU(q.eta) ? 'warn'"));
   const NB = await import(J('export.nachweisbericht.js'));
   wahr('Bericht: die Marke eines Bauteils folgt seinem Urteil («erfüllt (ausgeglichen)»), ohne Angabe der Zahl',
        NB.urteilMarke(1.02, false).includes('erfüllt (ausgeglichen)') && NB.urteilMarke(1.02).includes('NICHT erfüllt')
