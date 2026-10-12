@@ -17,6 +17,7 @@ import { berechne, modell, modellEinzelmast,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
          klassifizierung, urteilFusszeile, mitBauteilen, nachweiseAuswahl } from './core.checks.js';
+import { bestandAufsBlatt } from './core.bestand.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse, mitTrasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
@@ -3248,6 +3249,11 @@ function aendern(key, wert) {
   }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });
+  }
+  // Der Bestandesschutz gilt dem ganzen Blatt (11. Oktober, `bestandAufsBlatt`):
+  // wer ihn hier schaltet, schaltet ihn in jedem Tragwerk.
+  if (key === 'nachweise') {
+    werte = bestandAufsBlatt(werte, nachweiseAuswahl(wert).bestandesschutz === true);
   }
   if (key === 'L' && tragwerksart(werte).key === 'abfangjoch') {
     const nah = abfangNaechsteLaenge(werte.abfangTyp, wert);

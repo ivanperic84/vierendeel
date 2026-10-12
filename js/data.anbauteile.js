@@ -42,6 +42,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { bestandAufsBlatt } from './core.bestand.js';
 import { ausTabellen } from './data.tabellen.js';
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
@@ -1242,6 +1243,8 @@ export function standAnheben(w) {
    */
   let erg = tragwerkAnheben(havarieAnheben(fzNachObenAnheben(w)));
   if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(tragwerkAnheben);
+  // Bestandesschutz in jedem Tragwerk gleich (11. Oktober, core.bestand.js).
+  erg = bestandAufsBlatt(erg);
   /*
    * >>> TEILE AM MASTEN IN DIE BLATTLISTE, SOFORT (29. September). <<<
    *

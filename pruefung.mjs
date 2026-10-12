@@ -41439,6 +41439,53 @@ titel('268  Rückhaltekraft: Karte und 3D zeigen Wind roh und den Halt getrennt'
        szT.vektoren.filter((v) => v.halt).map((v) => v.text).join(' · '));
 }
 
+titel('269  Bestandesschutz: der Schalter gilt dem ganzen Blatt (T2 wird mitgerechnet)');
+
+/*
+ * Gemeldet 11. Oktober: «zweites joch T2 wird nicht berücksichtigt bei der
+ * Bestandesschutzauswertung». Der Schalter stand in `nachweise` je Tragwerk:
+ * mit T1 gewählt eingeschaltet, blieb er an T2 aus - mit T2 gewählt kein
+ * Bestand, kein Kennzeichen «neu» an seinen Karten.
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const C = await import(J('core.constants.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const B = await import(J('core.bestand.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const at = (id, x, e = {}) => ({ ...DA.neuesAnbauteil(id, x), ...e });
+  let w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+            L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260',
+            anbauteile: [at('hs-fahrdraht', 10)] };
+  w = C.tragwerkHinzu(w, 'joch');               // T2 aktiv, Schalter aus
+  w = C.tauscheAktives(w, 'T1');
+  const alt = { ...w, nachweise: { ...(w.nachweise ?? {}), bestandesschutz: true } };
+  wahr('Ausgangslage (alter Stand): nur T1 trägt den Schalter',
+       alt.weitere.find((t) => t.id === 'T2')?.nachweise?.bestandesschutz !== true);
+  const blatt = B.bestandAufsBlatt(alt);
+  wahr('bestandAufsBlatt ohne Wert: an, wenn ein Tragwerk ihn an hat - auch T2',
+       blatt.weitere.every((t) => t.nachweise?.bestandesschutz === true));
+  const aus = B.bestandAufsBlatt(blatt, false);
+  wahr('… mit Wert false: in jedem Tragwerk aus',
+       aus.nachweise.bestandesschutz === false && aus.weitere.every((t) => t.nachweise?.bestandesschutz === false));
+  const geladen = DA.standAnheben(alt);
+  wahr('Laden (standAnheben) gleicht an', geladen.weitere.every((t) => t.nachweise?.bestandesschutz === true));
+  // T2 gewählt, neues Teil an T2: der Bestand wird gerechnet und T2 steht drin.
+  let w2 = C.tauscheAktives(blatt, 'T2');
+  w2 = { ...w2, anbauteile: [...(w2.anbauteile ?? []), at('hs-nt-ausleger', 10, { neu: true })] };
+  const lauf = (x) => { const ws = N.rechensatzMitNachbarn(x); const erg = berechne(ws, ...N.kernArgumente(ws));
+    return AS.rechneStabwerk({ werte: x, letzte: { erg }, stabwerk: null }); };
+  const h = lauf(w2);
+  const zT2 = (h.bestand?.zeilen ?? []).find((z) => /T2/.test(z.name) && z.gruppe === 'joch');
+  wahr('T2 gewählt: Bestand gerechnet, ein neues Teil', h.bestand?.anzahl === 1 && !h.bestand?.fehler,
+       JSON.stringify(h.bestand?.fehler ?? h.bestand?.anzahl));
+  wahr('… Joch T2 steigt mit dem neuen Teil', zT2 && zT2.neu > zT2.alt + 1e-3,
+       zT2 ? `${zT2.alt.toFixed(3)} → ${zT2.neu.toFixed(3)}` : 'keine Zeile T2');
+  const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('aendern(«nachweise») schreibt den Schalter in jedes Tragwerk',
+       appQ.includes("werte = bestandAufsBlatt(werte, nachweiseAuswahl(wert).bestandesschutz === true);"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

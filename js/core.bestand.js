@@ -52,6 +52,26 @@ export function bestandRegel(w) {
            bezug: w?.bestandBezug === 'ausnutzung' ? 'ausnutzung' : 'grenzwert' };
 }
 
+/*
+ * >>> DER SCHALTER GILT DEM GANZEN BLATT (11. Oktober). <<< Gemeldet:
+ * «zweites joch T2 wird nicht berücksichtigt bei der Bestandesschutz-
+ * auswertung». Befund: der Schalter steht in `nachweise`, und `nachweise`
+ * gehört dem einzelnen Tragwerk (nicht in BLATT_FELDER). Eingeschaltet mit
+ * T1 gewählt, blieb er an T2 aus: mit T2 gewählt rechnete das Stabwerk
+ * keinen Bestand, und die Karten von T2 boten das Kennzeichen «neu» gar
+ * nicht an. Der Vergleich rechnet aber das ganze Blatt - der Schalter wird
+ * deshalb in jedes Tragwerk geschrieben. Ohne Wert (beim Laden): an, wenn
+ * ihn irgendein Tragwerk an hat.
+ */
+export function bestandAufsBlatt(w, an) {
+  if (!w || typeof w !== 'object' || !Array.isArray(w.weitere) || !w.weitere.length) return w;
+  const ist = (t) => t?.nachweise?.bestandesschutz === true;
+  const wert = typeof an === 'boolean' ? an : [w, ...w.weitere].some(ist);
+  const setz = (t) => (!t || typeof t !== 'object' || ist(t) === wert ? t
+    : { ...t, nachweise: { ...(t.nachweise ?? {}), bestandesschutz: wert } });
+  return { ...setz(w), weitere: w.weitere.map(setz) };
+}
+
 /** Ist ein Anbauteil als neu gekennzeichnet? */
 export const istNeu = (a) => a?.neu === true;
 
