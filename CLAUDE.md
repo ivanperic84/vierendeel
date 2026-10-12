@@ -451,9 +451,10 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **12. Okt., Mast auf Perrondach: Stütze oder Querbalken unter dem Mastfuss** (Prüfstand 271, siehe *Entschieden*; örtlich committet, nicht gepusht).
-- **12. Okt., Reaktionskräfte beim Ersatzbalken wie beim Stabwerk** (Prüfstand 270, siehe *Entschieden*; örtlich committet, nicht gepusht).
-- **11. Okt., Bestandesschutz-Schalter gilt dem ganzen Blatt (T2 wurde nicht gerechnet)** (Prüfstand 269, siehe *Entschieden*; örtlich committet, nicht gepusht).
+- **12. Okt., gepusht** (Weisung «alles pushen»): Bestandesschutz-Schalter, Reaktionskräfte beim Ersatzbalken, Mast auf Perrondach. Einzeldatei `Versand/vierendeel_tool_2026-10-12.html` neu gebündelt; COM-Brücke und Datenpaket unverändert. Für die weitere Arbeit gilt: pushen nur auf Weisung.
+- **12. Okt., Mast auf Perrondach: Stütze oder Querbalken unter dem Mastfuss** (Prüfstand 271, siehe *Entschieden*; gepusht auf Weisung «alles pushen», 12. Oktober).
+- **12. Okt., Reaktionskräfte beim Ersatzbalken wie beim Stabwerk** (Prüfstand 270, siehe *Entschieden*; gepusht auf Weisung «alles pushen», 12. Oktober).
+- **11. Okt., Bestandesschutz-Schalter gilt dem ganzen Blatt (T2 wurde nicht gerechnet)** (Prüfstand 269, siehe *Entschieden*; gepusht auf Weisung «alles pushen», 12. Oktober).
 - **11. Okt., Fundament: η wieder das des Ablaufs, Basiswert nur im Bestandesschutz** (Prüfstand 264, siehe *Entschieden*; örtlich committet, nicht gepusht).
 - **11. Okt., Rückhaltekraft abgeschlossen:** Karte und 3D zeigen Wind roh und «Halt ≤ R» getrennt; Lesart Windbeiwert beibehalten (Prüfstand 268). Versand nachgeführt.
 - **11. Okt., Eingabe-Durchgang vom 9. Oktober bereinigt** (Lage Abfangjoch, Masskette, Schieber, Mast B mit Überstand nach Sortiment; Prüfstand 266, 267).
