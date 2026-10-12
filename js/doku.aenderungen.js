@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-10-12',
+    punkte: [
+      { text: 'Reaktionskräfte auch mit dem Rechenverfahren Ersatzbalken: dieselbe Tabelle im Reiter Auflager und dasselbe Blatt mit Skizze und Hinweisen wie beim Stabwerk, aus den Mastfusskräften des Ersatzbalkens (nur die Masten des gewählten Tragwerks; Ankerfundamente und das ganze Blatt mit dem Rechenverfahren Stabwerk).' },
+    ],
+  },
+  {
     datum: '2026-10-11',
     punkte: [
       { text: 'Bestandesschutz: der Schalter gilt dem ganzen Blatt. Vorher galt er nur dem Tragwerk, an dem er eingeschaltet wurde - mit einem anderen gewählten Tragwerk (z. B. T2) rechnete die Anwendung keinen Bestand, und dessen Bauteilkarten boten das Kennzeichen «neu» nicht an. Ein gespeicherter Stand wird beim Laden angeglichen (an, wenn ein Tragwerk ihn an hatte).' },

@@ -35863,7 +35863,7 @@ titel('193  Resultierende / Einzelgurte; Befestigung als Knopfreihe; Ziehen sich
   wahr('Mit Masten gibt es keine Wahl (keine Einzelgurte)', r2.reaktionenEinzeln === null);
   const q = APP_QUELLE();
   wahr('Vorgabe Resultierende, die Wahl ist eine gemerkte Ansicht',
-       q.includes("localStorage.getItem(RK_GURTE) === 'einzeln'") && q.includes("gurtWahl: g.h.reaktionenEinzeln?.length"));
+       q.includes("localStorage.getItem(RK_GURTE) === 'einzeln'") && q.includes("gurtWahl: !ausKern && g.h.reaktionenEinzeln?.length"));
   const ui193 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Befestigung als Knopfreihe mit Raster daneben (Radiofelder der Klasse at)',
        ui193.includes('function atBefestigung(i, a)') && /type="radio" class="at" name="at-bef-\$\{i\}" data-k="befestigung"/.test(ui193)
@@ -41484,6 +41484,43 @@ titel('269  Bestandesschutz: der Schalter gilt dem ganzen Blatt (T2 wird mitgere
   const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('aendern(«nachweise») schreibt den Schalter in jedes Tragwerk',
        appQ.includes("werte = bestandAufsBlatt(werte, nachweiseAuswahl(wert).bestandesschutz === true);"));
+}
+
+titel('270  Reaktionskräfte beim Ersatzbalken in derselben Form wie beim Stabwerk');
+
+/*
+ * Weisung 12. Oktober: «mach danach den output der reaktionskräfte für das
+ * stabmodell gleich wie für des stabwerk», auf Rückfrage «Ersatzbalken wie
+ * Stabwerk». Dieselbe Rohform aus den Mastfusskräften des Kerns.
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const R = await import(J('core.reaktionen.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const PR = await import(J('data.profiles.js'));
+  const { vergleichKombinationen } = await import(J('core.vierendeel.js'));
+  const w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+              L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+              anbauteile: [DA.neuesAnbauteil('hs-fahrdraht', 10)] };
+  const ws = N.rechensatzMitNachbarn(w);
+  const erg = berechne(ws, ...N.kernArgumente(ws));
+  const h = AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const kombi = vergleichKombinationen(ws, PR.getProfil(ws.profOG), PR.getProfil(ws.profUG),
+                                       PR.getStahl(ws.stahl), T.getTragjoch(ws.typ));
+  const roh = R.reaktionenAusKern(kombi, erg.modell?.federn?.namen, { alle: true });
+  const zk = R.reaktionsZeilen(roh);
+  wahr('Kern: je Mast eine Zeile (M1, M2), wie das Stabwerk',
+       zk.map((z) => z.id).join(',') === h.reaktionen.filter((z) => z.art === 'mast').map((z) => z.id).join(','),
+       zk.map((z) => z.id).join(','));
+  const s1 = h.reaktionen.find((z) => z.id === 'M1').haupt, k1 = zk.find((z) => z.id === 'M1').haupt;
+  pruef('M1 V max Kern ≈ Stabwerk', k1.Vmax.wert, s1.Vmax.wert, 0.05, 'kN');
+  pruef('M1 M_y (M,q) Kern ≈ Stabwerk', k1.Mq.wert, s1.Mq.wert, 0.5, 'kNm');
+  pruef('M1 M_x (M,l) Kern ≈ Stabwerk (Kern ohne Rahmenwirkung, ±2 %)', k1.Ml.wert, s1.Ml.wert, 1.0, 'kNm');
+  wahr('Kern: Aufteilung ständig / veränderlich vorhanden', Boolean(zk[0].anteil.quer));
+  const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('reaktionsDaten nimmt beim Ersatzbalken die Kernzahlen', appQ.includes('const liste = ausKern ? reaktionsZeilen(kernRoh)')
+       && appQ.includes("erg.reaktionenKern = reaktionenAusKern(kombiMast"));
 }
 
 console.log('\n' + '='.repeat(104));

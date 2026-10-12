@@ -221,6 +221,45 @@ export function jochendenZusammenfassen(liste) {
   return [...rest, ...enden];
 }
 
+/*
+ * >>> DIESELBE TABELLE AUS DEM ERSATZBALKEN (12. Oktober). <<< Weisung:
+ * «mach danach den output der reaktionskräfte für das stabmodell gleich wie
+ * für des stabwerk», auf Rückfrage «Ersatzbalken wie Stabwerk». Steht das
+ * Rechenverfahren auf Ersatzbalken, kommen die Kräfte am Mastfuss aus dem
+ * Kern - dieselben, die sein Fundamentnachweis liest
+ * (`ergebnisse[fall].mast[ende].stationen[0]`: F_z Druck positiv wie die
+ * Auflagerkraft des Stabwerks, F_x, F_y, M_xx, M_yy, M_zz). Daraus dieselbe
+ * Rohform wie `reaktionenAusStabwerk` - Hülle, Havarie und Aufteilung macht
+ * danach `reaktionsZeilen`, wie beim Stabwerk. Der Kern kennt nur die Masten
+ * des gewählten Tragwerks; Ankerfundamente und Jochenden ohne Masten führt
+ * er nicht.
+ *
+ * @param {object} kombi  { lastfaelle, ergebnisse } des Kerns (`kombiMast`)
+ * @param {object} namen  je Ende die Mastkennung (`erg.modell.federn.namen`)
+ * @returns {{auflager: Array, faelle: Array}}
+ */
+export function reaktionenAusKern(kombi, namen = {}, { alle = false } = {}) {
+  const lfListe = (kombi?.lastfaelle ?? []).filter((l) => alle || l.art === 'charakteristisch'
+    || l.art === 'aussergewoehnlich');
+  const auflager = [];
+  const gesehen = new Set();
+  ['A', 'B'].forEach((ende) => {
+    const id = namen?.[ende] ?? null;
+    if (!id || gesehen.has(id)) return;
+    const proFall = new Map();
+    lfListe.forEach((l) => {
+      const st = kombi.ergebnisse?.[l.key]?.mast?.[ende]?.stationen?.[0];
+      if (!st) return;
+      proFall.set(l.key, { ux: Number(st.Fx) || 0, uy: Number(st.Fy) || 0, uz: Number(st.Fz) || 0,
+                           fix: Number(st.Mxx) || 0, fiy: Number(st.Myy) || 0, fiz: Number(st.Mzz) || 0 });
+    });
+    if (!proFall.size) return;
+    gesehen.add(id);
+    auflager.push({ knoten: `MAST_${id}_F`, art: 'mast', id, ende, x: 0, y: 0, z: 0, proFall });
+  });
+  return { auflager, faelle: lfListe };
+}
+
 /**
  * Die Zeilen der Tabelle je Auflager.
  *

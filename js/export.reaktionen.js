@@ -477,6 +477,9 @@ export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
       der grösste aus Wind oder Schnee allein; gezeigt ständig / (ständig +
       veränderlich).</li>
     ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps.</li>` : ''}
+    ${daten?.quelle === 'ersatzbalken' ? `<li>Aus dem Ersatzbalken (Rechenverfahren): nur die Masten
+      des gewählten Tragwerks, ohne Rahmenwirkung über Nachbarjoche; Ankerfundamente und das ganze
+      Blatt führt das Rechenverfahren Stabwerk.</li>` : ''}
   </ul>`;
 }
 

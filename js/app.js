@@ -132,10 +132,10 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand,
-         buegelGrenzfeder } from './app.stabwerk.js';
+         buegelGrenzfeder, stabwerkDatei } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk, anteileFuer,
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
-import { reaktionenGewaehlt } from './core.reaktionen.js';
+import { reaktionenGewaehlt, reaktionenAusKern, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
 import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
@@ -741,23 +741,66 @@ function gurtlagerName(knoten) {
   return `${m[1] ? `${m[1]} · ` : ''}${m[2]} ${m[3] === 'L' ? 'links' : 'rechts'}`;
 }
 
+/*
+ * >>> DIE SKIZZE ZUR TABELLE DES ERSATZBALKENS (12. Oktober). <<< Dieselbe
+ * Übersicht wie beim Stabwerk, aus derselben Modelldatei - nur gebaut, nicht
+ * gerechnet; einmal je Eingabestand.
+ */
+let kernSkizze = { kennung: null, skizze: null, fuesse: new Map() };
+function skizzeFuerKern() {
+  const k = eingabeKennung(werte);
+  if (kernSkizze.kennung !== k) {
+    let sk = null;
+    const fuesse = new Map();
+    try {
+      const dat = stabwerkDatei(werte, letzte?.erg);
+      sk = skizzeAusModell(dat);
+      // Die Mastfüsse im Modell: dort steht der Name in der Skizze.
+      (dat.knoten ?? []).forEach((kn) => {
+        const m = /(?:^|_)MAST_(.+)_F$/.exec(kn.name);
+        if (m) fuesse.set(m[1], { x: Number(kn.x) || 0, z: Number(kn.z) || 0 });
+      });
+    } catch { sk = null; }
+    kernSkizze = { kennung: k, skizze: sk, fuesse };
+  }
+  return kernSkizze;
+}
+
 function reaktionsDaten() {
   const g = stabwerkGilt();
-  if (!g?.h?.reaktionen?.length) {
+  /*
+   * >>> ERSATZBALKEN WIE STABWERK (12. Oktober). <<< Weisung: «mach danach
+   * den output der reaktionskräfte für das stabmodell gleich wie für des
+   * stabwerk», auf Rückfrage «Ersatzbalken wie Stabwerk»: steht das
+   * Rechenverfahren auf Ersatzbalken, dieselbe Tabelle und dasselbe Blatt mit
+   * den Mastfusskräften des Kerns (`reaktionenAusKern`).
+   */
+  const kernRoh = !g?.h?.reaktionen?.length && verfahrenVon(werte) !== 'stabwerk'
+    ? letzte?.erg?.reaktionenKern ?? null : null;
+  if (!g?.h?.reaktionen?.length && !kernRoh?.auflager?.length) {
     return { fehlt: verfahrenVon(werte) !== 'stabwerk'
-      ? 'Die Tabelle kommt aus dem Stabwerk; das Rechenverfahren steht auf Ersatzbalken.'
+      ? 'Mit dem Rechenverfahren Ersatzbalken gibt es die Tabelle nur mit Masten am Tragjoch, Einzelmast und Tragausleger; für das ganze Blatt (Anker, Jochreihe, Abfangjoch) das Rechenverfahren Stabwerk wählen.'
       : 'Das Stabwerk ist noch nicht gerechnet - es läuft von selbst kurz nach der Eingabe.' };
   }
+  const ausKern = Boolean(kernRoh) && !g?.h?.reaktionen?.length;
   const masten = mastenVon(werte);
   // Der gewählte Lastfall je Auflager (2. Oktober, «Hülle bleibt, dazu der
   // gewählte Fall») - nur, wenn oben nicht «umhüllend» steht.
-  const roh = g.h.roh;
+  const roh = ausKern ? null : g.h.roh;
   const lfGew = anzeigeKombi !== 'umhuellend'
-    ? (roh?.faelle ?? []).find((l) => l.key === anzeigeKombi) : null;
-  const einzeln = rkEinzeln() && g.h.reaktionenEinzeln?.length;
+    ? ((ausKern ? kernRoh.faelle : roh?.faelle) ?? []).find((l) => l.key === anzeigeKombi) : null;
+  const einzeln = !ausKern && rkEinzeln() && g.h.reaktionenEinzeln?.length;
   const gewaehlt = lfGew && roh ? reaktionenGewaehlt(roh.dat, roh.lsg, lfGew, anteileFuer,
-                                                     { zusammenfassen: !einzeln }) : null;
-  const zeilen = (einzeln ? g.h.reaktionenEinzeln : g.h.reaktionen).map((z) => {
+                                                     { zusammenfassen: !einzeln })
+    : lfGew && ausKern ? new Map(kernRoh.auflager.map((a) => {
+      const r = a.proFall.get(lfGew.key);
+      if (!r) return null;
+      const w = (v) => ({ wert: v, bez: lfGew.bez });
+      return [a.knoten, { bez: lfGew.bez, Vmin: w(r.uz), Vmax: w(r.uz), Mq: w(r.fiy), Hq: w(r.ux),
+                          Ml: w(r.fix), Hl: w(r.uy), T: w(r.fiz) }];
+    }).filter(Boolean)) : null;
+  const liste = ausKern ? reaktionsZeilen(kernRoh) : (einzeln ? g.h.reaktionenEinzeln : g.h.reaktionen);
+  const zeilen = liste.map((z) => {
     const m = masten.find((mm) => mastName(werte, mm) === z.id) ?? null;
     const fund = z.art === 'mast'
       ? fundamentVon({ profil: m?.profil ?? werte.mastProfil,
@@ -767,7 +810,10 @@ function reaktionsDaten() {
     // Die Lage des MASTEN, nicht die des Modells: in einer Reihe ist das
     // Stabwerk um die Luft der Endbleche entflochten (M2 bei 20.05 statt
     // 20.00). Die Skizze bleibt beim Modell (`xModell`), dort stimmt sie.
-    return { ...z, xModell: z.x, x: Number.isFinite(m?.x) ? m.x : z.x,
+    // Beim Ersatzbalken liegt der Mastfuss im Modell der Skizze (12. Oktober).
+    const fuss = ausKern ? skizzeFuerKern().fuesse.get(z.id) : null;
+    return { ...z, ...(fuss ? { z: fuss.z } : {}), xModell: fuss ? fuss.x : z.x,
+             x: Number.isFinite(m?.x) ? m.x : z.x,
              // Der Anker heisst nach seinem Masten mit «A» davor
              // (Weisung 30. September: «beim Anker die Mastzahl nehmen und
              // ein A vornedran machen»).
@@ -811,9 +857,11 @@ function reaktionsDaten() {
      */
     .map((b) => ({ text: ohneKennung(String(b.text)),
                    x: b.p[0] + dx, z: b.p[2] + dz, mast: Boolean(b.mastEnde) }));
-  return { zeilen, titel, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
+  return { zeilen, titel, skizze: ausKern ? skizzeFuerKern().skizze : g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
+           // Woher die Zahlen kommen (12. Oktober): Stabwerk oder Ersatzbalken.
+           quelle: ausKern ? 'ersatzbalken' : 'stabwerk',
            // Ob es die Wahl Resultierende / Einzelgurte gibt, und welche gilt.
-           gurtWahl: g.h.reaktionenEinzeln?.length ? (einzeln ? 'einzeln' : 'resultierende') : null,
+           gurtWahl: !ausKern && g.h.reaktionenEinzeln?.length ? (einzeln ? 'einzeln' : 'resultierende') : null,
            linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
            datum: new Date().toLocaleDateString('de-CH'), fassung: `${APP_NAME} ${VERSION}` };
 }
@@ -1292,6 +1340,12 @@ function rechneTragwerk(werte, joch) {
    * waeren zwei Wahrheiten.
    */
   erg.fundament = fundamentNachweis(kombiMast, werte);
+  /*
+   * Die Reaktionskräfte aus dem Kern (12. Oktober, «Ersatzbalken wie
+   * Stabwerk»): dieselbe Rohform wie aus dem Stabwerk, alle Fälle (der
+   * gewählte Lastfall liest daraus). Gezeigt nur beim Verfahren Ersatzbalken.
+   */
+  erg.reaktionenKern = reaktionenAusKern(kombiMast, erg.modell?.federn?.namen ?? {}, { alle: true });
   /*
    * >>> OHNE MODELL DES AUSLEGERS KEINE ZAHLEN DES PHANTOMJOCHS (30. Sept.). <<<
    * Gemeldet: «wenn ich da eine grenze über oder unterschreite blendet
@@ -1908,7 +1962,8 @@ function reaktionsBlockEinfuegen(node) {
     </div>` : '';
   node.insertAdjacentHTML('afterbegin', `<div class="rk-block">
     ${abschnitt('Reaktionskräfte, charakteristisch',
-      'alle Auflager · Druck positiv · Wind ohne 0.7')}
+      rd.quelle === 'ersatzbalken' ? 'Masten · Druck positiv · Wind ohne 0.7 · Ersatzbalken'
+        : 'alle Auflager · Druck positiv · Wind ohne 0.7')}
     ${umschalter}
     ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
       : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
