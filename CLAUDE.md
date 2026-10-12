@@ -453,7 +453,7 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **12. Okt., Perrondach auch im Ersatzbalken** (Prüfstand 273, siehe *Entschieden*; örtlich committet, nicht gepusht).
+- **12. Okt., Perrondach auch im Ersatzbalken** (Prüfstand 273, siehe *Entschieden*; gepusht auf Weisung «push», 12. Oktober; Einzeldatei in `Versand/` neu, COM und Datenpaket unverändert).
 - **12. Okt., Leiter direkt am Masten; gepusht** (Weisung «nachziehen und gleich pushen»; Prüfstand 272; Datenpaket und Einzeldatei vom 12. Oktober in `Versand/`).
 - **12. Okt., gepusht** (Weisung «alles pushen»): Bestandesschutz-Schalter, Reaktionskräfte beim Ersatzbalken, Mast auf Perrondach. Einzeldatei `Versand/vierendeel_tool_2026-10-12.html` neu gebündelt; COM-Brücke und Datenpaket unverändert. Für die weitere Arbeit gilt: pushen nur auf Weisung.
 - **12. Okt., Mast auf Perrondach: Stütze oder Querbalken unter dem Mastfuss** (Prüfstand 271, siehe *Entschieden*; gepusht auf Weisung «alles pushen», 12. Oktober).
