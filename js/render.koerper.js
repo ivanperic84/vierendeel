@@ -664,12 +664,39 @@ export function mastKoerper(o) {
    * Mastfuss; der Klotz ist nur Bild und reicht darunter.
    */
   const fkHalb = halb * 2;
-  const fkHoch = Math.max(0.35, fkHalb * 1.1);
-  flaechen.push(...quader(
-    [x, 0, zFuss - fkHoch / 2], [2 * fkHalb, 2 * fkHalb, fkHoch], {
-      gruppe: 'mast', teil: `FUNDAMENT_${name}`,
-      label: `Fundamentkopf ${name}`,
-    }));
+  let fkHoch = Math.max(0.35, fkHalb * 1.1);
+  /*
+   * >>> AUF EINEM PERRONDACH STEHT STATT DES KLOTZES DER UNTERBAU (12. Okt.). <<<
+   * Stütze bzw. Querbalken auf zwei Stützen bis aufs Terrain, schematisch
+   * (Breite 0.30 m) - die Steifigkeit steht im Stabwerk, nicht im Bild.
+   */
+  const ub = o.unterbau?.an ? o.unterbau : null;
+  const hU = ub ? (Number(ub.hoehe) > 0 ? Number(ub.hoehe) : Number(o.fuss) || 0) : 0;
+  if (ub && hU > 0) {
+    const d = 0.3;
+    const opt = (t) => ({ gruppe: 'mast', teil: `UNTERBAU_${name}`, label: t });
+    if (ub.art === 'riegel') {
+      const L = Number(ub.riegel?.spannweite) || 6;
+      const e = Number(ub.riegel?.lage) > 0 ? Number(ub.riegel.lage) : L / 2;
+      const quer = ub.riegel?.richtung !== 'laengs';
+      const p1 = quer ? [x - e, 0] : [x, -e];
+      const p2 = quer ? [x + L - e, 0] : [x, L - e];
+      const mitte = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+      flaechen.push(...quader([mitte[0], mitte[1], zFuss - d / 2],
+        [quer ? L + d : d, quer ? d : L + d, d], opt(`Querbalken unter Mast ${name}`)));
+      [p1, p2].forEach((p, i) => flaechen.push(...quader([p[0], p[1], zFuss - d - (hU - d) / 2],
+        [d, d, hU - d], opt(`Stütze ${i + 1} unter Mast ${name}`))));
+    } else {
+      flaechen.push(...quader([x, 0, zFuss - hU / 2], [d, d, hU], opt(`Stütze unter Mast ${name}`)));
+    }
+    fkHoch = hU;
+  } else {
+    flaechen.push(...quader(
+      [x, 0, zFuss - fkHoch / 2], [2 * fkHalb, 2 * fkHalb, fkHoch], {
+        gruppe: 'mast', teil: `FUNDAMENT_${name}`,
+        label: `Fundamentkopf ${name}`,
+      }));
+  }
 
   const ank = ankerTeile(o, halb, zFuss, zKopf);
   linien.push(...ank.linien);

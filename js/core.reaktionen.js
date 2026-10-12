@@ -87,6 +87,9 @@ export function auflagerArt(knoten) {
   // Der Längsanker des Tragauslegers: im Stabwerk ein fester Halt in y
   // am Knoten LV_M (export.axisvm.tragausleger.js).
   if (/(?:^|_)LV_M$/.test(knoten)) return { art: 'laengsanker', id: knoten };
+  // Die Füsse eines Unterbaus (Perrondach, 12. Oktober): gehören dem Dach,
+  // nicht in die Tabelle - dort steht der Übergang am Platz des Mastfusses.
+  if (/(?:^|_)UB_.+_F\d?$/.test(knoten)) return { art: 'unterbau', id: knoten };
   return { art: 'lager', id: knoten };
 }
 
@@ -124,7 +127,7 @@ export function reaktionenAusStabwerk(dat, lsg, faelle, anteile,
     const k = kn.get(knoten) ?? {};
     return { knoten, ...auflagerArt(knoten), x: Number(k.x) || 0, y: Number(k.y) || 0,
              z: Number(k.z) || 0, proFall };
-  });
+  }).filter((a) => a.art !== 'unterbau');
   // «Resultierende» (Vorgabe) oder «Einzelgurte» (2. Oktober).
   const auflager = (zusammenfassen ? jochendenZusammenfassen(einzeln) : einzeln)
     .sort((a, b) => (a.x - b.x) || (a.art === 'mast' ? -1 : 1));

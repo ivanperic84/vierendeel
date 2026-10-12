@@ -889,6 +889,8 @@ export function erzeugeSzene(m, erg) {
            */
           etaGzg: erg?.verformung?.[name]?.eta ?? null,
           anker: mast.anker ?? null,
+          // Der Unterbau (Perrondach, 12. Oktober) statt des Fundamentklotzes.
+          unterbau: mast.unterbau ?? null, fuss: mast.fuss ?? 0,
           /*
            * >>> UND IHRE AUSNUTZUNG (16. September). <<<
            *

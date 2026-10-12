@@ -18,6 +18,7 @@ import { berechne, modell, modellEinzelmast,
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
          klassifizierung, urteilFusszeile, mitBauteilen, nachweiseAuswahl } from './core.checks.js';
 import { bestandAufsBlatt } from './core.bestand.js';
+import { unterbauVon } from './data.unterbau.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse, mitTrasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
@@ -42,7 +43,7 @@ import { APP_NAME, verortung, dateiStamm, fangeAufMasskette,
          tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
          tragwerksart,
          tragwerkTeil,
-         MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz, mastWindVonHand, mastWindZuruecksetzen,
+         MASTFELDER, setzeMastAngabe, setzeMastAnker, setzeMastUnterbau, rechensatz, mastWindVonHand, mastWindZuruecksetzen,
          mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer, lageOrtsnull, stossVersatz, anschlusshoehe, sichtbareTragwerke,
@@ -802,7 +803,11 @@ function reaktionsDaten() {
   const liste = ausKern ? reaktionsZeilen(kernRoh) : (einzeln ? g.h.reaktionenEinzeln : g.h.reaktionen);
   const zeilen = liste.map((z) => {
     const m = masten.find((mm) => mastName(werte, mm) === z.id) ?? null;
-    const fund = z.art === 'mast'
+    // Auf einem Unterbau (Perrondach, 12. Oktober): kein Standardfundament,
+    // die Zeile ist der Übergang an den Unterbau.
+    const unterbau = z.art === 'mast' && m?.unterbau?.an === true
+      ? (m.unterbau.art === 'riegel' ? 'Übergang auf Querbalken' : 'Übergang auf Stütze') : null;
+    const fund = z.art === 'mast' && !unterbau
       ? fundamentVon({ profil: m?.profil ?? werte.mastProfil,
                        stegrichtung: m?.steg ?? werte.mastSteg ?? 'jochachse',
                        fundament: m?.fundament ?? '', gelaende: m?.gelaende ?? '' })?.typ ?? null
@@ -824,6 +829,7 @@ function reaktionsDaten() {
                : z.art === 'lager' ? gurtlagerName(z.id)
                : mastAnzeigeText(z.id, anzeigeKarte),
              fundament: z.art === 'jochende' ? 'Jochauflager' : fund,
+             unterbau,
              gewaehlt: gewaehlt?.get(z.knoten) ?? null,
              anker: z.art === 'anker' ? (m?.anker ?? null) : null };
   });
@@ -1339,7 +1345,8 @@ function rechneTragwerk(werte, joch) {
    * Nachweisgruppe `fundament` (Optionen). Zwei Wege zum Abschalten
    * waeren zwei Wahrheiten.
    */
-  erg.fundament = fundamentNachweis(kombiMast, werte);
+  erg.fundament = fundamentNachweis(kombiMast, { ...werte,
+    unterbauEnden: [rs.mastUnterbauA?.an ? 'A' : null, rs.mastUnterbauB?.an ? 'B' : null].filter(Boolean) });
   /*
    * Die Reaktionskräfte aus dem Kern (12. Oktober, «Ersatzbalken wie
    * Stabwerk»): dieselbe Rohform wie aus dem Stabwerk, alle Fälle (der
@@ -1376,6 +1383,19 @@ function rechneTragwerk(werte, joch) {
   // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
   // gehört in die Liste, sonst stünde nur das Phantomjoch da.
   if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
+  // Masten auf einem Unterbau (Perrondach, 12. Oktober): was gilt und was nicht.
+  const ubNamen = [rs.mastUnterbauA ? rs.mastNameA : null, rs.mastUnterbauB ? rs.mastNameB : null]
+    .filter(Boolean);
+  if (ubNamen.length) {
+    hinw.push(`Mast ${[...new Set(ubNamen)].join(', ')} steht auf einem Unterbau (Perrondach). `
+      + (verfahrenVon(werte) === 'stabwerk'
+        ? 'Stütze bzw. Querbalken stehen im Stabwerk; am Übergang die Kräfte an den Unterbau '
+          + '(Reaktionskräfte). Kein Standardfundament; der Unterbau selbst ist nicht nachgewiesen.'
+        : 'Der Ersatzbalken rechnet den Fuss eingespannt - für den Unterbau das Rechenverfahren Stabwerk wählen.')
+      + (nachweiseAuswahl(werte.nachweise).knickenMast
+        ? ' Das Knicken des Masten rechnet mit der Einspannung am Übergang; mit dem nachgiebigen '
+          + 'Unterbau liegt es auf der unsicheren Seite.' : ''));
+  }
   /*
    * >>> WENN ES DEN STAB SO NICHT GIBT, STEHT ES IN DER LISTE. <<<
    *
@@ -3272,6 +3292,29 @@ function abfangNaechsteLaenge(typ, jt) {
   return liste.reduce((a, b) => (Math.abs(b - ziel) < Math.abs(a - ziel) ? b : a));
 }
 
+
+/** Was jedes Feld des Unterbaus am Merkmal `unterbau` ändert (12. Oktober). */
+const ubZahl = (v) => (Number(v) > 0 ? Number(v) : null);
+const ubFrei = (wo, k) => (u, v) => {
+  const z = wo === 'S' ? u : u.riegel;
+  z.frei = { ...(z.frei ?? {}), [k]: ubZahl(v) };
+};
+const UB_FELDER = {
+  ubAn: (u, v) => { u.an = v === true; },
+  ubArt: (u, v) => { u.art = v === 'riegel' ? 'riegel' : 'stuetze'; },
+  ubHoehe: (u, v) => { u.hoehe = ubZahl(v); },
+  ubStuetze: (u, v) => { u.stuetze = String(v); },
+  ubSteg: (u, v) => { u.steg = v === 'laengs' ? 'laengs' : 'quer'; },
+  ubLagerung: (u, v) => { u.lagerung = v === 'gelenkig' ? 'gelenkig' : 'eingespannt'; },
+  ubRiegel: (u, v) => { u.riegel.profil = String(v); },
+  ubRichtung: (u, v) => { u.riegel.richtung = v === 'laengs' ? 'laengs' : 'quer'; },
+  ubSpannweite: (u, v) => { u.riegel.spannweite = ubZahl(v); },
+  ubLage: (u, v) => { u.riegel.lage = ubZahl(v); },
+  ubTorsion: (u, v) => { u.riegel.torsion = v === 'profil' ? 'profil' : 'gehalten'; },
+  ...Object.fromEntries(['A', 'Iy', 'Iz', 'It'].flatMap((k) => [[`ubF${k}`, ubFrei('S', k)],
+                                                                  [`ubRF${k}`, ubFrei('R', k)]])),
+};
+
 function aendern(key, wert) {
   /*
    * >>> DIE LÄNGENAUSWAHL SCHREIBT IN `L`. <<<
@@ -3301,6 +3344,21 @@ function aendern(key, wert) {
   if (key === 'mastGitterOhne') {
     const alt = gewaehlterMast(werte)?.profil ?? werte.mastProfil;
     return aendern('mastProfil', gitterOhneObenName(alt, wert === true));
+  }
+  /*
+   * >>> DER UNTERBAU DES ANGEWÄHLTEN MASTEN (Perrondach, 12. Oktober). <<<
+   * Die Felder `ub…` schreiben nichts flach in den Satz, sondern das Merkmal
+   * `unterbau` am Masten (`setzeMastUnterbau`).
+   */
+  if (UB_FELDER[key]) {
+    const m = gewaehlterMast(werte);
+    if (!m) return;
+    const alt = unterbauVon({ ...(m.unterbau ?? {}), an: true });
+    const u = { ...alt, riegel: { ...alt.riegel }, an: m.unterbau?.an === true };
+    UB_FELDER[key](u, wert);
+    werte = setzeMastUnterbau(werte, m.id, u);
+    neuRechnen();
+    return;
   }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });

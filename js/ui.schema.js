@@ -35,6 +35,7 @@ import { mastprofile, mastprofileWahl, gitterBasisName, gitterOhneOben, gitterOb
          fundamenttypen, fundamenteDa,
          fundamentFuerMast, istGittermast, GELAENDE, gelaendeVon,
          fundamentKandidaten, fundamentlastenDa } from './data.masten.js';
+import { UNTERBAU_ARTEN, STUETZEN_VORSCHLAEGE, RIEGEL_VORSCHLAEGE, unterbauVon } from './data.unterbau.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp, ankerIstDoppelt, doppelankerGeometrie, ankerNeigung,
@@ -169,6 +170,20 @@ const mastWindHinweis = (richtung) => (w) => {
       + 'Einzelmasten die massgebende Richtung — dort hält kein Joch den Mastkopf. '
       + '«Werte bearbeiten» gibt das Feld frei.';
 };
+
+/* Der Unterbau des angewählten Masten (12. Oktober). */
+const ubAn = (w) => gewaehlterMast(w)?.unterbau?.an === true;
+const ub = (w) => unterbauVon({ ...(gewaehlterMast(w)?.unterbau ?? {}), an: true });
+const ubRiegel = (w) => ubAn(w) && ub(w).art === 'riegel';
+const vorschlaege = (liste) => liste.map((v) => ({ wert: v.key, text: v.titel }));
+// Die freien Querschnittswerte (A, I_y, I_z, I_t) als vier Zahlenfelder.
+function ubFrei(prefix, was, sichtbar) {
+  const feld = prefix === 'ubF' ? (w) => ub(w).frei ?? {} : (w) => ub(w).riegel.frei ?? {};
+  return [['A', 'cm²', 'Fläche'], ['Iy', 'cm⁴', 'I_y (starke Achse)'], ['Iz', 'cm⁴', 'I_z'],
+          ['It', 'cm⁴', 'I_t (0: aus dem Ersatzrechteck)']].map(([k, e, t]) => ({
+    key: `${prefix}${k}`, gruppe: 'mast', typ: 'zahl', label: `${was}: ${t}`, einheit: e,
+    standard: 0, schritt: 1, wertAus: (w) => Number(feld(w)[k]) || 0, sichtbar }));
+}
 
 /** Der Wert einer Mastangabe am angewaehlten Masten, ersatzweise flach. */
 const amMast = (feld, flach) => (w) => {
@@ -1326,7 +1341,7 @@ export const FELDER = [
     label: 'Gelände am Mastfuss', standard: 'bis14',
     optionen: GELAENDE.map((g) => ({ wert: g.key, text: g.text })),
     wertAus: amMast('gelaende', 'mastGelaende'),
-    sichtbar: (w) => mastDa(w) && fundamenteDa() && fundamentlastenDa()
+    sichtbar: (w) => mastDa(w) && fundamenteDa() && fundamentlastenDa() && !ubAn(w)
       && !istGittermast(gewaehlterMast(w)?.profil ?? w.mastProfil),
     hinweis: 'Neigung des Geländes am Fundament. Über 14° gelten andere Fundamenttypen '
            + 'und kleinere zulässige Lasten; «fallende Böschung», wenn das Moment quer '
@@ -1368,7 +1383,7 @@ export const FELDER = [
       ]);
     },
     wertAus: amMast('fundament', 'mastFundament'),
-    sichtbar: (w) => mastDa(w) && fundamenteDa(),
+    sichtbar: (w) => mastDa(w) && fundamenteDa() && !ubAn(w),
     hinweis: (w) => {
       const m = gewaehlterMast(w);
       if (istGittermast(m?.profil ?? w.mastProfil)) {
@@ -1389,6 +1404,65 @@ export const FELDER = [
     } },
   { key: 'mastFundamentB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Fundament Ende B', standard: '' },
+  /* =========================================================================
+   * >>> DER MAST AUF EINER PERRONDACHKONSTRUKTION (12. Oktober). <<<
+   * Weisung und Aufbau in data.unterbau.js / export.axisvm.unterbau.js. Die
+   * Felder gelten dem angewählten Masten und schreiben `unterbau` an ihm
+   * (app.js, `UB_FELDER`); im Satz steht davon nichts flach.
+   * ========================================================================= */
+  { key: 'ubAn', gruppe: 'mast', typ: 'schalter', label: 'Mast steht auf Perrondach (Unterbau)',
+    standard: false, wertAus: (w) => ubAn(w), sichtbar: (w) => mastDa(w),
+    hinweis: 'Unter dem Mastfuss eine Stütze oder ein Querbalken auf zwei Stützen bis aufs Terrain. '
+           + 'Der Mast ist damit so weich, wie er steht; am Übergang stehen die Kräfte, die er an den '
+           + 'Unterbau abgibt (Reaktionskräfte). Kein Standardfundament, der Unterbau wird nicht '
+           + 'nachgewiesen. Gilt im Stabwerk; der Ersatzbalken rechnet den Fuss eingespannt.' },
+  { key: 'ubArt', gruppe: 'mast', typ: 'auswahl', label: 'Unterbau', standard: 'stuetze',
+    optionen: UNTERBAU_ARTEN.map((a) => ({ wert: a.key, text: a.titel })),
+    wertAus: (w) => ub(w).art, sichtbar: (w) => ubAn(w) },
+  { key: 'ubHoehe', gruppe: 'mast', typ: 'zahl', label: 'Höhe Mastfuss FL über Terrain',
+    sym: 'h_U', einheit: 'm', standard: 0, schritt: 0.05,
+    wertAus: (w) => Number(ub(w).hoehe) || 0, sichtbar: (w) => ubAn(w),
+    hinweis: (w) => {
+      const f = Number(gewaehlterMast(w)?.fuss ?? w.mastFuss) || 0;
+      return `Länge der Stützen bis aufs Terrain. 0 = der Fussversatz des Masten${
+        f > 0 ? ` (${f.toFixed(2)} m)` : ' (keiner eingetragen - bitte Höhe eingeben)'}.`;
+    } },
+  { key: 'ubStuetze', gruppe: 'mast', typ: 'auswahl', label: 'Querschnitt der Stütze(n)',
+    standard: 'HEB 260', optionenAus: () => vorschlaege(STUETZEN_VORSCHLAEGE),
+    wertAus: (w) => ub(w).stuetze, sichtbar: (w) => ubAn(w),
+    hinweis: 'Vorschlagswerte, wenn der Querschnitt nicht bekannt ist (leicht / mittel / schwer); '
+           + 'Beton ungerissen (E 33 000 N/mm²) als Stahlquadrat gleicher Biegesteifigkeit.' },
+  ...ubFrei('ubF', 'Stütze', (w) => ubAn(w) && ub(w).stuetze === 'frei'),
+  { key: 'ubSteg', gruppe: 'mast', typ: 'auswahl', label: 'Starke Achse der Stütze',
+    standard: 'quer', optionen: [{ wert: 'quer', text: 'biegt quer zum Gleis (wie Steg in Jochachse)' },
+                                 { wert: 'laengs', text: 'biegt längs zum Gleis' }],
+    wertAus: (w) => ub(w).steg, sichtbar: (w) => ubAn(w) },
+  { key: 'ubRiegel', gruppe: 'mast', typ: 'auswahl', label: 'Querschnitt des Querbalkens',
+    standard: 'IPE 360', optionenAus: () => vorschlaege(RIEGEL_VORSCHLAEGE),
+    wertAus: (w) => ub(w).riegel.profil, sichtbar: (w) => ubRiegel(w) },
+  ...ubFrei('ubRF', 'Querbalken', (w) => ubRiegel(w) && ub(w).riegel.profil === 'frei'),
+  { key: 'ubRichtung', gruppe: 'mast', typ: 'auswahl', label: 'Querbalken läuft',
+    standard: 'quer', optionen: [{ wert: 'quer', text: 'quer zum Gleis' }, { wert: 'laengs', text: 'längs zum Gleis' }],
+    wertAus: (w) => ub(w).riegel.richtung, sichtbar: (w) => ubRiegel(w) },
+  { key: 'ubSpannweite', gruppe: 'mast', typ: 'zahl', label: 'Abstand der beiden Stützen',
+    sym: 'l_R', einheit: 'm', standard: 6, schritt: 0.1,
+    wertAus: (w) => Number(ub(w).riegel.spannweite) || 0, sichtbar: (w) => ubRiegel(w) },
+  { key: 'ubLage', gruppe: 'mast', typ: 'zahl', label: 'Mast ab Stütze 1',
+    sym: 'e_R', einheit: 'm', standard: 0, schritt: 0.05,
+    wertAus: (w) => Number(ub(w).riegel.lage) || 0, sichtbar: (w) => ubRiegel(w),
+    hinweis: '0 = in der Mitte. Stütze 1 liegt auf der Seite −x (quer) bzw. −y (längs).' },
+  { key: 'ubTorsion', gruppe: 'mast', typ: 'auswahl', label: 'Mastfuss gegen Verdrehen',
+    standard: 'gehalten', optionen: [{ wert: 'gehalten', text: 'gehalten durch die Dachkonstruktion' },
+                                     { wert: 'profil', text: 'nach Profil (Torsion des Querbalkens)' }],
+    wertAus: (w) => ub(w).riegel.torsion, sichtbar: (w) => ubRiegel(w),
+    hinweis: 'Ein Moment um die Balkenachse verdreht den Querbalken. «gehalten»: Schotte und Pfetten '
+           + 'halten den Mastfuss (Vorgabe). «nach Profil»: nur die Torsion des Querschnitts - ein offenes '
+           + 'Profil verdreht sich fast frei, Mast und Joch daneben tragen dann mehr.' },
+  { key: 'ubLagerung', gruppe: 'mast', typ: 'auswahl', label: 'Stützen am Terrain',
+    standard: 'eingespannt', optionen: [{ wert: 'eingespannt', text: 'eingespannt' },
+                                        { wert: 'gelenkig', text: 'gelenkig in der Ebene des Querbalkens' }],
+    wertAus: (w) => ub(w).lagerung, sichtbar: (w) => ubRiegel(w),
+    hinweis: 'Querbalken und Stützen biegesteif verbunden, der Mast auf dem Balken eingespannt.' },
   { key: 'mastZwei', gruppe: 'mast', typ: 'schalter', versteckt: true,
     label: 'Zweiter Mast am Ende B abweichend', standard: false },
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,

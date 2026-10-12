@@ -1032,13 +1032,62 @@ export function loese(dat, opt = {}) {
     });
     federn.forEach((f) => { r[f[0]] += f[1] * uv[f[0]]; });
     const pv = pVoll.get(fall);
-    return dat.auflager.map((a) => {
+    return [...dat.auflager.map((a) => {
       const kn = idx.get(a.knoten);
       const v = { knoten: a.knoten };
       FELD.forEach((f2, d) => { v[f2] = r[kn * 6 + d] - pv[kn * 6 + d]; });
       return v;
-    });
+    }), ...(dat.uebergaenge ?? []).map((ue) => uebergangKraft(ue, fall, uv))];
   };
+
+  /*
+   * >>> DER ÜBERGANG AUF DEN UNTERBAU (12. Oktober). <<< Steht ein Mast auf
+   * einer Perrondachstütze (export.axisvm.unterbau.js), ist sein Fuss kein
+   * Auflager mehr. Gefragt ist trotzdem die Kraft, die er an den Unterbau
+   * abgibt - als stünde dort das Auflager: die Endkräfte der Stäbe des
+   * Masten an diesem Knoten (ohne die Stäbe des Unterbaus), global, mit dem
+   * Anteil ihrer Streckenlasten. Dasselbe, was `auflagerkraefte` an einem
+   * gehaltenen Fuss gäbe; `uebergang: true` trennt sie für Summenproben.
+   */
+  function uebergangKraft(ue, fall, uv) {
+    const kn = idx.get(ue.knoten);
+    const ohne = new Set(ue.ohne ?? []);
+    const v = { knoten: ue.knoten, uebergang: true };
+    FELD.forEach((f2) => { v[f2] = 0; });
+    if (kn === undefined) return v;
+    elemente.forEach((e) => {
+      if (ohne.has(e.s.name) || (e.i !== kn && e.j !== kn)) return;
+      const ug = new Float64Array(12);
+      for (let d = 0; d < 6; d += 1) { ug[d] = uv[e.i * 6 + d]; ug[d + 6] = uv[e.j * 6 + d]; }
+      const ul = new Float64Array(12);
+      for (let b = 0; b < 4; b += 1) {
+        for (let q = 0; q < 3; q += 1) {
+          let sm = 0;
+          for (let c = 0; c < 3; c += 1) sm += e.R[q][c] * ug[b * 3 + c];
+          ul[b * 3 + q] = sm;
+        }
+      }
+      const o = e.i === kn ? 0 : 6;
+      const fl = new Float64Array(6);
+      for (let q = 0; q < 6; q += 1) {
+        let sm = 0;
+        for (let c = 0; c < 12; c += 1) sm += e.kL[(o + q) * 12 + c] * ul[c];
+        fl[q] = sm;
+      }
+      streckeAuf.forEach((x) => {
+        if (x.e === e && x.fall === fall) for (let q = 0; q < 6; q += 1) fl[q] -= x.fLokal[o + q];
+      });
+      // Lokal -> global: g = Rᵀ · l, je Kraft- und Momentendreier.
+      for (let b = 0; b < 2; b += 1) {
+        for (let c = 0; c < 3; c += 1) {
+          let sm = 0;
+          for (let q = 0; q < 3; q += 1) sm += e.R[q][c] * fl[b * 3 + q];
+          v[FELD[b * 3 + c]] += sm;
+        }
+      }
+    });
+    return v;
+  }
 
   /*
    * DER REST DER GLEICHUNG: K*u - p ueber die FREIEN Freiheitsgrade. Er

@@ -41523,6 +41523,69 @@ titel('270  Reaktionskräfte beim Ersatzbalken in derselben Form wie beim Stabwe
        && appQ.includes("erg.reaktionenKern = reaktionenAusKern(kombiMast"));
 }
 
+titel('271  Mast auf Perrondach: Stütze oder Querbalken unter dem Mastfuss');
+
+/*
+ * Weisung 12. Oktober: «vorschlag umsetzen. mach vorschlagswerte auswählbar.
+ * mann kennt zum teil den genauen querschnitt der Perronkonstruktionstüzte
+ * nicht, und zum teil liegt der Mast FL auf einen querbalken der wiederum auf
+ * zwei Sützen lagert.» Torsion des Querbalkens: «Gehalten, als Vorgabe».
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const C = await import(J('core.constants.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const UB = await import(J('data.unterbau.js'));
+  const w0 = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+               L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+               anbauteile: [DA.neuesAnbauteil('hs-fahrdraht', 10)] };
+  const lauf = (x) => { const ws = N.rechensatzMitNachbarn(x); const erg = berechne(ws, ...N.kernArgumente(ws));
+    return AS.rechneStabwerk({ werte: x, letzte: { erg }, stabwerk: null }); };
+  const mitM = (x, id, f) => ({ ...x, masten: C.mastenVon(x).map((m) => (m.id === id ? f(m) : m)) });
+  const eta = (h, k) => h.reihe.find((b) => b.name === k)?.eta;
+  let reihe = C.tauscheAktives(C.tragwerkHinzu(w0, 'joch'), 'T1');
+  const terrain = lauf(reihe);
+  const hoch = mitM(reihe, 'M2', (m) => ({ ...m, fuss: 3 }));
+  const fest = lauf(hoch);
+  const hS = lauf(mitM(hoch, 'M2', (m) => ({ ...m, unterbau: { an: true, stuetze: 'HEB 260' } })));
+  // Probe: eine sehr steife Stütze gibt am Übergang genau den eingespannten Fuss.
+  const steif = lauf(mitM(hoch, 'M2', (m) => ({ ...m, unterbau: { an: true, stuetze: 'frei',
+    frei: { A: 1e5, Iy: 1e10, Iz: 1e10, It: 1e10 } } })));
+  const rM2 = (h) => h.reaktionen.find((z) => z.id === 'M2')?.haupt;
+  pruef('Probe: sehr steife Stütze = eingespannter Fuss (M_x am Übergang)', rM2(steif).Ml.wert, rM2(fest).Ml.wert, 0.01, 'kNm');
+  pruef('… M_y am Übergang', rM2(steif).Mq.wert, rM2(fest).Mq.wert, 0.01, 'kNm');
+  // Stütze HEB 260 unter Mast HEB 260: das System ist der Mast auf Terrain - die Nachbarn wie dort.
+  pruef('Stütze HEB 260 (gleich dem Mast): M1 wie auf Terrain', eta(hS, 'Mast M1'), eta(terrain, 'Mast M1'), 0.005);
+  pruef('… Joch T1 wie auf Terrain', eta(hS, 'Joch T1'), eta(terrain, 'Joch T1'), 0.005);
+  wahr('Der hochgeschobene, eingespannte Fuss macht den Masten zu steif (Joch T1 deutlich höher)',
+       eta(fest, 'Joch T1') > eta(hS, 'Joch T1') + 0.2, `${eta(fest, 'Joch T1').toFixed(3)} gegen ${eta(hS, 'Joch T1').toFixed(3)}`);
+  wahr('Kein Standardfundament am Masten auf dem Unterbau, M1/M3 schon',
+       !hS.fundamentJe.M2 && Boolean(hS.fundamentJe.M1 && hS.fundamentJe.M3));
+  wahr('Reaktionskräfte: M2 als Übergang da, die Stützenfüsse nicht in der Tabelle',
+       hS.reaktionen.map((z) => z.id).join(',') === 'M1,M2,M3', hS.reaktionen.map((z) => z.id).join(','));
+  const dat = hS.roh.dat;
+  wahr('Modelldatei: Mastfuss kein Auflager mehr, Stützenfuss eingespannt, ein Übergang',
+       !dat.auflager.some((a) => a.knoten === 'MAST_M2_F') && dat.auflager.some((a) => /UB_M2_F$/.test(a.knoten)
+       && a.fiy === 'Rigid') && dat.uebergaenge.length === 1);
+  // Querbalken: gehalten (Vorgabe) gegen nach Profil.
+  const rieg = (t) => lauf(mitM(hoch, 'M2', (m) => ({ ...m, unterbau: { an: true, art: 'riegel', stuetze: 'HEB 240',
+    riegel: { profil: 'IPE 360', spannweite: 6, richtung: 'quer', ...(t ? { torsion: t } : {}) } } })));
+  const rG = rieg(null), rP = rieg('profil');
+  wahr('Querbalken: Vorgabe «gehalten» (Torsionshalt am Mastfuss)',
+       UB.UNTERBAU_VORGABE.riegel.torsion === 'gehalten' && rG.roh.dat.auflager.some((a) => /UB_M2_TH_F$/.test(a.knoten)));
+  wahr('… «nach Profil»: das offene IPE verdreht sich, das Joch trägt mehr',
+       eta(rP, 'Joch T1') > eta(rG, 'Joch T1') + 0.1, `${eta(rG, 'Joch T1').toFixed(3)} → ${eta(rP, 'Joch T1').toFixed(3)}`);
+  // Vorschlagswerte: Beton als Stahlquadrat gleicher Biegesteifigkeit.
+  const b = UB.unterbauQuerschnitt('BETON 40', null, 'S');
+  pruef('Beton 40 × 40: E_s · I_eq = E_c · I', 210000 * b.Iy, 33000 * (0.4 ** 4 / 12), 1e-6);
+  const r = UB.unterbauQuerschnitt('ROHR 273x10', null, 'S');
+  pruef('Rohr 273 × 10: A', r.A * 1e4, 82.6, 0.1, 'cm²');
+  // Kern: kein Fundament am Ende mit Unterbau.
+  const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Kern: Fundament ohne die Enden auf Unterbau', appQ.includes("unterbauEnden: [rs.mastUnterbauA?.an ? 'A' : null"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

@@ -1099,7 +1099,7 @@ export function mastAnzeigeText(s, karte) {
  * ein Mast hat einen Anker oder keinen. Fehlt das Objekt, ist keiner da -
  * das ist der Unterschied zu einem Feld, dessen Wert man raten muesste.
  * ======================================================================== */
-export const MAST_EIGEN = ['anker'];
+export const MAST_EIGEN = ['anker', 'unterbau'];
 
 /** Ein Mast aus den flachen Feldern eines Satzes, Ende A oder B. */
 function mastAus(t, ende, x) {
@@ -1757,6 +1757,21 @@ export function mastenProjizieren(satz, w, t) {
   satz.mastAnkerA = a.anker ?? null;
   satz.mastAnkerB = (b?.anker ?? null);
   /*
+   * >>> DER UNTERBAU (Perrondach, 12. Oktober) - je Ende und für das Blatt. <<<
+   * Die Modelldatei setzt ihn an jedem Mastfuss ein, der einen trägt
+   * (export.axisvm.unterbau.js); sie kennt die Masten beim Namen, im
+   * Einzelfall auch nach dem Ende (MAST_A). Der Fussversatz geht mit: er ist
+   * die Höhe, wenn keine eingetragen ist.
+   */
+  satz.mastUnterbauA = a.unterbau?.an ? a.unterbau : null;
+  satz.mastUnterbauB = b?.unterbau?.an ? b.unterbau : null;
+  satz.unterbauJe = {};
+  (mastenVon(w) ?? []).forEach((m) => {
+    if (m?.unterbau?.an) satz.unterbauJe[mastName(w, m)] = { ...m.unterbau, fuss: Number(m.fuss) || 0 };
+  });
+  if (satz.mastUnterbauA) satz.unterbauJe.A = { ...a.unterbau, fuss: Number(a.fuss) || 0 };
+  if (satz.mastUnterbauB) satz.unterbauJe.B = { ...b.unterbau, fuss: Number(b.fuss) || 0 };
+  /*
    * Der Mastwind von Hand (8. Oktober) gehört JEDEM Masten für sich: Ende B
    * erbt ihn nie von Ende A, und ein Rest im flachen Satz zählt nicht -
    * deshalb stehen alle vier Felder ausdrücklich da (null = Tabelle).
@@ -1909,6 +1924,24 @@ export function setzeMastAnker(w, ziel, wert) {
     const o = { ...m };
     if (wert === null || wert === undefined) delete o.anker;
     else o.anker = { ...wert };
+    return o;
+  });
+  return { ...w, masten };
+}
+
+/**
+ * Der Unterbau eines Masten (Perrondach, 12. Oktober) - wie der Anker ein
+ * Merkmal nur dieses Masten. `wert` null nimmt ihn weg.
+ */
+export function setzeMastUnterbau(w, ziel, wert) {
+  w = mastenFest(w);
+  const alle = mastenVon(w);
+  if (!alle.some((m) => m.id === ziel)) return w;
+  const masten = alle.map((m) => {
+    if (m.id !== ziel) return m;
+    const o = { ...m };
+    if (wert === null || wert === undefined) delete o.unterbau;
+    else o.unterbau = JSON.parse(JSON.stringify(wert));
     return o;
   });
   return { ...w, masten };

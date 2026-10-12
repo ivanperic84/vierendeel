@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-10-12',
     punkte: [
+      { text: 'Neu am Masten (Reiter System): «Mast steht auf Perrondach (Unterbau)». Unter dem Mastfuss eine Stütze oder ein Querbalken auf zwei Stützen bis aufs Terrain, mit Vorschlagswerten (Stahl leicht / mittel / schwer, Rohr, Beton) oder freien Querschnittswerten. Der Mast ist im Stabwerk damit so steif, wie er steht - bisher machte der hochgeschobene, eingespannte Fuss ihn zu steif, und die Joche daneben trugen zu viel. Am Übergang stehen die Kräfte an den Unterbau in der Tabelle der Reaktionskräfte; ein Standardfundament gibt es dort nicht, der Unterbau selbst wird nicht nachgewiesen.', rechnung: true },
       { text: 'Reaktionskräfte auch mit dem Rechenverfahren Ersatzbalken: dieselbe Tabelle im Reiter Auflager und dasselbe Blatt mit Skizze und Hinweisen wie beim Stabwerk, aus den Mastfusskräften des Ersatzbalkens (nur die Masten des gewählten Tragwerks; Ankerfundamente und das ganze Blatt mit dem Rechenverfahren Stabwerk).' },
     ],
   },

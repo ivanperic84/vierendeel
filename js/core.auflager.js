@@ -465,11 +465,13 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    * sind die SCHNITTGROESSEN im Masten - und die stehen in core.mast.js.
    */
   const anker = (ende === 'B' ? inp.mastAnkerB : inp.mastAnkerA) ?? null;
+  // Der Unterbau (Perrondach, 12. Oktober) - fürs Bild; gerechnet wird er im Stabwerk.
+  const unterbau = (ende === 'B' ? inp.mastUnterbauB : inp.mastUnterbauA) ?? null;
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H: Hfrei, laenge, ueberstand, ende,
            // Die Anschlusshoehe steht daneben - sie beschriftet das Bild und
            // traegt den Hoehenversatz der Jochreihe (siehe oben).
            HAnschluss: einzel ? laenge + fuss : HAn, fuss, einzel,
-           anker,
+           anker, unterbau,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,
            cVerschieblich: an.faktor * cKragarm,

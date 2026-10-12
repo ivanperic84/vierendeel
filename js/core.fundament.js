@@ -344,6 +344,8 @@ export function fundamentNachweis(kombi, satz) {
 
   const proEnde = {};
   ['A', 'B'].forEach((ende) => {
+    // Auf einem Unterbau (Perrondach, 12. Oktober) steht kein Standardfundament.
+    if ((satz?.unterbauEnden ?? []).includes(ende)) return;
     const erstes = kombi.ergebnisse?.[lf[0].key]?.mast?.[ende];
     if (!erstes) return;
     /*

@@ -106,7 +106,7 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   const gew = z.gewaehlt ?? null;
   const n = 1 + (hav ? 1 : 0) + (gew ? 1 : 0) + (zul ? 1 : 0);
   // Der Typ steht auch, wenn die Zeile der Standardlasten aus ist.
-  const fund = mast ? esc(z.fundament?.typ ?? '–')
+  const fund = mast ? esc(z.unterbau ?? z.fundament?.typ ?? '–')
     : z.art === 'jochende' ? 'Jochauflager'
     : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
     : esc([z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
@@ -198,7 +198,7 @@ export function reaktionenKurzHtml(daten) {
       ...(z.gewaehlt ? [['gew. Fall', z.gewaehlt]] : [])];
     const n = spalten.length + (zul ? 1 : 0);
     const breite = Math.floor(62 / n);
-    const fund = z.art === 'mast' ? (zul?.typ ?? '')
+    const fund = z.art === 'mast' ? (z.unterbau ?? zul?.typ ?? '')
       : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
       : [z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
         .filter(Boolean).join(' · ');
@@ -477,6 +477,10 @@ export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
       der grösste aus Wind oder Schnee allein; gezeigt ständig / (ständig +
       veränderlich).</li>
     ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps.</li>` : ''}
+    ${(daten?.zeilen ?? []).some((z) => z.unterbau) ? `<li>Masten auf einem Perrondach: die Zeile «Übergang»
+      nennt die Kräfte, die der Fahrleitungsmast auf Höhe seines Fusses an die Dachkonstruktion abgibt.
+      Stützen und Querbalken des Dachs sind im Modell enthalten (Steifigkeit), aber nicht nachgewiesen;
+      ein Standardfundament gibt es dort nicht.</li>` : ''}
     ${daten?.quelle === 'ersatzbalken' ? `<li>Aus dem Ersatzbalken (Rechenverfahren): nur die Masten
       des gewählten Tragwerks, ohne Rahmenwirkung über Nachbarjoche; Ankerfundamente und das ganze
       Blatt führt das Rechenverfahren Stabwerk.</li>` : ''}

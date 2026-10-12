@@ -41,6 +41,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { unterbauEinsetzen, unterbauJeAus } from './export.axisvm.unterbau.js';
 import { mastWindHand } from './data.masten.js';
 import { havarieKandidaten, expandiereAnbauteile } from './data.anbauteile.js';
 import { ECKEN, getAusrichtung } from './geometry.js';
@@ -5614,7 +5615,11 @@ export function stabmodellJson(m, opt = {}) {
   };
   // Gittermasten: der Zug auf der Mastachse wird zum Fachwerk (3. Oktober).
   // Gespreizte Masten: der Zug unter L1 wird zum Rahmen aus zwei T-Gurten (8. Oktober).
-  return knotenEntflechten(gespreizteMastenEinsetzen(gittermastenEinsetzen(datei)));
+  // Masten auf einem Unterbau (Perrondach, 12. Oktober): Stütze bzw. Querbalken
+  // unter dem Fuss, der Fuss wird zum Übergang.
+  const unterbauJe = unterbauJeAus(eingaben.length ? eingaben : [opt.satz ?? opt.eingabe].filter(Boolean));
+  return knotenEntflechten(unterbauEinsetzen(
+    gespreizteMastenEinsetzen(gittermastenEinsetzen(datei)), unterbauJe));
 }
 
 /**

@@ -480,7 +480,7 @@ export function rechneStabwerk(app, aufruf = {}) {
       knick: nwA.knickenMast && basis.profil
         ? knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
                              { beta: beta > 0 ? beta : undefined }) : null,
-      fundament: nwA.fundament && basis.profil
+      fundament: nwA.fundament && basis.profil && !(dat.unterbau ?? []).length
         ? fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis, satz) : null,
     };
   }
@@ -508,6 +508,8 @@ export function rechneStabwerk(app, aufruf = {}) {
    */
   let knick = null;
   const fundamentJe = {};
+  // Masten auf einem Unterbau (Perrondach, 12. Oktober): kein Standardfundament.
+  const aufUnterbau = new Set((dat.unterbau ?? []).map((u) => u.id));
   // Was das Knicken je Mast braucht - für die Auswertung im gewählten Fall
   // (`imFall`, 4. Oktober) noch einmal mit nur einer Kombination.
   const knickBasis = [];
@@ -534,7 +536,7 @@ export function rechneStabwerk(app, aufruf = {}) {
         if (k && Number.isFinite(k.eta)) knick[id] = k;
         knickBasis.push({ id, basis, beta: beta > 0 ? beta : undefined });
       }
-      if (nwK.fundament) {
+      if (nwK.fundament && !aufUnterbau.has(id)) {
         const f = fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis,
                                        { ...satz, mastFundament: m.fundament ?? '',
                                          mastGelaende: m.gelaende ?? '' });
