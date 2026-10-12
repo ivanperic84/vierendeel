@@ -1391,7 +1391,8 @@ function rechneTragwerk(werte, joch) {
       + (verfahrenVon(werte) === 'stabwerk'
         ? 'Stütze bzw. Querbalken stehen im Stabwerk; am Übergang die Kräfte an den Unterbau '
           + '(Reaktionskräfte). Kein Standardfundament; der Unterbau selbst ist nicht nachgewiesen.'
-        : 'Der Ersatzbalken rechnet den Fuss eingespannt - für den Unterbau das Rechenverfahren Stabwerk wählen.')
+        : 'Der Ersatzbalken rechnet ihn als nachgiebigen Fuss (Drehfeder am Jochende und Verformung); '
+          + 'am Übergang die Kräfte an den Unterbau. Kein Standardfundament; der Unterbau selbst ist nicht nachgewiesen.')
       + (nachweiseAuswahl(werte.nachweise).knickenMast
         ? ' Das Knicken des Masten rechnet mit der Einspannung am Übergang; mit dem nachgiebigen '
           + 'Unterbau liegt es auf der unsicheren Seite.' : ''));

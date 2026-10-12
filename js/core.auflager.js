@@ -27,6 +27,7 @@
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { tragauslegerMastVorgabe } from './data.abfangjoche.js';
+import { unterbauNachgiebigkeit, drehfederVerhaeltnis } from './core.unterbau.js';
 
 /** Elastizitätsmodul Baustahl [kN/m2]. */
 export const E_STAHL = 210e6;
@@ -465,18 +466,28 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    * sind die SCHNITTGROESSEN im Masten - und die stehen in core.mast.js.
    */
   const anker = (ende === 'B' ? inp.mastAnkerB : inp.mastAnkerA) ?? null;
-  // Der Unterbau (Perrondach, 12. Oktober) - fürs Bild; gerechnet wird er im Stabwerk.
+  /*
+   * >>> DER UNTERBAU (Perrondach, 12. Oktober). <<< Im Stabwerk als Stäbe;
+   * hier (Weisung «ziehe das mit der perronstütze auch beim balkenmodell
+   * mit») als Nachgiebigkeit am Fuss (core.unterbau.js): die Drehfeder am
+   * Jochende sinkt im Verhältnis Mast auf Unterbau / Mast eingespannt, und
+   * die Verformung bekommt die Bewegung des Fusses (`nachgiebig`).
+   */
   const unterbau = (ende === 'B' ? inp.mastUnterbauB : inp.mastUnterbauA) ?? null;
+  const nachgiebig = unterbau ? unterbauNachgiebigkeit(unterbau, fuss) : null;
+  const rUb = nachgiebig ? drehfederVerhaeltnis(E_STAHL * I, Hfrei, nachgiebig.x)
+                         : { unverschieblich: 1, verschieblich: 1 };
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H: Hfrei, laenge, ueberstand, ende,
            // Die Anschlusshoehe steht daneben - sie beschriftet das Bild und
            // traegt den Hoehenversatz der Jochreihe (siehe oben).
            HAnschluss: einzel ? laenge + fuss : HAn, fuss, einzel,
-           anker, unterbau,
+           anker, unterbau, nachgiebig,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,
-           cVerschieblich: an.faktor * cKragarm,
-           cUnverschieblich: MAST_UNVERSCHIEBLICH * cKragarm,
-           cPhi: (verschieblich ? an.faktor : MAST_UNVERSCHIEBLICH) * cKragarm,
+           cVerschieblich: an.faktor * cKragarm * rUb.verschieblich,
+           cUnverschieblich: MAST_UNVERSCHIEBLICH * cKragarm * rUb.unverschieblich,
+           cPhi: (verschieblich ? an.faktor * rUb.verschieblich
+                                : MAST_UNVERSCHIEBLICH * rUb.unverschieblich) * cKragarm,
            Iq_cm4, Iq, Wq_cm3 };
 }
 

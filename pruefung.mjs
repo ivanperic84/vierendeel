@@ -41618,6 +41618,51 @@ titel('272  Leiter direkt am Masten: Kettenwerk und abgefangene Leiter auch am M
   pruef('… M_x + 6.40 · 7 m', mit.Ml.wert - ohne.Ml.wert, 6.40 * 7, 0.5, 'kNm');
 }
 
+titel('273  Perrondach im Ersatzbalken: nachgiebiger Fuss (Drehfeder und Verformung)');
+
+/*
+ * Weisung 12. Oktober: «ziehe das mit der perronstütze auch beim
+ * balkenmodell mit».
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const C = await import(J('core.constants.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const PR = await import(J('data.profiles.js'));
+  const VF = await import(J('core.verformung.js'));
+  const U = await import(J('core.unterbau.js'));
+  const { vergleichKombinationen } = await import(J('core.vierendeel.js'));
+  const f = U.unterbauNachgiebigkeit({ an: true, stuetze: 'HEB 260', hoehe: 3 }, 0);
+  const EI = 210e6 * 14920e-8;
+  pruef('Nachgiebigkeit Stütze HEB 260 / 3 m, Verdrehung unter Moment = h/EI', f.x.tt, 3 / EI, 1e-7, 'rad/kNm');
+  pruef('… Weg unter Querkraft ≈ h³/3EI (mit Schub)', f.x.ww, 27 / (3 * EI), 0.03, 'm/kN');
+  pruef('Drehfeder verschieblich: Mast 7.18 m auf gleicher Stütze 3 m = Mast 10.18 m',
+        U.drehfederVerhaeltnis(EI, 7.18, f.x).verschieblich, 7.18 / 10.18, 1e-6);
+  const w0 = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+               L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+               anbauteile: [DA.neuesAnbauteil('hs-fahrdraht', 10)] };
+  const w = { ...w0, masten: C.mastenVon(w0).map((m, i) => (i === 0
+    ? { ...m, unterbau: { an: true, stuetze: 'HEB 260', hoehe: 3 } } : m)) };
+  const lauf = (x) => {
+    const ws = N.rechensatzMitNachbarn(x);
+    const k = vergleichKombinationen(ws, PR.getProfil(ws.profOG), PR.getProfil(ws.profUG),
+                                     PR.getStahl(ws.stahl), T.getTragjoch(ws.typ));
+    const v = VF.verformungsNachweis(k, { gruppen: { fahrdraht: true, spitze: true } });
+    const e = berechne(ws, ...N.kernArgumente(ws));
+    const h = AS.rechneStabwerk({ werte: x, letzte: { erg: { ...e, verformung: v } }, stabwerk: null });
+    return { e, v, h };
+  };
+  const a = lauf(w0), b = lauf(w);
+  pruef('Drehfeder am Jochende M1 sinkt (unverschieblich, Verhältnis aus dem Unterbau)',
+        b.e.modell.federn.mastA.cPhi / a.e.modell.federn.mastA.cPhi,
+        U.drehfederVerhaeltnis(EI, a.e.modell.federn.mastA.H, f.x).unverschieblich, 1e-9);
+  pruef('… M2 ohne Unterbau unverändert', b.e.modell.federn.mastB.cPhi, a.e.modell.federn.mastB.cPhi, 1e-9);
+  const sp = (v) => v.A.nachweise.find((n) => n.spitze && n.achse === 'y').wert;
+  pruef('Mastspitze längs M1: Ersatzbalken ≈ Stabwerk (± 5 %)', sp(b.v), sp(b.h.verformung), 0.05, 'm');
+  wahr('… und deutlich grösser als eingespannt', sp(b.v) > 2 * sp(a.v), `${(sp(a.v) * 1000).toFixed(1)} → ${(sp(b.v) * 1000).toFixed(1)} mm`);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

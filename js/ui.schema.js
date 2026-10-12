@@ -1415,7 +1415,7 @@ export const FELDER = [
     hinweis: 'Unter dem Mastfuss eine Stütze oder ein Querbalken auf zwei Stützen bis aufs Terrain. '
            + 'Der Mast ist damit so weich, wie er steht; am Übergang stehen die Kräfte, die er an den '
            + 'Unterbau abgibt (Reaktionskräfte). Kein Standardfundament, der Unterbau wird nicht '
-           + 'nachgewiesen. Gilt im Stabwerk; der Ersatzbalken rechnet den Fuss eingespannt.' },
+           + 'nachgewiesen. Im Stabwerk als Stäbe, im Ersatzbalken als nachgiebiger Fuss.' },
   { key: 'ubArt', gruppe: 'mast', typ: 'auswahl', label: 'Unterbau', standard: 'stuetze',
     optionen: UNTERBAU_ARTEN.map((a) => ({ wert: a.key, text: a.titel })),
     wertAus: (w) => ub(w).art, sichtbar: (w) => ubAn(w) },

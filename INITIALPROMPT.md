@@ -8,7 +8,7 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 11. Oktober 2026 - hier weitermachen
 
 Am **Arbeitsrechner** (Windows, AxisVM über COM, Betreiberdaten örtlich in `data/`). Prüfstand
-**7270** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
+**7277** Kontrollen grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten).
 
 **Git:** zuletzt gepusht am 9. Oktober («versand nachziehen und pushen»); seither örtliche Commits (Jochanschluss vereinfacht und Summe am Mittelmasten, Lageband, Blatt des Jochanschlusses nur mit dem Massgebenden, Eingabe-Durchgang mit behobenem Havarie-Abbruch am Abfangjoch) - am Abend des 9. Oktober gepusht (Weisung «pushen»); danach bis `f59b949` gepusht (Anker am Tragausleger-Mast, Mastlänge am Abfangjoch, Schiene). Am 10. Oktober gepusht (Weisung «pushen»): Lastfalltabelle mit der Zahl des Stabwerks, Vorschau der Ablage mit Leiter / Abzug / Fläche nur über «Laden», Tastenkürzel nachgeführt («r» Nachrechnung, 1 … 9 Plotgrössen, x / c). Danach ein Commit, ebenfalls auf Weisung gepusht (alles ist gepusht): die Hintergrundzeichnung übersteht das Neuladen (Zeichnung des Arbeitsstands in IndexedDB). Davor sieben Commits, auf Weisung «ja pushen» am 10. Oktober abends gepusht, Einzeldatei in `Versand/` auf diesem Stand (der siebte: Rückhaltekraft als begrenzter Halt - `core.stabrueckhalt.js`, Hilfslastfall je Leiter, Haltekraft als Faktor der Kombination, auch in der COM-Datei; der sechste: Grösstwert 0.5 kN je Leiter, Einstellung im Reiter Lasten; der fünfte: Rückhaltekraft auch am Tragausleger und Info in der Übersicht, wenn sie Gurt oder Bindeblech höher belastet; der vierte: Rückhaltekraft der Leiter direkt am Joch - Schalter und Prozentzahl unter Optionen, Kraft p · Z gegen den Wind längs im Lastfall Wind y, auch in der AxisVM-Datei -, dazu Anbauteile beim Überfahren im 3D markiert; der dritte: Dateinamen ab der Liniennummer ohne «AxisVM», auch als Vorschlag beim PDF-Druck; Vorschau der Ablage hell und mit neuen Teilen): Leiter in den Blättern als Punkt und Blatt Bestandesschutz mit einer Farbsprache; Fundament-η = grösster Basiswert (am 11. Oktober abgelöst: η ist wieder das des Ablaufs, der Basiswert gilt nur dem Bestandesschutz, CLAUDE.md, *Entschieden*). Offene Befunde des Durchgangs: CLAUDE.md, *Offene Punkte*. `Versand/` trägt Einzeldatei und Datenpaket vom 9. Oktober und die COM_Bruecke gleich `com/`. Weiter gilt: pushen nur auf Weisung.
 
@@ -281,7 +281,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7270 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7277 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

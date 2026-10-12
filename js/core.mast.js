@@ -75,6 +75,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { fussBewegung } from './core.unterbau.js';
 import { mastSteifigkeit, jochAnteile, konsolLaenge, E_STAHL } from './core.auflager.js';
 import { ankerWirkGeometrie, ankerTraegtDruck } from './data.anker.js';
 
@@ -465,6 +466,8 @@ export function mastLasten(m, ende = 'A') {
             * nicht, und umgekehrt.
             */
            quelle: ta ? 'tragausleger' : (abE ? 'abfangjoch' : 'tragjoch'),
+           // Der nachgiebige Fuss auf einem Unterbau (Perrondach, 12. Oktober).
+           nachgiebig: md.nachgiebig ?? null,
            I: md.I, Iq: md.Iq, W: md.W_cm3, Wq: md.Wq_cm3 };
 }
 
@@ -582,13 +585,27 @@ export function mastVerschiebungen(g, lasten, stellen) {
   const my = liste
     .map((l) => ({ M: (l.Fz ?? 0) * (l.ey ?? 0) - (l.Mxx ?? 0), z: l.z }))
     .filter((q) => q.M);
+  /*
+   * >>> AUF EINEM UNTERBAU BEWEGT SICH DER FUSS (Perrondach, 12. Oktober). <<<
+   * Querkraft und Moment am Fuss aus denselben Lasten, durch die
+   * Nachgiebigkeit des Unterbaus (core.unterbau.js): w(z) += w_F + φ_F · z.
+   */
+  const fuss = (f, q, kraefte, momente) => {
+    if (!f) return { w: 0, phi: 0 };
+    const V = kraefte.reduce((s, k) => s + k.F, 0) + (q ?? 0) * L2;
+    const M = kraefte.reduce((s, k) => s + k.F * k.z, 0) + momente.reduce((s, k) => s + k.M, 0)
+            + ((q ?? 0) * L2 * L2) / 2;
+    return fussBewegung(f, V, M);
+  };
+  const fx = fuss(g?.nachgiebig?.x, g?.wQuer, kx, mx);
+  const fy = fuss(g?.nachgiebig?.y, g?.wLaengs, ky, my);
   return (stellen ?? []).map((a) => ({
     z: a,
     x: EIx > 0
-      ? kragarmVerschiebung(a, { q: g.wQuer, L: L2, kraefte: kx, momente: mx }) / EIx
+      ? kragarmVerschiebung(a, { q: g.wQuer, L: L2, kraefte: kx, momente: mx }) / EIx + fx.w + fx.phi * a
       : null,
     y: EIy > 0
-      ? kragarmVerschiebung(a, { q: g.wLaengs, L: L2, kraefte: ky, momente: my }) / EIy
+      ? kragarmVerschiebung(a, { q: g.wLaengs, L: L2, kraefte: ky, momente: my }) / EIy + fy.w + fy.phi * a
       : null,
   }));
 }
