@@ -37025,8 +37025,9 @@ if (AJ.abfangDbDa()) {
   // Vorlagen «abgefangen»
   const ids = ['leiter-ts-nfl-abf', 'leiter-fd-nfl-abf', 'leiter-ts-rfl-abf', 'leiter-fd-rfl-abf'];
   const vv = ids.map((id) => DA208.vorlagen().find((v) => v.id === id));
-  wahr('Vier Vorlagen «Tragseil / Fahrdraht abgefangen» (N-FL, R-FL), am Träger, einseitig',
-       vv.every((v) => v && v.abfangung === 'einseitig' && v.ort === 'joch' && v.gruppe === 'leiter'
+  wahr('Vier Vorlagen «Tragseil / Fahrdraht abgefangen» (N-FL, R-FL), an Joch und Masten, einseitig',
+       // Seit 12. Oktober an Joch UND Masten («es gibt an masten … Tragseile / Fahrleitung abfangungen»).
+       vv.every((v) => v && v.abfangung === 'einseitig' && v.ort === 'beide' && v.gruppe === 'leiter'
          && v.module.length === 1 && FL208.getFlBauteil(v.module[0].bauteil).rolle === 'drahtwerk'));
   const t208 = { ...DA208.neuesAnbauteil('leiter-ts-nfl-abf', 4), ort: 'joch' };
   wahr('… die Baugruppe kennt die Abfangart ihrer Vorlage', DA208.vorlageAbfangung(t208) === 'einseitig'
@@ -41584,6 +41585,37 @@ titel('271  Mast auf Perrondach: Stütze oder Querbalken unter dem Mastfuss');
   // Kern: kein Fundament am Ende mit Unterbau.
   const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Kern: Fundament ohne die Enden auf Unterbau', appQ.includes("unterbauEnden: [rs.mastUnterbauA?.an ? 'A' : null"));
+}
+
+titel('272  Leiter direkt am Masten: Kettenwerk und abgefangene Leiter auch am Masten');
+
+/*
+ * Gemeldet 12. Oktober: «beim mast lassen sich nicht leiter direkt
+ * modellieren, es kommt eine meldung dass dies ein jochbauteil ist. es gibt
+ * an masten Rückleiter oder Tragseile / Fahrleitung abfangungen».
+ */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const C = await import(J('core.constants.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const ids = ['leiter-rl', 'leiter-nfl', 'leiter-rfl', 'leiter-ts-nfl-abf', 'leiter-fd-nfl-abf',
+               'leiter-ts-rfl-abf', 'leiter-fd-rfl-abf'];
+  const nicht = ids.filter((id) => !DA.vorlagePasstAn(DA.getVorlage(id), 'mastA')
+                                   || !DA.vorlagePasstAn(DA.getVorlage(id), 'joch'));
+  wahr('Leiter-Vorlagen passen an Joch und Masten', nicht.length === 0, nicht.join(', '));
+  const w0 = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')),
+               L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+               anbauteile: [] };
+  const lauf = (x) => { const ws = N.rechensatzMitNachbarn(x); const erg = berechne(ws, ...N.kernArgumente(ws));
+    return AS.rechneStabwerk({ werte: x, letzte: { erg }, stabwerk: null }); };
+  const t = { ...DA.neuesAnbauteil('leiter-ts-nfl-abf', 0), ort: 'mastA', x: 0, hMast: 7 };
+  const hav = {};
+  (t.module ?? []).forEach((m, i) => { hav[C.leiterKennung(t, m, i)] = { art: 'einseitig' }; });
+  const ohne = lauf(w0).reaktionen.find((z) => z.id === 'M1').haupt;
+  const mit = lauf(C.setzeAnbauteileAn({ ...w0, havarie: hav }, [t])).reaktionen.find((z) => z.id === 'M1').haupt;
+  pruef('Tragseil N-FL einseitig am Masten M1 (7 m): F_y + Z(+5 °C) = 6.40 kN', mit.Hl.wert - ohne.Hl.wert, 6.40, 0.05, 'kN');
+  pruef('… M_x + 6.40 · 7 m', mit.Ml.wert - ohne.Ml.wert, 6.40 * 7, 0.5, 'kNm');
 }
 
 console.log('\n' + '='.repeat(104));
