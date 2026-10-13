@@ -1424,7 +1424,8 @@ export const FELDER = [
     wertAus: (w) => Number(ub(w).hoehe) || 0, sichtbar: (w) => ubAn(w),
     hinweis: (w) => {
       const f = Number(gewaehlterMast(w)?.fuss ?? w.mastFuss) || 0;
-      return `Länge der Stützen bis aufs Terrain. 0 = der Fussversatz des Masten${
+      return `Länge der Stützen bis aufs Terrain, auch negativ (es gilt der Betrag). `
+        + `0 = der Fussversatz des Masten${
         f > 0 ? ` (${f.toFixed(2)} m)` : ' (keiner eingetragen - bitte Höhe eingeben)'}.`;
     } },
   { key: 'ubStuetze', gruppe: 'mast', typ: 'auswahl', label: 'Querschnitt der Stütze(n)',

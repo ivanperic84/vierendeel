@@ -3303,7 +3303,10 @@ const ubFrei = (wo, k) => (u, v) => {
 const UB_FELDER = {
   ubAn: (u, v) => { u.an = v === true; },
   ubArt: (u, v) => { u.art = v === 'riegel' ? 'riegel' : 'stuetze'; },
-  ubHoehe: (u, v) => { u.hoehe = ubZahl(v); },
+  // Mit Vorzeichen (Weisung 12. Oktober: «Die perrondachstütze fuss höhe auch
+  // negative werte ermöglichen», auf Rückfrage «Höhe frei mit Vorzeichen»):
+  // gespeichert wie eingegeben, die Stütze ist so lang wie der Betrag.
+  ubHoehe: (u, v) => { const z = Number(v); u.hoehe = Number.isFinite(z) && z !== 0 ? z : null; },
   ubStuetze: (u, v) => { u.stuetze = String(v); },
   ubSteg: (u, v) => { u.steg = v === 'laengs' ? 'laengs' : 'quer'; },
   ubLagerung: (u, v) => { u.lagerung = v === 'gelenkig' ? 'gelenkig' : 'eingespannt'; },

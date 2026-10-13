@@ -671,7 +671,7 @@ export function mastKoerper(o) {
    * (Breite 0.30 m) - die Steifigkeit steht im Stabwerk, nicht im Bild.
    */
   const ub = o.unterbau?.an ? o.unterbau : null;
-  const hU = ub ? (Number(ub.hoehe) > 0 ? Number(ub.hoehe) : Number(o.fuss) || 0) : 0;
+  const hU = ub ? (Math.abs(Number(ub.hoehe)) > 0 ? Math.abs(Number(ub.hoehe)) : Number(o.fuss) || 0) : 0;
   if (ub && hU > 0) {
     const d = 0.3;
     const opt = (t) => ({ gruppe: 'mast', teil: `UNTERBAU_${name}`, label: t });

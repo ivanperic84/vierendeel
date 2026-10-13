@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-10-13',
+    punkte: [
+      { text: 'Mast auf Perrondach: die Höhe des Mastfusses über Terrain nimmt auch negative Werte; die Stütze ist so lang wie der Betrag (−3 m rechnet wie 3 m). 0 heisst weiter: der Fussversatz des Masten.' },
+    ],
+  },
+  {
     datum: '2026-10-12',
     punkte: [
       { text: 'Mast auf Perrondach auch mit dem Rechenverfahren Ersatzbalken: der Unterbau wirkt als nachgiebiger Fuss - die Drehfeder am Jochende wird kleiner, und die Verformung des Masten enthält die Bewegung des Fusses. Die Kräfte am Übergang stehen in der Tabelle der Reaktionskräfte.', rechnung: true },

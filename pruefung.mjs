@@ -41661,6 +41661,23 @@ titel('273  Perrondach im Ersatzbalken: nachgiebiger Fuss (Drehfeder und Verform
   const sp = (v) => v.A.nachweise.find((n) => n.spitze && n.achse === 'y').wert;
   pruef('Mastspitze längs M1: Ersatzbalken ≈ Stabwerk (± 5 %)', sp(b.v), sp(b.h.verformung), 0.05, 'm');
   wahr('… und deutlich grösser als eingespannt', sp(b.v) > 2 * sp(a.v), `${(sp(a.v) * 1000).toFixed(1)} → ${(sp(b.v) * 1000).toFixed(1)} mm`);
+
+  titel('274  Perrondach: Höhe des Mastfusses mit Vorzeichen');
+  /*
+   * Weisung 12. Oktober: «Die perrondachstütze fuss höhe auch negative werte
+   * ermöglichen», auf Rückfrage «Höhe frei mit Vorzeichen»: die Stütze ist so
+   * lang wie der Betrag. −3 m muss also genau dasselbe rechnen wie +3 m.
+   */
+  const UD = await import(J('data.unterbau.js'));
+  pruef('unterbauHoehe(−3) = 3', UD.unterbauHoehe({ hoehe: -3 }, 0), 3, 1e-12, 'm');
+  pruef('… eingetragene −2 vor Fussversatz 4', UD.unterbauHoehe({ hoehe: -2 }, 4), 2, 1e-12, 'm');
+  pruef('… 0 / leer = Fussversatz', UD.unterbauHoehe({ hoehe: null }, 4), 4, 1e-12, 'm');
+  const wN = { ...w0, masten: C.mastenVon(w0).map((m, i) => (i === 0
+    ? { ...m, unterbau: { an: true, stuetze: 'HEB 260', hoehe: -3 } } : m)) };
+  const n = lauf(wN);
+  pruef('Drehfeder M1 mit −3 m = mit +3 m', n.e.modell.federn.mastA.cPhi, b.e.modell.federn.mastA.cPhi, 1e-12);
+  pruef('Mastspitze längs M1 (Ersatzbalken) mit −3 m = mit +3 m', sp(n.v), sp(b.v), 1e-12, 'm');
+  pruef('Mastspitze längs M1 (Stabwerk) mit −3 m = mit +3 m', sp(n.h.verformung), sp(b.h.verformung), 1e-9, 'm');
 }
 
 console.log('\n' + '='.repeat(104));

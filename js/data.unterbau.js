@@ -153,10 +153,12 @@ export function unterbauQuerschnitt(key, frei, rolle = 'S') {
 
 /**
  * Die Höhe der Stütze: eingetragen, sonst der Fussversatz des Masten.
- * null, wenn keine Höhe bekannt ist.
+ * null, wenn keine Höhe bekannt ist. Eine eingetragene Höhe darf negativ
+ * sein (12. Oktober, «Höhe frei mit Vorzeichen»): die Stütze ist so lang
+ * wie ihr Betrag und läuft vom Mastfuss nach unten.
  */
 export function unterbauHoehe(u, fuss) {
-  const h = Number(u?.hoehe);
+  const h = Math.abs(Number(u?.hoehe));
   if (h > 0) return h;
   const f = Number(fuss);
   return f > 0 ? f : null;
