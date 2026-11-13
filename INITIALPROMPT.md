@@ -7,10 +7,10 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 13. November 2026 - hier weitermachen
 
-Prüfstand **7300** grün, Durchlauf ohne Bruch. Örtlich ein Commit vor `origin/main`: Durchsicht der
+Prüfstand **7300** grün, Durchlauf ohne Bruch. Alles gepusht (Weisung «ja pushen», 13. November): Durchsicht der
 Bedienung (Audit), Punkte 1 bis 4 gebaut - Leistenbreite, Sprungleiste mit einklappbaren Gruppen,
 Lastfälle als Fenster, Neues Querprofil in einem Dialog (CLAUDE.md, *Entschieden*, oberste Zeile).
-**Nicht gepusht**; pushen nur auf Weisung. Die Vorschläge 5 bis 10 des Audits stehen unter
+Für die weitere Arbeit gilt: pushen nur auf Weisung. Die Vorschläge 5 bis 10 des Audits stehen unter
 *Offene Punkte* und sind nicht beauftragt. Prüfseite ohne Speichern: `Versand/pruef_audit.html`
 (örtlich, über `serve.py`).
 
