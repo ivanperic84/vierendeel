@@ -137,6 +137,19 @@ export const el = (id) => document.getElementById(id);
  * Tabelle nicht offen halten, während man am Träger schraubt.
  */
 const KLAPP = new Map();
+// Die Gruppen der Eingabemaske («grp-…») behalten ihren Zustand ueber den
+// Neustart (13. November); alles uebrige gilt wie bisher fuer die Sitzung.
+const GRUPPEN_MERKER = 'tragjoch-gruppen';
+try {
+  Object.entries(JSON.parse(localStorage.getItem(GRUPPEN_MERKER) || '{}') || {})
+    .forEach(([k, v]) => { if (k.startsWith('grp-')) KLAPP.set(k, v === true); });
+} catch { /* ohne Speicher */ }
+const gruppenMerken = () => {
+  try {
+    localStorage.setItem(GRUPPEN_MERKER, JSON.stringify(Object.fromEntries(
+      [...KLAPP].filter(([k]) => k.startsWith('grp-')))));
+  } catch { /* ohne Speicher */ }
+};
 
 /**
  * Wer erfahren will, ob ein Abschnitt auf- oder zugeklappt wurde.
@@ -156,6 +169,7 @@ export function verdrahteKlapp(node) {
     d.dataset.klappVerdrahtet = '1';
     d.addEventListener('toggle', () => {
       KLAPP.set(k, d.open);
+      if (k.startsWith('grp-')) gruppenMerken();
       beiKlappWechsel?.(k, d.open);
     });
   });
@@ -677,16 +691,31 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
   const gruppen = gruppenFuer(tab, werte);
   // «Werte bearbeiten» der Lasten nur an der ersten Gruppe, die Tabellenlasten führt.
   let lastKnopfDa = false;
-  container.innerHTML = gruppen.map((gid) => {
+  /*
+   * >>> SPRUNGLEISTE UND EINKLAPPBARE GRUPPEN (13. November). <<<
+   * Durchsicht der Bedienung, Punkt 2 («2 bis 4 der reihe nach bauen»):
+   * gemessen war der Reiter System 2787 px hoch bei 667 px Fenster, Lasten
+   * 3317 px. Jede Gruppe steht jetzt in einem Block mit Namen; die Leiste
+   * oben springt hin, und die gewoehnlichen Gruppen lassen sich am Titel
+   * zuklappen (Vorgabe offen, der Zustand bleibt im Browser gemerkt).
+   */
+  const bloecke = [];
+  const block = (gid, titel, html) => {
+    if (!html) return '';
+    bloecke.push({ gid, titel });
+    return `<section class="grp-block" data-grp="${esc(gid)}">${html}</section>`;
+  };
+  const koerper = gruppen.map((gid) => {
     const g = GRUPPEN.find((x) => x.id === gid);
     if (!g) return '';
+    const gTitel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
     const zusatz = extras[gid] ? `<div data-extra="${gid}">${extras[gid]}</div>` : '';
-    if (gid === 'anbau') return anbauteileHtml(g, werte) + zusatz;
-    if (gid === 'havarie') return havarieHtml(g, werte) + zusatz;
+    if (gid === 'anbau') return block(gid, gTitel, anbauteileHtml(g, werte) + zusatz);
+    if (gid === 'havarie') return block(gid, gTitel, havarieHtml(g, werte) + zusatz);
     const felder = sichtbareFelder(gid, werte);
     // Eine Gruppe kann ohne eigenes Eingabefeld auskommen und nur aus einem
     // Zusatzstück bestehen - die Lastfallmatrix ist so ein Fall.
-    if (!felder.length) return zusatz;
+    if (!felder.length) return block(gid, gTitel, zusatz);
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
                 : felder.some((f) => f.ausLast) && !lastKnopfDa
                   ? ((lastKnopfDa = true), lastenKnopf(werte)) : '';
@@ -750,10 +779,35 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     // Der Titel kann je Tragwerksart ein anderer sein (28. September).
     const titel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
     if (g.zugeklappt) {
-      return klapp(`gruppe-${gid}`, titel, inhalt, `${felder.length}`, false);
+      return block(gid, titel, klapp(`gruppe-${gid}`, titel, inhalt, `${felder.length}`, false));
     }
-    return abschnitt(titel, knopf) + inhalt;
+    return block(gid, titel, `<details class="grp" data-klapp="grp-${esc(gid)}" open>
+      <summary class="sec grp-kopf" title="Gruppe auf- oder zuklappen"><span class="grp-t">${esc(titel)}</span>${
+        knopf ? `<span class="sec-r">${knopf}</span>` : ''}</summary>
+      <div class="grp-koerper">${inhalt}</div></details>`);
   }).join('');
+  const sprung = bloecke.length >= 3
+    ? `<nav class="sprung" aria-label="Gruppen dieses Reiters">${
+        bloecke.map((b) => `<button type="button" class="sprung-chip" data-sprung="${esc(b.gid)}">${esc(b.titel)}</button>`).join('')
+      }<button type="button" class="sprung-chip sprung-alle" data-sprung-alle
+          title="Alle Gruppen dieses Reiters zu- oder aufklappen">alle zu / auf</button></nav>`
+    : '';
+  container.innerHTML = sprung + koerper;
+  container.querySelectorAll('[data-sprung]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const ziel = container.querySelector(`[data-grp="${CSS.escape(b.dataset.sprung)}"]`);
+      if (!ziel) return;
+      const d = ziel.querySelector(':scope > details');
+      if (d && !d.open) d.open = true;
+      ziel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  });
+  container.querySelector('[data-sprung-alle]')?.addEventListener('click', () => {
+    const alle = [...container.querySelectorAll('details.grp')];
+    const auf = alle.every((d) => !d.open);
+    alle.forEach((d) => setzeKlapp(d.dataset.klapp, auf));
+    if (!auf) container.scrollTop = 0;
+  });
 
   verdrahteHavarie(container, werte, onChange);
   container.querySelectorAll('[data-feld]').forEach((inp) => {
@@ -10851,6 +10905,34 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
           title="${k.eigen ? 'Lastfall entfernen' : 'Anpassung zurücknehmen'}">×</button>` : ''}
       </td>
     </tr>`;
+
+  /*
+   * >>> IN DER LEISTE NUR DIE KURZFASSUNG (13. November). <<<
+   * Durchsicht der Bedienung, Punkt 3: die Tabelle brauchte 371 px in einem
+   * 205 bis 346 px breiten Rahmen, die Namen brachen auf fuenf Zeilen um.
+   * `opt.kurz`: die vier hoechsten Faelle mit eta (anklickbar wie die Zeile
+   * der Tabelle) und ein Knopf zum Fenster mit der ganzen Tabelle.
+   */
+  if (opt.kurz) {
+    const nr = new Map(kombi.lastfaelle.map((k, i) => [k, i + 1]));
+    const oben = kombi.lastfaelle.filter((k) => k.nachweis && Number.isFinite(etaVon(k)))
+      .sort((a, b) => etaVon(b) - etaVon(a)).slice(0, 4);
+    const angepasst = kombi.lastfaelle.filter((k) => k.angepasst || k.eigen).length;
+    return `
+    ${abschnitt('Lastfälle', satz)}
+    <div class="lf-kurz">${oben.map((k) => `
+      <button type="button" class="lf-kurzzeile${massg(k) ? ' aktiv' : ''}" data-lf-wahl="${esc(k.key)}"
+          title="Anklicken: diesen Lastfall im 3D, oben und rechts zeigen">
+        <span class="lf-kurz-n">LF${nr.get(k)} · ${esc(k.bez)}${massg(k) ? ' · <b>massgebend</b>' : ''}</span>
+        <span class="lf-kurz-eta ${ampel(etaVon(k))}">${f3(etaVon(k))}</span>
+      </button>`).join('')}
+    </div>
+    <div class="lf-fuss">
+      <button class="btn" data-lf-fenster type="button"
+        title="Ganze Tabelle mit Beiwerten je Lastfall, anpassen, eigene Lastfälle">Alle ${kombi.lastfaelle.length} Lastfälle und Beiwerte …</button>
+      <span class="notiz">η aus: ${esc(quelle)}${angepasst ? ` · ${angepasst} angepasst oder eigen` : ''}</span>
+    </div>`;
+  }
 
   return `
     ${abschnitt('Lastfälle', satz)}

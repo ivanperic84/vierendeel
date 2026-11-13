@@ -6596,7 +6596,7 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
     wahr('Wird das Fenster schmaler, geben die Schubladen nach',
          /addEventListener\('resize'/.test(aq));
     wahr('Eingeklappte Seiten bleiben dabei eingeklappt',
-         /if \(!(app\.)?zuSeite\.links\) setzeSeite/.test(aq));
+         aq.includes('vonHandZu.links ? SCHIENE : wunschVon'));
   }
 
   // --- Nach dem Ein- und Ausfahren lief das Joch aus dem Bild --------------
@@ -24890,8 +24890,8 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
   wahr('Projekt und Tragwerk sind Auswahlfelder',
        aq70.includes('id="bs-projekt"') && aq70.includes('id="bs-tragwerk"')
        && aq70.includes('+ Neues Projekt') && aq70.includes('+ Als neuen Eintrag speichern (Stand bleibt)')
-       // 8. Oktober: zwei gleich benannte «Neues Tragwerk» - der Knopf heisst «Neues Querprofil (leer)».
-       && aq70.includes('Neues Querprofil (leer)') && !aq70.includes('+ Neues Tragwerk</option>'));
+       // 8. Oktober: zwei gleich benannte «Neues Tragwerk»; seit dem 13. November heisst der Knopf «Neues Querprofil».
+       && aq70.includes("${icon('neu', 13)} Neues Querprofil</button>") && !aq70.includes('+ Neues Tragwerk</option>'));
   wahr('Die Ablage ist eine Tabelle mit Suche und Sortierung',
        aq70.includes('class="ab-tabelle"') && aq70.includes('id="bs-suche"')
        && aq70.includes('id="bs-sort"'));
@@ -39161,8 +39161,8 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
   wahr('Längsanker im 3D ziehbar', /beiLaengsankerZiehen/.test(r3) && /beiLaengsankerZiehen: \(d\) =>/.test(app238));
   wahr('Lastfalltabelle: eine Zeile wählt den Fall', /data-lf-wahl/.test(readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'))
        && /app\.anzeigeKombi = z\.dataset\.lfWahl/.test(app238));
-  wahr('Neues Tragwerk aus der Projektablage öffnet den Parameterdialog', /dialogTragwerk\(app, t0\.id, null, \{ grundwerte: true \}\)/.test(app238));
-  wahr('Startdialog: Vorlage «Abfangjoch mit Anker»', /value="abfangjoch-anker"/.test(app238) && /function abfangjochMitAnker/.test(app238));
+  wahr('Neues Tragwerk aus der Projektablage öffnet den Parameterdialog', /dialogTragwerk\(app, t0\.id, null, \{ grundwerte: true, blatt: opt\.blatt \?\? null \}\)/.test(app238));
+  wahr('Startdialog: Vorlage «Abfangjoch mit Anker»', /data-tw-vorlage="abfangjoch-anker"/.test(readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8')) && /function abfangjochMitAnker/.test(app238));
   wahr('Duplizieren fragt, wohin (dieselben Masten oder daneben)', /name="kopie-wo" value="hoehe"/.test(kq));
   wahr('Kontextmenü: Art und Neues Tragwerk als Auswahl', /label: 'Art', wert: tragwerksart\(t\)\.key/.test(kq)
        && /label: `Neu bei x/.test(kq) && !/Art wechseln auf: \$\{a\.label\}/.test(kq));
@@ -41678,6 +41678,72 @@ titel('273  Perrondach im Ersatzbalken: nachgiebiger Fuss (Drehfeder und Verform
   pruef('Drehfeder M1 mit −3 m = mit +3 m', n.e.modell.federn.mastA.cPhi, b.e.modell.federn.mastA.cPhi, 1e-12);
   pruef('Mastspitze längs M1 (Ersatzbalken) mit −3 m = mit +3 m', sp(n.v), sp(b.v), 1e-12, 'm');
   pruef('Mastspitze längs M1 (Stabwerk) mit −3 m = mit +3 m', sp(n.h.verformung), sp(b.h.verformung), 1e-9, 'm');
+}
+
+titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fenster, Neues Querprofil');
+/* 13. November: «mit 1 anfangen und danach 2 bis 4 der reihe nach bauen»
+ * (Audit von Darstellung, Funktionalität und Workflow). */
+{
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const AQ = APP_QUELLE();
+  const DQ = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  const OQ = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+
+  // 1 Leistenbreite: Wunsch je Seite, Start und Grössenänderung über dieselbe Regel.
+  wahr('Leisten: Wunschbreite je Seite (gemerkt, sonst rund ein Viertel des Fensters, 386 … 460 px)',
+       LQ.includes("const LEISTEN_MERKER = 'tragjoch-leisten'") && /Math\.max\(386, Math\.min\(460, v\)\)/.test(LQ));
+  wahr('Leisten: Start und Grössenänderung rechnen beide über `verteile` (auch wieder breiter)',
+       /\(\{ l: links, r: rechts \} = verteile\(\)\);/.test(LQ)
+       && /addEventListener\('resize', \(\) => \{\s*const v = verteile\(\);/.test(LQ));
+  wahr('Leisten: gezogene Breite wird gemerkt, von Hand eingeklappt bleibt eingeklappt',
+       /if \(v >= ARBEITSBREITE\) merken\(seite, v\);/.test(LQ) && LQ.includes('vonHandZu[seite] = true'));
+
+  // 2 Sprungleiste und einklappbare Gruppen.
+  wahr('Maske: jede Gruppe als Block, Sprungleiste ab drei Blöcken',
+       UQ.includes('class="grp-block" data-grp=') && /bloecke\.length >= 3/.test(UQ) && UQ.includes('data-sprung-alle'));
+  wahr('Maske: gewöhnliche Gruppen einklappbar, Vorgabe offen, Zustand im Browser gemerkt',
+       UQ.includes('<details class="grp" data-klapp="grp-${esc(gid)}" open>')
+       && UQ.includes("const GRUPPEN_MERKER = 'tragjoch-gruppen'") && UQ.includes("if (k.startsWith('grp-')) gruppenMerken();"));
+  wahr('Sprung auf ein Feld öffnet eine zugeklappte Gruppe',
+       /for \(let d = el\.closest\('details'\); d; d = d\.parentElement\?\.closest\('details'\)\)/.test(LQ));
+  wahr('Stilregeln der Sprungleiste vorhanden', CQ.includes('.sprung-chip') && CQ.includes('details.grp > summary'));
+
+  // 3 Lastfälle: Kurzfassung in der Leiste, Tabelle im Fenster.
+  const U275 = await import(J('ui.js'));
+  const lf = (key, eta, o = {}) => ({ key, bez: `Fall ${key}`, nachweis: true, eta, beiwerte: { G: 1.3 }, ...o });
+  const kombi = { einwirkungen: [{ key: 'G', label: 'Ständig' }],
+    lastfaelle: [lf('a', 0.2, { nachweis: false }), lf('b', 0.4), lf('c', 0.9, { istMassgebend: true }),
+                 lf('d', 0.6), lf('e', 0.1), lf('f', 0.5), lf('g', 0.3)] };
+  const kurz = U275.kombiMatrixHtml(kombi, null, { kurz: true });
+  const voll = U275.kombiMatrixHtml(kombi, null, {});
+  const zeilen = [...kurz.matchAll(/data-lf-wahl="(\w)"/g)].map((m) => m[1]).join('');
+  wahr('Lastfälle kurz: die vier höchsten Nachweisfälle nach η, ohne Tabelle, mit Knopf zum Fenster',
+       zeilen === 'cdfb' && !kurz.includes('<table') && kurz.includes('data-lf-fenster')
+       && kurz.includes('Alle 7 Lastfälle'), zeilen);
+  wahr('Lastfälle kurz: der massgebende Fall ist bezeichnet', /data-lf-wahl="c"[\s\S]*?massgebend/.test(kurz));
+  wahr('Lastfälle voll: Tabelle mit allen Zeilen wie bisher',
+       voll.includes('<table class="dt kombi">') && [...voll.matchAll(/data-lf-wahl=/g)].length === 7);
+  wahr('Leiste zeigt die Kurzfassung, das Fenster die ganze Tabelle',
+       /komb: ui\.kombiMatrixHtml\(letzte\.kombi, erkenneNormensatz\(werte\),\s*\{ kurz: true,/.test(AQ)
+       && AQ.includes('lastfallTabelle: () =>') && OQ.includes('function dialogLastfaelle(app)'));
+  wahr('Fenster kommt nach Anpassen oder Entfernen eines Lastfalls wieder',
+       OQ.includes('function dialogLastfall(app, key, zurueck = null)') && OQ.includes('entferneLastfall(app, b.dataset.lfWeg); zurueck?.();'));
+
+  // 4 Neues Querprofil in einem Dialog.
+  wahr('Neues Querprofil: kein Vorlagen-Dialog mehr davor, der Tragwerksdialog stellt das Blatt ein',
+       !AQ.includes('Womit soll begonnen werden?') && /dialogTragwerk\(app, t0\.id, null, \{ grundwerte: true, blatt: opt\.blatt \?\? null \}\)/.test(AQ));
+  wahr('Neues Querprofil: Abbrechen stellt den bisherigen Stand wieder her',
+       AQ.includes('werte = vorher.werte; projekt = vorher.projekt;') && AQ.includes('opt.beiZu?.();')
+       && DQ.includes('beiZu: () => { if (blatt && !blattBleibt) blatt.abbrechen(); }'));
+  wahr('Neues Querprofil: Wahl «ohne Beispiel-Anbauteile», im Browser gemerkt',
+       DQ.includes('id="dlg-tw-ohne"') && AQ.includes("const NEU_OHNE_TEILE = 'tragjoch-neu-ohne-teile'")
+       && AQ.includes('else if (opt.ohneTeile) werte = setzeAnbauteileAn(werte, []);'));
+  wahr('Neues Querprofil: Vorlage «Abfangjoch mit Anker» im selben Dialog',
+       DQ.includes('data-tw-vorlage="abfangjoch-anker"'));
+  wahr('Knopf der Ablage heisst «Neues Querprofil»',
+       !readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes('Neues Querprofil (leer)'));
 }
 
 console.log('\n' + '='.repeat(104));

@@ -456,7 +456,7 @@ export async function zeichneSchublade(app) {
   n.innerHTML = `
     <div class="bs-kopf">
       <button class="btn" data-neu
-        title="Beginnt ein leeres Querprofil aus einer Vorlage - der jetzige Stand wird ersetzt">${icon('neu', 13)} Neues Querprofil (leer)</button>
+        title="Beginnt ein neues Querprofil (Art, Typ, Länge, Grundwerte in einem Dialog) - ersetzt den jetzigen Stand, Abbrechen stellt ihn wieder her">${icon('neu', 13)} Neues Querprofil</button>
       <button class="btn btn-acc" data-speichern>${icon('speichern', 13)} ${app.projekt.id ? 'Speichern' : 'In Ablage speichern'}</button>
       <button class="btn btn-mini bs-zu" data-zu>Schliessen</button>
     </div>
@@ -556,7 +556,7 @@ export async function zeichneSchublade(app) {
       // Wie in BlockCalc: der Stand bleibt, er wird beim Speichern ein
       // NEUER Eintrag in diesem Projekt.
       // Umbenannt am 8. Oktober («Es gibt zwei Neues Tragwerk buttons»): der
-      // Knopf oben beginnt leer («Neues Querprofil (leer)»), diese Wahl löst
+      // Knopf oben beginnt ein neues Blatt («Neues Querprofil»), diese Wahl löst
       // nur vom Eintrag («Als neuen Eintrag speichern (Stand bleibt)»).
       app.projekt = { ...app.projekt, id: null, name: `Neues ${tragwerksart(app.werte).label}` };
       app.ungesichert = true;

@@ -3658,3 +3658,47 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
   background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 11.5px; color: var(--on); }
 .rh-info.nok { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 9%, transparent); }
 .rh-info ul { margin: 3px 0 3px 16px; padding: 0; } .rh-info span { color: var(--on2); font-size: 10.5px; }
+
+/* --- Sprungleiste und einklappbare Gruppen der Eingabemaske (13. November) --- */
+.sprung {
+  position: sticky; top: -4px; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px;
+  margin: 0 -12px 2px; padding: 8px 12px 6px; background: var(--s1);
+  border-bottom: 1px solid var(--ol);
+}
+.sprung-chip {
+  font: 600 10px var(--f-ui); color: var(--on2); background: var(--s2);
+  border: 1px solid var(--ol); border-radius: 999px; padding: 3px 9px; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sprung-chip:hover { background: var(--acc-s); color: var(--acc); border-color: var(--acc); }
+.sprung-alle { margin-left: auto; color: var(--dim); font-weight: 400; }
+.grp-block { scroll-margin-top: 78px; }
+details.grp > summary { list-style: none; cursor: pointer; user-select: none; }
+details.grp > summary::-webkit-details-marker { display: none; }
+details.grp > summary .grp-t::before {
+  content: ''; display: inline-block; width: 0; height: 0; margin-right: 6px;
+  border-left: 4px solid currentColor; border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent; transition: transform var(--t-schnell);
+}
+details.grp[open] > summary .grp-t::before { transform: rotate(90deg); }
+details.grp > summary:hover .grp-t { color: var(--on); }
+details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
+@media print { .sprung { display: none; } }
+
+/* --- Lastfaelle: Kurzfassung in der Leiste, Tabelle im Fenster (13. November) --- */
+.lf-kurz { display: grid; gap: 4px; margin: 4px 0 8px; }
+.lf-kurzzeile {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  font: 11px var(--f-ui); color: var(--on2); background: var(--s2);
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 6px 9px; cursor: pointer;
+}
+.lf-kurzzeile:hover { background: var(--s3); color: var(--on); }
+.lf-kurzzeile.aktiv { border-color: var(--acc); }
+.lf-kurz-n { flex: 1; min-width: 0; }
+.lf-kurz-eta { font: 600 12px var(--f-mono); }
+.lf-kurz-eta.ok { color: var(--ok); } .lf-kurz-eta.warn { color: var(--warn); }
+.lf-kurz-eta.fail { color: var(--fail); }
+.dialog-lf { width: min(1040px, 100%); max-height: 90vh; }
+.dialog-lf .sec:first-child { margin-top: 2px; }
+.dialog-lf .lf-zeile { cursor: pointer; }
+.dialog-lf .lf-zeile.gewaehlt > td:first-child { box-shadow: inset 3px 0 0 var(--acc); }

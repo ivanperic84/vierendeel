@@ -780,8 +780,24 @@ export function verdrahteExtras(app) {
   verdrahteLastfaelle(app);
 }
 
-function verdrahteLastfaelle(app) {
-  const n = ui.el('maske');
+/**
+ * FENSTER MIT DER GANZEN LASTFALLTABELLE (13. November, Durchsicht der
+ * Bedienung, Punkt 3). Eine Zeile waehlt den Lastfall, das Fenster bleibt
+ * offen; nach dem Anpassen oder Entfernen eines Lastfalls kommt es wieder.
+ */
+function dialogLastfaelle(app) {
+  const html = app.lastfallTabelle();
+  if (!html) return;
+  const d = app.dialog('Lastfälle und Beiwerte', html,
+    '<button class="btn btn-acc" data-zu>Fertig</button>', 'dialog-lf');
+  verdrahteLastfaelle(app, d.node, () => dialogLastfaelle(app));
+}
+
+function verdrahteLastfaelle(app, knoten = null, zurueck = null) {
+  const n = knoten ?? ui.el('maske');
+  n.querySelectorAll('[data-lf-fenster]').forEach((b) => {
+    b.onclick = () => dialogLastfaelle(app);
+  });
   /*
    * >>> EINE ZEILE WAEHLT DEN LASTFALL (6. Oktober). <<< Weisung im Wortlaut:
    * «Anklicken der lastfälle aus der tabelle in der sidebar ermöglichen. Im
@@ -794,16 +810,20 @@ function verdrahteLastfaelle(app) {
       if (e.target.closest('button')) return;
       app.anzeigeKombi = z.dataset.lfWahl;
       app.neuRechnen(false);
+      // Im Fenster zeigt die Zeile, was gewaehlt ist (die Tabelle bleibt stehen).
+      if (knoten) {
+        n.querySelectorAll('[data-lf-wahl]').forEach((x) => x.classList.toggle('gewaehlt', x === z));
+      }
     };
   });
   n.querySelectorAll('[data-lf]').forEach((b) => {
-    b.onclick = () => dialogLastfall(app, b.dataset.lf);
+    b.onclick = () => dialogLastfall(app, b.dataset.lf, zurueck);
   });
   n.querySelectorAll('[data-lf-neu]').forEach((b) => {
-    b.onclick = () => dialogLastfall(app, null);
+    b.onclick = () => dialogLastfall(app, null, zurueck);
   });
   n.querySelectorAll('[data-lf-weg]').forEach((b) => {
-    b.onclick = () => entferneLastfall(app, b.dataset.lfWeg);
+    b.onclick = () => { entferneLastfall(app, b.dataset.lfWeg); zurueck?.(); };
   });
 }
 
@@ -824,7 +844,7 @@ function entferneLastfall(app, key) {
 }
 
 /** Beiwerte eines Lastfalls anpassen, oder einen neuen anlegen (key = null). */
-function dialogLastfall(app, key) {
+function dialogLastfall(app, key, zurueck = null) {
   if (!app.letzte) return;
   const ein = app.letzte.kombi.einwirkungen;
   const alle = lastfaelle(app.werte);
@@ -862,7 +882,8 @@ function dialogLastfall(app, key) {
     }
     d.zu();
     app.neuRechnen();
+    zurueck?.();
   };
   const std = d.node.querySelector('[data-std]');
-  if (std) std.onclick = () => { d.zu(); entferneLastfall(app, key); };
+  if (std) std.onclick = () => { d.zu(); entferneLastfall(app, key); zurueck?.(); };
 }

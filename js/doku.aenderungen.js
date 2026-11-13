@@ -12,6 +12,15 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-13',
+    punkte: [
+      { text: 'Seitenleisten: die Breite richtet sich nach dem Fenster (rund ein Viertel, 386 bis 460 px) und wächst wieder mit, wenn das Fenster breiter wird - vorher blieben sie schmal, sobald das Fenster einmal klein war. Eine gezogene Breite bleibt über den Neustart gemerkt.' },
+      { text: 'Eingabemasken: oben eine Sprungleiste mit den Gruppen des Reiters; jede Gruppe lässt sich an ihrem Titel zuklappen («alle zu / auf» für alle), der Zustand bleibt gemerkt.' },
+      { text: 'Lastfälle: im Reiter Lasten stehen die vier höchsten Lastfälle mit η (anklicken zeigt den Fall); die ganze Tabelle mit Beiwerten, Anpassen und eigenen Lastfällen öffnet der Knopf «Alle … Lastfälle und Beiwerte» als Fenster.' },
+      { text: 'Neues Querprofil in einem Dialog: Art, Typ, Länge, Höhe und Grundwerte zusammen, dazu die Wahl «ohne Beispiel-Anbauteile» und die Vorlage «Abfangjoch mit Anker». «Abbrechen» stellt den bisherigen Stand wieder her.' },
+    ],
+  },
+  {
     datum: '2026-10-13',
     punkte: [
       { text: 'Mast auf Perrondach: die Höhe des Mastfusses über Terrain nimmt auch negative Werte; die Stütze ist so lang wie der Betrag (−3 m rechnet wie 3 m). 0 heisst weiter: der Fussversatz des Masten.' },

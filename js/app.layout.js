@@ -711,6 +711,10 @@ export function zeigeFeld(app, key) {
      * dann den Anker lösen, dann rollen - der Neuaufbau behält danach die
      * Rollstellung des Reiters.
      */
+    // Liegt das Feld in einer zugeklappten Gruppe, geht sie auf (13. November).
+    for (let d = el.closest('details'); d; d = d.parentElement?.closest('details')) {
+      if (!d.open) d.open = true;
+    }
     if (!el.disabled) el.focus({ preventScroll: true });
     app.maskenAnkerLoesen?.();
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -772,15 +776,6 @@ export function baueLayout(app) {
     Math.max(2 * SCHIENE,
              document.documentElement.clientWidth - 2 * SPLIT_PX - modellMin());
 
-  let links = 386, rechts = 380;
-  // Auf schmalen Fenstern beide Schubladen im Verhältnis zurücknehmen, statt
-  // der Mitte zu lassen, was übrig bleibt.
-  const frei = platzFuerSchubladen();
-  if (links + rechts > frei) {
-    const f = frei / (links + rechts);
-    links = Math.max(SCHIENE, Math.round(links * f));
-    rechts = Math.max(SCHIENE, Math.round(rechts * f));
-  }
   /*
    * >>> ENTWEDER BREIT GENUG ZUM ARBEITEN ODER EINGEKLAPPT. <<<
    *
@@ -800,21 +795,67 @@ export function baueLayout(app) {
    */
   const ARBEITSBREITE = 260;
   /*
-   * ERST DIE RECHTE EINKLAPPEN, NICHT BEIDE. Reicht der Platz fuer zwei
-   * Schubladen nicht, bekommt die Eingabe ihn allein - die rechte Schiene
-   * zeigt die Hauptnachweise ja weiter.
+   * WUNSCHBREITE JE SEITE (13. November, Durchsicht der Bedienung, Punkt 1:
+   * «mit 1 anfangen …» - Seitenleisten mit dem Schirm wachsen lassen).
+   *
+   * Bisher standen feste 386 / 380 px da, und ein schmal gewordenes Fenster
+   * nahm die Schubladen zurueck, ein wieder breites gab ihnen nichts zurueck:
+   * gemessen 245 / 241 px bei 1440 px Fensterbreite, nachdem das Fenster
+   * einmal 887 px breit war - die Lastfalltabelle brauchte 371 px in 205.
+   * Jetzt gibt es je Seite einen WUNSCH: was der Benutzer gezogen hat
+   * (gemerkt im Browser), sonst rund ein Viertel der Fensterbreite zwischen
+   * 386 und 460 px. `einpassen` rechnet bei Start UND bei jeder
+   * Groessenaenderung vom Wunsch aus - nach unten wie nach oben.
    */
-  if (links < ARBEITSBREITE || rechts < ARBEITSBREITE) {
-    const nurLinks = Math.min(386, frei - SCHIENE);
-    if (nurLinks >= ARBEITSBREITE) { links = nurLinks; rechts = SCHIENE; }
-  }
-  if (links < ARBEITSBREITE) links = SCHIENE;
-  if (rechts < ARBEITSBREITE) rechts = SCHIENE;
+  const LEISTEN_MERKER = 'tragjoch-leisten';
+  const vorgabe = (seite) => {
+    const vw = document.documentElement.clientWidth;
+    const v = Math.round(0.24 * vw);
+    return seite === 'links' ? Math.max(386, Math.min(460, v)) : Math.max(380, Math.min(450, v));
+  };
+  const gemerkt = (() => {
+    try { return JSON.parse(localStorage.getItem(LEISTEN_MERKER) || '{}') || {}; } catch { return {}; }
+  })();
+  const wunschVon = (seite) => {
+    const g = Number(gemerkt[seite]);
+    return Number.isFinite(g) && g >= 260 && g <= 640 ? g : vorgabe(seite);
+  };
+  const merken = (seite, v) => {
+    gemerkt[seite] = v;
+    try { localStorage.setItem(LEISTEN_MERKER, JSON.stringify(gemerkt)); } catch { /* ohne Speicher */ }
+  };
+  // Von Hand eingeklappt bleibt eingeklappt - das war eine Entscheidung.
+  const vonHandZu = { links: false, rechts: false };
+  let links = wunschVon('links'), rechts = wunschVon('rechts');
+  /**
+   * Breiten aus Wunsch und Platz. Entweder breit genug zum Arbeiten oder
+   * eingeklappt (siehe ARBEITSBREITE unten).
+   */
+  const verteile = () => {
+    let l = vonHandZu.links ? SCHIENE : wunschVon('links');
+    let r = vonHandZu.rechts ? SCHIENE : wunschVon('rechts');
+    const frei = platzFuerSchubladen();
+    const offenL = vonHandZu.links ? 0 : l, offenR = vonHandZu.rechts ? 0 : r;
+    const fest = (vonHandZu.links ? SCHIENE : 0) + (vonHandZu.rechts ? SCHIENE : 0);
+    if (offenL + offenR + fest > frei && offenL + offenR > 0) {
+      const f = Math.max(0, frei - fest) / (offenL + offenR);
+      if (!vonHandZu.links) l = Math.max(SCHIENE, Math.round(l * f));
+      if (!vonHandZu.rechts) r = Math.max(SCHIENE, Math.round(r * f));
+    }
+    if (!vonHandZu.links && !vonHandZu.rechts && (l < ARBEITSBREITE || r < ARBEITSBREITE)) {
+      const nurLinks = Math.min(wunschVon('links'), frei - SCHIENE);
+      if (nurLinks >= ARBEITSBREITE) { l = nurLinks; r = SCHIENE; }
+    }
+    if (l < ARBEITSBREITE) l = SCHIENE;
+    if (r < ARBEITSBREITE) r = SCHIENE;
+    return { l, r };
+  };
+  ({ l: links, r: rechts } = verteile());
   setze('--sp-links', links); setze('--sp-rechts', rechts);
 
   // Zuletzt offene Breite je Seite, damit das Einklappen umkehrbar bleibt
   // Beim Start eingeklappt: aufgeklappt wird auf die Vorgabebreite, nicht auf die Schiene.
-  const offen = { links: links > SCHIENE ? links : 386, rechts: rechts > SCHIENE ? rechts : 380 };
+  const offen = { links: links > SCHIENE ? links : wunschVon('links'), rechts: rechts > SCHIENE ? rechts : wunschVon('rechts') };
 
   const setzeSeite = (seite, v) => {
     if (seite === 'links') { links = v; setze('--sp-links', v); }
@@ -855,14 +896,19 @@ export function baueLayout(app) {
   const umschalten = (seite) => {
     const jetzt = seite === 'links' ? links : rechts;
     weich(() => {
-      if (jetzt <= SCHIENE + 8) setzeSeite(seite, offen[seite] || 386);
-      else { offen[seite] = jetzt; setzeSeite(seite, SCHIENE); }
+      if (jetzt <= SCHIENE + 8) {
+        vonHandZu[seite] = false;
+        const v = verteile();
+        const ziel = seite === 'links' ? v.l : v.r;
+        setzeSeite(seite, ziel > SCHIENE ? ziel : (offen[seite] || wunschVon(seite)));
+      } else { offen[seite] = jetzt; vonHandZu[seite] = true; setzeSeite(seite, SCHIENE); }
     });
   };
   // Von der Schiene aus wieder ausfahren, und zwar auf einen bestimmten Reiter.
   ausklappen = (seite) => {
     if (!app.zuSeite[seite]) return;
-    weich(() => setzeSeite(seite, offen[seite] || (seite === 'links' ? 386 : 380)));
+    vonHandZu[seite] = false;
+    weich(() => setzeSeite(seite, offen[seite] || wunschVon(seite)));
   };
 
   const zieher = (id, seite) => {
@@ -895,6 +941,12 @@ export function baueLayout(app) {
         g.removeEventListener('pointerup', ende);
         // Klick ohne Bewegung klappt den Bereich ein oder wieder aus
         if (!bewegt) umschalten(seite);
+        else {
+          // Gezogen: das ist der neue Wunsch dieser Seite, auch beim naechsten Start.
+          const v = seite === 'links' ? links : rechts;
+          vonHandZu[seite] = v <= SCHIENE + 8;
+          if (v >= ARBEITSBREITE) merken(seite, v);
+        }
       };
       g.addEventListener('pointermove', bewegen);
       g.addEventListener('pointerup', ende);
@@ -911,12 +963,11 @@ export function baueLayout(app) {
    * bleiben eingeklappt: das war eine Entscheidung des Benutzers.
    */
   window.addEventListener('resize', () => {
-    const platz = platzFuerSchubladen();
-    const offen = (app.zuSeite.links ? 0 : links) + (app.zuSeite.rechts ? 0 : rechts);
-    if (offen <= platz) return;
-    const f = platz / offen;
-    if (!app.zuSeite.links) setzeSeite('links', Math.max(SCHIENE, Math.round(links * f)));
-    if (!app.zuSeite.rechts) setzeSeite('rechts', Math.max(SCHIENE, Math.round(rechts * f)));
+    const v = verteile();
+    if (v.l !== links) setzeSeite('links', v.l);
+    if (v.r !== rechts) setzeSeite('rechts', v.r);
+    if (v.l > SCHIENE) offen.links = v.l;
+    if (v.r > SCHIENE) offen.rechts = v.r;
   });
 
   zeichneSchienen(app);

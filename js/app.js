@@ -244,6 +244,10 @@ const app = {
   artVorgabe: (...a) => artVorgabe(...a),
   // Gemeinsame Hilfen und Wege zurueck in die Verdrahtung.
   dialog: (...a) => dialog(...a),
+  // Ganze Lastfalltabelle fuer das Fenster (13. November, app.optionen.js).
+  lastfallTabelle: () => (letzte?.kombi ? ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
+    { stabwerk: kombiEtaStabwerk(),
+      vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }) : ''),
   handlung: (...a) => handlung(...a),
   meldeImBalken: (...a) => meldeImBalken(...a),
   diagrammSatz: (...a) => diagrammSatz(...a),
@@ -1599,7 +1603,7 @@ function neuRechnen(neuZeichnen = true) {
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
-                  { stabwerk: kombiEtaStabwerk(),
+                  { kurz: true, stabwerk: kombiEtaStabwerk(),
                     vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }),
           /*
            * >>> DIE BÜGELSCHRAUBEN SCHON BEI DER EINGABE (7. Oktober). <<<
@@ -6627,7 +6631,7 @@ function zoomAufTragwerk(id) {
   ansicht.zoomAuf(x0 + L / 2, null, Math.max(1, L / 2));
 }
 
-function dialog(titel, koerper, knoepfe, klasse = '') {
+function dialog(titel, koerper, knoepfe, klasse = '', opt = {}) {
   const n = ui.el('ueberlagerung');
   const meins = ++dialogLauf;
   n.classList.remove('zu');
@@ -6639,6 +6643,9 @@ function dialog(titel, koerper, knoepfe, klasse = '') {
   </div></div>`;
   const zu = () => {
     if (dialogLauf !== meins) return;      // längst ein anderer da
+    // Wer wissen muss, dass der Dialog zuging (13. November: Abbrechen eines
+    // neuen Querprofils stellt den alten Stand wieder her).
+    opt.beiZu?.();
     n.classList.add('zu');
     document.body.classList.remove('druck-handbuch');
     setTimeout(() => {
@@ -6871,25 +6878,38 @@ function dialogSpeichern() {
  * Tragwerksarten zur Wahl; die Warnung vor dem Verlust steht daneben, wo sie
  * hingehört, statt in einem Kasten des Browsers.
  */
+/*
+ * >>> EIN DIALOG STATT ZWEI (13. November). <<< Durchsicht der Bedienung,
+ * Punkt 4 («2 bis 4 der reihe nach bauen»): die Art wurde zweimal gefragt
+ * (erst hier, dann im Dialog des Tragwerks), und «leer» kam mit einem
+ * Anbauteil. Jetzt oeffnet der Knopf gleich den Dialog des Tragwerks fuer
+ * das neue Blatt - Art, Typ, Laenge, Hoehe, Grundwerte, dazu die Wahl mit
+ * oder ohne Beispielteile. Der neue Stand steht dabei schon im Bild;
+ * «Abbrechen» stellt den bisherigen wieder her.
+ */
+const NEU_OHNE_TEILE = 'tragjoch-neu-ohne-teile';
 function neuesTragjoch() {
-  const d = dialog('Neues Querprofil', `
-    <p>Womit soll begonnen werden? Der bisherige Stand geht verloren, wenn er
-       nicht gespeichert ist.</p>
-    <div class="feld"><label>Vorlage</label>
-      ${TRAGWERKSARTEN.map((a, i) => `<label class="schalter">
-        <input type="radio" name="vorlage" value="${esc(a.key)}"${i ? '' : ' checked'}>
-        <span><b>${esc(a.label)}</b> — ${esc(a.kurz)}</span></label>`).join('')}
-      <label class="schalter">
-        <input type="radio" name="vorlage" value="abfangjoch-anker">
-        <span><b>Abfangjoch mit Anker</b> — A160 12.00 m, zwei abgefangene Tragseile
-          N-FL in der Anordnung 3.50 – 4.50 – 3.50 m, Druckstütze längs an beiden Masten</span></label>
-    </div>`,
-    '<button class="btn btn-acc" data-los>Beginnen</button>');
-  d.node.querySelector('[data-los]').onclick = () => {
-    const art = d.node.querySelector('input[name="vorlage"]:checked').value;
-    d.zu();
-    beginneNeu(art);
+  let ohne = false;
+  try { ohne = localStorage.getItem(NEU_OHNE_TEILE) === '1'; } catch { /* kein Speicher */ }
+  const vorher = { werte, projekt, station, zeichnung: ansicht.zeichnung, ungesichert,
+                   gesicherteSignatur };
+  const zurueck = () => {
+    werte = vorher.werte; projekt = vorher.projekt; station = vorher.station;
+    ansicht.zeichnung = vorher.zeichnung;
+    neuRechnen();
+    gesicherteSignatur = vorher.gesicherteSignatur;
+    ungesichert = vorher.ungesichert;
+    zeigeSpeicherstand();
+    zeichneModellWerkzeuge(app);
+    ansicht.ganzesJoch();
+    meldeImBalken('Abgebrochen - der bisherige Stand steht wieder da.');
   };
+  const starte = (art, ohneTeile) => {
+    try { localStorage.setItem(NEU_OHNE_TEILE, ohneTeile ? '1' : '0'); } catch { /* kein Speicher */ }
+    beginneNeu(art, { ohneTeile,
+      blatt: { vorlage: art, ohneTeile, neu: starte, abbrechen: zurueck } });
+  };
+  starte('joch', ohne);
 }
 
 /*
@@ -6916,13 +6936,15 @@ function abfangjochMitAnker(w) {
   return w;
 }
 
-function beginneNeu(art) {
+function beginneNeu(art, opt = {}) {
   const mitAnker = art === 'abfangjoch-anker';
   if (mitAnker) art = 'abfangjoch';
   const bez = mitAnker ? 'Abfangjoch mit Anker'
     : TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
   werte = frisch(art);
   if (mitAnker) werte = abfangjochMitAnker(werte);
+  // «Ohne Beispielteile» (13. November): das Blatt beginnt wirklich leer.
+  else if (opt.ohneTeile) werte = setzeAnbauteileAn(werte, []);
   try {
     const b = localStorage.getItem(BEARBEITER);
     if (b) werte.bearbeiter = b;
@@ -6947,7 +6969,7 @@ function beginneNeu(art) {
    * Grundwerten des Blattes (EK, Spannweite, Radius).
    */
   const t0 = tragwerkeVon(werte)[0];
-  if (t0) dialogTragwerk(app, t0.id, null, { grundwerte: true });
+  if (t0) dialogTragwerk(app, t0.id, null, { grundwerte: true, blatt: opt.blatt ?? null });
 }
 
 /* ===========================================================================

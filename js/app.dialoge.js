@@ -845,21 +845,58 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         + 'Art — «J90» steht in keiner Abfangjoch-Liste.'}</p>`;
   };
 
-  const d = app.dialog(neuesTragwerk ? 'Neues Tragwerk'
+  /*
+   * NEUES QUERPROFIL (13. November): `vor.blatt` kommt von `neuesTragjoch` -
+   * das neue Blatt steht schon da, dieser Dialog stellt es ein. Art und
+   * Beispielteile beginnen das Blatt neu; zugehen ohne «Anlegen» stellt den
+   * bisherigen Stand wieder her.
+   */
+  const blatt = vor.blatt ?? null;
+  let blattBleibt = false;
+  const blattKopf = () => (blatt ? `
+    <p class="notiz" style="margin-top:0"><b>Ersetzt den jetzigen Stand.</b> «Abbrechen» stellt ihn
+      wieder her; gespeichert wird nichts von selbst.</p>
+    <div class="feld"><label>Vorlage</label>
+      <div class="dlg-wahl">
+        <label><input type="checkbox" id="dlg-tw-ohne"${blatt.ohneTeile ? ' checked' : ''}${
+          blatt.vorlage === 'abfangjoch-anker' ? ' disabled' : ''}> ohne Beispiel-Anbauteile (leeres Tragwerk)</label>
+        <button type="button" class="btn btn-mini${blatt.vorlage === 'abfangjoch-anker' ? ' an' : ''}"
+          data-tw-vorlage="abfangjoch-anker"
+          title="A160 12.00 m, zwei abgefangene Tragseile N-FL (3.50 – 4.50 – 3.50 m), Druckstütze längs an beiden Masten"
+          >Abfangjoch mit Anker</button>
+      </div></div>` : '');
+  const d = app.dialog(blatt ? 'Neues Querprofil' : neuesTragwerk ? 'Neues Tragwerk'
                                  : `${tragwerkName(t, app.werte)} bearbeiten`,
-    koerper(),
+    blattKopf() + koerper(),
     `<button class="btn" data-zu>Abbrechen</button>
      <button class="btn btn-acc" data-tw-ok>${
-       neuesTragwerk ? 'Setzen' : 'Übernehmen'}</button>`);
+       blatt ? 'Anlegen' : neuesTragwerk ? 'Setzen' : 'Übernehmen'}</button>`, '',
+    { beiZu: () => { if (blatt && !blattBleibt) blatt.abbrechen(); } });
 
   const neu = () => {
-    d.node.querySelector('.dialog-koerper').innerHTML = koerper();
+    d.node.querySelector('.dialog-koerper').innerHTML = blattKopf() + koerper();
     verdrahte();
   };
   function verdrahte() {
     const n = d.node;
+    if (blatt) {
+      // Art, Vorlage und Beispielteile beginnen das Blatt neu (derselbe Dialog kommt wieder).
+      const neuStart = (art, ohne) => { blattBleibt = true; blatt.neu(art, ohne); };
+      const oh = n.querySelector('#dlg-tw-ohne');
+      if (oh) oh.onchange = () => neuStart(blatt.vorlage, oh.checked);
+      n.querySelectorAll('[data-tw-vorlage]').forEach((b) => {
+        b.onclick = () => neuStart(blatt.vorlage === b.dataset.twVorlage ? 'abfangjoch' : b.dataset.twVorlage,
+                                   blatt.ohneTeile);
+      });
+    }
     n.querySelectorAll('[data-tw-art]').forEach((b) => {
       b.onclick = () => {
+        if (blatt) {
+          if (b.dataset.twArt !== e.art || blatt.vorlage === 'abfangjoch-anker') {
+            blattBleibt = true; blatt.neu(b.dataset.twArt, blatt.ohneTeile);
+          }
+          return;
+        }
         if (b.dataset.twArt === e.art) return;
         e = { ...e, art: b.dataset.twArt };
         /*
@@ -931,6 +968,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       r.onchange = () => { if (r.checked) e = { ...e, teileMit: r.value === 'mit' }; };
     });
     n.querySelector('[data-tw-ok]').onclick = () => {
+      blattBleibt = true;
       d.zu();
       if (!neuesTragwerk && grundwerteFragen) {
         if (e.ek !== String(app.werte.windKlasse ?? '0.9')) app.aendern('windKlasse', e.ek);
