@@ -39052,6 +39052,15 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
     wahr('… im 3D gezeichnet (Modell dann neutral) und über den Schalter «Linie» in den Resultaten',
          r3d.includes('_zustandMalen(c, proj, t)') && r3d.includes('const p = this.zustand ? null : PLOTS.find')
          && lay.includes("text('wz-r-linie', 'Linie'") && lay.includes('zustandLegendeHtml(app)'));
+  {
+    const lay2 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+    const css2 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const iR = lay2.indexOf("gruppe('resultate', 'Resultate', gR,");
+    wahr('Werkzeugleiste: Gruppen gleich breit, «Linie» abgesetzt zuoberst in Resultate (14. November)',
+         /\.wz-gruppe \{ width: 84px; box-sizing: border-box; \}/.test(css2) && css2.includes('.wz-s.wz-linie { grid-column: 1 / -1')
+         && iR > 0 && lay2.indexOf("text('wz-r-linie'", iR) > iR && lay2.indexOf("text('wz-r-linie'", iR) < lay2.indexOf("'wz-r-werte'", iR)
+         && lay2.includes("'class=\"wz-s wz-txt wz-linie'"));
+  }
     // Im Nachweisbericht (14. November, «Ja, Bericht»).
     const ZB = await import(J('export.zustandsbild.js'));
     const bmx = ZB.zustandSvg(a14.geo, [a14.f], { k: 'Mx', teile: 'mast', blick: 'laengs', klappen: true, reaktion: true });
@@ -39090,7 +39099,8 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
     wahr('… Bericht: Masten als Diagramm M_y quer / M_x längs mit Hülle, statt «|M| grösseres»',
          ber.includes('function mastMDiagramme(') && ber.includes("name: 'M_y quer zum Gleis'")
          && ber.includes("name: 'M_x längs zum Gleis'") && ber.includes("reihe(['sw-gurt', 'sw-kraft', 'sw-blech'])")
-         && !ber.includes("'sw-mast-schnitt']"));
+         && !ber.includes("'sw-mast-schnitt']")
+         && !ber.slice(ber.indexOf('function mastMDiagramme('), ber.indexOf('function berichtStabwerk(')).includes('band:'));
     wahr('… Zustandsbilder nur noch Gurte M_y und σ_v (keine Mastbilder, kein Gurt N)',
          !ber.includes("'Joch, vordere Gurte - Normalkraft N'") && !ber.includes("teile: 'mast', blick: 'laengs', reaktion: true")
          && !ber.includes("nebeneinander: true, reaktion: true") && ber.includes("k: 'My', teile: vorn"));

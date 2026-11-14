@@ -3731,6 +3731,15 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
   letter-spacing: .04em; background: var(--s2); opacity: .9; white-space: nowrap; }
 .wz-klapp:hover { opacity: 1; color: var(--on); }
 
+/* Werkzeuggruppen gleich breit, «Linie» abgesetzt über den Plotgrössen
+   (14. November, «diese boxen gleich breit machen. die funktion linien
+   separat aufführen, damit sichtbarer da wichtig.»). */
+.wz-gruppe { width: 84px; box-sizing: border-box; }
+.wz-gruppe .wz-knoepfe { justify-items: center; }
+.wz-s.wz-linie { grid-column: 1 / -1; width: 100%; height: 22px; margin: 1px 0 4px;
+  letter-spacing: .06em; font-size: 10px; }
+.wz-s.wz-linie:not(.on):not(.aus) { color: var(--on); border-color: var(--ol2); }
+
 /* Optionen: «Eingaben zurücksetzen» abgesetzt links, ein Schliessknopf im Kopf (14. November). */
 .dialog-fuss .opt-reset { order: -1; margin-right: auto; }
 

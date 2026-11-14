@@ -368,7 +368,8 @@ function lastBilder(sw) {
  * «Ja, so aufteilen»: statt «|M| (grösseres)» je Mast die beiden globalen
  * Biegemomente mit Vorzeichen - M_y (quer zum Gleis, um die Gleisachse)
  * und M_x (längs zum Gleis) -, je als Band der Hülle über die
- * Nachweisfälle; die Linie im Band ist der betragsgrössere Rand.
+ * Nachweisfälle; gezeichnet nur der betragsgrössere Rand, ohne Füllfläche
+ * (14. November, «hier die füllflächen weglassen»).
  * Dieselben Werte wie die Zustandslinien (core.zustandslinien.js).
  */
 function mastMDiagramme(sw, breite = 900) {
@@ -396,11 +397,11 @@ function mastMDiagramme(sw, breite = 900) {
     pkt.sort((a, b) => a.z - b.z);
     const gross = (r) => (Math.abs(r[1]) >= Math.abs(r[0]) ? r[1] : r[0]);
     const svg = linienDiagramm({
-      titel: `Biegemomente über die Höhe · Mast ${name} · Hülle über die Nachweisfälle`, breite, hoehe: 230,
+      titel: `Biegemomente über die Höhe · Mast ${name} · massgebender Wert der Hülle über die Nachweisfälle`, breite, hoehe: 230,
       xLabel: 'z über Mastfuss [m]', yLabel: 'M [kNm]', punkte: pkt.map((q) => q.z),
       serien: [
-        { name: 'M_y quer zum Gleis', werte: pkt.map((q) => gross(q.y)), band: [pkt.map((q) => q.y[0]), pkt.map((q) => q.y[1])] },
-        { name: 'M_x längs zum Gleis', werte: pkt.map((q) => gross(q.x)), band: [pkt.map((q) => q.x[0]), pkt.map((q) => q.x[1])] },
+        { name: 'M_y quer zum Gleis', werte: pkt.map((q) => gross(q.y)) },
+        { name: 'M_x längs zum Gleis', werte: pkt.map((q) => gross(q.x)) },
       ],
     });
     return { name, svg };

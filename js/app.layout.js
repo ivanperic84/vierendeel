@@ -398,6 +398,12 @@ export function zeichneModellWerkzeuge(app) {
         s.haupt ? app.ansicht.ebenen.last : app.ansicht.lastarten[s.key], !gL || fehlt);
     }).join('')) +
     gruppe('resultate', 'Resultate', gR,
+      // Zustandslinie statt Farbe (14. November) - für η, σ_v, M, V, N, T.
+      // Abgesetzt zuoberst über die ganze Breite («die funktion linien
+      // separat aufführen, damit sichtbarer da wichtig»).
+      text('wz-r-linie', 'Linie', 'Zustandslinie statt Farbe (η, σ_v, M, V, N, T) - wie in den '
+           + 'Statikprogrammen; Ebene, Reaktionen und Teile in der Legende', zl.an, !gR)
+        .replace('class="wz-s wz-txt', 'class="wz-s wz-txt wz-linie') +
       // Schnittkräfte am Nachweisschnitt und Schnittebene gehören dem
       // Ersatzbalken; im Stabwerk gibt es keinen Nachweisschnitt (Weisung
       // 30. September, «die zwei braucht es nicht wenn stabwerk aktiv»).
@@ -407,9 +413,6 @@ export function zeichneModellWerkzeuge(app) {
         schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR)) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
-      // Zustandslinie statt Farbe (14. November) - für η, σ_v, M, V, N, T.
-      text('wz-r-linie', 'Linie', 'Zustandslinie statt Farbe (η, σ_v, M, V, N, T) - wie in den '
-           + 'Statikprogrammen; Ebene, Reaktionen und Teile in der Legende', zl.an, !gR) +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
              mo.label, mo.key === app.ansicht.modus, !gR)).join(''),

@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: 'Werkzeugleiste im 3D: alle Gruppen gleich breit, der Schalter «Linie» steht abgesetzt zuoberst unter Resultate. Mastdiagramm im Bericht ohne Füllfläche.' },
       { text: 'Bericht: je Mast ein Diagramm mit M quer und M längs zum Gleis mit Vorzeichen (Hülle als Band); die Zustandsbilder beschränken sich auf Gurte M_y und σ_v.' },
       { text: 'Bericht: Lastbild im Querschnitt im richtigen Massstab, M_x der Masten im Querschnitt (Masten nebeneinander); Ausnutzungs- und Fundamentdiagramme ruhiger (dünne, gedämpfte Balken, ein Titel).' },
       { text: 'Nachweisbericht (Stabwerk): Lastbilder je Lastfall im Kapitel Einwirkungen, die Systemskizze als scharfes Vektorbild (Längsansicht und Querschnitt), das 3D-Bild auf dem Deckblatt (das Kapitel «Übersicht» entfällt).' },
