@@ -7,8 +7,8 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
-Prüfstand **7315** grün, Durchlauf ohne Bruch. Örtlich zwei Commits vor `origin/main`: Durchsicht der
-Bedienung, Punkte 5 bis 10, und der Rest des Audits (CLAUDE.md, *Entschieden*, oberste Zeile). **Nicht gepusht**; pushen nur auf
+Prüfstand **7315** grün, Durchlauf ohne Bruch. Alles gepusht (Weisung 14. November): Durchsicht der
+Bedienung, Punkte 5 bis 10, und der Rest des Audits (CLAUDE.md, *Entschieden*, oberste Zeile). Für die weitere Arbeit gilt: pushen nur auf
 Weisung. Rest des Audits unter *Offene Punkte*.
 
 ## Stand 13. November 2026 (davor)
