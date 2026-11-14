@@ -138,7 +138,9 @@ export function zustandSvg(geo, faelle, o = {}) {
       const f2 = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1));
       const text = `Lager ${kurz} ${huelle ? `${f2(lo2)} / ${f2(hi2)}` : f2(hi2)} ${einh}`;
       const u = pr(unten, st[0]);
-      fuss.push(`<text x="${X(u[0])}" y="${(+Z(u[1]) + 26).toFixed(1)}" font-size="10" fill="#333" text-anchor="middle">${esc(text)}</text>`);
+      // Nie über den linken Rand hinaus (M1: «ger M_x …», gemeldet 14. November).
+      const xt = Math.max(+X(u[0]), text.length * 2.9 + 4);
+      fuss.push(`<text x="${xt.toFixed(1)}" y="${(+Z(u[1]) + 26).toFixed(1)}" font-size="10" fill="#333" text-anchor="middle">${esc(text)}</text>`);
     });
   }
   // Anschrift ohne Überlappung, die grössten zuerst.
