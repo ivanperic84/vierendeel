@@ -39085,6 +39085,29 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
     wahr('… im Kapitel Schnittgrössen des Stabwerksberichts, abschaltbar (Bild «zustand»)',
          ber.includes('zustand: b.zustand ? zustandBilder(d.sw) : null') && sber.includes('§.1 Zustandslinien')
          && sber.includes('d.opt.bilder.zustand'));
+    // «Ja, so aufteilen» (14. November): Masten als Diagramm M quer / M längs,
+    // die Zeichnungen Masten M_y, Masten M_x und Gurte N entfallen.
+    wahr('… Bericht: Masten als Diagramm M_y quer / M_x längs mit Hülle, statt «|M| grösseres»',
+         ber.includes('function mastMDiagramme(') && ber.includes("name: 'M_y quer zum Gleis'")
+         && ber.includes("name: 'M_x längs zum Gleis'") && ber.includes("reihe(['sw-gurt', 'sw-kraft', 'sw-blech'])")
+         && !ber.includes("'sw-mast-schnitt']"));
+    wahr('… Zustandsbilder nur noch Gurte M_y und σ_v (keine Mastbilder, kein Gurt N)',
+         !ber.includes("'Joch, vordere Gurte - Normalkraft N'") && !ber.includes("teile: 'mast', blick: 'laengs', reaktion: true")
+         && !ber.includes("nebeneinander: true, reaktion: true") && ber.includes("k: 'My', teile: vorn"));
+    {
+      // Die Werte des Diagramms: an M1 die Hülle von M_x am Fuss gegen den Betrag aus zustandWert.
+      const ZL = await import(J('core.zustandslinien.js'));
+      const geo = ZL.zustandGeometrie(a14.roh.dat);
+      const ff = a14.roh.auswertung.faelle.map((lf) => ZL.zustandFall(a14.roh.dat, a14.roh.lsg, geo, lf));
+      const ms = geo.map((g, i) => [g, i]).filter(([g]) => /(?:^|_)MAST_[^_]+_S\d+$/.test(g.n));
+      const fussM = Math.min(...ms.map(([g]) => Math.min(g.a[2], g.b[2])));
+      const [gF, iF] = ms.find(([g]) => Math.min(g.a[2], g.b[2]) === fussM);
+      const pF = gF.a[2] <= gF.b[2] ? 0 : ZL.ZL_PUNKTE - 1;
+      const hx = Math.max(Math.abs(ZL.zustandReihe('Mx', ff, iF, gF, 'max')[pF].v), Math.abs(ZL.zustandReihe('Mx', ff, iF, gF, 'min')[pF].v));
+      const roh = Math.max(...ff.map((f) => Math.abs(ZL.zustandWert('Mx', gF, f.w[iF][pF])[0])));
+      wahr('… Mastdiagramm: Hülle M_x am Fuss = grösster Betrag über die Fälle', ms.length > 0 && Math.abs(hx - roh) < 1e-9 && hx > 1,
+           `${hx.toFixed(2)} / ${roh.toFixed(2)} kNm`);
+    }
   }
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',

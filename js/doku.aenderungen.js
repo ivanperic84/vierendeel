@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: 'Bericht: je Mast ein Diagramm mit M quer und M längs zum Gleis mit Vorzeichen (Hülle als Band); die Zustandsbilder beschränken sich auf Gurte M_y und σ_v.' },
       { text: 'Bericht: Lastbild im Querschnitt im richtigen Massstab, M_x der Masten im Querschnitt (Masten nebeneinander); Ausnutzungs- und Fundamentdiagramme ruhiger (dünne, gedämpfte Balken, ein Titel).' },
       { text: 'Nachweisbericht (Stabwerk): Lastbilder je Lastfall im Kapitel Einwirkungen, die Systemskizze als scharfes Vektorbild (Längsansicht und Querschnitt), das 3D-Bild auf dem Deckblatt (das Kapitel «Übersicht» entfällt).' },
       { text: 'Nachweisbericht (Stabwerk): im Kapitel Schnittgrössen fünf Zustandsbilder - Gurte M_y und N, Masten M_y quer und M_x längs mit Lagermoment, σ_v. Abschaltbar im Berichtsdialog («Zustandslinien (Stabwerk)»).' },

@@ -27,7 +27,8 @@ import { esc, uebertrageTokens } from './design.js';
  * nichts und importiert nichts - die Ampelfarbe geht deshalb als Funktion
  * hinein, siehe unten.
  */
-import { zustandGeometrie, zustandFall } from './core.zustandslinien.js';
+import { zustandGeometrie, zustandFall, zustandReihe, zustandSicht, ZL_PUNKTE } from './core.zustandslinien.js';
+import { linienDiagramm } from './render.charts.js';
 import { zustandSvg, systemSvg, lastSvg } from './export.zustandsbild.js';
 import { bauteilDiagramm, fundamentDiagramm,
          fussKraftDiagramm } from './render.charts.js';
@@ -328,11 +329,9 @@ function zustandBilder(sw) {
   const vorn = 'gurt:OGL,UGL';
   const bilder = [
     ['Joch, vordere Gurte - Biegemoment M_y in der Jochebene', kraft, { k: 'My', teile: vorn, blick: 'laengs' }],
-    ['Joch, vordere Gurte - Normalkraft N', kraft, { k: 'N', teile: vorn, blick: 'laengs' }],
-    ['Masten - Biegemoment M_y quer zum Gleis, mit Lagermoment', kraft, { k: 'My', teile: 'mast', blick: 'laengs', reaktion: true }],
-    // Im Querschnitt, die Masten nebeneinander (14. November, «kann man für mx die darstellung quer nehmen?»).
-    ['Masten - Biegemoment M_x längs zum Gleis (Querschnitt, Masten nebeneinander), mit Lagermoment', kraft,
-     { k: 'Mx', teile: 'mast', blick: 'quer', nebeneinander: true, reaktion: true }],
+    // Gurte N und die beiden Mastbilder entfallen (14. November, «Ja, so
+    // aufteilen»): N steht im Diagramm |N|, die Masten im Diagramm
+    // M quer / M längs (`mastMDiagramme`) - dort lesbarer als die Zeichnung.
     ['Vergleichsspannung σ_v - Gurte vorn und Masten', spannung, { k: 'sig', teile: 'alle-ohne-bleche', blick: 'laengs' }],
   ];
   return bilder.map(([titel, faelle, o]) => {
@@ -364,6 +363,50 @@ function lastBilder(sw) {
   }).filter(Boolean);
 }
 
+/**
+ * >>> MASTEN: M QUER UND M LÄNGS ÜBER DIE HÖHE (14. November). <<<
+ * «Ja, so aufteilen»: statt «|M| (grösseres)» je Mast die beiden globalen
+ * Biegemomente mit Vorzeichen - M_y (quer zum Gleis, um die Gleisachse)
+ * und M_x (längs zum Gleis) -, je als Band der Hülle über die
+ * Nachweisfälle; die Linie im Band ist der betragsgrössere Rand.
+ * Dieselben Werte wie die Zustandslinien (core.zustandslinien.js).
+ */
+function mastMDiagramme(sw, breite = 900) {
+  const roh = sw?.roh;
+  if (!roh?.auswertung?.faelle?.length) return [];
+  const geo = zustandGeometrie(roh.dat);
+  const faelle = roh.auswertung.faelle.map((lf) => zustandFall(roh.dat, roh.lsg, geo, lf));
+  const masten = {};
+  geo.forEach((s, i) => {
+    const m = /(?:^|_)MAST_([^_]+)_S\d+$/.exec(s.n);
+    if (m && zustandSicht(s, 'mast')) (masten[m[1]] ??= []).push(i);
+  });
+  return Object.entries(masten).sort(([a], [b]) => a.localeCompare(b, 'de', { numeric: true })).map(([name, idx]) => {
+    const fuss = Math.min(...idx.flatMap((i) => [geo[i].a[2], geo[i].b[2]]));
+    const pkt = [];
+    idx.forEach((i) => {
+      const s = geo[i];
+      const reihe = (k, art) => zustandReihe(k, faelle, i, s, art);
+      const yMax = reihe('My', 'max'), yMin = reihe('My', 'min'), xMax = reihe('Mx', 'max'), xMin = reihe('Mx', 'min');
+      for (let p = 0; p < ZL_PUNKTE; p += 1) {
+        const z = s.a[2] + (s.b[2] - s.a[2]) * p / (ZL_PUNKTE - 1) - fuss;
+        pkt.push({ z, y: [yMin[p].v ?? 0, yMax[p].v ?? 0], x: [xMin[p].v ?? 0, xMax[p].v ?? 0] });
+      }
+    });
+    pkt.sort((a, b) => a.z - b.z);
+    const gross = (r) => (Math.abs(r[1]) >= Math.abs(r[0]) ? r[1] : r[0]);
+    const svg = linienDiagramm({
+      titel: `Biegemomente über die Höhe · Mast ${name} · Hülle über die Nachweisfälle`, breite, hoehe: 230,
+      xLabel: 'z über Mastfuss [m]', yLabel: 'M [kNm]', punkte: pkt.map((q) => q.z),
+      serien: [
+        { name: 'M_y quer zum Gleis', werte: pkt.map((q) => gross(q.y)), band: [pkt.map((q) => q.y[0]), pkt.map((q) => q.y[1])] },
+        { name: 'M_x längs zum Gleis', werte: pkt.map((q) => gross(q.x)), band: [pkt.map((q) => q.x[0]), pkt.map((q) => q.x[1])] },
+      ],
+    });
+    return { name, svg };
+  });
+}
+
 function berichtStabwerk(app, wahl) {
   const d = stabwerkBerichtDaten(app);
   const b = wahl.bilder;
@@ -391,7 +434,9 @@ function berichtStabwerk(app, wahl) {
     lasten: b.lasten ? lastBilder(d.sw) : null,
     modell3d: b.modell3d ? aufnahme('iso') : null,
     // Nur die Verläufe des Stabwerks - der Ersatzbalken steht nicht mehr im Bericht.
-    verlaeufe: b.verlaeufe ? reihe(['sw-gurt', 'sw-kraft', 'sw-blech', 'sw-mast-schnitt']) : null,
+    // Masten mit M quer / M längs statt «|M| grösseres» (14. November).
+    verlaeufe: b.verlaeufe ? reihe(['sw-gurt', 'sw-kraft', 'sw-blech'])
+      + mastMDiagramme(d.sw, 900).map((m) => `<div class="dia">${m.svg}</div>`).join('') : null,
     eta: b.eta ? reihe(['sw-mast-eta']) : null,
     bauteile: b.bauteile ? bauteilDiagramm(blattUrteil(d), { breite: 860, farbeVon }) : null,
     fundament: Object.keys(fund).length ? fund : null,
