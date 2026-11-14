@@ -461,7 +461,7 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **14. Nov., offene Punkte durchgegangen:** Verdrehung Tragausleger ≤ 5°, Nachweisauswahl / Knicklänge / Mastwind fürs Blatt, Lastfelder des Abfangjochs, alte Lagerungsentscheide nachgemessen (örtlich committet, nicht gepusht).
+- **14. Nov., offene Punkte durchgegangen:** Verdrehung Tragausleger ≤ 5°, Nachweisauswahl / Knicklänge / Mastwind fürs Blatt, Lastfelder des Abfangjochs, alte Lagerungsentscheide nachgemessen (gepusht auf Weisung «Pushen», 14. November; Einzeldatei in `Versand/` neu).
 - **14. Nov., Rest des Audits: Schrift nie unter 10 px, Masttabelle als Fenster** (gepusht auf Weisung «Ja, pushen», 14. November; Einzeldatei in `Versand/` neu).
 - **14. Nov., Durchsicht der Bedienung, Punkte 5 bis 10 gebaut** (Werkzeugleiste einklappbar, Ablage mit der Liste zuerst, Marke «nicht geführt», Menü / Optionen / Fussleiste, Rollen und Fokus, Schrift; Prüfstand 276, siehe *Entschieden*; örtlich committet, nicht gepusht).
 - **13. Nov., Durchsicht der Bedienung (Audit), Punkte 1 bis 4 gebaut** (Leistenbreite, Sprungleiste und einklappbare Gruppen, Lastfall-Fenster, Neues Querprofil in einem Dialog; Prüfstand 275, siehe *Entschieden*; gepusht auf Weisung «ja pushen»). Offene Vorschläge 5 bis 10 des Audits siehe *Offene Punkte*.
