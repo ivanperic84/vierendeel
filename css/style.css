@@ -2276,7 +2276,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .ablage-gruppe { margin-bottom: 14px; }
 
 /* --- Ablage als Tabelle je Projekt (17. September, nach BlockCalc) --------- */
-.bs-drei { grid-template-columns: minmax(220px, 0.7fr) 2fr minmax(200px, 0.8fr); }
+.bs-drei { grid-template-columns: 2fr minmax(220px, 0.7fr) minmax(200px, 0.8fr); }
 @media (max-width: 1200px) { .bs-drei { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .bs-drei { grid-template-columns: 1fr; } }
 .ab-suche { display: flex; gap: 8px; margin-bottom: 8px; }
@@ -3702,3 +3702,33 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
 .dialog-lf .sec:first-child { margin-top: 2px; }
 .dialog-lf .lf-zeile { cursor: pointer; }
 .dialog-lf .lf-zeile.gewaehlt > td:first-child { box-shadow: inset 3px 0 0 var(--acc); }
+
+/* --- Werkzeugleiste im 3D einklappbar (14. November) --- */
+.wz-klapp { width: auto; min-width: 0; padding: 0 8px; height: 22px; font-size: 9.5px;
+  letter-spacing: .04em; background: var(--s2); opacity: .9; white-space: nowrap; }
+.wz-klapp:hover { opacity: 1; color: var(--on); }
+
+/* Optionen: «Eingaben zurücksetzen» abgesetzt links, ein Schliessknopf im Kopf (14. November). */
+.dialog-fuss .opt-reset { order: -1; margin-right: auto; }
+
+/* Hauptkachel: «nicht geführt» als eigene Marke in der Warnfarbe (14. November). */
+.urteil-offen {
+  font: 600 10.5px var(--f-ui); color: var(--warn); background: transparent;
+  border: 1px solid var(--warn); border-radius: 999px; padding: 2px 9px; cursor: pointer;
+  align-self: flex-start;
+}
+.urteil-offen:hover { background: var(--warn); color: var(--s1); }
+
+/* Der Dialograhmen trägt den Fokus, ohne Rahmenlinie (14. November). */
+.dialog:focus { outline: none; }
+
+/* --- Lesbarkeit (14. November, Durchsicht der Bedienung, Punkt 10) ---
+   Lauftext unter 10 px angehoben: Kachelzeilen, Zusätze der Überschriften,
+   Bildunterschriften, Legendenfuss, kleine Hinweise. Die gesperrten
+   Versalien-Etiketten (Abschnittstitel, Tabellenköpfe, Werkzeuggruppen) und
+   die Anschriften in den Skizzen bleiben, wie sie sind. */
+.kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }
+.kz .kz-f, .kz-f { font-size: 9.5px; }
+.sec .sec-r, .sec-r, .klapp > summary .klapp-r, .klapp-r { font-size: 10px; }
+.ablage-meta, figcaption, .legende-fuss, small.hinweis, .hinweis small,
+.rk-fallspalte, .at-kraft { font-size: 10.5px; }

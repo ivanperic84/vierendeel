@@ -40485,7 +40485,7 @@ titel('261  Gegenrechnung mit AxisVM: Ergebnisdatei einlesen, Kapitel im Bericht
   wahr('Im Nachweisbericht als Kapitel, im Export zum Einlesen und als Blatt',
        readFileSync(join(HIER, 'js', 'export.stabbericht.js'), 'utf8').includes("['gegenrechnung', d.axis ? gegenrechnungAbschnitt(d.axis) : '']")
        && readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8').includes('axis: app.axisErgebnis ? axisVergleich(sw, app.axisErgebnis.erg) : null')
-       && APP_QUELLE().includes('AxisVM-Ergebnisse einlesen (Gegenrechnung)') && APP_QUELLE().includes('function axisEinlesen()'));
+       && APP_QUELLE().includes("'AxisVM-Ergebnisse einlesen …'") && APP_QUELLE().includes('function axisEinlesen()'));
 }
 
 /* =========================================================================
@@ -41744,6 +41744,70 @@ titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fens
        DQ.includes('data-tw-vorlage="abfangjoch-anker"'));
   wahr('Knopf der Ablage heisst «Neues Querprofil»',
        !readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes('Neues Querprofil (leer)'));
+}
+
+titel('276  Durchsicht der Bedienung, Punkte 5 bis 10');
+/* 14. November: «mach weiter» - gelesen als die Audit-Vorschläge 5 bis 10. */
+{
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const AQ = APP_QUELLE();
+  const BQ = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  const OQ = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const IQ = readFileSync(join(HIER, 'index.html'), 'utf8');
+
+  // 5 Werkzeugleiste im 3D einklappbar.
+  wahr('Werkzeugleiste: einklappbar, Wahl gemerkt, schmal von selbst zu',
+       LQ.includes("const WZ_MERKER = 'tragjoch-wz-zu'") && LQ.includes('const WZ_SCHMAL = 560')
+       && LQ.includes('id="wz-auf"') && LQ.includes('id="wz-zu"'));
+  wahr('Werkzeugleiste: bei Leisten- und Fensterbreite neu bewertet',
+       [...LQ.matchAll(/if \(app\.ansicht\?\.gruppen\) zeichneModellWerkzeuge\(app\);/g)].length === 2);
+
+  // 6 Projektablage: Liste vor den Angaben.
+  wahr('Projektablage: die Liste der Einträge steht vor «Dieses Tragwerk»',
+       BQ.indexOf("abschnitt('Projekte und gespeicherte Tragwerke'") > 0
+       && BQ.indexOf("abschnitt('Projekte und gespeicherte Tragwerke'") < BQ.indexOf("abschnitt('Dieses Tragwerk'"));
+
+  // 7 Marke «nicht geführt».
+  wahr('Hauptkachel: «nicht geführt» als eigene Marke, nicht im Urteilstext',
+       UQ.includes('function offenMarke(n)') && !UQ.includes('Nachweis(e) nicht gefuehrt`')
+       && [...UQ.matchAll(/offenMarke\(offeneNw\)/g)].length === 2 && CQ.includes('.urteil-offen'));
+
+  // 8 Kleinkram.
+  const U276 = await import(J('ui.js'));
+  const stand = { version: '1.3', typen: 15, masstabelle: 54, ohneBleche: [],
+                  staffelungUngeprueft: ['J60'], masstabelleUnschluessig: ['26.50', '29.00'] };
+  const kurz = U276.datenbankText(stand, [], false), lang = U276.datenbankText(stand, [], false, true);
+  wahr('Fussleiste: Pflegehinweise kurz als Zahl, im Titel im Wortlaut',
+       kurz.endsWith('2 Pflegehinweise') && !kurz.includes('unschlüssig')
+       && lang.includes('Staffelung ungeprüft') && lang.includes('unschlüssig bei 26.50, 29.00 m'), kurz);
+  wahr('Fussleiste: fehlendes Masten-Sortiment bleibt sichtbar',
+       U276.datenbankText(stand, [], true).includes('OHNE Masten-Sortiment'));
+  wahr('Export-Menü schliesst die Projektablage; AxisVM-Einlesen unter «Gegenrechnung»',
+       /schubladeSchliessen\(app\);\s*const r = knopf\.getBoundingClientRect\(\);/.test(AQ)
+       && AQ.indexOf("'AxisVM-Ergebnisse einlesen …'") < AQ.indexOf("{ kopf: 'Dokumente' }")
+       && AQ.indexOf("'AxisVM-Ergebnisse einlesen …'") > AQ.indexOf("{ kopf: 'Gegenrechnung' }"));
+  wahr('Optionen: ein Schliessknopf (im Kopf), «Eingaben zurücksetzen» abgesetzt',
+       !OQ.includes('<button class="btn" data-zu>Fertig</button>') && OQ.includes('class="btn btn-fail opt-reset"')
+       && CQ.includes('.dialog-fuss .opt-reset { order: -1; margin-right: auto; }'));
+
+  // 9 Rollen, Fokus, Beschriftungen.
+  wahr('Dialog: Rolle, modal, Titelbezug, Fokus hinein und zurück',
+       AQ.includes('role="dialog" aria-modal="true" aria-labelledby="dialog-titel-${meins}"')
+       && AQ.includes("n.querySelector('.dialog')?.focus({ preventScroll: true })") && AQ.includes('vorFokus.focus({ preventScroll: true })'));
+  wahr('Reiter melden ihren Zustand (Eingabe, Auswertung, Optionen)',
+       UQ.includes('role="tab" aria-selected="${t.id === aktiv}"') && UQ.includes('role="tab" aria-selected="${t.key === jetzt}"')
+       && IQ.includes('id="tabs" role="tablist"') && IQ.includes('id="tabs-auswertung" role="tablist"'));
+  wahr('Meldungen und Urteil werden angesagt; das 3D-Bild ist benannt',
+       IQ.includes('id="viewer-balken" role="status" aria-live="polite"') && IQ.includes('id="st-urteil" role="status" aria-live="polite"')
+       && IQ.includes('<canvas id="canvas3d" aria-label='));
+  wahr('Schieber tragen die Bezeichnung ihres Feldes (aufgelöst, keine Funktion)',
+       UQ.includes('aria-label="${esc(label ?? f.key)} (Schieber)"'));
+
+  // 10 Lesbarkeit.
+  wahr('Kleinste Lauftexte angehoben (Kachelzeilen 10 px, Hinweise 10.5 px)',
+       CQ.includes('.kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }') && /small\.hinweis[^{]*\{ font-size: 10\.5px; \}/.test(CQ.replace(/\r?\n/g, ' ')));
 }
 
 console.log('\n' + '='.repeat(104));

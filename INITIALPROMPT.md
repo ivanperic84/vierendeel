@@ -5,7 +5,13 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-## Stand 13. November 2026 - hier weitermachen
+## Stand 14. November 2026 - hier weitermachen
+
+Prüfstand **7313** grün, Durchlauf ohne Bruch. Örtlich ein Commit vor `origin/main`: Durchsicht der
+Bedienung, Punkte 5 bis 10 (CLAUDE.md, *Entschieden*, oberste Zeile). **Nicht gepusht**; pushen nur auf
+Weisung. Rest des Audits unter *Offene Punkte*.
+
+## Stand 13. November 2026 (davor)
 
 Prüfstand **7300** grün, Durchlauf ohne Bruch. Alles gepusht (Weisung «ja pushen», 13. November): Durchsicht der
 Bedienung (Audit), Punkte 1 bis 4 gebaut - Leistenbreite, Sprungleiste mit einklappbaren Gruppen,

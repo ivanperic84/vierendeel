@@ -12,6 +12,16 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-14',
+    punkte: [
+      { text: 'Werkzeugleiste im 3D (Blick, Modell, Zeichnung, Lasten, Resultate) lässt sich einklappen («einklappen ›» / «Ebenen ‹»); in einem schmalen Modellfenster klappt sie von selbst ein. Die Wahl bleibt gemerkt.' },
+      { text: 'Projektablage: die Liste der gespeicherten Tragwerke steht zuerst, die Angaben zum jetzigen Stand daneben bzw. darunter.' },
+      { text: 'Hauptkachel: «… Nachweise nicht geführt» steht als eigene gelbe Marke neben dem Urteil; ein Klick zeigt die Liste.' },
+      { text: 'Export-Menü und Projektablage liegen nicht mehr übereinander. «AxisVM-Ergebnisse einlesen» steht im Export-Menü unter «Gegenrechnung». Optionen: ein Schliessknopf, «Eingaben zurücksetzen» abgesetzt links. Fussleiste: Hinweise zur Datenpflege nur noch als Zahl, der Wortlaut beim Überfahren.' },
+      { text: 'Bedienung mit Tastatur und Hilfstechnik: Dialoge melden sich als Dialog und nehmen den Fokus, Reiter melden ihren Zustand, Meldungen werden angesagt, Schieber sind benannt. Kleine Lauftexte (Kachelzeilen, Hinweise, Bildunterschriften) sind etwas grösser.' },
+    ],
+  },
+  {
     datum: '2026-11-13',
     punkte: [
       { text: 'Seitenleisten: die Breite richtet sich nach dem Fenster (rund ein Viertel, 386 bis 460 px) und wächst wieder mit, wenn das Fenster breiter wird - vorher blieben sie schmal, sobald das Fenster einmal klein war. Eine gezogene Breite bleibt über den Neustart gemerkt.' },

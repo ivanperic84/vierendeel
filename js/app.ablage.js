@@ -461,15 +461,6 @@ export async function zeichneSchublade(app) {
       <button class="btn btn-mini bs-zu" data-zu>Schliessen</button>
     </div>
     <div class="bs-spalten bs-drei">
-      <div>
-        ${abschnitt('Dieses Tragwerk', 'Projekt, Bezeichnung und Angaben')}
-        ${projektWahl}
-        ${tragwerkWahl}
-        <div id="bs-verortung">${ui.verortungHtml(app.werte)}</div>
-        <p class="notiz">Linie, Ortschaft und Kilometer stehen im Dateinamen der
-          AxisVM-Ausleitung; Projektnummer, Bearbeiter und Datum in der
-          Kopfzeile des Berichts und in der Projektliste.</p>
-      </div>
       <div>${abschnitt('Projekte und gespeicherte Tragwerke',
                        'Laden ersetzt den jetzigen Stand')}
         <div class="ab-suche">
@@ -486,6 +477,15 @@ export async function zeichneSchublade(app) {
           <button class="btn btn-mini" data-sicherung title="Alles: Tragwerke, Vorlagen, Zeichnungen, Einstellungen">Sicherung erstellen</button>
           <button class="btn btn-mini" data-sicherung-ein>Sicherung einspielen</button>
         </div>
+      </div>
+      <div>
+        ${abschnitt('Dieses Tragwerk', 'Projekt, Bezeichnung und Angaben')}
+        ${projektWahl}
+        ${tragwerkWahl}
+        <div id="bs-verortung">${ui.verortungHtml(app.werte)}</div>
+        <p class="notiz">Linie, Ortschaft und Kilometer stehen im Dateinamen der
+          AxisVM-Ausleitung; Projektnummer, Bearbeiter und Datum in der
+          Kopfzeile des Berichts und in der Projektliste.</p>
       </div>
       <div>${abschnitt('Vorlagen ganzer Tragwerke', 'anwenden legt sich auf den Stand')}
         ${vorlagenHtml}

@@ -574,8 +574,8 @@ export function dialogOptionen(app) {
     `<button class="btn" data-bauteildaten>${icon('tabelle', 13)} Bauteildaten</button>
      <button class="btn" data-tasten>${icon('tastatur', 13)} Tastenkürzel</button>
      <button class="btn" data-thema>${app.thema === 'dunkel' ? 'Helle' : 'Dunkle'} Darstellung</button>
-     <button class="btn btn-fail" data-reset>Eingaben zurücksetzen</button>
-     <button class="btn" data-zu>Fertig</button>`, 'dialog-reiter');
+     <button class="btn btn-fail opt-reset" data-reset
+        title="Setzt alle Eingaben dieses Blattes auf die Startwerte zurück">Eingaben zurücksetzen</button>`, 'dialog-reiter');
 
   // Der Reiter faellt beim Neuaufbau nicht heraus: gezeichnet wird IMMER der
   // ganze Rahmen samt Leiste, und optThema sagt, welcher offen ist. Nur den

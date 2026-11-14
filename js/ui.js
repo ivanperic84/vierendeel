@@ -173,6 +173,7 @@ export function verdrahteKlapp(node) {
       beiKlappWechsel?.(k, d.open);
     });
   });
+  verdrahteOffenMarke(node);
 }
 
 /** Ist ein Abschnitt gerade offen? */
@@ -256,7 +257,7 @@ export function auswertungTabs(werte, mitJoch = true) {
 
 export function zeichneTabs(node, tabs, aktiv, beiWahl) {
   node.innerHTML = tabs.map((t) =>
-    `<button class="tab${t.id === aktiv ? ' on' : ''}" data-tab="${t.id}" type="button">${esc(t.titel)}</button>`
+    `<button class="tab${t.id === aktiv ? ' on' : ''}" data-tab="${t.id}" type="button" role="tab" aria-selected="${t.id === aktiv}">${esc(t.titel)}</button>`
   ).join('');
   node.querySelectorAll('[data-tab]').forEach((b) => {
     b.addEventListener('click', () => beiWahl(b.dataset.tab));
@@ -2825,6 +2826,7 @@ export function feldHtml(f, wert, werte) {
     const mx = feldMax(f, werte);
     inp = `<div class="zahlfeld">
              <input class="rng" type="range" data-feld="${f.key}" data-raster="${rngSchritt}"
+               aria-label="${esc(label ?? f.key)} (Schieber)"
                min="${f.min}" max="${mx}" step="any" value="${wert}"${dis}>
              <input type="number" id="${id}" data-feld="${f.key}" class="kurz"
                value="${wert}" step="${f.schritt}" min="${f.min}" max="${mx}"${dis}>
@@ -6531,8 +6533,8 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     <div class="urteil ${einzelLastfall ? 'ohne' : U.zustand}">
       <span class="urteil-zahl">η ${f3(U.eta)}</span>
       ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
-      <span>${U.text}${(!einzelLastfall && offeneNw)
-        ? ` · ${offeneNw} Nachweis(e) nicht gefuehrt` : ''}</span>
+      <span>${U.text}</span>
+      ${(!einzelLastfall && offeneNw) ? offenMarke(offeneNw) : ''}
       ${/* Stellt die Verformung die Kopfzahl (Stellung «beide»), gehört
            die Kombination der Tragsicherheit nicht dazu - dann keine. */''}
       ${!einzelLastfall && fallBez && (!U.wer || U.wer === werKopf)
@@ -8545,9 +8547,8 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
       ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
       <span>${U.text}${
         einzelLastfall ? '' : (urteil.alleOk
-          ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}${
-        (!einzelLastfall && offeneNw)
-          ? ` · ${offeneNw} Nachweis(e) nicht gefuehrt` : ''}</span>
+          ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}</span>
+      ${(!einzelLastfall && offeneNw) ? offenMarke(offeneNw) : ''}
       ${/*
          * DER MASSGEBENDE FALL steht neben der Zahl (Weisung, 9. September:
          * die Regliertemperatur haengt an der Kombination). «η 0.72» sagt
@@ -10735,8 +10736,8 @@ export function verortungHtml(werte) {
 
 /** Die Reiterleiste des Optionen-Dialogs. */
 export function optionenReiterHtml(werte, jetzt) {
-  return `<div class="tabs tabs-dialog">${optionenThemen(werte).map((t) =>
-    `<button class="tab${t.key === jetzt ? ' on' : ''}" type="button"
+  return `<div class="tabs tabs-dialog" role="tablist" aria-label="Themen der Optionen">${optionenThemen(werte).map((t) =>
+    `<button class="tab${t.key === jetzt ? ' on' : ''}" type="button" role="tab" aria-selected="${t.key === jetzt}"
        data-opt-thema="${esc(t.key)}">${esc(t.titel)}</button>`).join('')}</div>`;
 }
 
@@ -11001,10 +11002,43 @@ export function zeichneFehler(node, fehler) {
     <p>${esc(fehler.message)}</p></div>`;
 }
 
+/**
+ * MARKE «NICHT GEFÜHRT» IN DER HAUPTKACHEL (14. November, Durchsicht der
+ * Bedienung, Punkt 7). Die Angabe stand als Satzteil im Urteilstext der
+ * grünen Kachel und las sich wie ein Teil von «erfüllt». Jetzt eine eigene
+ * Marke in der Warnfarbe; ein Klick klappt die Liste «Nicht gefuehrte
+ * Nachweise» auf und rollt hin. Die Farbe der Kachel bleibt beim Urteil.
+ */
+function offenMarke(n) {
+  return `<button type="button" class="urteil-offen" data-offen-zeigen
+    title="Diese Nachweise sind abgewählt oder nicht möglich - sie zählen nie als erfüllt. Klick: Liste zeigen"
+    >${n} Nachweis${n > 1 ? 'e' : ''} nicht geführt</button>`;
+}
+/** Verdrahtet die Marke: Liste aufklappen und hinrollen. */
+export function verdrahteOffenMarke(node) {
+  node.querySelectorAll('[data-offen-zeigen]').forEach((b) => {
+    b.onclick = () => {
+      const d = node.querySelector('[data-klapp="uebersicht-nichtgefuehrt"]');
+      if (!d) return;
+      setzeKlapp('uebersicht-nichtgefuehrt', true);
+      d.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+  });
+}
+
 /** Pflegezustand der Typendatenbank für die Fussleiste. */
-export function datenbankText(stand, fehler, ohneMasten = false) {
+export function datenbankText(stand, fehler, ohneMasten = false, lang = false) {
   if (fehler.length) return `Datenbank: ${fehler.length} Beanstandung(en)`;
   const t = [];
+  /*
+   * PFLEGEHINWEISE STEHEN IM TITEL, NICHT DAUERND DA (14. November, Durchsicht
+   * der Bedienung, Punkt 8). «Staffelung ungeprüft» und die unschlüssigen
+   * Zeilen der Mass-Tabelle gelten der Datenpflege, nicht dem Tragwerk auf dem
+   * Blatt; sie standen in jeder Sitzung in der Fussleiste. Kurz steht nur ihre
+   * Zahl (`lang` = der volle Wortlaut für den Titel). Was die RECHNUNG
+   * betrifft - fehlendes Masten-Sortiment, Typen ohne Bleche - bleibt sichtbar.
+   */
+  const pflege = [];
   /*
    * >>> DAS FEHLENDE SORTIMENT GEHOERT IN DIE FUSSLEISTE (20. September).
    *
@@ -11014,11 +11048,13 @@ export function datenbankText(stand, fehler, ohneMasten = false) {
    */
   if (ohneMasten) t.push('OHNE Masten-Sortiment (kein Mastwind)');
   if (stand.ohneBleche.length) t.push(`ohne Bleche: ${stand.ohneBleche.join(',')}`);
-  if (stand.staffelungUngeprueft.length) t.push('Staffelung ungeprüft');
+  if (stand.staffelungUngeprueft.length) pflege.push('Staffelung ungeprüft');
   // Zeilen der Mass-Tabelle, die in der Zeichnung nicht aufgehen
   if (stand.masstabelleUnschluessig?.length) {
-    t.push(`Mass-Tabelle unschlüssig bei ${stand.masstabelleUnschluessig.join(', ')} m`);
+    pflege.push(`Mass-Tabelle unschlüssig bei ${stand.masstabelleUnschluessig.join(', ')} m`);
   }
+  if (lang) t.push(...pflege);
+  else if (pflege.length) t.push(`${pflege.length} Pflegehinweis${pflege.length > 1 ? 'e' : ''}`);
   return `DB ${stand.version} · ${stand.typen} Typen · ` +
          `${stand.masstabelle} Tabellenlängen${t.length ? ' · ' + t.join(' · ') : ''}`;
 }

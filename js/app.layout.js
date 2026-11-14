@@ -310,10 +310,40 @@ export function modusKorrigieren(app) {
   return true;
 }
 
+/*
+ * >>> DIE RECHTE WERKZEUGLEISTE LAESST SICH EINKLAPPEN (14. November). <<<
+ * Durchsicht der Bedienung, Punkt 5: die Leiste deckte 17 % des Modells
+ * (1440 px) und lag unter rund 1000 px Fensterbreite ueber Masttitel und
+ * Legende. Eingeklappt steht nur ein Knopf da. Ohne eigene Wahl klappt sie
+ * von selbst ein, wenn das Modellfenster schmaler als 560 px ist; die Wahl
+ * des Benutzers ('1' zu, '0' offen) bleibt im Browser gemerkt.
+ */
+const WZ_MERKER = 'tragjoch-wz-zu';
+const WZ_SCHMAL = 560;
+function wzZu() {
+  let wahl = null;
+  try { wahl = localStorage.getItem(WZ_MERKER); } catch { /* kein Speicher */ }
+  if (wahl === '1') return true;
+  if (wahl === '0') return false;
+  const b = ui.el('viewer')?.clientWidth ?? 0;
+  return b > 0 && b < WZ_SCHMAL;
+}
+function wzSetzen(zu) {
+  try { localStorage.setItem(WZ_MERKER, zu ? '1' : '0'); } catch { /* kein Speicher */ }
+}
+
 export function zeichneModellWerkzeuge(app) {
   untereLeiste(app);
   const n = ui.el('ebenen-tools');
   if (!n) return;
+  if (wzZu()) {
+    const mo = modiFuer(app.nachweisart).find((m) => m.key === app.ansicht.modus);
+    n.innerHTML = `<button class="wz-s wz-txt wz-klapp" id="wz-auf" type="button"
+      title="Werkzeugleiste einblenden: Blick, Modell, Zeichnung, Lasten, Resultate"
+      aria-expanded="false">Ebenen${mo ? ` · ${esc(mo.kurz ?? mo.label.slice(0, 3))}` : ''} ‹</button>`;
+    ui.el('wz-auf').onclick = () => { wzSetzen(false); zeichneModellWerkzeuge(app); };
+    return;
+  }
   const da = lastartenVorhanden(app);
   const schalter = (id, sym, titel, an, aus = false) =>
     `<button class="wz-s${an ? ' on' : ''}${aus ? ' aus' : ''}" id="${id}"
@@ -341,6 +371,9 @@ export function zeichneModellWerkzeuge(app) {
   const ohneBalken = app.ohneBalken;
 
   n.innerHTML =
+    `<button class="wz-s wz-txt wz-klapp" id="wz-zu" type="button"
+       title="Werkzeugleiste einklappen - das Modell bekommt den Platz"
+       aria-expanded="true">einklappen ›</button>` +
     `<div class="wz-gruppe"><div class="wz-t">Blick</div><div class="wz-knoepfe">${
       ANSICHTEN.map((a) => text(`wz-blick-${a.key}`, a.label.slice(0, 3), a.label,
                                 a.key === app.ansicht.ansichtKey)).join('')
@@ -398,6 +431,7 @@ export function zeichneModellWerkzeuge(app) {
   const nach = () => {
     app.ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
   };
+  ui.el('wz-zu').onclick = () => { wzSetzen(true); zeichneModellWerkzeuge(app); };
   ['modell', 'zeichnung', 'lasten', 'resultate'].forEach((g) => {
     ui.el(`wz-g-${g}`).onclick = () => {
       app.ansicht.gruppen[g] = !app.ansicht.gruppen[g]; nach();
@@ -866,6 +900,8 @@ export function baueLayout(app) {
     ui.el('split-' + seite).classList.toggle('zu', zu);
     if (zu) zeichneSchienen(app);
     app.ansicht?.passeGroesseAn();
+    // Die Werkzeugleiste im 3D klappt je nach Breite des Modellfensters (14. November).
+    if (app.ansicht?.gruppen) zeichneModellWerkzeuge(app);
   };
   /*
    * AUCH BEIM START EINGEKLAPPT, NICHT NUR SCHMAL. Hier wurde bisher nur die
@@ -968,6 +1004,7 @@ export function baueLayout(app) {
     if (v.r !== rechts) setzeSeite('rechts', v.r);
     if (v.l > SCHIENE) offen.links = v.l;
     if (v.r > SCHIENE) offen.rechts = v.r;
+    if (app.ansicht?.gruppen) zeichneModellWerkzeuge(app);
   });
 
   zeichneSchienen(app);

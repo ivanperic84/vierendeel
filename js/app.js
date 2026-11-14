@@ -5711,8 +5711,13 @@ function exportMenue() {
     { text: 'SAF-Mappe (.xlsx)', tun: ax('saf') },
     { text: 'DXF + Zuordnungsmappe', tun: ax('dxf') },
     '-',
+    // Die Gegenrechnung steht beisammen (14. November): das Einlesen der
+    // AxisVM-Ergebnisse stand unter «Dokumente» zwischen den Blättern.
     { kopf: 'Gegenrechnung' },
     { text: 'PyNite-Skript (.py)', tun: ax('pynite') },
+    { text: axisErgebnis ? 'Gegenrechnung AxisVM (Blatt)' : 'AxisVM-Ergebnisse einlesen …',
+      tun: axisErgebnis ? gegenrechnungBlatt : axisEinlesen },
+    ...(axisErgebnis ? [{ text: 'Andere AxisVM-Ergebnisse einlesen …', tun: axisEinlesen }] : []),
     '-',
     { kopf: 'Dokumente' },
     { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
@@ -5720,9 +5725,6 @@ function exportMenue() {
     { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
     { text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
     { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
-    { text: axisErgebnis ? 'Gegenrechnung AxisVM (Blatt)' : 'AxisVM-Ergebnisse einlesen (Gegenrechnung) …',
-      tun: axisErgebnis ? gegenrechnungBlatt : axisEinlesen },
-    ...(axisErgebnis ? [{ text: 'Andere AxisVM-Ergebnisse einlesen …', tun: axisEinlesen }] : []),
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
   ];
@@ -5747,6 +5749,8 @@ function exportMenueVerdrahten(knopf) {
   }
   knopf.onclick = () => {
     if (exportWarOffen) { exportWarOffen = false; return; }
+    // Menü und Projektablage liegen nie übereinander (14. November).
+    schubladeSchliessen(app);
     const r = knopf.getBoundingClientRect();
     kontextZeigen(app, [r.left, r.bottom + 4], exportMenue());
   };
@@ -6635,8 +6639,16 @@ function dialog(titel, koerper, knoepfe, klasse = '', opt = {}) {
   const n = ui.el('ueberlagerung');
   const meins = ++dialogLauf;
   n.classList.remove('zu');
-  n.innerHTML = `<div class="scrim"><div class="dialog${klasse ? ' ' + klasse : ''}">
-    <div class="dialog-kopf"><h2>${esc(titel)}</h2>
+  /*
+   * ROLLE UND FOKUS (14. November, Durchsicht der Bedienung, Punkt 9): der
+   * Dialog meldet sich als modaler Dialog mit seinem Titel, der Fokus geht
+   * hinein (auf den Rahmen, kein Feld wird ungefragt angewählt) und beim
+   * Schliessen dorthin zurück, wo er vorher stand.
+   */
+  const vorFokus = document.activeElement;
+  n.innerHTML = `<div class="scrim"><div class="dialog${klasse ? ' ' + klasse : ''}"
+      role="dialog" aria-modal="true" aria-labelledby="dialog-titel-${meins}" tabindex="-1">
+    <div class="dialog-kopf"><h2 id="dialog-titel-${meins}">${esc(titel)}</h2>
       <button class="btn btn-mini" data-zu>Schliessen</button></div>
     <div class="dialog-koerper">${koerper}</div>
     <div class="dialog-fuss">${knoepfe}</div>
@@ -6646,6 +6658,8 @@ function dialog(titel, koerper, knoepfe, klasse = '', opt = {}) {
     // Wer wissen muss, dass der Dialog zuging (13. November: Abbrechen eines
     // neuen Querprofils stellt den alten Stand wieder her).
     opt.beiZu?.();
+    try { if (vorFokus instanceof HTMLElement && document.contains(vorFokus)) vorFokus.focus({ preventScroll: true }); }
+    catch { /* Fokus liess sich nicht zurückgeben */ }
     n.classList.add('zu');
     document.body.classList.remove('druck-handbuch');
     setTimeout(() => {
@@ -6657,6 +6671,7 @@ function dialog(titel, koerper, knoepfe, klasse = '', opt = {}) {
   // ALLE, nicht nur den ersten: der erste ist immer das Kreuz in der
   // Kopfzeile, und ein «Abbrechen» im Fuss blieb bisher ohne Wirkung.
   n.querySelectorAll('[data-zu]').forEach((b) => { b.onclick = zu; });
+  try { n.querySelector('.dialog')?.focus({ preventScroll: true }); } catch { /* ohne Fokus */ }
   /*
    * Weisung vom 19. September: «dafür sorgen das es nicht schliesst wenn man
    * mit der maus den klick loslässt und nicht innerhalb des modals ist».
@@ -7335,6 +7350,7 @@ export async function start() {
   const dbFehler = pruefeDatenbank(getProfil);
   const stand = datenbankStand();
   ui.el('st-db').textContent = ui.datenbankText(stand, dbFehler, !mastenDbDa());
+  ui.el('st-db').title = ui.datenbankText(stand, dbFehler, !mastenDbDa(), true);
   // Als eigenes Fenster gestartet fehlt die Adressleiste - dann ist in der
   // Fusszeile das Einzige, woran sich die Herkunft noch ablesen lässt.
   const zeigeFuss = () => {
