@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: '«Bauteil zuweisen» (Reiter Anbauteile) fragt jetzt, welches Bauteil: ins Modell klicken, dort öffnet die Auswahl mit Suche - vorher setzte der Knopf ohne Auswahl ein freies Bauteil. Der Blick auf ein Anbauteil fährt nie näher als 5 m heran.' },
       { text: 'Werkzeugleiste im 3D (Blick, Modell, Zeichnung, Lasten, Resultate) lässt sich einklappen («einklappen ›» / «Ebenen ‹»); in einem schmalen Modellfenster klappt sie von selbst ein. Die Wahl bleibt gemerkt.' },
       { text: 'Projektablage: die Liste der gespeicherten Tragwerke steht zuerst, die Angaben zum jetzigen Stand daneben bzw. darunter.' },
       { text: 'Hauptkachel: «… Nachweise nicht geführt» steht als eigene gelbe Marke neben dem Urteil; ein Klick zeigt die Liste.' },

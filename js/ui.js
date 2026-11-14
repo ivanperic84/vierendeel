@@ -3481,8 +3481,15 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
   return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
     nichtGetragen +
     `<div class="at-werkzeuge">
-       <button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
-         title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"
+       ${/*
+          * >>> «BAUTEIL ZUWEISEN» FRAGT, WELCHES (14. November). <<<
+          * Durchsicht der Bedienung: der Knopf setzte ohne Auswahl ein
+          * «Freies Bauteil» - sein Name versprach die Wahl. Jetzt derselbe
+          * Weg wie «Bauteil setzen» im 3D: ins Modell klicken, dort öffnet
+          * die Auswahl mit Suche und «zuletzt verwendet»; das freie Bauteil
+          * steht darin («Freies Bauteil …») und als Kachel unter «Übrige».
+          */ ''}<button class="btn btn-mini" data-vorlage-direkt="__wahl__" type="button"
+         title="Ins Modell klicken, wohin das Bauteil gehört - dort öffnet die Auswahl (Suche, zuletzt verwendet, freies Bauteil)"
          >${icon('anbau', 12)} Bauteil zuweisen</button>
        ${tragwerksart(werte).traeger ? `<button class="btn btn-mini" data-generator type="button"
          title="Anbauteile über die Gleise verteilen">Lastgenerator</button>` : ''}
@@ -3509,7 +3516,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       <p class="hinweis" style="margin:0 0 4px">Kachel anklicken oder ins
         Modell ziehen.</p>
       <p class="notiz vl-keine" hidden>Keine Vorlage passt - Suche ändern, oder
-        «Bauteil zuweisen» für ein freies Teil.</p>
+        die Kachel «Freies Bauteil» unter «Übrige» nehmen.</p>
       ${kacheln}
       ${klapp('anbau-achsen', 'Befestigung und Achsen', `
         <p class="hinweis" style="margin:0">

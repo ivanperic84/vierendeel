@@ -7490,7 +7490,9 @@ export async function start() {
      * gibt es kein x. Jetzt fuehrt er dorthin, wo auch das Ziehen hinfuehrt:
      * Bauteil vorgewaehlt, ein Klick ins Modell setzt es.
      */
-    wahl: (id) => setzenStarten(app, { art: 'vorlage', id }),
+    // «Bauteil zuweisen» ohne Vorwahl: die Auswahl öffnet an der geklickten Stelle.
+    wahl: (id) => (id === '__wahl__' ? setzenStarten(app)
+      : setzenStarten(app, { art: 'vorlage', id })),
     weg: vorlageEntfernen,
     sichern: vorlageSichern,
     generator: dialogGenerator,

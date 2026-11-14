@@ -3071,7 +3071,10 @@ export class Modellansicht {
     // In z die ganze Spanne der Baugruppe, damit kein Teil abgeschnitten wird.
     const zM = (b.zMin + b.zMax) / 2;
     const hoehe = Math.max(b.zMax - b.zMin, 0.6);
-    const dist = Math.max(hoehe * 1.9, halb * 2.2);
+    // Nie näher als 5 m (14. November, Durchsicht der Bedienung): ein kleines
+    // Teil (freies Bauteil, Leiter direkt am Joch) füllte sonst das ganze Bild,
+    // und das Tragwerk darum herum war nicht mehr zu sehen.
+    const dist = Math.max(hoehe * 1.9, halb * 2.2, 5);
     /*
      * >>> AUF DAS GANZE TEIL, NICHT AUF DEN ANSCHLUSS (6. Oktober). <<<
      * «Wenn bauteil angeklickt zoom auf ganzes bauteil und nicht primär auf

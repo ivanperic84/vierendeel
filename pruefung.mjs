@@ -41810,6 +41810,19 @@ titel('276  Durchsicht der Bedienung, Punkte 5 bis 10');
        CQ.includes('.kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }') && /small\.hinweis[^{]*\{ font-size: 10\.5px; \}/.test(CQ.replace(/\r?\n/g, ' ')));
 }
 
+titel('277  «Bauteil zuweisen» mit Auswahl; Kamera nie näher als 5 m');
+/* 14. November: «mach weiter» - die drei offenen Beobachtungen des Audits. */
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const AQ = APP_QUELLE();
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('«Bauteil zuweisen» startet das Setzen ohne Vorwahl (Auswahl an der Stelle)',
+       UQ.includes('data-vorlage-direkt="__wahl__"') && !UQ.includes('data-vorlage-direkt="frei"')
+       && /wahl: \(id\) => \(id === '__wahl__' \? setzenStarten\(app\)/.test(AQ));
+  wahr('Blick auf ein Anbauteil: Kameraabstand mindestens 5 m',
+       RQ.includes('const dist = Math.max(hoehe * 1.9, halb * 2.2, 5);'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
