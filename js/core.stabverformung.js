@@ -399,6 +399,64 @@ function fahrdrahtNachweis(dat, lsg, nurW, grenz, opt = {}) {
            auskunft: [], stelle: { was: 'Fahrdraht' }, quelle: 'stabwerk', fahrdraht: true };
 }
 
+/**
+ * >>> DIE VERDREHUNG DES TRAGAUSLEGERS UM DIE MASTACHSE (14. November). <<<
+ *
+ * Weisung zur Beobachtung «Verdrehung unter Wind längs, Fahrdraht wandert
+ * 0.45 m» im Wortlaut: «5 grand grenzwert einfügen. beim Tragausleger sollen
+ * die rückhaltekräfte ansetzbar sein. zudem kann man längsaverankerung am
+ * kragarm ansetzen um dieser verdrehung entgegen zu wirken.» Auf Rückfrage
+ * «Um die Mastachse»: die Drehung des Auslegers im Grundriss, global um z.
+ * Gemessen als Drehung jeder Station aus dem Weg der beiden UPE-Gurte, das
+ * Grösste über die Stationen; Lastniveau wie die
+ * Mastverdrehung (nur Wind × ψ 0.70, meine Lesart), Grenzwert und Schalter
+ * dieselben (Mastverdrehung, Vorgabe 5°).
+ *
+ * @returns {{wert:number, lastfall:string, bez:string, faktor:number, x:number}|null}
+ */
+export function auslegerVerdrehung(dat, lsg, faelle, praefix = '') {
+  // Das Präfix besteht aus Buchstaben, Ziffern und «_» (T1_, MT1_ …).
+  const re = new RegExp(`^${praefix.replace(/[^A-Za-z0-9_]/g, '')}([VH])_(-?\\d+\\.\\d+)$`);
+  const stationen = new Map();
+  (dat?.knoten ?? []).forEach((k) => {
+    const m = re.exec(k.name);
+    if (!m) return;
+    const i = lsg.knotenIdx?.get(k.name);
+    if (i === undefined) return;
+    const st = stationen.get(m[2]) ?? { x: Number(m[2]), kn: [] };
+    st.kn.push({ i, x: k.x, y: k.y });
+    stationen.set(m[2], st);
+  });
+  /*
+   * Die Drehung der STATION, nicht die Knotenverdrehung der Gurte: am
+   * Anschluss ist die Drehung des einzelnen Gurts frei (Link), sie sagt dort
+   * nichts über den Ausleger. Aus dem Weg der beiden Gurte: der Anteil quer
+   * zur Verbindung V-H ist die Drehung um z (θ = d × Δu / |d|², z-Anteil).
+   */
+  const liste = [...stationen.values()].filter((s) => s.kn.length === 2);
+  if (!liste.length) return null;
+  let best = null;
+  nurWindFaelle(faelle).forEach((l) => {
+    const anteile = anteileFuer(l, dat);
+    liste.forEach((st) => {
+      const [a, b] = st.kn;
+      const dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy;
+      if (d2 < 1e-12) return;
+      let ux = 0, uy = 0;
+      anteile.forEach(({ lastfall, faktor }) => {
+        const uv = lsg.u.get(lastfall);
+        if (!faktor || !uv) return;
+        ux += faktor * (uv[b.i * 6] - uv[a.i * 6]);
+        uy += faktor * (uv[b.i * 6 + 1] - uv[a.i * 6 + 1]);
+      });
+      const phi = (dx * uy - dy * ux) / d2;
+      const wert = Math.abs(phi * BETRIEBSWIND);
+      if (!best || wert > best.wert) best = { wert, lastfall: l.key, bez: l.bez, faktor: BETRIEBSWIND, x: st.x };
+    });
+  });
+  return best;
+}
+
 export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = {}) {
   if (!kern) return null;
   const mitSpitze = kern.spitze === true;
@@ -491,12 +549,29 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
                       eta: schlimmste.eta, ok: nw.every((q) => q.ok), quelle: 'stabwerk',
                       kern: k.massgebend?.wert ?? null };
   });
-  const enden = [...Object.values(proEnde), ...(fd ? [fd] : [])];
+  // Der Tragausleger dreht sich im Grundriss (14. November).
+  let ausl = null;
+  if (opt.ausleger) {
+    const d = auslegerVerdrehung(dat, lsg, faelle, opt.praefix ?? '');
+    if (d) {
+      const gradGrenz = kern.grenzen?.verdrehungGrad ?? VERFORMUNG_GRENZEN.verdrehungGrad;
+      const g = gradGrenz * Math.PI / 180;
+      const was = `Verdrehung des Tragauslegers um die Mastachse (x ${d.x.toFixed(2)} m), Betriebswind`;
+      const q = { ...d, grenz: g, eta: d.wert / g, ok: d.wert <= g + 1e-12, einheit: 'rad',
+                  verdrehung: true, ausleger: true, was };
+      ausl = mitVerdrehung
+        ? { nachweise: [q], massgebend: q, eta: q.eta, ok: q.ok, auskunft: [],
+            stelle: { was: 'Tragausleger' }, quelle: 'stabwerk', ausleger: true }
+        : { nachweise: [], auskunft: [q], quelle: 'stabwerk', ausleger: true };
+    }
+  }
+  const enden = [...Object.values(proEnde), ...(fd ? [fd] : []), ...(ausl ? [ausl] : [])];
   if (!enden.length) return null;
   const gefuehrt = enden.filter((x) => Number.isFinite(x.eta));
   return {
     ...proEnde,
     ...(fd ? { fahrdraht: fd } : {}),
+    ...(ausl ? { ausleger: ausl } : {}),
     eta: gefuehrt.length ? Math.max(...gefuehrt.map((x) => x.eta)) : null,
     ok: gefuehrt.length ? gefuehrt.every((x) => x.ok) : null,
     ohneStelle: !gefuehrt.length,

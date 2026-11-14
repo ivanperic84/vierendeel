@@ -14,6 +14,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: 'Tragausleger: neue Prüfung «Verdrehung des Tragauslegers um die Mastachse» (Betriebswind, Grenzwert wie die Mastverdrehung, Vorgabe 5°). Ohne Längsverankerung am Kragarm ist sie meist überschritten.', rechnung: true },
+      { text: 'Abfangjoch: die Felder unter Lasten zeigen die Laufmeterlasten des Abfangjochs (vorher die eines Tragjochs); mit «Werte bearbeiten» gesetzte Wind- und Schneelasten wirken jetzt in Rechnung und Ausleitung.', rechnung: true },
+      { text: 'Nachweisauswahl, Knicklängenbeiwert und «Mastwind wirkt auf das Joch» gelten dem ganzen Blatt (vorher je Tragwerk).', rechnung: true },
       { text: 'Die Tabelle eines Masten über die Höhe (zehn Spalten) öffnet als Fenster - in der Seitenleiste steht dafür der Knopf «Tabelle über die Höhe …» mit der massgebenden Stelle; kein waagrechter Bildlauf mehr.' },
       { text: 'Schrift in der Anwendung nirgends mehr unter 10 px, auch Etiketten in Versalien, Meta-Zeilen und Anschriften der Skizzen und Diagramme. Die Druckblätter sind unverändert.' },
       { text: '«Bauteil zuweisen» (Reiter Anbauteile) fragt jetzt, welches Bauteil: ins Modell klicken, dort öffnet die Auswahl mit Suche - vorher setzte der Knopf ohne Auswahl ein freies Bauteil. Der Blick auf ein Anbauteil fährt nie näher als 5 m heran.' },

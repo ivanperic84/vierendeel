@@ -395,6 +395,9 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
         // welche Spalte gilt, sagt die Eingabe.
         schneeAktiv: aktSatz.schneeAktiv,
         schneeKlasse: aktSatz.schneeKlasse,
+        // «Werte bearbeiten» wirkt auch hier (14. November, `abfangLaufmeter`).
+        lastHerkunft: aktSatz.lastHerkunft,
+        gkManuell: aktSatz.gkManuell, wkManuell: aktSatz.wkManuell, skManuell: aktSatz.skManuell,
         /*
          * >>> UND DER MAST, WENN EINER DASTEHT. <<<
          *

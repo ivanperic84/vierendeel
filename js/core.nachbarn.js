@@ -32,7 +32,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { abfangWind } from './data.abfangjoche.js';
+import { abfangLaufmeter } from './data.abfangjoche.js';
 import { tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
          versteckt, tragwerkSatz, tragwerkPos } from './core.constants.js';
 import { berechne } from './core.vierendeel.js';
@@ -102,16 +102,12 @@ export function abfangAuswertungFuer(w, stahl) {
 
 function abfangEinmal(w, satzA, stahl, anbauteile) {
   const a2 = getAbfangjoch(w.abfangTyp);
-  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3', EK0: '1.0' }[satzA.ek] ?? '1.1';
-  const sKl = String(satzA.schneeKlasse ?? '1.25');
   return abfangAuswertung({
     typ: w.abfangTyp, jt: Number(w.L),
     // Der Mastabstand des Tragwerks (11. Oktober, `abfangJsIst`).
     abfangJs: w.abfangJs ?? satzA.abfangJs,
-    // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
-    gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
-    wk: abfangWind(a2, satzA.ek ?? 'EK2'),
-    sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
+    // Sortiment oder «Werte bearbeiten» (14. November, `abfangLaufmeter`).
+    ...(({ gk, wk, sk }) => ({ gk, wk, sk }))(abfangLaufmeter(a2, satzA)),
     anbauteile,
     gammaG: w.gammaG, gammaQ: w.gammaQ, psi0: w.psi0,
     /*

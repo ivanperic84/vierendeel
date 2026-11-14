@@ -28485,7 +28485,8 @@ titel('113  Mastverformung im Gebrauchszustand');
     // Meldung «die kacheln haben keine farbe unter übersicht»).
     wahr('Die Kachel traegt die Ampel (28. September)',
          // Seit dem 4. Oktober mit der Kachel «Seitenlage Fahrdraht» im selben Aufruf.
-         /kachel\(ende === 'fahrdraht' \? `Seitenlage \$\{name\}` : `Verformung \$\{name\}`[\s\S]{0,1400}?ampel\(mg\.eta\)/.test(ui113));
+         // Seit dem 14. November dazu «Verdrehung Tragausleger».
+         /kachel\(ende === 'fahrdraht' \? `Seitenlage \$\{name\}`\s*: ende === 'ausleger' \? 'Verdrehung Tragausleger' : `Verformung \$\{name\}`[\s\S]{0,1400}?ampel\(mg\.eta\)/.test(ui113));
   }
 }
 
@@ -38973,6 +38974,26 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
     wahr('Die Masttabelle über die Höhe steht in der Leiste als Knopf, das Fenster öffnet die App',
          uiQ.includes('data-mast-tabelle') && uiQ.includes('verdrahteMastTabellen(node)')
          && appQ.includes('ui.setzeMastTabelle('));
+  }
+  {
+    // 14. November: Blattfelder, Laufmeterlasten des Abfangjochs, Verdrehung Tragausleger.
+    const C14 = await import(new URL('./js/core.constants.js', import.meta.url).href);
+    wahr('Nachweisauswahl, Knicklängenbeiwert und Mastwind aufs Joch gehören dem Blatt (Lastherkunft nicht)',
+         ['nachweise', 'knickBeiwert', 'mastWindAufJoch'].every((k) => C14.BLATT_FELDER.includes(k))
+         && !C14.BLATT_FELDER.includes('lastHerkunft'));
+    const AJ14 = await import(new URL('./js/data.abfangjoche.js', import.meta.url).href);
+    const a14 = { gewicht: 43, schnee: { '0.9': 0.17, '1.25': 0.24 }, wind: { '0.9': 0.26 } };
+    const t14 = AJ14.abfangLaufmeter(a14, { ek: 'EK1', schneeAktiv: true, schneeKlasse: '1.25' });
+    const m14 = AJ14.abfangLaufmeter(a14, { ek: 'EK1', schneeAktiv: true, lastHerkunft: 'manuell',
+                                           gkManuell: 0.5, wkManuell: 0.3, skManuell: 0.6 });
+    const o14 = AJ14.abfangLaufmeter(a14, { ek: 'EK1', schneeAktiv: false, lastHerkunft: 'manuell', skManuell: 0.6 });
+    wahr('Abfangjoch: Laufmeterlasten aus dem Sortiment, mit «Werte bearbeiten» die Felder, ohne Schnee s_k 0',
+         Math.abs(t14.sk - 0.24) < 1e-9 && Math.abs(t14.wk - 0.26) < 1e-9 && Math.abs(t14.gk - 43 * 9.81 / 1000) < 1e-9
+         && m14.sk === 0.6 && m14.wk === 0.3 && m14.gk === 0.5 && o14.sk === 0);
+    const SV14 = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
+    wahr('Verdrehung des Tragauslegers um die Mastachse: aus dem Weg der beiden Gurte, Grenzwert der Mastverdrehung',
+         SV14.includes('export function auslegerVerdrehung') && SV14.includes('(dx * uy - dy * ux) / d2')
+         && SV14.includes("...(ausl ? { ausleger: ausl } : {})"));
   }
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',

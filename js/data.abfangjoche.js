@@ -86,6 +86,36 @@ export function abfangWind(a, ek) {
   return windWertStufe(a?.wind, ek) ?? 0;
 }
 
+/**
+ * >>> DIE LAUFMETERLASTEN DES ABFANGJOCHS AN EINER STELLE (14. November). <<<
+ *
+ * Weisung: «beim abfangjoch sollte der schnee ansetzbar sein. warum hat es
+ * keine werte?» Befund: gerechnet wurde mit dem Sortiment des Abfangjochs,
+ * die Felder unter Lasten zeigten aber die Werte des Tragjochs (J90: g_k
+ * 0.59, w_k 0.43, s_k 0.27 statt A160: 0.42, 0.26, 0.24 kN/m), und «Werte
+ * bearbeiten» wirkte am Abfangjoch nicht. Auf Rückfrage «Richtig zeigen +
+ * Bearbeiten wirkt»: Kern, Stabwerk und Anzeige lesen hier. Mit
+ * `lastHerkunft: 'manuell'` gelten die Felder g_k, w_k, s_k (das Stabwerk
+ * wiegt wie am Tragjoch die Stäbe, g_k gilt dort dem Ersatzbalken).
+ *
+ * @returns {{gk:number, wk:number, sk:number, manuell:boolean}} [kN/m]
+ */
+export function abfangLaufmeter(a, satz = {}) {
+  if (satz.lastHerkunft === 'manuell') {
+    const z = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+    return { gk: z(satz.gkManuell), wk: z(satz.wkManuell),
+             sk: satz.schneeAktiv === false ? 0 : z(satz.skManuell), manuell: true };
+  }
+  const sKl = String(satz.schneeKlasse ?? '1.25');
+  return {
+    // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
+    gk: (a?.gewicht ?? 0) * 9.81 / 1000,
+    wk: abfangWind(a, satz.ek ?? 'EK2'),
+    sk: satz.schneeAktiv === false ? 0 : (a?.schnee?.[sKl] ?? 0),
+    manuell: false,
+  };
+}
+
 let DB = null;
 
 /**

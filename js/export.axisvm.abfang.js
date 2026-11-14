@@ -57,7 +57,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { abfangWind } from './data.abfangjoche.js';
+import { abfangLaufmeter } from './data.abfangjoche.js';
 import { mitTrasse } from './core.lasten.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
@@ -1616,9 +1616,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Beide teilen sich auf die zwei Gurte, wie das Eigengewicht.
    */
   const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3', EK0: '1.0' }[ekAn] ?? '1.1';
-  const wJoch = abfangWind(a, ekAn);
+  // Sortiment oder «Werte bearbeiten» (14. November, `abfangLaufmeter`).
+  const lm = abfangLaufmeter(a, { ek: ekAn, schneeAktiv: opt.schneeAktiv,
+    schneeKlasse: opt.schneeKlasse, lastHerkunft: opt.lastHerkunft,
+    gkManuell: opt.gkManuell, wkManuell: opt.wkManuell, skManuell: opt.skManuell });
+  const wJoch = lm.wk;
   const sKl = String(opt.schneeKlasse ?? '1.25');
-  const sJoch = (opt.schneeAktiv === false ? 0 : (a?.schnee?.[sKl] ?? 0));
+  const sJoch = lm.sk;
   staebe.filter((st2) => st2.art === 'stab'
                       && (st2.querschnitt === 'GURT' || st2.querschnitt === 'GABEL'))
     .forEach((st2) => {
@@ -1854,6 +1858,8 @@ export function abfangBau(satz, opt = {}) {
     ek: satz.ek,
     schneeAktiv: satz.schneeAktiv,
     schneeKlasse: satz.schneeKlasse,
+    lastHerkunft: satz.lastHerkunft,
+    gkManuell: satz.gkManuell, wkManuell: satz.wkManuell, skManuell: satz.skManuell,
     mast: opt.mast ?? null,
     // Art und Richtung je Leiter (29. September) - ohne sie zöge jeder
     // Leiter nach der Vorgabe «einseitig» in +y.

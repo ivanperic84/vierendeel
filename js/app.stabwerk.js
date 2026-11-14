@@ -454,7 +454,9 @@ export function rechneStabwerk(app, aufruf = {}) {
   // Im Blatt die Fahrdrähte des aktiven Tragwerks (4. Oktober).
   const verformung = verformungAusStabwerk(erg.verformung ?? null, dat, lsg,
     alleFaelle, erg.modell?.federn?.namen ?? {},
-    { praefix: eingaben.length > 1 ? `${satz.twId ?? 'T1'}_` : '' });
+    { praefix: eingaben.length > 1 ? `${satz.twId ?? 'T1'}_` : '',
+      // Verdrehung des Tragauslegers um die Mastachse (14. November).
+      ausleger: Boolean(bau?.tragausleger) });
 
   /*
    * >>> DER TRAGAUSLEGER: AUFHÄNGUNG, KNICKEN, FUNDAMENT (28. September). <<<
@@ -673,6 +675,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   // `auswertung` (9. Oktober): womit die Hülle gerechnet ist - die Gegenrechnung
   // mit AxisVM wertet fremde Schnittgrössen genau so aus (core.axisvergleich.js).
   Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo,
+    ausleger: Boolean(bau?.tragausleger),
     auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch } } },
                                           enumerable: false });
   /*
@@ -849,7 +852,7 @@ export function ankerFuerMast(sw, id, meta, satz) {
 export function verformungFuer(sw, kern, namen, twId = null) {
   const r = sw?.roh;
   return r && kern ? verformungAusStabwerk(kern, r.dat, r.lsg, r.faelle, namen ?? {},
-    { praefix: (sw.tragwerke ?? 1) > 1 && twId ? `${twId}_` : '' }) : null;
+    { praefix: (sw.tragwerke ?? 1) > 1 && twId ? `${twId}_` : '', ausleger: r.ausleger === true }) : null;
 }
 
 /**

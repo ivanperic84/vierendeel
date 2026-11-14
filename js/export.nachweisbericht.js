@@ -690,19 +690,21 @@ export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x, qu
   eintraege.forEach(({ v: vv, namen }) => {
   if (!vv) return;
   // Der Nachweis am Fahrdraht (4. Oktober) steht als eigene Zeile vorn.
-  ['fahrdraht', 'A', 'B'].forEach((e) => {
+  // Die Verdrehung des Tragauslegers um die Mastachse (14. November).
+  ['fahrdraht', 'ausleger', 'A', 'B'].forEach((e) => {
     const q = vv[e];
     if (!q?.nachweise?.length) return;
-    const name = e === 'fahrdraht' ? 'Fahrdraht' : anzeige(namen?.[e] || `Ende ${e}`);
+    const name = e === 'fahrdraht' ? 'Fahrdraht' : e === 'ausleger' ? 'Tragausleger'
+      : anzeige(namen?.[e] || `Ende ${e}`);
     if (gesehen.has(name)) return;
     gesehen.add(name);
     q.nachweise.forEach((n) => {
       // In MILLIMETERN, die Verdrehung um die Mastachse in GRAD (30. Sept.).
       const grad = n.einheit === 'rad';
       const w = (x) => (grad ? `${zahl(x * 180 / Math.PI, 2)}°` : zahl(x * 1000, 1));
-      zeilen.push([esc(e === 'fahrdraht' ? name : `Mast ${name}`), esc(n.was),
+      zeilen.push([esc(e === 'fahrdraht' || e === 'ausleger' ? name : `Mast ${name}`), esc(n.was),
         w(n.wert), w(n.grenz),
-        esc(grad ? 'um die Achse' : n.achse === 'x' ? 'quer' : 'längs'),
+        esc(n.ausleger ? 'um die Mastachse' : grad ? 'um die Achse' : n.achse === 'x' ? 'quer' : 'längs'),
         `<span data-pruef="verf-${esc(e)}">${zahl(n.eta, 3)}</span>`,
         esc(n.bez ?? ''),
         `<span class="marke ${n.ok ? 'ok' : 'nok'}">${n.ok ? 'erfüllt' : 'ÜBER'}</span>`]);

@@ -7,6 +7,13 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
+Offene Punkte durchgegangen (Weisung 14. November, CLAUDE.md *Entschieden*, oberste Zeile): Verdrehung
+Tragausleger ≤ 5°, Nachweisauswahl / Knicklänge / Mastwind fürs Blatt, Lastfelder des Abfangjochs
+(«Werte bearbeiten» wirkt), alte Lagerungsentscheide mit dem Löser nachgemessen. Örtlich committet,
+**nicht gepusht**. Drei Rückfragen offen (CLAUDE.md, *Offene Punkte*, «Aus der Durchsicht vom 14. November»).
+
+### Davor am 14. November (Audit-Rest)
+
 Nach dem Push: Rest des Audits gebaut (Schrift nie unter 10 px, Masttabelle über die Höhe als Fenster),
 gepusht (Weisung «Ja, pushen», 14. November), Prüfstand **7317** grün; Einzeldatei `Versand/vierendeel_tool_2026-11-14.html` neu. Das Audit ist damit abgeschlossen; kein offener Auftrag - beim
 Auftraggeber nachfragen, womit es weitergeht.

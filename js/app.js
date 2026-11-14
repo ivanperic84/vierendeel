@@ -1236,7 +1236,9 @@ function rechneTragwerk(werte, joch) {
   // Die Tabellenlasten in die gesperrten Felder spiegeln, damit man sie
   // immer sieht - auch wenn gerade die Tabelle gilt.
   if (mitJoch && !werte.lastenBearbeiten) {
-    const c = erg.modell.char;
+    // Am Abfangjoch die Werte, mit denen sein Kern rechnet (14. November) -
+    // hier standen die des Tragjochs, das im Hintergrund mitläuft.
+    const c = erg.abfang?.lasten ?? erg.modell.char;
     werte.gkManuell = Math.round(c.gk * 1000) / 1000;
     werte.wkManuell = Math.round(c.wk * 1000) / 1000;
     werte.skManuell = Math.round(c.sk * 1000) / 1000;
@@ -2679,7 +2681,7 @@ function ohneBalken() {
  * Gebrauchstauglichkeit.
  */
 function gzgMassgebend(g) {
-  return ['fahrdraht', 'A', 'B'].map((e) => g?.h?.verformung?.[e]?.massgebend).filter(Boolean)
+  return ['fahrdraht', 'ausleger', 'A', 'B'].map((e) => g?.h?.verformung?.[e]?.massgebend).filter(Boolean)
     .sort((a, b) => b.eta - a.eta)[0] ?? null;
 }
 

@@ -220,6 +220,17 @@ export const BLATT_FELDER = [
   'mastPlastisch', 'knickenJoch', 'schraubenGrenze',
   // Stehende Bleche plastisch (10. Oktober) - eine Art des Nachweises.
   'blechPlastisch',
+  /*
+   * >>> NACHWEISAUSWAHL, KNICKLAENGE, MASTWIND AUFS JOCH (14. November). <<<
+   * Zu den offenen Punkten «Rechenmodelle, die dem Blatt gehören müssten» und
+   * «die übrigen Nachweisgruppen stehen je Tragwerk» im Wortlaut: «8.
+   * ergänzen.» und «10. nachziehen». Die Lastherkunft bleibt je Tragwerk
+   * (Rückfrage «Je Tragwerk lassen»): von Hand gesetzte g_k, w_k, s_k
+   * gehören dem einzelnen Joch. In einem alten Stand gilt die Wahl des
+   * gewählten Tragwerks für alle; der Bestandesschutz ist an, wenn ihn ein
+   * Tragwerk an hatte (`bestandAufsBlatt` beim Laden).
+   */
+  'nachweise', 'knickBeiwert', 'mastWindAufJoch',
   // Ansicht
   'projektion', 'blickwinkel', 'tastenkuerzel', 'modellTransparenz',
   'modellSchrift', 'modellSchriftLast', 'modellSchriftMass',

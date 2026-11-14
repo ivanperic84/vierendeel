@@ -311,8 +311,9 @@ export const NACHWEISGRUPPEN = [
   { key: 'verdrehungMast', titel: 'Mastverdrehung', vorhanden: true, standard: true,
     ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
     grenze: { feld: 'gzgGrenzeVerdrehung', vor: '', nach: '°', vorgabe: 5 },
-    was: 'Verdrehung um die Mastachse auf der Referenzhöhe - nur aus dem '
-       + 'Stabwerk (ohne Wölbkrafttorsion, sichere Seite)' },
+    was: 'Verdrehung um die Mastachse auf der Referenzhöhe, am Tragausleger auch die '
+       + 'Drehung des Auslegers im Grundriss - nur aus dem Stabwerk (ohne '
+       + 'Wölbkrafttorsion, sichere Seite)' },
 ];
 
 /** Voreinstellung je Gruppe. */

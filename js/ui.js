@@ -6737,10 +6737,12 @@ export function gzgKacheln(erg) {
   const gesehenV = new Set();
   // Dazu der Nachweis am Fahrdraht (4. Oktober, «ja nachweis auf
   // fahrdrahtpunkt umstellen») - eine Kachel neben denen der Masten.
-  ['fahrdraht', 'A', 'B'].forEach((ende) => {
+  // Und die Verdrehung des Tragauslegers um die Mastachse (14. November).
+  ['fahrdraht', 'ausleger', 'A', 'B'].forEach((ende) => {
     const q = erg.verformung[ende];
     if (!q?.massgebend) return;
-    const name = ende === 'fahrdraht' ? 'Fahrdraht' : (namenV[ende] || `Ende ${ende}`);
+    const name = ende === 'fahrdraht' ? 'Fahrdraht' : ende === 'ausleger' ? 'Tragausleger'
+      : (namenV[ende] || `Ende ${ende}`);
     if (gesehenV.has(name)) return;
     gesehenV.add(name);
     const mg = q.massgebend;
@@ -6770,7 +6772,7 @@ export function gzgKacheln(erg) {
      * Sie stand nur im Titel, und die Frage vom 26. September war genau
      * die: «auf welcher höhe werden die 150mm berechnet?»
      */
-    const wo = Number.isFinite(mg.z)
+    const wo = mg.ausleger ? `x ${f2(mg.x)} m · ` : Number.isFinite(mg.z)
       // Die Mastspitze L/100 (30. September) nennt sich selbst.
       ? `${mg.verdrehung ? 'Mastverdrehung' : mg.spitze ? 'Mastspitze'
         : (q.stelle?.was ?? 'Messstelle')} ${mg.z.toFixed(2)} m · ` : '';
@@ -6789,9 +6791,10 @@ export function gzgKacheln(erg) {
         + `(${q.L.toFixed(2)} m) und gilt deshalb nicht. Gemessen wird auf `
         + `${mg.z?.toFixed(2)} m — dort, wo der Kern eine Verschiebung `
         + `rechnet.` : '';
-    k.push(kachel(ende === 'fahrdraht' ? `Seitenlage ${name}` : `Verformung ${name}`, mm(mg.wert),
+    k.push(kachel(ende === 'fahrdraht' ? `Seitenlage ${name}`
+      : ende === 'ausleger' ? 'Verdrehung Tragausleger' : `Verformung ${name}`, mm(mg.wert),
       `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig`
-      + `${mg.verdrehung ? ' · um die Achse' : ` · ${mg.achse === 'x' ? 'quer' : 'längs'}`}`
+      + `${mg.ausleger ? ' · um die Mastachse' : mg.verdrehung ? ' · um die Achse' : ` · ${mg.achse === 'x' ? 'quer' : 'längs'}`}`
       /*
        * Sichtbar, nicht nur im Titel: ein Tooltip liest, wer die Maus
        * darauf hält - und wer eine Höhe eingetragen hat, die nicht gilt,
