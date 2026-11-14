@@ -7,6 +7,12 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
+Nach dem Push: Rest des Audits gebaut (Schrift nie unter 10 px, Masttabelle über die Höhe als Fenster),
+örtlich committet, **nicht gepusht**, Prüfstand **7317** grün. Das Audit ist damit abgeschlossen; kein offener Auftrag - beim
+Auftraggeber nachfragen, womit es weitergeht.
+
+### Davor am 14. November
+
 Prüfstand **7315** grün, Durchlauf ohne Bruch. Alles gepusht (Weisung 14. November): Durchsicht der
 Bedienung, Punkte 5 bis 10, und der Rest des Audits (CLAUDE.md, *Entschieden*, oberste Zeile). Für die weitere Arbeit gilt: pushen nur auf
 Weisung. Rest des Audits unter *Offene Punkte*.

@@ -174,6 +174,7 @@ export function verdrahteKlapp(node) {
     });
   });
   verdrahteOffenMarke(node);
+  verdrahteMastTabellen(node);
 }
 
 /** Ist ein Abschnitt gerade offen? */
@@ -10289,6 +10290,39 @@ function knickblatt(kS, n) {
  * waehrend Uebersicht und Abfangjoch weiter das ganze Blatt nehmen. Eine
  * Funktion, drei Verwendungen - statt dreier Tabellen, die auseinanderlaufen.
  */
+/* ---------------------------------------------------------------------------
+ * >>> DIE TABELLE UEBER DIE HOEHE ALS FENSTER (14. November). <<<
+ *
+ * Rest des Audits, auf Rueckfrage «Als Fenster öffnen»: zehn Spalten brauchen
+ * rund 615 px, die Leiste hat 380. In der Leiste steht nur noch ein Knopf mit
+ * der massgebenden Stelle; die ganze Tabelle oeffnet die App in ihrem Dialog
+ * (`setzeMastTabelle`, wie die Lastfaelle). Das Fenster zeigt den Stand der
+ * letzten Rechnung - es rechnet nicht selbst.
+ * ------------------------------------------------------------------------- */
+const MAST_TABELLEN = new Map();
+let beiMastTabelle = null;
+export function setzeMastTabelle(fn) { beiMastTabelle = fn; }
+
+function mastTabelleKnopf(n, name, tabelle) {
+  const key = `${n.ende}|${name}`;
+  MAST_TABELLEN.set(key, { titel: `Mast ${name} · ${n.profil?.name ?? ''} — über die Höhe`,
+                           html: tabelle });
+  return `<p class="mast-tab-knopf"><button class="btn btn-mini" data-mast-tabelle="${esc(key)}"
+      title="Alle Stationen mit F, M, σ_ω, σ und η in einem Fenster">Tabelle über die Höhe …</button>
+    <span class="notiz">${n.stationen.length} Stationen · massgebend bei
+      ${f2(n.massgebend?.z ?? 0)} m</span></p>`;
+}
+
+function verdrahteMastTabellen(node) {
+  node.querySelectorAll('[data-mast-tabelle]').forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const t = MAST_TABELLEN.get(b.dataset.mastTabelle);
+      if (t) beiMastTabelle?.(t.titel, t.html);
+    };
+  });
+}
+
 function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
     if (!n) return '';
     const kl = n.klasse;
@@ -10321,7 +10355,7 @@ function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
     return `${mitKopf ? abschnitt(`Mast ${name} · ${n.profil.name}`,
         `η ${f3(n.eta)} Querschnitt bei ${f2(n.massgebend.z)} m`
         + (kS ? ` · η ${f3(kS.eta)} Knicken` : '')) : ''}
-      <div class="tabellenrahmen"><table class="dt">
+      ${mastTabelleKnopf(n, name, `<div class="tabellenrahmen"><table class="dt">
         <!-- =================================================================
              >>> ZWEI KOPFZEILEN: DIE EBENE UND DIE ACHSE. <<<
              =================================================================
@@ -10355,7 +10389,7 @@ function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
           <th class="num">aus Torsion</th><th class="num">gesamt</th><th></th>
         </tr></thead>
         <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
-      </table></div>
+      </table></div>`)}
       ${knickblatt(kS, n)}
       <p class="notiz" style="margin:4px 0 0">
         Querschnittsklasse <b>${kl.klasse}</b> (Flansch c/t ${f1(kl.flansch.ct)},

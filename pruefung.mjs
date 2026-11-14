@@ -38961,7 +38961,19 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
        && dlg.includes('${zahl(t.masse, 0)} kg</span></span>'));
   const css235 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Die Fusszeile der Kachel ist im Stilblatt klein und blass gesetzt',
-       /\.sig-werte \{[^}]*font-size: 9\.5px[^}]*var\(--dim\)/.test(css235));
+       /\.sig-werte \{[^}]*font-size: 10px[^}]*var\(--dim\)/.test(css235));
+  // Rest des Audits (14. November, «Alles auf 10 px»): keine Schrift unter
+  // 10 px im Stilblatt der Anwendung, small/sub/sup nie unter 10 px.
+  wahr('Im Stilblatt steht keine Schriftgrösse unter 10 px',
+       !/font-size: *([0-8](\.\d+)?|9(\.\d+)?)px/.test(css235)
+       && /small, sub, sup \{ font-size: max\(10px/.test(css235));
+  {
+    const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    wahr('Die Masttabelle über die Höhe steht in der Leiste als Knopf, das Fenster öffnet die App',
+         uiQ.includes('data-mast-tabelle') && uiQ.includes('verdrahteMastTabellen(node)')
+         && appQ.includes('ui.setzeMastTabelle('));
+  }
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',
        set.includes("setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl })")

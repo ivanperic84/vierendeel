@@ -7462,6 +7462,9 @@ export async function start() {
     : { id: t.id, text: t.text, taste: t.taste, jetzt: tasteVon(t),
         still: t.still || !t.id })));
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);
+  // Die Tabelle eines Masten ueber die Hoehe als Fenster (14. November).
+  ui.setzeMastTabelle((titel, html) => dialog(titel, html,
+    '<button class="btn btn-acc" data-zu>Fertig</button>', 'dialog-lf'));
   // Der Vorschlag beim PDF-Druck heisst wie die Modelldatei (10. Oktober).
   setzeDruckStamm(() => dateiStamm(werte));
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht

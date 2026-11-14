@@ -58,6 +58,9 @@ body {
 }
 
 .mono { font-family: var(--f-mono); }
+/* Rest des Audits (14. November, «Alles auf 10 px»): die Browservorgabe
+   «smaller» gibt bei 11 px Lauftext 9.2 px - nie unter 10 px. */
+small, sub, sup { font-size: max(10px, .83em); }
 
 /* --- Grundgerüst ---------------------------------------------------------- */
 
@@ -260,7 +263,7 @@ body {
   font-family: var(--f-mono); letter-spacing: .04em;
 }
 .schiene-nw i {
-  font-style: normal; font-size: 9px; color: var(--dim);
+  font-style: normal; font-size: 10px; color: var(--dim);
 }
 .schiene-nw b { font-size: 11px; }
 .schiene-nw div.ok   { border-left-color: var(--ok); }
@@ -282,7 +285,7 @@ body {
 .split.zu::after { background: var(--acc); height: 20px; }
 
 .panel-titel {
-  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .12em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--dim); flex: 1;
 }
 .panel-koerper { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; }
@@ -324,12 +327,12 @@ body {
 /* --- Abschnitte und Felder ------------------------------------------------ */
 
 .sec {
-  font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .12em;
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600; letter-spacing: .12em;
   text-transform: uppercase; color: var(--acc); margin: 18px 0 8px;
   padding: 2px 0 2px 8px; border-left: 2px solid var(--acc);
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
-.sec-r { font-size: 9px; color: var(--dim); letter-spacing: .04em; text-transform: none; }
+.sec-r { font-size: 10px; color: var(--dim); letter-spacing: .04em; text-transform: none; }
 
 .feld { display: grid; gap: 3px; margin-bottom: 9px; }
 .feld > label {
@@ -371,7 +374,7 @@ input:disabled, select:disabled {
   cursor: not-allowed; opacity: .85;
 }
 .gesperrt > label::after {
-  content: 'DB'; font-family: var(--f-mono); font-size: 9px; letter-spacing: .08em;
+  content: 'DB'; font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em;
   color: var(--dim); border: 1px solid var(--ol); border-radius: 3px;
   padding: 0 3px; margin-left: auto;
 }
@@ -413,7 +416,7 @@ body.ohne-erklaertexte .panel .feld > .hinweis-klapp { display: none; }
 
 .lasttabelle { width: 100%; border-collapse: collapse; font-family: var(--f-mono); font-size: 11px; }
 .lasttabelle th {
-  color: var(--dim); font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  color: var(--dim); font-weight: 500; font-size: 10px; letter-spacing: .06em;
   text-transform: uppercase; padding: 4px 3px; border-bottom: 1px solid var(--ol);
   white-space: nowrap; text-align: left;
 }
@@ -438,7 +441,7 @@ input[type=range].rng {
 .zahlfeld input.kurz { width: 74px; flex-shrink: 0; text-align: right; }
 .rng-skala {
   display: flex; justify-content: space-between;
-  font-family: var(--f-mono); font-size: 9px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   margin-top: -1px;
 }
 
@@ -450,7 +453,7 @@ input[type=range].rng {
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
 }
 .qsk-t {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
   color: var(--dim); margin-right: 2px;
 }
 .qsk .btn-mini { margin-left: auto; }
@@ -476,7 +479,7 @@ input[type=range].rng {
 .kachel-gruppe { margin-bottom: 9px; }
 .kachel-gruppe-kopf {
   display: flex; align-items: center; gap: 5px;
-  font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); margin: 0 0 4px 1px;
 }
 .kachel-gruppe-kopf svg { color: var(--acc); flex: 0 0 auto; }
@@ -531,7 +534,7 @@ input[type=range].rng {
 .bs-gruppen { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
 .bs-gruppe { display: flex; flex-direction: column; gap: 2px; }
 .bs-gruppe[hidden], .bs-eintrag[hidden] { display: none; }
-.bs-gruppe .sw-t { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+.bs-gruppe .sw-t { font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); margin: 0 0 2px 1px; }
 .bs-eintrag { text-align: left; padding: 4px 7px; font: inherit; font-size: 11.5px;
   color: var(--on2); background: transparent; border: 1px solid transparent;
@@ -549,15 +552,15 @@ input[type=range].rng {
 .setz-wahl .sw-kopf { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--on); }
 .setz-wahl .sw-kopf span { flex: 1 1 auto; }
 .setz-wahl .sw-liste { overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
-.setz-wahl .sw-t { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+.setz-wahl .sw-t { font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); margin: 0 0 3px 1px; }
 .setz-wahl .kacheln { grid-template-columns: repeat(3, 1fr); }
 .setz-wahl .sw-zuletzt .kachel { border-color: var(--acc); }
 .setz-wahl .kachel[hidden], .setz-wahl .sw-gruppe[hidden], .setz-wahl .wahl-spalte[hidden] { display: none; }
 .setz-wahl .wahl-spalte { display: flex; flex-wrap: wrap; gap: 4px; }
-.setz-wahl .wahl-spalte .wahl-t { flex: 1 0 100%; font-size: 9.5px; letter-spacing: .06em;
+.setz-wahl .wahl-spalte .wahl-t { flex: 1 0 100%; font-size: 10px; letter-spacing: .06em;
   text-transform: uppercase; color: var(--dim); }
-.kachel-meta { font-family: var(--f-mono); font-size: 9px; color: var(--dim); }
+.kachel-meta { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
 
 .at-karte {
   border: 1px solid var(--ol); border-radius: var(--m-r1);
@@ -622,13 +625,13 @@ input[type=range].rng {
   border-radius: 6px; background: var(--acc-s); font-size: 12px; }
 .at-auswahl b { margin-right: auto; }
 .at-pos {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
 }
 .at-name {
   font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .at-x, .at-kraft {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim); white-space: nowrap;
 }
 .at-kraft { overflow: hidden; text-overflow: ellipsis; }
 .at-tasten {
@@ -643,7 +646,7 @@ input[type=range].rng {
 .vl-suche { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
 .at-suche input { flex: 1; padding: 5px 8px; font-size: 11.5px; }
 .at-suche-zahl {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim); white-space: nowrap;
 }
 
 .at-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -684,7 +687,7 @@ input[type=range].rng {
    daneben («die beiden felder auf gleicher höhe anordnen»). */
 .at-feld { display: grid; gap: 2px; align-content: start; }
 .at-feld > span {
-  font-family: var(--f-mono); font-size: 9px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
 }
 .at-feld > span i { font-style: normal; color: var(--dim); }
 .at-feld input, .at-feld select { padding: 4px 5px; font-size: 11px; }
@@ -750,7 +753,7 @@ input[type=range].rng {
   font-size: 10.5px; color: var(--dim);
 }
 .modul-partner-t {
-  grid-column: 1 / -1; font-size: 9px; letter-spacing: .04em;
+  grid-column: 1 / -1; font-size: 10px; letter-spacing: .04em;
   text-transform: uppercase; color: var(--dim); margin-bottom: 1px;
 }
 .modul-partner select { grid-column: 1; min-width: 0; }
@@ -774,10 +777,10 @@ input[type=range].rng {
    beide auf denselben Punkt legte. */
 .modul-kette {
   display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
-  margin: 0 0 6px; font-size: 9.5px;
+  margin: 0 0 6px; font-size: 10px;
 }
 .rollen-marke {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .04em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .04em;
   padding: 1px 5px; border-radius: 999px;
   border: 1px solid var(--ol); color: var(--dim); background: var(--s2);
 }
@@ -799,7 +802,7 @@ input[type=range].rng {
    Drei Kaestchen nebeneinander, von denen eines etwas anderes meint als die
    beiden anderen, waeren sonst eine Falle. */
 .wirk-bez {
-  font-style: normal; font-size: 9px; letter-spacing: .04em;
+  font-style: normal; font-size: 10px; letter-spacing: .04em;
   margin-left: 3px; padding: 0 3px; border-radius: 3px;
   background: var(--s2); color: var(--dim); vertical-align: 1px;
 }
@@ -867,7 +870,7 @@ input[type=range].rng {
 .sec-klein {
   display: flex; flex-wrap: wrap; align-items: baseline;
   gap: 2px 8px;
-  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600;
   letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
   margin: 7px 0 3px;
 }
@@ -887,7 +890,7 @@ input[type=range].rng {
   line-height: normal; box-sizing: border-box;
   border: 1px dashed var(--ol); border-radius: var(--m-r1); color: var(--dim);
 }
-.at-feld .hinweis { font-size: 9px; line-height: 1.3; }
+.at-feld .hinweis { font-size: 10px; line-height: 1.3; }
 
 /* --- Massskizze des Anbauteils -------------------------------------------- */
 /* Sie beantwortet die Frage, die zehn Zahlenfelder offenlassen: wo gehört
@@ -904,14 +907,14 @@ input[type=range].rng {
 .at-skizze .sk-teil circle { fill: var(--acc); }
 .at-skizze .sk-mass line { stroke: var(--dim); stroke-width: 0.8; }
 .at-skizze .sk-mass text,
-.at-skizze .sk-kraft text { font-family: var(--f-mono); font-size: 9px; fill: var(--dim); }
+.at-skizze .sk-kraft text { font-family: var(--f-mono); font-size: 10px; fill: var(--dim); }
 .at-skizze .sk-kraft line { stroke: var(--achse); stroke-width: 1.2; }
 .at-skizze .sk-kraft polygon { fill: var(--achse); }
 .at-skizze .sk-titel {
-  font-family: var(--f-mono); font-size: 9px; fill: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; fill: var(--dim);
   letter-spacing: .08em; text-transform: uppercase;
 }
-.at-skizze .sk-notiz { font-family: var(--f-mono); font-size: 9px; fill: var(--dim); }
+.at-skizze .sk-notiz { font-family: var(--f-mono); font-size: 10px; fill: var(--dim); }
 /* Hervorhebung des gerade bearbeiteten Masses */
 .at-skizze [data-zu].hell line { stroke: var(--acc); stroke-width: 1.8; }
 .at-skizze [data-zu].hell text { fill: var(--acc); font-weight: 600; }
@@ -1048,7 +1051,7 @@ input[type=range].rng {
   white-space: nowrap;
 }
 .wahl-t {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .12em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--dim); padding: 0 2px 2px;
   border-bottom: 1px solid var(--ol); margin-bottom: 3px;
 }
@@ -1064,7 +1067,7 @@ input[type=range].rng {
 /* Vor dem ersten Rechengang ist sie leer - dann waere sie ein leerer Kasten. */
 .viewer-oben:empty { display: none; }
 .viewer-oben label {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); padding: 0 3px;
 }
 /*
@@ -1092,7 +1095,7 @@ input[type=range].rng {
 }
 .wz-gruppe:hover { opacity: 1; }
 .wz-t {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin-bottom: 3px; text-align: center;
 }
 /* Hauptschalter der Gruppe: der Titel selbst schaltet sie ein und aus. */
@@ -1119,7 +1122,7 @@ button.wz-haupt:hover { color: var(--on); }
 .wz-s:hover { color: var(--on); border-color: var(--ol2); }
 .wz-s.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
 .wz-txt {
-  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: -.02em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: -.02em;
 }
 
 /* Aufklappfenster der Symbolknöpfe – schliesst sich nach der Wahl wieder */
@@ -1135,7 +1138,7 @@ button.wz-haupt:hover { color: var(--on); }
   padding: 7px 8px 8px;
 }
 .tafel-t {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .10em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .10em;
   text-transform: uppercase; color: var(--dim); margin-bottom: 5px;
 }
 .pillen { display: flex; gap: 3px; }
@@ -1153,11 +1156,11 @@ button.wz-haupt:hover { color: var(--on); }
 }
 .haken input { accent-color: var(--acc); width: 12px; height: 12px; margin: 0; }
 .tafel-fuss {
-  font-size: 9.5px; color: var(--dim); line-height: 1.35; margin-top: 6px;
+  font-size: 10px; color: var(--dim); line-height: 1.35; margin-top: 6px;
   border-top: 1px solid var(--ol); padding-top: 5px;
 }
 .legende-liste { display: grid; gap: 2px; max-height: 190px; overflow: auto; }
-.legende-liste div { display: flex; align-items: center; gap: 5px; font-size: 9.5px; }
+.legende-liste div { display: flex; align-items: center; gap: 5px; font-size: 10px; }
 .legende-farbe {
   width: 11px; height: 11px; border-radius: 2px; flex: none;
   border: 1px solid rgba(255,255,255,.22);
@@ -1205,7 +1208,7 @@ button.wz-haupt:hover { color: var(--on); }
 .legende {
   position: absolute; right: 10px; bottom: 54px; background: var(--s2);
   border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 4px 10px 8px;
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   max-height: calc(100% - 96px); overflow: auto;
 }
 .legende.gezogen { right: auto; bottom: auto; }
@@ -1230,7 +1233,7 @@ button.wz-haupt:hover { color: var(--on); }
     radial-gradient(circle, currentColor 1px, transparent 1.2px) 0 0/4px 4px;
 }
 .legende-griff span { flex: 1; }
-.legende-griff small { font-size: 9px; color: var(--dim); }
+.legende-griff small { font-size: 10px; color: var(--dim); }
 /* Der Farbbalken war fest 132 px breit, die Legende dagegen so breit wie ihr
    breitestes Kind - bei Plots MIT Fussnote also gut 200 px. Der Balken sass
    dann kurz in einem breiten Kasten, und die Skalenwerte darunter (die sich
@@ -1252,7 +1255,7 @@ button.wz-haupt:hover { color: var(--on); }
    breit und springt beim Umschalten. */
 .legende-fuss {
   margin-top: 5px; width: 190px; line-height: 1.4; color: var(--dim);
-  font-family: var(--f-ui); font-size: 9.5px;
+  font-family: var(--f-ui); font-size: 10px;
 }
 /* Schalter für den Nachweisschnitt, direkt über dem Schieber */
 .schnitt-an { margin: 4px 0 2px; }
@@ -1277,10 +1280,10 @@ button.wz-haupt:hover { color: var(--on); }
 .klapp[open] > summary::before { transform: rotate(90deg); }
 .klapp > summary:hover { background: var(--s3); }
 .klapp-t {
-  font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 10px; font-weight: 600; letter-spacing: .1em;
   text-transform: uppercase; color: var(--on2); flex: 1;
 }
-.klapp-r { font-family: var(--f-mono); font-size: 9px; color: var(--dim); }
+.klapp-r { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
 .klapp-koerper { padding: 2px 10px 10px; }
 .klapp-koerper > .sec:first-child { margin-top: 4px; }
 
@@ -1391,7 +1394,7 @@ button.wz-haupt:hover { color: var(--on); }
   min-height: 22px; padding: 3px 7px; cursor: pointer;
   background: var(--s3); color: var(--dim); border: 1px solid var(--ol);
   border-radius: var(--m-r1);
-  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .02em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .02em;
   transition: background var(--t-schnell), color var(--t-schnell),
               border-color var(--t-schnell);
 }
@@ -1421,15 +1424,15 @@ button.wz-haupt:hover { color: var(--on); }
   border: 1px solid var(--xdim); border-radius: 50%; opacity: .6;
 }
 .kz.klick:hover::after { border-color: var(--acc); opacity: 1; }
-.kz-t { font-size: 9px; color: var(--dim); letter-spacing: .02em; line-height: 1.2; }
+.kz-t { font-size: 10px; color: var(--dim); letter-spacing: .02em; line-height: 1.2; }
 .kz-w { font-family: var(--f-mono); font-size: 14px; font-weight: 500; margin: 1px 0 0; }
-.kz-e { font-family: var(--f-mono); font-size: 9px; color: var(--dim); line-height: 1.25; }
+.kz-e { font-family: var(--f-mono); font-size: 10px; color: var(--dim); line-height: 1.25; }
 /* Die massgebende Kombination (25. September). Sie steht unter der Kachel-
    zeile, abgesetzt durch eine Haarlinie: sie sagt nichts über die Grösse,
    sondern über das LASTBILD, aus dem sie stammt. Kursiv, damit man sie beim
    Überfliegen der Zahlen nicht für eine Einheit hält. */
 .kz-f {
-  font-family: var(--f-mono); font-size: 8.5px; font-style: italic;
+  font-family: var(--f-mono); font-size: 10px; font-style: italic;
   color: var(--dim); line-height: 1.2; margin-top: 3px; padding-top: 2px;
   border-top: 1px solid var(--ol);
 }
@@ -1440,7 +1443,7 @@ button.wz-haupt:hover { color: var(--on); }
 .blitz { animation: blitz 1.4s ease-out; border-radius: var(--m-r1); }
 
 .pl { white-space: nowrap;
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .06em; padding: 1px 5px;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; padding: 1px 5px;
   border-radius: 3px; border: 1px solid; text-transform: uppercase;
 }
 .pl-ok   { color: var(--ok);   border-color: var(--ok);   background: var(--ok-s); }
@@ -1453,7 +1456,7 @@ button.wz-haupt:hover { color: var(--on); }
 .tabellenrahmen { overflow-x: auto; }
 table.dt { width: 100%; border-collapse: collapse; font-family: var(--f-mono); font-size: 11px; }
 table.dt th {
-  color: var(--dim); font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  color: var(--dim); font-weight: 500; font-size: 10px; letter-spacing: .06em;
   text-transform: uppercase; text-align: left; padding: 5px 6px;
   border-bottom: 1px solid var(--ol); white-space: nowrap;
   position: sticky; top: 0; background: var(--s1); z-index: 1;
@@ -1488,7 +1491,7 @@ details.hinweise li { margin-bottom: 5px; line-height: 1.5; }
 .dat-abgleich-teil[open] > summary { margin-bottom: 4px; }
 .dat-paket { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .untertitel {
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin: 14px 0 6px;
 }
 
@@ -1499,7 +1502,7 @@ figure.zeichnung, figure.diagramm {
   border-radius: var(--m-r1); padding: 7px 9px 3px;
 }
 figure figcaption {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   margin-bottom: 4px; line-height: 1.4;
 }
 figure svg { width: 100%; height: auto; display: block; }
@@ -1515,22 +1518,22 @@ figure svg { width: 100%; height: auto; display: block; }
 .einspann { fill: var(--dim); }
 .last line { stroke: var(--achse); stroke-width: 1.4; }
 .last polygon { fill: var(--achse); }
-.last text { fill: var(--achse); font-size: 9px; font-family: var(--f-mono); }
+.last text { fill: var(--achse); font-size: 10px; font-family: var(--f-mono); }
 .dim line { stroke: var(--xdim); stroke-width: .7; }
-.dim text { fill: var(--dim); font-size: 9px; font-family: var(--f-mono); }
+.dim text { fill: var(--dim); font-size: 10px; font-family: var(--f-mono); }
 .lbl { fill: var(--on2); font-size: 10px; font-family: var(--f-mono); }
-.micro { fill: var(--dim); font-size: 9px; font-family: var(--f-mono); }
+.micro { fill: var(--dim); font-size: 10px; font-family: var(--f-mono); }
 .schnitt line { stroke: var(--acc); stroke-width: 1.5; stroke-dasharray: 6 3; }
-.schnitt text { fill: var(--acc); font-size: 9.5px; font-family: var(--f-mono); }
+.schnitt text { fill: var(--acc); font-size: 10px; font-family: var(--f-mono); }
 
 .grid { stroke: var(--ol); stroke-width: .5; }
 .nulllinie { stroke: var(--dim); stroke-width: 1; }
 .grenze { stroke: var(--fail); stroke-width: 1.1; stroke-dasharray: 5 3; }
-.grenze-txt { fill: var(--fail); font-size: 9px; font-family: var(--f-mono); }
-.tick { fill: var(--xdim); font-size: 9px; font-family: var(--f-mono); }
-.achse { fill: var(--dim); font-size: 9.5px; font-family: var(--f-mono); }
+.grenze-txt { fill: var(--fail); font-size: 10px; font-family: var(--f-mono); }
+.tick { fill: var(--xdim); font-size: 10px; font-family: var(--f-mono); }
+.achse { fill: var(--dim); font-size: 10px; font-family: var(--f-mono); }
 .legende-txt, .legende { }
-text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
+text.legende { fill: var(--on2); font-size: 10px; font-family: var(--f-mono); }
 .serie { fill: none; stroke-width: 1.7; stroke-linejoin: round; }
 /* DAS BAND DER UMHUELLENDEN (Weisung, 13. September): je Station das
    Kleinste und das Groesste ueber alle Kombinationen. Es traegt die Farbe
@@ -1549,7 +1552,7 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 /* Die zweite Kopfzeile der Mastreihe: wie die Grösse global heisst. Gedämpft
    und kleiner - sie erklärt die Spalte, sie benennt sie nicht neu. */
 .dt thead tr.kopf-achse th {
-  font-weight: 400; color: var(--dim); font-size: 9px;
+  font-weight: 400; color: var(--dim); font-size: 10px;
   padding-top: 0; border-top: 0; letter-spacing: .02em;
 }
 
@@ -1558,9 +1561,9 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    und im Statikprogramm heisst. Gedämpfter als der Name - sie erklärt ihn,
    sie ersetzt ihn nicht. */
 text.legende-kurz {
-  fill: var(--dim); font-size: 9.5px; font-family: var(--f-mono);
+  fill: var(--dim); font-size: 10px; font-family: var(--f-mono);
 }
-text.legende-kurz .sub, text.legende .sub { font-size: 9px; }
+text.legende-kurz .sub, text.legende .sub { font-size: 10px; }
 
 /* --- Die Messstelle im grossen Diagramm ----------------------------------- */
 /* Sie wird nur auf der Bühne verdrahtet; `figure.messbar` bekommt die Klasse
@@ -1583,7 +1586,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px;
 }
 .mess-kopf b { color: var(--acc); font-size: 10.5px; }
-.mess-hinweis { color: var(--dim); font-size: 9px; }
+.mess-hinweis { color: var(--dim); font-size: 10px; }
 .mess-tab { border-collapse: collapse; width: 100%; }
 .mess-tab td { padding: 1px 6px 1px 0; vertical-align: baseline; }
 /* Alle Spalten auf ihren Inhalt, nur die Spanne bekommt den Rest - sonst
@@ -1616,7 +1619,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .statusbar {
   background: var(--s1); border-top: 1px solid var(--ol); padding: 0 12px;
   display: flex; align-items: center; gap: 14px;
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
 }
 .statusbar .rechts { margin-left: auto; }
 .statusbar .pkt { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
@@ -1710,7 +1713,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
   border-right: 1px solid var(--ol); display: grid; gap: 1px;
 }
 .hb-toc-t {
-  font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
   color: var(--dim); margin-bottom: 5px;
 }
 .hb-toc-e {
@@ -1752,7 +1755,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
   padding: 9px 12px; margin: 10px 0 12px !important; border-radius: 0 var(--m-r1) var(--m-r1) 0;
 }
 .hb-quelle {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   margin-top: 12px !important; padding-top: 6px; border-top: 1px dashed var(--ol);
 }
 /* --- Skizzen ---------------------------------------------------------------
@@ -1854,7 +1857,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .tw-name { font-size: 11px; font-weight: 500; color: var(--on2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tw-zeile.an .tw-name { color: var(--acc); }
-.tw-art { font-size: 9.5px; color: var(--dim); }
+.tw-art { font-size: 10px; color: var(--dim); }
 .tw-weg {
   width: 22px; background: none; border: 1px solid transparent;
   border-radius: var(--m-r1); color: var(--dim); cursor: pointer;
@@ -1911,19 +1914,19 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 }
 .qp-kopf-name {
   flex: 0 0 96px; padding: 0 3px;
-  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim);
 }
 .qp-kopf-bahn { height: auto; display: flex; align-items: baseline;
   justify-content: space-between; gap: 4px; }
 .qp-kopf-titel {
-  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;
 }
 /* DIE SKALA macht aus der Bahn ein Mass. Ohne die beiden Zahlen ist eine
    Linie auf ihr nur eine Linie. */
-.qp-kopf-skala { font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.qp-kopf-skala { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
 /* DIE ANKERZEILE ist eingerueckt: sie gehoert dem Masten darueber, nicht dem
    Querprofil. Gestrichelt, weil der Stab schraeg aus der Blattebene laeuft -
@@ -1974,7 +1977,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 /* DIE LAGE DES MASTEN, WAAGRECHT UNTER SEINEM FUSS (Weisung, 13. September:
    «noch x wert anschreiben in abbildung»). */
 .qp-mastmass {
-  font-size: 9px; line-height: 1; color: var(--dim);
+  font-size: 10px; line-height: 1; color: var(--dim);
   font-variant-numeric: tabular-nums; white-space: nowrap;
   pointer-events: none;
 }
@@ -1984,7 +1987,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .qp-mast-steg { display: block; margin-top: 2px; color: var(--dim); line-height: 0; }
 /* Der Anker steht als dritte, kleine Zeile im Namen - er gehoert dem
    Masten, hat aber keine eigene Zeile mehr (Weisung, 11. September). */
-.qp-mastlang { font-size: 9px; color: var(--dim); }
+.qp-mastlang { font-size: 10px; color: var(--dim); }
 
 /* DER ANKER ALS STREBE (17. September; vorher ein gestrichelter Strich am
    Fuss, «wirkt wie ein fragment»). Gelenk am Masten, Strebe zum Boden,
@@ -2038,7 +2041,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 }
 .qp-zeile.an .qp-name { color: var(--acc); }
 .qp-art {
-  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim);
 }
 .qp-zeile.an .qp-art { color: var(--acc); }
@@ -2048,7 +2051,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .qp-art { display: flex; align-items: baseline; justify-content: space-between;
   gap: 4px; }
 .qp-eta {
-  font-size: 9px; letter-spacing: 0; text-transform: none;
+  font-size: 10px; letter-spacing: 0; text-transform: none;
   font-variant-numeric: tabular-nums; white-space: nowrap;
   padding: 0 3px; border-radius: 3px;
 }
@@ -2108,7 +2111,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
    auf der Linie liegt, liest sich nicht. */
 .qp-bahn-mass { height: 26px; }
 .qp-mass {
-  position: absolute; top: 13px; font-size: 9px; line-height: 1;
+  position: absolute; top: 13px; font-size: 10px; line-height: 1;
   color: var(--dim); font-variant-numeric: tabular-nums;
   white-space: nowrap; pointer-events: none;
 }
@@ -2250,7 +2253,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .bauform-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .bauform-name { font-size: 11px; font-weight: 500; color: var(--on2); }
 .bauform.an .bauform-name { color: var(--acc); }
-.bauform-kurz { font-size: 9.5px; line-height: 1.35; color: var(--dim); }
+.bauform-kurz { font-size: 10px; line-height: 1.35; color: var(--dim); }
 
 /* Die Optionsskizze am Eingabefeld: schmaler als im Handbuch, ohne Bildunterschrift
    (die Beschriftung steht am Feld) und mit etwas Luft zum Hinweistext darunter. */
@@ -2305,7 +2308,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
   font-size: 10px; min-width: 620px;
 }
 .ab-tabelle th {
-  text-align: left; font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  text-align: left; font-weight: 500; font-size: 10px; letter-spacing: .06em;
   text-transform: uppercase; color: var(--dim); padding: 4px 6px;
   border-bottom: 1px solid var(--ol); white-space: nowrap;
 }
@@ -2348,7 +2351,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .ablage-zeile:hover { border-color: var(--acc); }
 .ablage-name { flex: 1; min-width: 0; }
 .ablage-name b { font-weight: 500; }
-.ablage-meta { font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); }
+.ablage-meta { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
 /* Doppelter Lastfall: ein Hinweis, keine Warnung - er rechnet richtig,
    nur eben zweimal dasselbe. */
 .ablage-meta.warnton { color: var(--warn); }
@@ -2526,12 +2529,12 @@ body.datei-ueber::after {
 .hinweis-klapp > summary::-webkit-details-marker { display: none; }
 .hinweis-klapp > summary::after {
   content: 'mehr'; margin-left: 4px; color: var(--acc);
-  font-family: var(--f-mono); font-size: 9px; letter-spacing: .04em;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .04em;
 }
 .hinweis-klapp[open] > summary::after { content: 'weniger'; }
 .hinweis-klapp > summary:hover .hinweis { color: var(--dim); }
 .hinweis-klapp > .hinweis { display: block; margin-top: 3px; }
-.at-feld .hinweis-klapp > summary::after { font-size: 9px; }
+.at-feld .hinweis-klapp > summary::after { font-size: 10px; }
 
 /* Lage-Schieber in der Anbauteil-Karte: über die ganze Kartenbreite, weil ein
    Schieber auf einem Drittel nichts taugt. */
@@ -2719,7 +2722,7 @@ body.datei-ueber::after {
   padding: 4px; margin-bottom: 6px;
 }
 .tl-gruppe {
-  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); padding: 6px 4px 2px;
 }
 .tl-zeile {
@@ -2746,7 +2749,7 @@ body.datei-ueber::after {
 /* Ein Kontextmenue nimmt auch Angaben entgegen - Typ, Lage, Ausrichtung
    direkt am Bauteil, statt eines Weges in die Seitenleiste. */
 .kontext-kopf {
-  font-size: 9.5px; letter-spacing: .04em; color: var(--dim);
+  font-size: 10px; letter-spacing: .04em; color: var(--dim);
   padding: 3px 8px 5px; max-width: 200px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -2860,9 +2863,9 @@ body.datei-ueber::after {
              border-radius: var(--m-r1); padding: 5px 6px 3px; }
 /* Die Schrift der Maskenskizze ist kleiner als die des Handbuchs - dort
    steht sie ueber die Textbreite, hier in einer 300 px schmalen Spalte. */
-.al-skizze text { font-size: 9.5px; }
-.al-skizze text.dim { font-size: 9px; }
-.al-skizze text.xdim { fill: var(--xdim); font-size: 9px; }
+.al-skizze text { font-size: 10px; }
+.al-skizze text.dim { font-size: 10px; }
+.al-skizze text.xdim { fill: var(--xdim); font-size: 10px; }
 /* FEINER ALS IM HANDBUCH (Weisung, 9. September: «die grauen linien der
    jochstruktur können feiner ausfallen»). Dort traegt die Skizze die ganze
    Textbreite, hier steht sie in einer schmalen Spalte - dieselbe Strichdicke
@@ -2955,7 +2958,7 @@ body.datei-ueber::after {
                          outline-offset: 1px; }
 .al-chip[disabled] { cursor: default; }
 .al-chip-sym { font-family: var(--f-mono); font-size: 11px; }
-.al-chip-zustand { font-size: 9px; }
+.al-chip-zustand { font-size: 10px; }
 /* STARR gehalten, FREI losgelassen, FEDER dazwischen. */
 .al-chip.al-starr { border-color: var(--ok, #57c785); color: var(--ok, #57c785); }
 .al-chip.al-frei  { border-style: dashed; }
@@ -3000,7 +3003,7 @@ body.datei-ueber::after {
 .al-feld input { width: 100%; text-align: right; padding-right: 46px; }
 .al-feld small {
   position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
-  font-size: 9.5px; color: var(--dim); pointer-events: none;
+  font-size: 10px; color: var(--dim); pointer-events: none;
 }
 
 /* ===========================================================================
@@ -3183,13 +3186,13 @@ body.datei-ueber::after {
 .qp-band { position: relative; flex: none; height: auto; margin: 4px 8px 0; }
 .qp-band .qp-bandlinie { position: absolute; }
 .qp-bandname {
-  position: absolute; transform: translateX(-50%); font-size: 9px;
+  position: absolute; transform: translateX(-50%); font-size: 10px;
   line-height: 1; color: var(--dim); pointer-events: none; white-space: nowrap;
 }
 .qp-bandname.an { color: var(--acc); }
 /* Ausgeblendet: durchscheinend (9. Oktober) - Linie, Name und Mast. */
 .qp-bandlinie.aus, .qp-bandname.aus, .qp-mastgruppe.aus { opacity: .32; }
-.qp-band .qp-mastmass { padding-top: 34px; font-size: 9px; }
+.qp-band .qp-mastmass { padding-top: 34px; font-size: 10px; }
 /* HOEHER IM BAND (30. September): «diese schemaskizze kann etwas höher
    sein, dann wirkt sie nicht so gestaucht.» Mast und Anker im Lageband
    um das 1.6-Fache - der Anker behaelt seine Gestalt (viewBox skaliert),
@@ -3203,7 +3206,7 @@ body.datei-ueber::after {
 .qp-band .qp-boden { height: 1px; }
 .qp-skala {
   display: flex; justify-content: space-between; margin: 0 8px 6px;
-  font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums;
+  font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums;
 }
 .qp-baum .qp-zeile { display: grid; gap: 6px; align-items: center;
   grid-template-columns: 13px minmax(0, 1fr) auto 74px; padding: 2px 3px; }
@@ -3218,11 +3221,11 @@ body.datei-ueber::after {
 .qp-baum .qp-mastzeile .qp-kz { font-weight: 500; color: var(--on2); }
 .qp-baum .qp-mastzeile.an { background: var(--acc-s); }
 .qp-ast { color: var(--dim); margin-left: 4px; }
-.qp-baum .qp-mastlang { font-size: 9.5px; }
+.qp-baum .qp-mastlang { font-size: 10px; }
 .qp-marken { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 .qp-marken .qp-eta { font-size: 10px; }
 .qp-chip {
-  font-size: 9.5px; padding: 0 4px; border-radius: 3px; white-space: nowrap;
+  font-size: 10px; padding: 0 4px; border-radius: 3px; white-space: nowrap;
   color: var(--on2); border: 1px solid var(--ol2); background: none; line-height: 14px;
 }
 .qp-chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
@@ -3258,14 +3261,14 @@ body.datei-ueber::after {
 /* Havarie-Uebersicht (19. September): je Leiter «reisst» und der Zug in ±y */
 .hav-an { display: flex; align-items: center; gap: 6px; font-size: 11.5px; margin: 2px 0 6px; cursor: pointer; }
 .hav-tab { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
-.hav-tab th { font-size: 9.5px; color: var(--dim); font-weight: 500; text-align: left; padding: 2px 4px; }
+.hav-tab th { font-size: 10px; color: var(--dim); font-weight: 500; text-align: left; padding: 2px 4px; }
 .hav-tab td { padding: 3px 4px; border-top: 1px solid var(--ol); vertical-align: middle; }
 .hav-tab .num { text-align: right; font-variant-numeric: tabular-nums; }
 .hav-name { color: var(--on); }
 /* Klick auf den Leiter hebt ihn im 3D hervor (7. Oktober). */
 .hav-name.klick { cursor: pointer; text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
 .hav-name.klick:hover, .hav-name.klick.aktiv { color: var(--acc); }
-.hav-wo { display: block; font-size: 9.5px; color: var(--dim); }
+.hav-wo { display: block; font-size: 10px; color: var(--dim); }
 .hav-zahl { width: 54px; padding: 2px 4px; font-size: 11px; }
 .hav-tun { display: flex; gap: 4px; justify-content: flex-end; }
 
@@ -3404,7 +3407,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .sig-kachel.an .sig-name { color: var(--acc); }
 .sig-zahl { display: flex; gap: 3px; align-items: center; }
 .sig-zahl input { width: 40px; text-align: center; }
-.sig-werte { font-size: 9.5px; line-height: 1.2; color: var(--dim); text-align: center;
+.sig-werte { font-size: 10px; line-height: 1.2; color: var(--dim); text-align: center;
   font-variant-numeric: tabular-nums; border-top: 1px solid var(--ol); padding-top: 2px;
   width: 100%; display: flex; flex-direction: column; }
 .sig-gewaehlt { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-items: center;
@@ -3525,7 +3528,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-tabelle .rk-zul td { color: var(--dim); }
 /* Festes Raster, gleiche Breiten der Werte (30. September). */
 .rk-tabelle { table-layout: fixed; width: 100%; }
-.rk-tabelle th { font-size: 9.5px; line-height: 1.25; vertical-align: bottom; }
+.rk-tabelle th { font-size: 10px; line-height: 1.25; vertical-align: bottom; }
 .rk-tabelle td { vertical-align: middle; overflow-wrap: anywhere; }
 .rk-tabelle .num { text-align: right; font-variant-numeric: tabular-nums; }
 .rk-tabelle .rk-name b { display: block; }
@@ -3540,12 +3543,15 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-kurz thead th { vertical-align: bottom; }
 .rk-kurz thead th b { font-size: 12px; }
 .rk-kurz thead .rk-x { display: block; color: var(--dim); font-weight: 400; font-size: 10px; }
-.rk-kurz tbody th { font-weight: 400; color: var(--on2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rk-kurz .rk-einheit { color: var(--dim); font-size: 9.5px; }
-.rk-kurz tr.rk-grp th { color: var(--dim); font-size: 9.5px; letter-spacing: .04em; padding-top: 6px; border-bottom: 0; }
+.rk-kurz tbody th { font-weight: 400; color: var(--on2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Formelzeichen: keine Versalien (M_y, nicht M_Y) - und bei 10 px passt der
+     Kopf so in seine Spalte (14. November, Schrift nie unter 10 px). */
+  text-transform: none; letter-spacing: 0; }
+.rk-kurz .rk-einheit { color: var(--dim); font-size: 10px; }
+.rk-kurz tr.rk-grp th { color: var(--dim); font-size: 10px; letter-spacing: .04em; padding-top: 6px; border-bottom: 0; }
 .rk-kurz.rk-summe { background: var(--acc-s); border-radius: 4px; }
-.rk-kurz .rk-fallspalte { color: var(--dim); font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rk-kurz .rk-fall { display: block; color: var(--dim); font-size: 9px; line-height: 1.15; white-space: normal; }
+.rk-kurz .rk-fallspalte { color: var(--dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-kurz .rk-fall { display: block; color: var(--dim); font-size: 10px; line-height: 1.15; white-space: normal; }
 .rk-kurz .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rk-kurz .rk-zulw { color: var(--dim); font-style: italic; }
 /* Kästchen in der Leiste des Blatts (30. September). */
@@ -3579,7 +3585,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
   }
 }
 /* Klappknopf der Positionslegende (6. Oktober). */
-.legende-klapp { font: inherit; font-size: 9.5px; color: var(--on2); background: transparent;
+.legende-klapp { font: inherit; font-size: 10px; color: var(--on2); background: transparent;
   border: 1px solid var(--ol); border-radius: 4px; padding: 0 5px; margin-left: 6px; cursor: pointer; }
 .legende-klapp:hover { background: var(--s3); }
 /* Gruppe der Anbauteile im Modell ausgeblendet (6. Oktober). */
@@ -3700,11 +3706,13 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
 .lf-kurz-eta.fail { color: var(--fail); }
 .dialog-lf { width: min(1040px, 100%); max-height: 90vh; }
 .dialog-lf .sec:first-child { margin-top: 2px; }
+.mast-tab-knopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.mast-tab-knopf .notiz { margin: 0; }
 .dialog-lf .lf-zeile { cursor: pointer; }
 .dialog-lf .lf-zeile.gewaehlt > td:first-child { box-shadow: inset 3px 0 0 var(--acc); }
 
 /* --- Werkzeugleiste im 3D einklappbar (14. November) --- */
-.wz-klapp { width: auto; min-width: 0; padding: 0 8px; height: 22px; font-size: 9.5px;
+.wz-klapp { width: auto; min-width: 0; padding: 0 8px; height: 22px; font-size: 10px;
   letter-spacing: .04em; background: var(--s2); opacity: .9; white-space: nowrap; }
 .wz-klapp:hover { opacity: 1; color: var(--on); }
 
@@ -3728,7 +3736,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
    Versalien-Etiketten (Abschnittstitel, Tabellenköpfe, Werkzeuggruppen) und
    die Anschriften in den Skizzen bleiben, wie sie sind. */
 .kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }
-.kz .kz-f, .kz-f { font-size: 9.5px; }
+.kz .kz-f, .kz-f { font-size: 10px; }
 .sec .sec-r, .sec-r, .klapp > summary .klapp-r, .klapp-r { font-size: 10px; }
 .ablage-meta, figcaption, .legende-fuss, small.hinweis, .hinweis small,
 .rk-fallspalte, .at-kraft { font-size: 10.5px; }

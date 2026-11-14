@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: 'Die Tabelle eines Masten über die Höhe (zehn Spalten) öffnet als Fenster - in der Seitenleiste steht dafür der Knopf «Tabelle über die Höhe …» mit der massgebenden Stelle; kein waagrechter Bildlauf mehr.' },
+      { text: 'Schrift in der Anwendung nirgends mehr unter 10 px, auch Etiketten in Versalien, Meta-Zeilen und Anschriften der Skizzen und Diagramme. Die Druckblätter sind unverändert.' },
       { text: '«Bauteil zuweisen» (Reiter Anbauteile) fragt jetzt, welches Bauteil: ins Modell klicken, dort öffnet die Auswahl mit Suche - vorher setzte der Knopf ohne Auswahl ein freies Bauteil. Der Blick auf ein Anbauteil fährt nie näher als 5 m heran.' },
       { text: 'Werkzeugleiste im 3D (Blick, Modell, Zeichnung, Lasten, Resultate) lässt sich einklappen («einklappen ›» / «Ebenen ‹»); in einem schmalen Modellfenster klappt sie von selbst ein. Die Wahl bleibt gemerkt.' },
       { text: 'Projektablage: die Liste der gespeicherten Tragwerke steht zuerst, die Angaben zum jetzigen Stand daneben bzw. darunter.' },
