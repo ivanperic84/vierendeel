@@ -8,7 +8,7 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 14. November 2026 - hier weitermachen
 
 Nach dem Push: Rest des Audits gebaut (Schrift nie unter 10 px, Masttabelle über die Höhe als Fenster),
-örtlich committet, **nicht gepusht**, Prüfstand **7317** grün. Das Audit ist damit abgeschlossen; kein offener Auftrag - beim
+gepusht (Weisung «Ja, pushen», 14. November), Prüfstand **7317** grün; Einzeldatei `Versand/vierendeel_tool_2026-11-14.html` neu. Das Audit ist damit abgeschlossen; kein offener Auftrag - beim
 Auftraggeber nachfragen, womit es weitergeht.
 
 ### Davor am 14. November
