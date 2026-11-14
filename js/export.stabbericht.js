@@ -393,6 +393,16 @@ function schnittgroessen(d) {
     ${tabelle(['Teil', 'Stäbe', '|N| [kN]', '|V| [kN]', '|M| [kNm]', '|T| [kNm]'], zeilen)}
     ${d.opt.bilder.verlaeufe ? bild(d.bilder?.verlaeufe, 'Verläufe aus dem Stabwerk') : ''}
     ${d.opt.bilder.eta ? bild(d.bilder?.eta, 'Ausnutzung aus dem Stabwerk') : ''}
+    ${d.opt.bilder.zustand && d.bilder?.zustand?.length ? `
+    <h3>§.1 Zustandslinien</h3>
+    <p>Aus demselben Stabwerk, je Stab an 11 Stellen; Hülle über die
+    Nachweis-Kombinationen (obere und untere Linie). Globale Achsen: x quer
+    zum Gleis, y längs, z oben; ein Moment um die Achse a steht in der Ebene,
+    in der es biegt - unabhängig von der Drehlage der Profile. Rot positiv,
+    blau negativ; σ_v nach der Ausnutzung. «Lager»: Kraft bzw. Moment des
+    Lagers auf das Tragwerk, global (anderes Vorzeichen als die Schnittgrösse
+    im Stab am Fuss).</p>
+    ${d.bilder.zustand.map((z) => `<figure class="gv-fig"><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
   </section>`;
 }
 

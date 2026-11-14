@@ -58,6 +58,8 @@ export const BILDER = [
   { key: 'fundament', label: 'Fundament je Nachweis' },
   { key: 'fusskraft', label: 'Mastfusskräfte je Lastfall' },
   { key: 'verformung', label: 'Verformung über die Höhe' },
+  // Zustandslinien aus dem Stabwerk (14. November) - nur im Bericht des Stabwerks.
+  { key: 'zustand', label: 'Zustandslinien (Stabwerk)' },
 ];
 
 /** Tragwerksarten, die diese Fassung des Berichts abdeckt. */

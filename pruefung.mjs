@@ -29375,9 +29375,10 @@ titel('117  Neue Diagramme: Zahlen, Vorzeichen und Richtung');
   // --- e) Der Bericht bettet sie ein -------------------------------------
   {
     const qq = [...NB117.BILDER.map((b) => b.key)];
-    wahr('Acht abschaltbare Bilder',
+    // Seit dem 14. November neun: dazu «zustand» (Zustandslinien, nur Stabwerk).
+    wahr('Neun abschaltbare Bilder',
          qq.join(',') === 'skizze,verlaeufe,modell3d,eta,bauteile,fundament,'
-                        + 'fusskraft,verformung', qq.join(','));
+                        + 'fusskraft,verformung,zustand', qq.join(','));
     const bq = readFileSync(join(HIER, 'js', 'export.nachweisbericht.js'), 'utf8');
     ['bauteile', 'fundament', 'fusskraft', 'verformung'].forEach((k) => {
       wahr(`«${k}» wird eingebettet und ist abschaltbar`,
@@ -39050,6 +39051,20 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
     wahr('… im 3D gezeichnet (Modell dann neutral) und über den Schalter «Linie» in den Resultaten',
          r3d.includes('_zustandMalen(c, proj, t)') && r3d.includes('const p = this.zustand ? null : PLOTS.find')
          && lay.includes("text('wz-r-linie', 'Linie'") && lay.includes('zustandLegendeHtml(app)'));
+    // Im Nachweisbericht (14. November, «Ja, Bericht»).
+    const ZB = await import(J('export.zustandsbild.js'));
+    const bmx = ZB.zustandSvg(a14.geo, [a14.f], { k: 'Mx', teile: 'mast', blick: 'laengs', klappen: true, reaktion: true });
+    wahr('Bericht: Zustandsbild M_x der Masten mit Lagermoment, Grösstbetrag wie im 3D',
+         !!bmx && bmx.svg.startsWith('<svg') && bmx.svg.includes('Lager M_x')
+         && Math.abs(Math.max(Math.abs(bmx.max), Math.abs(bmx.min)) - Math.abs(a14.mx)) < 0.01 * Math.abs(a14.mx),
+         `${bmx?.min?.toFixed(2)} / ${bmx?.max?.toFixed(2)}`);
+    wahr('… ein Bild ohne gezeigte Teile gibt nichts (kein leeres Bild)',
+         ZB.zustandSvg(a14.geo, [a14.f], { k: 'My', teile: 'gurt:XYZ' }) === null);
+    const ber = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+    const sber = readFileSync(join(HIER, 'js', 'export.stabbericht.js'), 'utf8');
+    wahr('… im Kapitel Schnittgrössen des Stabwerksberichts, abschaltbar (Bild «zustand»)',
+         ber.includes('zustand: b.zustand ? zustandBilder(d.sw) : null') && sber.includes('§.1 Zustandslinien')
+         && sber.includes('d.opt.bilder.zustand'));
   }
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',

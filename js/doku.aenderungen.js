@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-14',
     punkte: [
+      { text: 'Nachweisbericht (Stabwerk): im Kapitel Schnittgrössen fünf Zustandsbilder - Gurte M_y und N, Masten M_y quer und M_x längs mit Lagermoment, σ_v. Abschaltbar im Berichtsdialog («Zustandslinien (Stabwerk)»).' },
       { text: 'Zustandslinien wie in den Statikprogrammen: Schalter «Linie» in der Gruppe Resultate - η, σ_v, M, V, N, T erscheinen als Linie quer zur Stabachse statt als Farbe. In der Legende: Ebene (auto, quer, längs, lotrecht/waagrecht), «Reaktionen dazu», Teile, «Ansicht folgt», Achsen global/örtlich.' },
       { text: 'Tragausleger: neue Prüfung «Verdrehung des Tragauslegers um die Mastachse» (Betriebswind, Grenzwert wie die Mastverdrehung, Vorgabe 5°). Ohne Längsverankerung am Kragarm ist sie meist überschritten.', rechnung: true },
       { text: 'Abfangjoch: die Felder unter Lasten zeigen die Laufmeterlasten des Abfangjochs (vorher die eines Tragjochs); mit «Werte bearbeiten» gesetzte Wind- und Schneelasten wirken jetzt in Rechnung und Ausleitung.', rechnung: true },

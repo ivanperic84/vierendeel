@@ -8,8 +8,8 @@ zu lesen, bevor etwas geändert wird.
 ## Stand 14. November 2026 - hier weitermachen
 
 Zuletzt: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
-`core.zustandslinien.js`, `app.zustand.js`), örtlich committet, **nicht gepusht**. Offen: Diagramme im
-Nachweisbericht (CLAUDE.md, *Offene Punkte*).
+`core.zustandslinien.js`, `app.zustand.js`) und im Nachweisbericht (`export.zustandsbild.js`, fünf Bilder
+im Kapitel Schnittgrössen), örtlich committet, **nicht gepusht**.
 
 
 Offene Punkte durchgegangen (Weisung 14. November, CLAUDE.md *Entschieden*, oberste Zeile): Verdrehung

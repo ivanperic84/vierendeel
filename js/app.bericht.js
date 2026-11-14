@@ -27,6 +27,8 @@ import { esc, uebertrageTokens } from './design.js';
  * nichts und importiert nichts - die Ampelfarbe geht deshalb als Funktion
  * hinein, siehe unten.
  */
+import { zustandGeometrie, zustandFall } from './core.zustandslinien.js';
+import { zustandSvg } from './export.zustandsbild.js';
 import { bauteilDiagramm, fundamentDiagramm,
          fussKraftDiagramm } from './render.charts.js';
 
@@ -306,6 +308,39 @@ export function stabwerkBerichtDaten(app) {
   };
 }
 
+/**
+ * >>> ZUSTANDSLINIEN IM BERICHT (14. November). <<<
+ * Weisung «Die diagramme sollten auch in die berichte integriert werden
+ * soweit wie sinnvoll.», dann «Ja, Bericht». Hülle über die Nachweisfälle,
+ * dieselbe Rechnung wie im 3D. Fünf Bilder: Joch (vordere Gurte) M_y und N
+ * in der Längsansicht, Masten M_y quer und M_x längs (geklappt) mit dem
+ * Lagermoment, σ_v über Gurte und Masten. Was an diesem Tragwerk nichts
+ * zeigt (kein Gurt, kein Mast), fällt weg.
+ */
+function zustandBilder(sw) {
+  const roh = sw?.roh;
+  if (!roh?.auswertung?.faelle?.length) return null;
+  const geo = zustandGeometrie(roh.dat);
+  const fyd = roh.auswertung.fyd;
+  const nf = roh.auswertung.faelle;
+  const kraft = nf.map((lf) => zustandFall(roh.dat, roh.lsg, geo, lf));
+  const spannung = nf.map((lf) => zustandFall(roh.dat, roh.lsg, geo, lf, { spannung: true, fyd, auswertung: roh.auswertung.opt }));
+  const vorn = 'gurt:OGL,UGL';
+  const bilder = [
+    ['Joch, vordere Gurte - Biegemoment M_y in der Jochebene', kraft, { k: 'My', teile: vorn, blick: 'laengs' }],
+    ['Joch, vordere Gurte - Normalkraft N', kraft, { k: 'N', teile: vorn, blick: 'laengs' }],
+    ['Masten - Biegemoment M_y quer zum Gleis, mit Lagermoment', kraft, { k: 'My', teile: 'mast', blick: 'laengs', reaktion: true }],
+    ['Masten - Biegemoment M_x längs zum Gleis (in die Bildebene geklappt), mit Lagermoment', kraft,
+     { k: 'Mx', teile: 'mast', blick: 'laengs', klappen: true, reaktion: true }],
+    ['Vergleichsspannung σ_v - Gurte vorn und Masten', spannung, { k: 'sig', teile: 'alle-ohne-bleche', blick: 'laengs' }],
+  ];
+  return bilder.map(([titel, faelle, o]) => {
+    const r = zustandSvg(geo, faelle, { ...o, fyd, breite: 860,
+      teile: o.teile === 'alle-ohne-bleche' ? 'gurt:OGL,UGL|mast' : o.teile });
+    return r ? { titel, svg: r.svg } : null;
+  }).filter(Boolean);
+}
+
 function berichtStabwerk(app, wahl) {
   const d = stabwerkBerichtDaten(app);
   const b = wahl.bilder;
@@ -335,6 +370,7 @@ function berichtStabwerk(app, wahl) {
     eta: b.eta ? reihe(['sw-mast-eta']) : null,
     bauteile: b.bauteile ? bauteilDiagramm(blattUrteil(d), { breite: 860, farbeVon }) : null,
     fundament: Object.keys(fund).length ? fund : null,
+    zustand: b.zustand ? zustandBilder(d.sw) : null,
   };
   d.stil = diagrammStil();
   berichtZeigen(stabwerkBericht(d, wahl));

@@ -148,9 +148,12 @@ export function zustandWert(k, s, q, sig = null, fyd = 1) {
 /** Gehört der Stab zu den gewählten Teilen? 'alle' | 'mast' | 'blech' | 'gurt' | 'gurt:OGL' … */
 export function zustandSicht(s, teile = 'alle') {
   if (teile === 'alle') return true;
+  // Mehrere Gruppen mit «|» (Bericht: «gurt:OGL,UGL|mast»).
+  if (teile.includes('|')) return teile.split('|').some((t) => zustandSicht(s, t));
   if (teile.startsWith('gurt')) {
+    // Auch mehrere, durch Komma getrennt («gurt:OGL,UGL» = die vorderen Gurte).
     const g = teile.split(':')[1];
-    return /^gurt/.test(s.r) && (!g || new RegExp(`(^|_)${g}_`).test(s.n));
+    return /^gurt/.test(s.r) && (!g || g.split(',').some((x) => new RegExp(`(^|_)${x}_`).test(s.n)));
   }
   return s.r === teile;
 }

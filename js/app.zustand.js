@@ -84,7 +84,8 @@ export function zustandSetzen(app, g) {
   const k = zustandIntern(groesse, eb, zl.ax);
   const { dx, dz } = versatz(app, roh);
   const huelle = faelle.length > 1;
-  const arten = huelle ? ['max', 'min'] : ['eins'];
+  // Bei σ_v / η zählt nur der Grösstwert (immer positiv).
+  const arten = huelle ? (spannung ? ['max'] : ['max', 'min']) : ['eins'];
   const zFuss = Math.min(...geo.map((s) => Math.min(s.a[2], s.b[2])));
   // Werte sammeln, Grösstwerte suchen.
   const reihen = [];
