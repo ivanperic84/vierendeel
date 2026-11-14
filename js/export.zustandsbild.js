@@ -30,7 +30,20 @@ export function zustandSvg(geo, faelle, o = {}) {
   const k = o.k, fyd = o.fyd ?? 1, huelle = faelle.length > 1;
   const sicht = geo.map((s) => zustandSicht(s, o.teile ?? 'alle'));
   const H = o.blick === 'quer' ? 1 : 0;                  // waagrechte Bildachse: x oder y
-  const pr = (p) => [p[H], p[2]];
+  /*
+   * >>> MASTEN NEBENEINANDER IM QUERSCHNITT (14. November). <<< «kann man für
+   * mx die darstellung quer nehmen?» - im Querschnitt stehen die Masten
+   * hintereinander; mit `nebeneinander` rückt jeder um einen festen Abstand
+   * nach rechts (nach seiner Lage x geordnet) und trägt seinen Namen.
+   */
+  const versatz = new Map();
+  if (o.nebeneinander) {
+    const masten = [...new Set(geo.map((s, i) => (sicht[i] ? kurzMast(s.n) : null)).filter(Boolean))];
+    const xVon = (m) => Math.min(...geo.filter((s) => kurzMast(s.n) === m).map((s) => s.a[0]));
+    masten.sort((a, b) => xVon(a) - xVon(b)).forEach((m, i) => versatz.set(m, i * (o.abstand ?? 7)));
+  }
+  const off = (s) => (s ? versatz.get(kurzMast(s.n)) ?? 0 : 0);
+  const pr = (p, s = null) => [p[H] + off(s), p[2]];
   // Reihen und Grösstwerte.
   // Bei σ_v / η zählt nur der Grösstwert (immer positiv).
   const arten = huelle ? (k === 'sig' || k === 'eta' ? ['max'] : ['max', 'min']) : ['eins'];
@@ -62,15 +75,18 @@ export function zustandSvg(geo, faelle, o = {}) {
   };
   // Ausdehnung des Modells (sichtbare Stäbe) und Massstab der Linien.
   // Das Bild umfasst die gezeigten Teile (ein Jochbild ohne die ganzen Masten).
-  const allePts = geo.filter((_, i) => sicht[i]).flatMap((s) => [pr(s.a), pr(s.b)]);
+  const allePts = geo.filter((_, i) => sicht[i]).flatMap((s) => [pr(s.a, s), pr(s.b, s)]);
   const xMin = Math.min(...allePts.map((p) => p[0])), xMax = Math.max(...allePts.map((p) => p[0]));
   const zMin = Math.min(...allePts.map((p) => p[1])), zMax = Math.max(...allePts.map((p) => p[1]));
   const ausd = Math.max(xMax - xMin, zMax - zMin, 1);
   const skal = 0.09 * ausd / vmax;                       // grösster Wert = 9 % der Modellgrösse
   const rand = Math.max(0.16 * ausd, 1.6 * 0.09 * ausd);
   const B = o.breite ?? 860, x0 = xMin - rand, x1 = xMax + rand, z0 = zMin - rand * 0.6, z1 = zMax + rand * 0.6;
-  const m = B / (x1 - x0);
+  // Höchstens ~380 px hoch; ein schmales Bild (Masten im Querschnitt) wird
+  // dafür schmaler statt riesig (gemeldet 14. November).
+  const m = Math.min(B / (x1 - x0), (o.hoeheMax ?? 380) / (z1 - z0));
   const Hpx = Math.round((z1 - z0) * m);
+  const Bb = Math.max(Math.round((x1 - x0) * m), 620);   // Platz für die Zeile darunter
   const X = (x) => ((x - x0) * m).toFixed(1), Z = (z) => ((z1 - z) * m).toFixed(1);
   const farbe = (v, a) => {
     if (k !== 'sig' && k !== 'eta') return rgba(v >= 0 ? POS : NEG, a);
@@ -82,8 +98,8 @@ export function zustandSvg(geo, faelle, o = {}) {
   // Alle Stäbe im Ausschnitt grau, die gezeigten dunkler.
   const imBild = (p) => p[0] >= x0 && p[0] <= x1 && p[1] >= z0 && p[1] <= z1;
   geo.forEach((s, i) => {
-    const a = pr(s.a), b = pr(s.b);
-    if (!sicht[i] && !(imBild(a) && imBild(b))) return;
+    const a = pr(s.a, s), b = pr(s.b, s);
+    if (!sicht[i] && (o.nebeneinander || !(imBild(a) && imBild(b)))) return;
     teile.push(`<line x1="${X(a[0])}" y1="${Z(a[1])}" x2="${X(b[0])}" y2="${Z(b[1])}" stroke="${sicht[i] ? '#777' : '#d4d4d4'}" stroke-width="${sicht[i] ? 1 : 0.7}"/>`);
   });
   const marken = [];
@@ -91,7 +107,7 @@ export function zustandSvg(geo, faelle, o = {}) {
     const pk = r.map((x, p) => {
       const t = p / (ZL_PUNKTE - 1);
       const P = [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t, s.a[2] + (s.b[2] - s.a[2]) * t];
-      const q = pr(P);
+      const q = pr(P, s);
       const d = x.d ? richtung(s, x.d) : [0, 0];
       const v = x.v ?? 0;
       return { q, Q: [q[0] + d[0] * v * skal, q[1] + d[1] * v * skal], v, leer: x.v === null || !x.d };
@@ -121,7 +137,8 @@ export function zustandSvg(geo, faelle, o = {}) {
       const lo2 = Math.min(...vs), hi2 = Math.max(...vs);
       const f2 = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1));
       const text = `Lager ${kurz} ${huelle ? `${f2(lo2)} / ${f2(hi2)}` : f2(hi2)} ${einh}`;
-      fuss.push(`<text x="${X(pr(unten)[0])}" y="${(+Z(pr(unten)[1]) + 26).toFixed(1)}" font-size="10" fill="#333" text-anchor="middle">${esc(text)}</text>`);
+      const u = pr(unten, st[0]);
+      fuss.push(`<text x="${X(u[0])}" y="${(+Z(u[1]) + 26).toFixed(1)}" font-size="10" fill="#333" text-anchor="middle">${esc(text)}</text>`);
     });
   }
   // Anschrift ohne Überlappung, die grössten zuerst.
@@ -133,10 +150,17 @@ export function zustandSvg(geo, faelle, o = {}) {
     belegt.push({ x, y, w });
     teile.push(`<text x="${x.toFixed(1)}" y="${(y + 3.5).toFixed(1)}" font-size="10" fill="${farbe(mk.v, 0.95)}">${esc(t)}</text>`);
   });
+  // Die Namen über den Masten, wenn sie nebeneinander stehen.
+  versatz.forEach((_, m) => {
+    const st = geo.filter((s) => kurzMast(s.n) === m);
+    const oben = st.flatMap((s) => [s.a, s.b]).reduce((a, b) => (b[2] > a[2] ? b : a));
+    const q = pr(oben, st[0]);
+    teile.push(`<text x="${X(q[0])}" y="${(+Z(q[1]) - 8).toFixed(1)}" font-size="10.5" font-weight="600" fill="#333" text-anchor="middle">${esc(m)}</text>`);
+  });
   const name = ZL_NAME[k] ?? k, einh = zlEinheit(k);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${B} ${Hpx + 18}" width="100%" style="max-width:${B}px;font-family:Arial,sans-serif">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Bb} ${Hpx + 18}" width="100%" style="max-width:${Bb}px;font-family:Arial,sans-serif">
     <g transform="translate(0,4)">${teile.join('')}${fuss.join('')}</g>
-    <text x="4" y="${Hpx + 14}" font-size="10" fill="#555">${esc(`${o.blick === 'quer' ? 'Querschnitt (y nach rechts)' : 'Längsansicht (x nach rechts)'} · ${name}${einh ? ` [${einh}]` : ''}${huelle ? ' · Hülle über die Nachweisfälle' : ''}${o.klappen ? ' · in die Bildebene geklappt, positiv nach +x' : ''}`)}</text>
+    <text x="4" y="${Hpx + 14}" font-size="10" fill="#555">${esc(`${o.blick === 'quer' ? 'Querschnitt (y nach rechts)' : 'Längsansicht (x nach rechts)'} · ${name}${einh ? ` [${einh}]` : ''}${huelle ? ' · Hülle über die Nachweisfälle' : ''}${o.klappen ? ' · in die Bildebene geklappt, positiv nach +x' : ''}${o.nebeneinander ? ' · Masten nebeneinander' : ''}`)}</text>
   </svg>`;
   return { svg, max: hi, min: lo };
 }
@@ -284,8 +308,13 @@ export function lastSvg(dat, o = {}) {
   const pts = dat.knoten.map((k) => pr([k.x, k.y, k.z]));
   const ausd = Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
   const hoehe = Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]));
-  const L = Math.max(ausd, hoehe, 1);
-  const R = rahmen(pts, { l: 0.12 * L, r: 0.12 * L, u: 0.1 * L, o: 0.14 * L }, B);
+  // Der Querschnitt im Massstab der Längsansicht - auf die volle Breite
+  // skaliert wurde er übergross (gemeldet 14. November).
+  const xAusd = Math.max(...dat.knoten.map((k) => k.x)) - Math.min(...dat.knoten.map((k) => k.x));
+  const L = Math.max(ausd, xAusd, hoehe, 1);
+  const mL = B / (xAusd + 0.24 * L);
+  const R = rahmen(pts, { l: 0.12 * L, r: 0.12 * L, u: 0.1 * L, o: 0.14 * L }, B, H === 1 ? mL : null);
+  const Bb = Math.max(R.B, 360);
   const t = stabSkizze(dat, pr, R, { grau: true });
   const summe = [0, 0, 0];
   const qmax = Math.max(1e-9, ...strecke.map((l) => Math.abs(l.wert)));
@@ -343,7 +372,7 @@ export function lastSvg(dat, o = {}) {
   });
   const h = R.H + 22;
   const sumText = `Summe: F_x ${summe[0].toFixed(2)} · F_y ${summe[1].toFixed(2)} · F_z ${summe[2].toFixed(2)} kN`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${B} ${h}" width="100%" style="max-width:${B}px;font-family:Arial,sans-serif">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Bb} ${h}" width="100%" style="max-width:${Bb}px;font-family:Arial,sans-serif">
     ${t.join('')}
     <text x="4" y="${h - 6}" font-size="10" fill="#555">${esc(`${o.blick === 'quer' ? 'Querschnitt (y nach rechts)' : 'Längsansicht (x nach rechts)'} · ${sumText}${o.hinweis ? ` · ${o.hinweis}` : ''}`)}</text>
   </svg>`;

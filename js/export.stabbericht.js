@@ -490,10 +490,11 @@ function nachweise(d, U) {
       ? `<p><b>Mast ${esc(m.anzeige)}:</b> für ${esc(m.fundament.profil ?? 'dieses Profil')} führt das Sortiment kein Standardfundament — Sonderfundament, nicht nachgewiesen.</p>`
       : fundamentHtml(m.fundament, m.anzeige, m.id,
           (d.opt.bilder.fundament && d.bilder?.fundament?.[m.id])
-            ? bild(d.bilder.fundament[m.id], `Mastfundament ${m.anzeige} — η je Nachweis`) : ''))).join('');
+            ? d.bilder.fundament[m.id] : ''))).join('');
   const fundBlock = fund ? `${h3('Mastfundamente')}${FUNDAMENT_TEXT}${fund}` : '';
   const uebersicht = (d.opt.bilder.bauteile && d.bilder?.bauteile)
-    ? bild(d.bilder.bauteile, 'Ausnutzung je Bauteil — Tragsicherheit, η = 1.00 als Marke') : '';
+    // Das Diagramm trägt seinen Titel selbst (14. November: er stand doppelt).
+    ? d.bilder.bauteile : '';
   return `<section><h2>§ Nachweise</h2>
     ${uebersicht}
     <p>f<sub>yd</sub> = ${zahl(sw.fyd, 2)} N/mm². Je Bauteil der massgebende

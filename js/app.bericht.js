@@ -330,8 +330,9 @@ function zustandBilder(sw) {
     ['Joch, vordere Gurte - Biegemoment M_y in der Jochebene', kraft, { k: 'My', teile: vorn, blick: 'laengs' }],
     ['Joch, vordere Gurte - Normalkraft N', kraft, { k: 'N', teile: vorn, blick: 'laengs' }],
     ['Masten - Biegemoment M_y quer zum Gleis, mit Lagermoment', kraft, { k: 'My', teile: 'mast', blick: 'laengs', reaktion: true }],
-    ['Masten - Biegemoment M_x längs zum Gleis (in die Bildebene geklappt), mit Lagermoment', kraft,
-     { k: 'Mx', teile: 'mast', blick: 'laengs', klappen: true, reaktion: true }],
+    // Im Querschnitt, die Masten nebeneinander (14. November, «kann man für mx die darstellung quer nehmen?»).
+    ['Masten - Biegemoment M_x längs zum Gleis (Querschnitt, Masten nebeneinander), mit Lagermoment', kraft,
+     { k: 'Mx', teile: 'mast', blick: 'quer', nebeneinander: true, reaktion: true }],
     ['Vergleichsspannung σ_v - Gurte vorn und Masten', spannung, { k: 'sig', teile: 'alle-ohne-bleche', blick: 'laengs' }],
   ];
   return bilder.map(([titel, faelle, o]) => {

@@ -530,10 +530,17 @@ export function balkenDiagramm(o) {
     const y = mT + i * zeile + zeile / 2;
     const x = X(r.wert);
     const links = Math.min(x, xNull), br = Math.abs(x - xNull);
-    const h = Math.max(6, zeile - 9);
+    /*
+     * >>> RUHIGER (14. November). <<< «die farbwahl an den rest angleichen.
+     * wirken etwas zu stark»: dünne Balken mit runden Enden, die Farbe
+     * gedämpft (Füllung durchscheinend, Rand voll) - wie die Flächen der
+     * Zustandsbilder; die Zahl steht in Textfarbe daneben.
+     */
+    const h = Math.max(5, Math.round(zeile * 0.42));
     g += `<rect x="${links.toFixed(1)}" y="${(y - h / 2).toFixed(1)}"
-          width="${Math.max(0.8, br).toFixed(1)}" height="${h}"
-          fill="${r.farbe ?? 'var(--acc)'}" opacity="0.85"/>`;
+          width="${Math.max(0.8, br).toFixed(1)}" height="${h}" rx="2"
+          fill="${r.farbe ?? 'var(--acc)'}" fill-opacity="0.38"
+          stroke="${r.farbe ?? 'var(--acc)'}" stroke-opacity="0.9" stroke-width="1"/>`;
     g += `<text x="${mL - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end"
           font-size="10" fill="var(--dim)">${esc(r.name)}</text>`;
     /*
@@ -556,7 +563,9 @@ export function balkenDiagramm(o) {
     g += `<text x="${xg.toFixed(1)}" y="${H - mB + 18}" text-anchor="middle"
           font-size="9" fill="var(--fail)">${esc(o.grenzText ?? 'Grenze')}</text>`;
   }
-  g += `<text x="${W - mR}" y="${H - mB + 18}" text-anchor="end" font-size="9"
+  // Die Einheit links unter der Achse - rechts lag sie auf der Grenzanschrift
+  // («η = 1.00η [–]», gemeldet 14. November).
+  g += `<text x="${mL}" y="${H - mB + 18}" text-anchor="start" font-size="9"
         fill="var(--dim)">${esc(o.einheit ?? '')}</text>`;
 
   /*
