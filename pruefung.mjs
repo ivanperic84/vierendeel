@@ -38995,6 +38995,62 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
          SV14.includes('export function auslegerVerdrehung') && SV14.includes('(dx * uy - dy * ux) / d2')
          && SV14.includes("...(ausl ? { ausleger: ausl } : {})"));
   }
+  {
+    /*
+     * >>> ZUSTANDSLINIEN (14. November, core.zustandslinien.js). <<<
+     * Gemessen an der Probe: J90/20 m, HEB 260, Hängestütze mit Fahrdrahtabzug,
+     * Wind +y - globales M_x am Fuss von M1 rund −59 kNm, die Lagerreaktion
+     * M_x gleich gross mit anderem Vorzeichen; mit gedrehtem Steg dasselbe
+     * globale M_x (die örtlichen Achsen tauschen); V_x am Gurt (Achse in
+     * Stabrichtung) nicht darstellbar; die Ebene «auto» wählt bei Wind längs
+     * «längs», bei Wind quer «quer».
+     */
+    const ZL = await import(J('core.zustandslinien.js'));
+    const AS14 = await import(J('app.stabwerk.js'));
+    const NACH14 = await import(J('core.nachbarn.js'));
+    const V14 = await import(J('core.vierendeel.js'));
+    const baue = (steg) => {
+      const w = typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' }, T.getTragjoch('J90'));
+      Object.assign(w, { L: 20, xLage: 0, mastVorhanden: true, mastProfil: 'HEB 260', mastProfilB: 'HEB 260',
+                         mastSteg: steg, mastStegB: steg });
+      w.anbauteile = [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }];
+      const ws = NACH14.rechensatzMitNachbarn(w);
+      const e = V14.berechne(ws, ...NACH14.kernArgumente(ws));
+      return AS14.rechneStabwerk({ werte: w, letzte: { erg: e }, stabwerk: null }).roh;
+    };
+    const fussMx = (roh) => {
+      const geo = ZL.zustandGeometrie(roh.dat);
+      const lf = roh.auswertung.faelle.find((x) => /Wind \+y/.test(x.bez));
+      const f = ZL.zustandFall(roh.dat, roh.lsg, geo, lf);
+      const i = geo.findIndex((s) => /MAST_M1_S1$/.test(s.n));
+      const fussKn = Object.keys(f.reak).find((k) => /MAST_M1_F$/.test(k));
+      return { geo, f, i, mx: ZL.zustandWert('Mx', geo[i], f.w[i][0])[0], my: ZL.zustandWert('My', geo[i], f.w[i][0])[0],
+               rmx: f.reak[fussKn]?.[3], lf, roh };
+    };
+    const a14 = fussMx(baue('jochachse'));
+    const b14 = fussMx(baue('quer'));
+    wahr('Zustandslinie: M_x global am Fuss M1 unter Wind +y deutlich (> 40 kNm), M_y klein',
+         Math.abs(a14.mx) > 40 && Math.abs(a14.my) < 0.1 * Math.abs(a14.mx), `M_x ${a14.mx?.toFixed(2)}, M_y ${a14.my?.toFixed(2)}`);
+    wahr('… die Lagerreaktion M_x ist gleich gross, mit anderem Vorzeichen (Lager auf Tragwerk)',
+         Math.abs(a14.rmx + a14.mx) < 0.01 * Math.abs(a14.mx), `R ${a14.rmx?.toFixed(2)}`);
+    wahr('… mit gedrehtem Steg dasselbe globale M_x (unabhängig von der Drehlage)',
+         Math.abs(b14.mx - a14.mx) < 0.005 * Math.abs(a14.mx), `${a14.mx?.toFixed(3)} / ${b14.mx?.toFixed(3)}`);
+    const ig = a14.geo.findIndex((s) => /(^|_)UGL_S40$/.test(s.n));
+    wahr('… V_x und M_x am Gurt (Achse in Stabrichtung) nicht darstellbar, V_z und M_y schon',
+         ig >= 0 && !ZL.zustandWert('Vx', a14.geo[ig], [0, 1, 1, 0, 1, 1])[1] && !ZL.zustandWert('Mx', a14.geo[ig], [0, 1, 1, 0, 1, 1])[1]
+         && !!ZL.zustandWert('Vz', a14.geo[ig], [0, 1, 1, 0, 1, 1])[1] && !!ZL.zustandWert('My', a14.geo[ig], [0, 1, 1, 0, 1, 1])[1]);
+    const lfx = a14.roh.auswertung.faelle.find((x) => /Wind \+x/.test(x.bez));
+    const fx = ZL.zustandFall(a14.roh.dat, a14.roh.lsg, a14.geo, lfx);
+    wahr('… Ebene «auto» an den Masten: Wind längs → längs, Wind quer → quer',
+         ZL.zustandEbeneAuto('M', [a14.f], a14.geo, 'mast') === 'laengs' && ZL.zustandEbeneAuto('M', [fx], a14.geo, 'mast') === 'quer');
+    wahr('… die Ansicht dazu: M längs an den Masten → Querschnitt, M quer → Längsansicht',
+         ZL.zustandBlick('Mx', a14.geo, 'mast') === 'quer' && ZL.zustandBlick('My', a14.geo, 'mast') === 'laengs');
+    const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+    wahr('… im 3D gezeichnet (Modell dann neutral) und über den Schalter «Linie» in den Resultaten',
+         r3d.includes('_zustandMalen(c, proj, t)') && r3d.includes('const p = this.zustand ? null : PLOTS.find')
+         && lay.includes("text('wz-r-linie', 'Linie'") && lay.includes('zustandLegendeHtml(app)'));
+  }
   const set = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Erst wählen, dann setzen (Knopf) - und die Vorlage öffnet den Bauer vor dem Setzen',
        set.includes("setzenStarten(app, { art: 'signal', id: v.id, signal: auswahl })")

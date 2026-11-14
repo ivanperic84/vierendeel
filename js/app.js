@@ -138,6 +138,7 @@ import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenGewaehlt, reaktionenAusKern, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
 import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js';
+import { zustandSetzen, zustandBlickFolgen } from './app.zustand.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
@@ -217,6 +218,13 @@ const app = {
   get nachweisart() { return nachweisart; }, set nachweisart(v) { nachweisart = v; },
   // Die verformte Figur im 3D (30. September).
   get ohneBalken() { return ohneBalken(); },
+  // Zustandslinien (14. November): neu aufbauen, auf Wunsch die Ansicht nachführen.
+  zustandNeu: (folgen = false) => {
+    zustandSetzen(app, stabwerkGilt());
+    if (folgen) zustandBlickFolgen(app);
+    ansicht?.zeichne();
+    if (ui.el('legende')) zeichneLegende(app);
+  },
   dialogBauteildaten: (...a) => dialogBauteildaten(...a),
   dialogTasten: (...a) => dialogTasten(...a),
   themaWechseln: (...a) => themaWechseln(...a),
@@ -2887,6 +2895,8 @@ function aktualisiereModell(erg) {
   ansicht.ohneBalken = ohneBalken();
   verformtSetzen(szene);
   wegeAusFigur(szene, ansicht.verformt);
+  // Die Zustandslinie (14. November) aus demselben Stabwerk.
+  zustandSetzen(app, stabwerkGilt());
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die

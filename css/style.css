@@ -1253,6 +1253,21 @@ button.wz-haupt:hover { color: var(--on); }
 /* Wo eine Grösse nicht für jedes Bauteil definiert ist, sagt die Legende das.
    FESTE Breite, nicht max-width: sonst ist die Legende bei jedem Plot anders
    breit und springt beim Umschalten. */
+/* Zustandslinie in der Legende (14. November, app.zustand.js). */
+.zl { display: grid; gap: 6px; margin-top: 6px; min-width: 210px; max-width: 260px; font-size: 11px; }
+.zl-wert { font-variant-numeric: tabular-nums; line-height: 1.35; }
+.zl-wert b { font-size: 13px; }
+.zl-dim { color: var(--dim); font-size: 10.5px; line-height: 1.35; }
+.zl-hinweis { color: var(--dim); font-size: 11px; max-width: 240px; margin-top: 4px; }
+.zl-reihe { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; align-items: center; }
+.zl-reihe button { min-width: 0; padding: 3px 4px; font: inherit; font-size: 11px; color: var(--on);
+  background: var(--s2, rgba(255,255,255,.04)); border: 1px solid var(--ol); border-radius: 4px; cursor: pointer; }
+.zl-reihe button.an { border-color: var(--acc); background: var(--acc-s); }
+.zl-reihe button:disabled { opacity: .35; cursor: default; }
+.zl-klein { grid-auto-columns: auto; justify-content: space-between; }
+.zl-haken { display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; }
+.zl select { font: inherit; font-size: 11px; color: var(--on); background: var(--s1); border: 1px solid var(--ol);
+  border-radius: 4px; padding: 3px; }
 .legende-fuss {
   margin-top: 5px; width: 190px; line-height: 1.4; color: var(--dim);
   font-family: var(--f-ui); font-size: 10px;

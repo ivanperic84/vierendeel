@@ -7,6 +7,11 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
+Zuletzt: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
+`core.zustandslinien.js`, `app.zustand.js`), örtlich committet, **nicht gepusht**. Offen: Diagramme im
+Nachweisbericht (CLAUDE.md, *Offene Punkte*).
+
+
 Offene Punkte durchgegangen (Weisung 14. November, CLAUDE.md *Entschieden*, oberste Zeile): Verdrehung
 Tragausleger ≤ 5°, Nachweisauswahl / Knicklänge / Mastwind fürs Blatt, Lastfelder des Abfangjochs
 («Werte bearbeiten» wirkt), alte Lagerungsentscheide mit dem Löser nachgemessen. Gepusht (Weisung «Pushen»,

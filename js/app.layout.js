@@ -15,6 +15,7 @@ import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.cons
 import { MASS, esc, icon, iconKnopf } from './design.js';
 import { ANSICHTEN, LASTARTEN, MODI } from './render.3d.js';
 import * as ui from './ui.js';
+import { zl, zlSetzeAn, zlGroesse, zustandLegendeHtml, zustandLegendeVerdrahten } from './app.zustand.js';
 import { FELDER } from './ui.schema.js';
 
 /**
@@ -406,6 +407,9 @@ export function zeichneModellWerkzeuge(app) {
         schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR)) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
+      // Zustandslinie statt Farbe (14. November) - für η, σ_v, M, V, N, T.
+      text('wz-r-linie', 'Linie', 'Zustandslinie statt Farbe (η, σ_v, M, V, N, T) - wie in den '
+           + 'Statikprogrammen; Ebene, Reaktionen und Teile in der Legende', zl.an, !gR) +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
              mo.label, mo.key === app.ansicht.modus, !gR)).join(''),
@@ -470,9 +474,15 @@ export function zeichneModellWerkzeuge(app) {
   ui.el('wz-r-werte').onclick = () => {
     app.ansicht.werteAnschreiben = !app.ansicht.werteAnschreiben; nach();
   };
+  ui.el('wz-r-linie').onclick = () => {
+    zlSetzeAn(!zl.an);
+    app.zustandNeu(true); zeichneModellWerkzeuge(app);
+  };
   modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
       app.ansicht.modus = mo.key;
+      // Mit eingeschalteter Linie gehört zur neuen Grösse eine neue Linie.
+      if (zl.an) app.zustandNeu(true);
       app.ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
     };
   });
@@ -655,6 +665,25 @@ const POS_LEGENDE_LANG = 8;
 /** Legende passend zur gewählten Einfärbung. */
 export function zeichneLegende(app) {
   const n = ui.el('legende');
+  /*
+   * >>> MIT DER ZUSTANDSLINIE STEHT HIER IHRE STEUERUNG (14. November). <<<
+   * Massgebender Wert mit Ort, Ebene (auto / quer / längs / dritte),
+   * «Reaktionen dazu», Teile, «Ansicht folgt», Achsen - nur solange «Linie»
+   * an ist; sonst die gewohnte Legende.
+   */
+  const zlHtml = zl.an && n ? zustandLegendeHtml(app) : null;
+  if (zlHtml) {
+    const z = app.ansicht.zustand;
+    const titel = z ? `${z.name}${z.einheit ? ` [${z.einheit}]` : ''}${z.ebAuto && zlGroesse(app.ansicht.modus) && 'VM'.includes(zlGroesse(app.ansicht.modus)) ? ' · Ebene auto' : ''}`
+      : 'Zustandslinie';
+    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${zlHtml}`;
+    if (legendeLage) {
+      n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;
+    } else { n.classList.remove('gezogen'); n.style.left = ''; n.style.top = ''; }
+    verdrahteLegendeZiehen(app, n);
+    zustandLegendeVerdrahten(app, n, (folgen) => app.zustandNeu(folgen));
+    return;
+  }
   const p = app.ansicht.plotSkala();
   const griff = (titel, klapp = '') =>
     `<div class="legende-griff"><span>${esc(titel)}</span>

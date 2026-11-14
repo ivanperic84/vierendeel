@@ -2510,6 +2510,9 @@ export class Modellansicht {
     this.werteAnschreiben = false;
     // Die verformte Figur (30. September) - von app.js gesetzt, sonst null.
     this.verformt = null;
+    // Die Zustandslinien (14. November, app.zustand.js) - sonst null. Steht
+    // eine, bleibt das Modell neutral: die Linie ist dann die Aussage.
+    this.zustand = null;
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
     // der Voreinstellung 0.5 bleiben Schwerachsen und dahinterliegende
     // Bauteile sichtbar, ohne dass das Bild seine Körperlichkeit verliert.
@@ -2794,6 +2797,98 @@ export class Modellansicht {
     const zeichen = z.d >= 0 ? '+' : '−';
     this._beschriftung(c, t, `${z.kopie ? 'Kopie ' : ''}Δ${z.achse} ${zeichen}${Math.abs(z.d).toFixed(2)} m`,
                        b[0] + 8 * s, b[1] - 8 * s, t.acc ?? '#7c8de0');
+  }
+
+  /**
+   * >>> DIE ZUSTANDSLINIEN (14. November). <<<
+   * `this.zustand` (app.zustand.js): je Linie Punkte auf der Stabachse und der
+   * Versatz in Metern, rot positiv / blau negativ, Linie in der Farbe der
+   * Fläche; σ_v und η nach der Ausnutzung (grün / gelb / rot ab 0.9). Werte
+   * ohne Kasten, leicht durchscheinend, an den Extremen (ab 25 % des
+   * Grössten, ohne Überlappung). Reaktionen als Pfeil am Lager, Momente als
+   * Drehpfeil daneben.
+   */
+  _zustandMalen(c, proj, t) {
+    const z = this.zustand;
+    const s = this._s;
+    const POS = [232, 96, 76], NEG = [74, 134, 232];
+    const rgba = (f, a) => `rgba(${f.join(',')},${a})`;
+    const farbe = (v, a) => {
+      if (!z.spannung) return rgba(v >= 0 ? POS : NEG, a);
+      const e = z.k === 'eta' ? v : v / (z.fyd || 1);
+      return rgba(e < 0.6 ? [60, 190, 110] : e < 0.9 ? [235, 200, 60] : POS, a);
+    };
+    const fmt = (v) => (z.k === 'eta' ? v.toFixed(3) : Math.abs(v) >= 100 ? v.toFixed(0)
+      : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2));
+    const marken = [];
+    c.save();
+    c.lineJoin = 'round';
+    z.linien.forEach((l) => {
+      const q = l.pkt.map((x) => ({ x, P: proj(x.p), Q: proj([x.p[0] + x.o[0], x.p[1] + x.o[1], x.p[2] + x.o[2]]) }));
+      for (let i = 0; i < q.length - 1; i += 1) {
+        const a = q[i], b = q[i + 1];
+        if (a.x.leer || b.x.leer || !a.P || !a.Q || !b.P || !b.Q) continue;
+        const vm = (a.x.v + b.x.v) / 2;
+        c.fillStyle = farbe(vm, 0.3);
+        c.beginPath(); c.moveTo(a.P[0], a.P[1]); c.lineTo(a.Q[0], a.Q[1]);
+        c.lineTo(b.Q[0], b.Q[1]); c.lineTo(b.P[0], b.P[1]); c.closePath(); c.fill();
+        c.strokeStyle = farbe(vm, 0.95); c.lineWidth = 1.3 * s;
+        c.beginPath(); c.moveTo(a.Q[0], a.Q[1]); c.lineTo(b.Q[0], b.Q[1]); c.stroke();
+      }
+      const ok = q.filter((x) => !x.x.leer && x.Q);
+      if (!ok.length) return;
+      const e = ok.reduce((x, y) => (Math.abs(y.x.v) > Math.abs(x.x.v) ? y : x));
+      if (Math.abs(e.x.v) >= 0.25 * z.vmax && Math.abs(e.x.v) > 1e-3) {
+        marken.push({ x: e.Q[0] + 6 * s, y: e.Q[1], text: fmt(e.x.v), farbe: farbe(e.x.v, 0.82), v: Math.abs(e.x.v) });
+      }
+    });
+    (z.reaktionen ?? []).forEach((r) => {
+      const A = proj(r.p);
+      if (!A) return;
+      const f = rgba(r.v >= 0 ? POS : NEG, 0.95);
+      c.strokeStyle = f; c.fillStyle = f; c.lineWidth = 2.2 * s;
+      if (r.moment) {
+        const rad = 11 * s, M = [A[0] - rad - 6 * s, A[1] + rad + 4 * s];
+        const a0 = -0.3 * Math.PI, a1 = 1.2 * Math.PI;
+        // Drehsinn nach der rechten Hand, vom Betrachter aus gesehen.
+        const B = proj([r.p[0] + r.achse[0], r.p[1] + r.achse[1], r.p[2] + r.achse[2]]);
+        const zumBetrachter = B && B[2] !== undefined ? (B[2] < A[2] ? 1 : -1) : 1;
+        const ccw = (r.v >= 0 ? 1 : -1) * zumBetrachter > 0;
+        c.beginPath(); c.arc(M[0], M[1], rad, a0, a1); c.stroke();
+        const ende = ccw ? a0 : a1, sg = ccw ? -1 : 1;
+        const E = [M[0] + rad * Math.cos(ende), M[1] + rad * Math.sin(ende)];
+        const tx = -Math.sin(ende) * sg, ty = Math.cos(ende) * sg, h = 8 * s, b = 4 * s;
+        c.beginPath(); c.moveTo(E[0] + tx * h, E[1] + ty * h);
+        c.lineTo(E[0] - ty * b, E[1] + tx * b); c.lineTo(E[0] + ty * b, E[1] - tx * b); c.closePath(); c.fill();
+        marken.push({ x: M[0] - rad, y: M[1] + rad + 10 * s, text: r.text, farbe: t.on2 ?? '#c8c9cf', v: Infinity, links: true });
+        return;
+      }
+      const B = proj([r.p[0] - r.achse[0] * r.l, r.p[1] - r.achse[1] * r.l, r.p[2] - r.achse[2] * r.l]);
+      if (!B) return;
+      c.beginPath(); c.moveTo(B[0], B[1]); c.lineTo(A[0], A[1]); c.stroke();
+      const dx = A[0] - B[0], dy = A[1] - B[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l;
+      const h = 9 * s, b = 4 * s;
+      c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(A[0] - ux * h - uy * b, A[1] - uy * h + ux * b);
+      c.lineTo(A[0] - ux * h + uy * b, A[1] - uy * h - ux * b); c.closePath(); c.fill();
+      marken.push({ x: B[0] + 6 * s, y: B[1], text: r.text, farbe: t.on2 ?? '#c8c9cf', v: Infinity });
+    });
+    c.restore();
+    if (this.sparsam) return;
+    // Anschrift ohne Überlappung: Raster am Bildschirm, die grössten zuerst.
+    c.save();
+    c.font = this._wertFont();
+    c.textBaseline = 'middle';
+    const belegt = new Set(), R = 46 * s;
+    marken.sort((a, b) => b.v - a.v).forEach((m) => {
+      const w = c.measureText(m.text).width;
+      const x = m.links ? m.x - w : m.x;
+      const key = `${Math.round(x / R)},${Math.round(m.y / (R / 2.5))}`;
+      if (belegt.has(key)) return;
+      belegt.add(key);
+      c.fillStyle = m.farbe;
+      c.fillText(m.text, x, m.y);
+    });
+    c.restore();
   }
 
   _verformtMalen(c, proj, t) {
@@ -4777,6 +4872,7 @@ export class Modellansicht {
     if (this.gruppen.resultate && this.verformt && FIGUR_MODI.includes(this.modus)) {
       this._verformtMalen(c, proj, t);
     }
+    if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
@@ -4860,7 +4956,7 @@ export class Modellansicht {
    */
   _werte(c, t) {
     const p = PLOTS.find((x) => x.key === this.modus);
-    if (!p) return;
+    if (!p || this.zustand) return;
     const kandidaten = [];
     // DIE LISTE IST BEREITS AUF DEN AUSSCHNITT GESIEBT - und zwar nach
     // f.xMitte. Hier noch einmal nach punkte[0][0] zu sieben war ein zweites,
@@ -5070,7 +5166,7 @@ export class Modellansicht {
      * steht und dass es dazugehoert; alles Weitere sagt es, sobald man es
      * anklickt.
      */
-    const p = PLOTS.find((x) => x.key === this.modus);
+    const p = this.zustand ? null : PLOTS.find((x) => x.key === this.modus);
     /*
      * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
      * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine
@@ -5144,7 +5240,7 @@ export class Modellansicht {
   /** Skala der aktuellen Einfärbung, für die Legende. */
   plotSkala() {
     const p = PLOTS.find((x) => x.key === this.modus);
-    if (!p) return null;
+    if (!p || this.zustand) return null;
     const max = p.fest ?? this._bereichSichtbar(p.feld);
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
     const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));
