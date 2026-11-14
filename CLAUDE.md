@@ -467,7 +467,7 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **14. Nov., Mastdiagramm ohne Füllfläche; Werkzeugleiste gleich breit, «Linie» abgesetzt** (örtlich committet, nicht gepusht).
+- **14. Nov., Mastdiagramm ohne Füllfläche; Werkzeugleiste gleich breit, «Linie» abgesetzt** (gepusht auf Weisung «Push», 14. November).
 - **14. Nov., Bericht: Masten als Diagramm M quer / M längs mit Vorzeichen, Zustandsbilder auf Gurte M_y und σ_v reduziert** (gepusht auf Weisung «Ja, pushen», 14. November).
 - **14. Nov., Bericht: Lastbilder je Lastfall, Systemskizze als Vektorbild, 3D-Bild auf dem Deckblatt** (gepusht auf Weisung «Ja, pushen», 14. November).
 - **14. Nov., Zustandslinien im Nachweisbericht** (fünf Bilder im Kapitel Schnittgrössen; örtlich committet, nicht gepusht).
