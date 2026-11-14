@@ -10,7 +10,7 @@ zu lesen, bevor etwas geändert wird.
 Offene Punkte durchgegangen (Weisung 14. November, CLAUDE.md *Entschieden*, oberste Zeile): Verdrehung
 Tragausleger ≤ 5°, Nachweisauswahl / Knicklänge / Mastwind fürs Blatt, Lastfelder des Abfangjochs
 («Werte bearbeiten» wirkt), alte Lagerungsentscheide mit dem Löser nachgemessen. Örtlich committet,
-**nicht gepusht**. Drei Rückfragen offen (CLAUDE.md, *Offene Punkte*, «Aus der Durchsicht vom 14. November»).
+**nicht gepusht**. Rückfragen beantwortet (Rückhaltekraft nur direkt, K_XX gehalten); offen nur die Frage nach Spannungsbildern wie AxisVM (CLAUDE.md, *Offene Punkte*).
 
 ### Davor am 14. November (Audit-Rest)
 
