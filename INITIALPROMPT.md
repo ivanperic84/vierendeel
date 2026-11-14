@@ -7,7 +7,7 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
-Zuletzt (14. November): im Nachweisbericht je Mast ein Diagramm M quer / M längs mit Vorzeichen, Zustandsbilder nur noch Gurte M_y und σ_v (Weisung «Ja, so aufteilen»; örtlich committet, nicht gepusht). Davor: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
+Zuletzt (14. November): im Nachweisbericht je Mast ein Diagramm M quer / M längs mit Vorzeichen, Zustandsbilder nur noch Gurte M_y und σ_v (Weisung «Ja, so aufteilen»; gepusht am 14. November). Davor: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
 `core.zustandslinien.js`, `app.zustand.js`) und im Nachweisbericht (`export.zustandsbild.js`, fünf Bilder
 im Kapitel Schnittgrössen), dazu Lastbilder je Lastfall, Systemskizze als Vektorbild und das 3D-Bild auf
 dem Deckblatt; örtlich committet, **nicht gepusht**.
