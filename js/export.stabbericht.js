@@ -228,6 +228,8 @@ function deckblatt(d, U) {
     <p class="ueber">Statischer Nachweis · Stabwerk</p>
     <h1>${esc(b.name || 'Querprofil')}</h1>
     ${b.ort ? `<p class="ort">${esc(b.ort)}</p>` : ''}
+    ${d.opt.bilder.modell3d && d.bilder?.modell3d
+      ? `<figure class="titelbild"><img src="${esc(d.bilder.modell3d)}" alt="3D-Ansicht mit Ausnutzung"></figure>` : ''}
     ${angaben([
       ['Tragwerke', esc((d.tragwerke ?? []).map((tw) => `${tw.pos} ${artText(tw)} (${tw.label})`).join(' · '))],
       ['Masten', esc((d.masten ?? []).map((m) => `${m.anzeige} ${m.profil ?? ''}`).join(' · '))],
@@ -340,6 +342,13 @@ function einwirkungen(d) {
     Angriffspunkte. Der Wind auf die Masten folgt der Lasttabelle des
     Profils; das Eigengewicht der Stäbe rechnet das Stabwerk aus A · ρ · g.</p>
     ${teile}
+    ${d.opt.bilder.lasten && d.bilder?.lasten?.length ? `
+    <h3>Lastbilder je Lastfall</h3>
+    <p>Die Lasten der Modelldatei des Stabwerks, charakteristisch:
+    Streckenlasten als Band mit Wert, Einzellasten als Pfeil (rot) mit Wert.
+    Was in Blickrichtung oder in Stabrichtung wirkt, steht nur in der Summe.
+    Wind je mit positivem Vorzeichen; die Gegenrichtung wirkt gleich gross.</p>
+    ${d.bilder.lasten.map((z) => `<figure class="gv-fig"><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
   </section>`;
 }
 
@@ -559,8 +568,8 @@ function anhang(d) {
 function nummeriert(d) {
   const U = blattUrteil(d);
   const teile = [
-    ['uebersicht', d.opt.bilder.modell3d && d.bilder?.modell3d
-      ? `<section><h2>§ Übersicht</h2>${bild(d.bilder.modell3d, '3D-Ansicht mit Ausnutzung')}</section>` : ''],
+    // Das 3D-Bild steht auf dem Deckblatt (14. November, «das 3d aus der app
+    // kann man für die titelseite nutzen», «Ja, nur Titelseite»).
     ['grundlagen', grundlagen(d)], ['system', system(d)], ['einwirkungen', einwirkungen(d)],
     ['kombinationen', kombinationen(d)], ['schnittgroessen', schnittgroessen(d)],
     ['nachweise', nachweise(d, U)], ['gebrauch', gebrauch(d)], ['pruefungen', pruefungen(d)],
@@ -599,6 +608,7 @@ export function stabwerkBericht(d, opt = berichtVorgabe()) {
   const titel = `Nachweis ${d.blatt?.name || ''} ${d.blatt?.ort || ''}`.trim();
   return `<!DOCTYPE html><html lang="de-CH"><head><meta charset="utf-8">
 <title>${esc(titel)}</title><style>${FARBEN_DRUCK}${d.stil ?? ''}${STIL}
+  .titelbild{margin:10px 0 14px}.titelbild img{width:100%;max-height:340px;object-fit:contain;border:1px solid #ddd}
   .gv-fig{margin:6px 0 10px;break-inside:avoid}.gv-fig figcaption{font-size:10px;margin-bottom:2px}.klein{font-size:10px;color:#444}</style></head><body>
 <div class="blatt">
 ${nummeriert(dd)}

@@ -9,7 +9,8 @@ zu lesen, bevor etwas geändert wird.
 
 Zuletzt: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
 `core.zustandslinien.js`, `app.zustand.js`) und im Nachweisbericht (`export.zustandsbild.js`, fünf Bilder
-im Kapitel Schnittgrössen), örtlich committet, **nicht gepusht**.
+im Kapitel Schnittgrössen), dazu Lastbilder je Lastfall, Systemskizze als Vektorbild und das 3D-Bild auf
+dem Deckblatt; örtlich committet, **nicht gepusht**.
 
 
 Offene Punkte durchgegangen (Weisung 14. November, CLAUDE.md *Entschieden*, oberste Zeile): Verdrehung

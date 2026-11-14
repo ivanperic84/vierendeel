@@ -60,6 +60,8 @@ export const BILDER = [
   { key: 'verformung', label: 'Verformung über die Höhe' },
   // Zustandslinien aus dem Stabwerk (14. November) - nur im Bericht des Stabwerks.
   { key: 'zustand', label: 'Zustandslinien (Stabwerk)' },
+  // Lastbilder je Lastfall (14. November) - nur im Bericht des Stabwerks.
+  { key: 'lasten', label: 'Lastbilder je Lastfall (Stabwerk)' },
 ];
 
 /** Tragwerksarten, die diese Fassung des Berichts abdeckt. */

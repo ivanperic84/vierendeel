@@ -28,7 +28,7 @@ import { esc, uebertrageTokens } from './design.js';
  * hinein, siehe unten.
  */
 import { zustandGeometrie, zustandFall } from './core.zustandslinien.js';
-import { zustandSvg } from './export.zustandsbild.js';
+import { zustandSvg, systemSvg, lastSvg } from './export.zustandsbild.js';
 import { bauteilDiagramm, fundamentDiagramm,
          fussKraftDiagramm } from './render.charts.js';
 
@@ -341,6 +341,28 @@ function zustandBilder(sw) {
   }).filter(Boolean);
 }
 
+/**
+ * >>> LASTBILDER JE LASTFALL (14. November). <<<
+ * «kann man diese darstellungsart auch für die lasten übernehmen», auf
+ * Rückfrage «Bericht, je Lastfall»: je charakteristischer Lastfallgruppe
+ * der Modelldatei ein Bild - ständig (Eigengewicht, Anbauteile,
+ * Ablenkkräfte), Wind quer, Wind längs (im Querschnitt), Schnee.
+ */
+function lastBilder(sw) {
+  const dat = sw?.roh?.dat;
+  if (!dat) return null;
+  return [
+    ['Ständige Lasten (Eigengewicht der Stäbe, Anbauteile, Ablenkkräfte)', ['G', 'G_Anbau', 'G_Ablenk'], 'laengs',
+     'Eigengewicht der Masten wirkt in Stabrichtung (nur in der Summe)'],
+    ['Wind quer zum Gleis (+x)', ['WindX'], 'laengs', ''],
+    ['Wind längs zum Gleis (+y)', ['WindY'], 'quer', ''],
+    ['Schnee', ['Schnee'], 'laengs', ''],
+  ].map(([titel, gruppen, blick, hinweis]) => {
+    const r = lastSvg(dat, { gruppen, blick, breite: 860, hinweis });
+    return r ? { titel, svg: r.svg } : null;
+  }).filter(Boolean);
+}
+
 function berichtStabwerk(app, wahl) {
   const d = stabwerkBerichtDaten(app);
   const b = wahl.bilder;
@@ -363,7 +385,9 @@ function berichtStabwerk(app, wahl) {
     });
   }
   d.bilder = {
-    skizze: b.skizze ? aufnahme('laengs') : null,
+    // Systemskizze als Vektorbild (14. November, «Systemskizze als Vektorbild»).
+    skizze: b.skizze && d.sw?.roh?.dat ? systemSvg(d.sw.roh.dat, { breite: 860 }) : null,
+    lasten: b.lasten ? lastBilder(d.sw) : null,
     modell3d: b.modell3d ? aufnahme('iso') : null,
     // Nur die Verläufe des Stabwerks - der Ersatzbalken steht nicht mehr im Bericht.
     verlaeufe: b.verlaeufe ? reihe(['sw-gurt', 'sw-kraft', 'sw-blech', 'sw-mast-schnitt']) : null,

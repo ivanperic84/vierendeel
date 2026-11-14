@@ -29376,9 +29376,10 @@ titel('117  Neue Diagramme: Zahlen, Vorzeichen und Richtung');
   {
     const qq = [...NB117.BILDER.map((b) => b.key)];
     // Seit dem 14. November neun: dazu «zustand» (Zustandslinien, nur Stabwerk).
-    wahr('Neun abschaltbare Bilder',
+    // 14. November: dazu «lasten» (Lastbilder je Lastfall, nur Stabwerk).
+    wahr('Zehn abschaltbare Bilder',
          qq.join(',') === 'skizze,verlaeufe,modell3d,eta,bauteile,fundament,'
-                        + 'fusskraft,verformung,zustand', qq.join(','));
+                        + 'fusskraft,verformung,zustand,lasten', qq.join(','));
     const bq = readFileSync(join(HIER, 'js', 'export.nachweisbericht.js'), 'utf8');
     ['bauteile', 'fundament', 'fusskraft', 'verformung'].forEach((k) => {
       wahr(`«${k}» wird eingebettet und ist abschaltbar`,
@@ -39062,6 +39063,25 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
          ZB.zustandSvg(a14.geo, [a14.f], { k: 'My', teile: 'gurt:XYZ' }) === null);
     const ber = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
     const sber = readFileSync(join(HIER, 'js', 'export.stabbericht.js'), 'utf8');
+    // Systemskizze, Lastbilder, Deckblatt (14. November).
+    const sys = ZB.systemSvg(a14.roh.dat);
+    wahr('Bericht: Systemskizze als Vektorbild mit Längsansicht und Querschnitt, Mastabstand 20.00 m',
+         sys.startsWith('<svg') && sys.includes('Längsansicht') && sys.includes('Querschnitt') && sys.includes('20.00 m'));
+    const wx = ZB.lastSvg(a14.roh.dat, { gruppen: ['WindX'], blick: 'laengs' });
+    const sollWx = [...a14.roh.dat.lasten.strecke.filter((l) => l.lastfall === 'WindX').map((l) => {
+      const st = a14.roh.dat.staebe.find((x) => x.name === l.stab);
+      const kn = (n) => a14.roh.dat.knoten.find((k) => k.name === n);
+      const a = kn(st.von), b = kn(st.bis);
+      return (l.richtung === 'X' ? 1 : 0) * l.wert * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    }), ...a14.roh.dat.lasten.punkt.filter((l) => l.lastfall === 'WindX' && l.richtung === 'X').map((l) => l.wert)]
+      .reduce((x, y) => x + y, 0);
+    wahr('… Lastbild Wind quer: Summe F_x = Summe der Lasten der Modelldatei, F_z = 0',
+         !!wx && Math.abs(wx.summe[0] - sollWx) < 1e-6 && Math.abs(wx.summe[2]) < 1e-9 && wx.svg.includes('kN/m'),
+         `${wx?.summe?.[0]?.toFixed(3)} / ${sollWx.toFixed(3)}`);
+    wahr('… ohne Lasten in der Gruppe kein Bild', ZB.lastSvg(a14.roh.dat, { gruppen: ['GibtsNicht'] }) === null);
+    wahr('… 3D-Bild auf dem Deckblatt, kein Kapitel «Übersicht» mehr; Lastbilder im Kapitel Einwirkungen',
+         sber.includes('class="titelbild"') && !sber.includes('§ Übersicht') && sber.includes('Lastbilder je Lastfall')
+         && ber.includes('lasten: b.lasten ? lastBilder(d.sw) : null'));
     wahr('… im Kapitel Schnittgrössen des Stabwerksberichts, abschaltbar (Bild «zustand»)',
          ber.includes('zustand: b.zustand ? zustandBilder(d.sw) : null') && sber.includes('§.1 Zustandslinien')
          && sber.includes('d.opt.bilder.zustand'));
