@@ -85,7 +85,7 @@ export function einfachAusKacheln(kacheln, opt = {}) {
   const balken = gruppen.map((g) => {
     const b = Math.min(g.eta, 1.25) / 1.25 * 100;
     return `<div class="ef-zeile" title="${esc(g.name)}: ${prozent(g.eta)} (η ${g.eta.toFixed(2)})">
-      <span class="ef-name">${esc(g.titel)}</span>
+      <span class="ef-name">${esc(g.titel)} ${begriffKnopf(GRUPPE_BEGRIFF[g.key])}</span>
       <span class="ef-bahn"><span class="ef-balken ${farbe(g.eta)}" style="width:${b.toFixed(1)}%"></span
         ><span class="ef-grenze"></span></span>
       <span class="ef-wert ${farbe(g.eta)}">${prozent(g.eta)}</span>
@@ -94,7 +94,7 @@ export function einfachAusKacheln(kacheln, opt = {}) {
   }).join('');
   const html = `<div class="einfach">
     <div class="ef-urteil ${f}">
-      <span class="ef-zahl">${prozent(max.eta)}</span>
+      <span class="ef-zahl">${prozent(max.eta)} ${begriffKnopf('ausnutzung')}</span>
       <p class="ef-satz">${satz}</p>
     </div>
     ${opt.vorlaeufig ? '<p class="ef-leg">Vorläufig - die genaue Rechnung läuft.</p>' : ''}
@@ -134,4 +134,91 @@ export function einfachesErgebnis(node, opt = {}) {
   rest.addEventListener('toggle', () => { offen = rest.open; });
   node.insertAdjacentHTML('afterbegin', html);
   node.appendChild(rest);
+}
+
+/* ==========================================================================
+ * >>> BEGRIFFE ERKLÄREN (15. November, Paket 2). <<<
+ * Vorschlag 7: «Fachwörter wie Joch, Mast, Anker, Hängestütze und Ausnutzung
+ * sind anklickbar und öffnen eine kurze Erklärung.» In der Schulung trägt
+ * jedes Feld, das einen solchen Begriff braucht, ein «?»; dazu die Balken
+ * des Ergebnisses. Der Text ist für Laien geschrieben, ohne Formeln.
+ * ======================================================================== */
+export const BEGRIFFE = {
+  joch: { titel: 'Joch (Tragjoch)', text: 'Der Träger quer über die Gleise, an dem die Fahrleitung hängt. Er liegt auf zwei Masten. Die Nummer (J60 bis J130) steht für die Grösse: grössere Nummer, kräftigeres Joch.' },
+  mast: { titel: 'Mast', text: 'Die Stütze neben dem Gleis. Sie trägt Joch oder Ausleger und leitet alle Kräfte in das Fundament. Das Profil (z. B. HEB 260) bestimmt, wie kräftig der Mast ist.' },
+  anker: { titel: 'Abspannung (Anker)', text: 'Ein Seil (Zuganker) oder eine Stütze (Druckstütze) schräg vom Masten zum Boden. Sie nimmt dem Masten einen Teil der Kraft ab, wenn er allein zu schwach wäre.' },
+  fundament: { titel: 'Fundament', text: 'Der Betonblock im Boden unter dem Masten. Jeder Fundamenttyp verträgt bestimmte Kräfte; die Ausnutzung zeigt, wie viel davon gebraucht wird.' },
+  ausnutzung: { titel: 'Ausnutzung', text: 'Wie viel der zulässigen Beanspruchung ein Bauteil braucht. 100 % heisst: genau an der Grenze. Über 100 % ist das Bauteil zu schwach - ein kräftigeres Bauteil oder eine Abspannung hilft.' },
+  verformung: { titel: 'Verformung', text: 'Wie weit sich der Mast unter Wind zur Seite bewegt. Bewegt er sich zu viel, wandert der Fahrdraht gegenüber dem Stromabnehmer des Zuges.' },
+  wind: { titel: 'Windzone', text: 'Wie stark der Wind am Standort angenommen wird. Zone 1 ist schwach, Zone 3 stark (z. B. Höhenlage, offenes Gelände).' },
+  schnee: { titel: 'Schnee', text: 'Schnee auf Joch und Leitungen macht sie schwerer. In schneereichen Gegenden wird er mitgerechnet.' },
+  spannweite: { titel: 'Abstand zum nächsten Masten', text: 'Die Fahrleitung spannt von Tragwerk zu Tragwerk entlang des Gleises. Je länger dieses Feld, desto mehr Gewicht und Wind hängt an jedem Tragwerk.' },
+  radius: { titel: 'Kurvenradius', text: 'In einer Kurve zieht die Fahrleitung seitlich am Tragwerk. Je enger die Kurve (kleiner Radius), desto grösser dieser Zug. Ein gerades Gleis hat keinen.' },
+  anbauteil: { titel: 'Anbauteile', text: 'Alles, was am Joch oder am Masten hängt: Hängestützen mit Fahrleitung, Ausleger, Leiter, Lampen. Sie bringen Gewicht, Wind und Zugkräfte auf das Tragwerk.' },
+};
+
+// Welches Feld welchen Begriff erklärt.
+const FELD_BEGRIFF = {
+  typ: 'joch', L: 'joch', abfangTyp: 'joch',
+  mastProfil: 'mast', mastLaenge: 'mast',
+  ankerTyp: 'anker',
+  windKlasse: 'wind', schneeAktiv: 'schnee',
+  flSpannweite: 'spannweite', trasseRadius: 'radius',
+};
+const GRUPPE_BEGRIFF = { traeger: 'joch', mast: 'mast', anker: 'anker',
+                         fundament: 'fundament', verformung: 'verformung' };
+
+export function begriffKnopf(key) {
+  const b = BEGRIFFE[key];
+  if (!b) return '';
+  return `<button type="button" class="begriff-knopf" data-begriff="${esc(key)}"
+    title="Was heisst «${esc(b.titel)}»?" aria-label="Erklärung: ${esc(b.titel)}">?</button>`;
+}
+
+/** Setzt in der Maske hinter die Bezeichnung der Felder ein «?». */
+export function begriffeInMaske(container) {
+  if (!container) return;
+  container.querySelectorAll('[data-feld]').forEach((inp) => {
+    const key = FELD_BEGRIFF[inp.dataset.feld];
+    const label = inp.closest('.feld')?.querySelector('label');
+    if (!key || !label || label.querySelector('.begriff-knopf')) return;
+    label.insertAdjacentHTML('beforeend', ' ' + begriffKnopf(key));
+  });
+  const kopf = container.querySelector('[data-grp="anbau"] .grp-t');
+  if (kopf && !kopf.querySelector('.begriff-knopf')) {
+    kopf.insertAdjacentHTML('beforeend', ' ' + begriffKnopf('anbauteil'));
+  }
+}
+
+let horcher = false;
+/** Ein Horcher für die ganze Seite: Klick auf «?» zeigt die Erklärung daneben. */
+export function begriffeVerdrahten() {
+  if (horcher || typeof document === 'undefined') return;
+  horcher = true;
+  document.addEventListener('click', (e) => {
+    const k = e.target instanceof Element ? e.target.closest('[data-begriff]') : null;
+    const alt = document.querySelector('.begriff-pop');
+    if (!k) {
+      if (alt && !(e.target instanceof Element && e.target.closest('.begriff-pop'))) alt.remove();
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    alt?.remove();
+    const b = BEGRIFFE[k.dataset.begriff];
+    if (!b) return;
+    const pop = document.createElement('div');
+    pop.className = 'begriff-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `<b>${esc(b.titel)}</b><p>${esc(b.text)}</p>`;
+    document.body.appendChild(pop);
+    const r = k.getBoundingClientRect();
+    const breite = Math.min(300, window.innerWidth - 24);
+    pop.style.width = `${breite}px`;
+    pop.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - breite - 12))}px`;
+    pop.style.top = `${r.bottom + 6 + window.scrollY}px`;
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelector('.begriff-pop')?.remove();
+  });
 }

@@ -8,7 +8,7 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
-import { einfachesErgebnis } from './ui.einfach.js';
+import { einfachesErgebnis, begriffeVerdrahten } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -7318,6 +7318,7 @@ export async function start() {
    * Vermerk, dass hier kein geprüfter Nachweis entsteht.
    */
   document.documentElement.dataset.stufe = STUFE;
+  if (EINFACH) begriffeVerdrahten();
   if (LEICHT) {
     document.title = `${APP_NAME} · ${STUFEN_TITEL[STUFE]}`;
     const logo = document.querySelector('.tb-logo');

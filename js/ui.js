@@ -35,7 +35,8 @@ import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerTypen, abfangBindeblech, abfangLaengen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
-import { LEICHT, feldRecht, gruppeErlaubt, auswertungErlaubt, feldEinfach } from './stufe.js';
+import { LEICHT, EINFACH, feldRecht, gruppeErlaubt, auswertungErlaubt, feldEinfach, vorlageErlaubt } from './stufe.js';
+import { begriffeInMaske } from './ui.einfach.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -229,7 +230,28 @@ export const EINGABE_TABS = [
 
 /** Reiter der Eingabe, die in dieser Stufe etwas zeigen (15. November). */
 export function eingabeTabs() {
-  return EINGABE_TABS.filter((t) => t.gruppen.some((g) => gruppeErlaubt(g)));
+  const da = EINGABE_TABS.filter((t) => t.gruppen.some((g) => gruppeErlaubt(g)));
+  /*
+   * >>> SCHULUNG: SCHRITTE STATT REITER (15. November, Paket 2). <<<
+   * Vorschlag 5: «Aufbau in Schritten … Jeder Schritt hat wenige Felder und
+   * einen Weiter-Knopf.» Die Reiter bleiben dieselben, sie tragen eine
+   * Nummer und einen Namen, der sagt, was dort zu tun ist.
+   */
+  if (!EINFACH) return da;
+  const namen = { system: 'Tragwerk', anbau: 'Anbauteile', lasten: 'Wind und Schnee' };
+  return da.map((t, i) => ({ ...t, titel: `${i + 1} ${namen[t.id] ?? t.titel}` }));
+}
+
+/** Der «Weiter»-Knopf unter einem Schritt der Schulung. */
+function schrittWeiterHtml(tab) {
+  if (!EINFACH) return '';
+  const tabs = eingabeTabs();
+  const i = tabs.findIndex((t) => t.id === tab);
+  if (i < 0) return '';
+  const naechst = tabs[i + 1];
+  return `<div class="schritt-weiter">${naechst
+    ? `<button type="button" class="btn btn-acc" data-schritt="${esc(naechst.id)}">Weiter: ${esc(naechst.titel)} ›</button>`
+    : '<button type="button" class="btn btn-acc" data-schritt-ergebnis>Ergebnis ansehen ›</button>'}</div>`;
 }
 
 /** Reiter der Auswertung. */
@@ -802,7 +824,22 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       }<button type="button" class="sprung-chip sprung-alle" data-sprung-alle
           title="Alle Gruppen dieses Reiters zu- oder aufklappen">alle zu / auf</button></nav>`
     : '';
-  container.innerHTML = sprung + koerper;
+  container.innerHTML = sprung + koerper + schrittWeiterHtml(tab);
+  // Schulung (15. November): «?» hinter den Begriffen, die Laien fremd sind.
+  if (EINFACH) begriffeInMaske(container);
+  // Schulung: «Weiter» wählt den nächsten Schritt wie ein Klick auf den Reiter.
+  container.querySelector('[data-schritt]')?.addEventListener('click', (e) => {
+    document.querySelector(`#tabs [data-tab="${CSS.escape(e.currentTarget.dataset.schritt)}"]`)?.click();
+    container.scrollTop = 0;
+  });
+  container.querySelector('[data-schritt-ergebnis]')?.addEventListener('click', () => {
+    document.querySelector('#tabs-auswertung [data-tab="uebersicht"]')?.click();
+    const rechts = document.getElementById('panel-auswertung');
+    if (rechts && rechts.getBoundingClientRect().width < 120) {
+      document.querySelector('#schiene-rechts [data-reiter="uebersicht"]')?.click();
+    }
+    document.querySelector('#auswertung .einfach')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   container.querySelectorAll('[data-sprung]').forEach((b) => {
     b.addEventListener('click', () => {
       const ziel = container.querySelector(`[data-grp="${CSS.escape(b.dataset.sprung)}"]`);
@@ -3079,7 +3116,9 @@ function anbauteileHtml(g, werte) {
   const ohneJoch = tragwerksart(werte).traeger !== true;
   // Das freie Bauteil steht seit dem 3. Oktober als Kachel unter «Übrige»
   // («unter übrige kann man ein freies bauteil aufführen»).
-  const alleV = vorlagen().filter((v) => !ohneJoch || vorlagePasstAn(v, 'mast'));
+  const alleV = vorlagen().filter((v) => (!ohneJoch || vorlagePasstAn(v, 'mast'))
+    // Schulung (15. November): nur die gebräuchlichen Vorlagen.
+    && vorlageErlaubt(v.id));
   /*
    * WAS KEINE GRUPPE TRAEGT, VERSCHWINDET NICHT.
    *
@@ -3196,8 +3235,13 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
            * Wer sein eigenes Teil zum zwanzigsten Mal aufmacht, klappt sie
            * zu - und sie bleibt zu, wie jeder andere Klappabschnitt.
            */''}
-        ${klapp(`at-skizze-${i}`, amMast(a) ? 'Ansicht und Draufsicht' : 'Lage im Querschnitt',
-                anbauteilSkizzeFuer(a, werte), '', true)}
+        ${/*
+           * >>> UND SEIT DEM 15. NOVEMBER WEG. <<< Mit Bild der Skizze, im
+           * Wortlaut: «diese abbildung braucht es eigentlich nicht mehr, da
+           * man alle die angaben schon im 3d fenster sieht. so wird die
+           * eingabe kompakter.» Das 3D zeigt Teil, Kette, Lage und Kräfte;
+           * die Karte führt nur noch die Felder.
+           */''}
         <div class="at-gitter">
           ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte, ortVon(a)),
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
@@ -3345,9 +3389,11 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                      value="${esc(String(a.tag ?? ''))}">
             </label>
           </div>`, '', false)}
+        <div class="at-technik">
         ${modulListeHtml(a, i, werte)}
         ${windVersatzHtml(a, i)}
         ${lastblockListeHtml(a, i)}
+        </div>
       </div>` : ''}
     </div>`;
   };

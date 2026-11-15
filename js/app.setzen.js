@@ -9,6 +9,7 @@
  * Kontextobjekt app. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { vorlageErlaubt } from './stufe.js';
 import { baueModellWerkzeuge } from './app.layout.js';
 import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
@@ -229,7 +230,7 @@ export function vorlagenFuer(app, ort) {
     return 'drahtwerk';
   };
   const rang = { traeger: 0, aufbau: 1, drahtwerk: 2 };
-  return vorlagen()
+  return vorlagen().filter((v) => vorlageErlaubt(v.id))
     .map((v) => ({ v, rolle: rolleVon(v) }))
     .filter((e) => ort === 'joch' || e.rolle !== 'traeger')
     // Nach Ort getrennt (19. September): der Ausleger am Masten nicht ans Joch.

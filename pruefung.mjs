@@ -13156,8 +13156,11 @@ titel('42  Der lange Mast mit Zusatzleitern');
       const OS = await import(J('doku.optionsskizzen.js'));
       wahr('Die Optionsskizzen stehen weiter da',
            OS.SKIZZEN_FELDER.length > 0, `${OS.SKIZZEN_FELDER.length} Felder`);
-      wahr('Und die Massskizze der Anbauteile auch',
-           uiQ.includes('at-skizze'));
+      // Seit dem 15. November ohne Lageskizze in der Bauteilkarte («diese
+      // abbildung braucht es eigentlich nicht mehr, da man alle die angaben
+      // schon im 3d fenster sieht»).
+      wahr('Die Lageskizze steht nicht mehr in der Bauteilkarte',
+           !uiQ.includes('klapp(`at-skizze-'));
     }
   }
 
@@ -26580,7 +26583,8 @@ titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
        && q100.includes('ist eine Vorlage fürs Joch, und dieses Tragwerk hat keines.'));
   const ui100 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Kachelliste zeigt am Einzelmast nur, was an den Masten passt',
-       ui100.includes("vorlagen().filter((v) => !ohneJoch || vorlagePasstAn(v, 'mast'));")
+       // Seit dem 15. November dazu der Filter der Schulung (vorlageErlaubt).
+       ui100.includes("vorlagen().filter((v) => (!ohneJoch || vorlagePasstAn(v, 'mast'))")
        && ui100.includes("['mast', 'Am Masten', 'grpUebrige'],"));
 }
 
@@ -42096,6 +42100,24 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && ef.gruppen[0].titel === 'Tragjoch' && !ef.html.includes('η 0.865<'));
   wahr('Einfaches Ergebnis: überlastet wird beim Namen genannt',
        E.einfachAusKacheln([{ titel: 'η M2', eta: 1.12, kopf: 'Mast' }]).html.includes('überlastet'));
+  // Paket 2 (15. November): gebräuchliche Vorlagen, Begriffe, Schritte, Karte.
+  const katalogIds = new Set(A.vorlagen().map((v) => v.id));
+  const fehlen = [...S.SCHULUNG_VORLAGEN].filter((id) => !katalogIds.has(id));
+  wahr('Schulung: die gebräuchlichen Vorlagen stehen alle im Katalog, die übrigen fallen weg',
+       !fehlen.length && S.vorlageErlaubt('hs-fahrdraht', true) && !S.vorlageErlaubt('frei', true)
+       && !S.vorlageErlaubt('signal', true) && S.vorlageErlaubt('frei', false), fehlen.join(', '));
+  wahr('Begriffe: jeder Knopf des Ergebnisses und der Maske hat seine Erklärung',
+       ['joch', 'mast', 'anker', 'fundament', 'verformung', 'ausnutzung', 'wind', 'schnee',
+        'spannweite', 'radius', 'anbauteil'].every((k) => E.BEGRIFFE[k]?.text?.length > 40)
+       && E.begriffKnopf('mast').includes('data-begriff="mast"') && E.begriffKnopf('gibtsnicht') === ''
+       && ef.html.includes('data-begriff="ausnutzung"'));
+  const UQ278 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const CQ278 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Schulung: Schritte mit «Weiter», Karte ohne Module/Gruppe/Kräfte, keine Lageskizze',
+       UQ278.includes('schrittWeiterHtml(tab)') && UQ278.includes('Ergebnis ansehen ›')
+       && UQ278.includes('<div class="at-technik">')
+       && CQ278.includes('html[data-stufe="schulung"] .at-technik')
+       && CQ278.includes('html[data-stufe="schulung"] [data-generator]'));
   const h = S.herkunftMarkieren({ a: 1 }, 'viewer');
   wahr('Herkunftsmerker: gesetzt in der leichten Stufe, Hinweis in der Vollversion',
        h.geaendertIn === 'viewer' && S.herkunftMarkieren({ a: 1 }, 'voll').geaendertIn === undefined

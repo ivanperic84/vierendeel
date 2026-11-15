@@ -3816,15 +3816,22 @@ html[data-stufe="schulung"] [data-at-vorlage] { display: none !important; }
 .ef-zahl { font-size: 28px; font-weight: 700; white-space: nowrap; }
 .ef-satz { margin: 0; font-size: 13px; line-height: 1.4; }
 .ef-balkenfeld { margin-top: 12px; display: grid; gap: 8px; }
-.ef-zeile { display: grid; grid-template-columns: 96px 1fr 44px; gap: 2px 8px;
-  align-items: center; font-size: 12px; }
+/* Name und Prozent oben, der Balken darunter über die ganze Breite - so
+   bleibt die Zahl auch in der schmalen Leiste sichtbar. */
+.ef-zeile { display: grid; grid-template-columns: 1fr auto;
+  grid-template-areas: "name wert" "bahn bahn" "wer wer";
+  gap: 3px 8px; align-items: center; font-size: 12px; }
+.ef-zeile .ef-name { grid-area: name; }
+.ef-zeile .ef-wert { grid-area: wert; }
+.ef-zeile .ef-bahn { grid-area: bahn; }
+.ef-zeile .ef-wer { grid-area: wer; }
 .ef-bahn { position: relative; height: 10px; border-radius: 5px; background: var(--s2, rgba(128,128,128,.18)); }
 .ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--ok); }
 .ef-balken.warn { background: var(--warn); } .ef-balken.fail { background: var(--fail); }
 .ef-grenze { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; background: var(--on, currentColor); opacity: .7; }
 .ef-wert { text-align: right; font-weight: 600; }
 .ef-wert.warn { color: var(--warn); } .ef-wert.fail { color: var(--fail); }
-.ef-wer { grid-column: 2 / 4; font-size: 10.5px; color: var(--dim); }
+.ef-wer { font-size: 10.5px; color: var(--dim); }
 .ef-leg { font-size: 10.5px; color: var(--dim); margin: 8px 0 0; }
 .ef-mehr > summary { cursor: pointer; font-size: 11px; color: var(--dim); padding: 6px 0; }
 /* Schulung: Lastfallwahl und technische Fusszeilen weg, immer der ungünstigste Fall. */
@@ -3843,3 +3850,29 @@ html[data-stufe="schulung"] #wz-r-werte,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
 /* Schulung: kein Lastgenerator (15. November, «lastengenerator nicht aufführen»). */
 html[data-stufe="schulung"] [data-generator] { display: none !important; }
+/* Schulung, Paket 2 (15. November): die Bauteilkarte zeigt Name, Standort
+   und Lage; Module, Lastblöcke, Befestigung, Gruppe, Kräftezeilen,
+   Drahtwerk-Tabelle, Signalbauer und freies Bauteil gehören der Fachperson. */
+html[data-stufe="schulung"] .at-technik,
+html[data-stufe="schulung"] [data-klapp^="at-fein-"],
+html[data-stufe="schulung"] .at-befestigung,
+html[data-stufe="schulung"] .at-kraft,
+html[data-stufe="schulung"] [data-at-gruppe-name],
+html[data-stufe="schulung"] [data-at-gruppe-dup],
+html[data-stufe="schulung"] [data-klapp="at-drahtwerke-v2"],
+html[data-stufe="schulung"] [data-signal-direkt],
+html[data-stufe="schulung"] [data-setz-frei] { display: none !important; }
+
+/* Begriffe erklären (Schulung, 15. November, js/ui.einfach.js). */
+.begriff-knopf { display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--acc, #7c8de0);
+  color: var(--acc, #7c8de0); background: transparent; font-size: 10px; font-weight: 700;
+  line-height: 1; padding: 0; margin-left: 3px; cursor: pointer; vertical-align: middle; }
+.begriff-pop { position: absolute; z-index: 9999; padding: 10px 12px; border-radius: 8px;
+  background: var(--s1, #1d1f24); color: var(--on, #eee); border: 1px solid var(--ol, #444);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: 12px; line-height: 1.45; }
+.begriff-pop p { margin: 4px 0 0; }
+/* Schulung: «Weiter» unter jedem Schritt (15. November). */
+.schritt-weiter { display: flex; justify-content: flex-end; padding: 14px 0 6px; }
+/* Schulung: keine Sprungleiste über den Gruppen - die Schritte sind kurz. */
+html[data-stufe="schulung"] #maske > .sprung { display: none !important; }

@@ -144,6 +144,20 @@ export const EINFACH_TEXT = {
   schneeKlasse: { label: 'Schneezone', hinweis: null },
 };
 
+/*
+ * >>> DIE GEBRÄUCHLICHEN VORLAGEN (15. November, Paket 2). <<< In der
+ * Schulung stehen statt 26 Vorlagen nur die, mit denen ein Querprofil
+ * üblicherweise aufgebaut wird. Was nicht im Katalog steht, fällt still weg.
+ */
+export const SCHULUNG_VORLAGEN = new Set([
+  'hs-fahrdraht', 'hs-nt-ausleger', 'ausleger-rohr', 'ja-einfach', 'ja-doppelt',
+  'leiter-nfl', 'leiter-rfl', 'leiter-rl',
+  'mast-nt-ausleger', 'leiter-traverse', 'mast-lampe-alt-rohr',
+]);
+export function vorlageErlaubt(id, einfach = EINFACH) {
+  return !einfach || SCHULUNG_VORLAGEN.has(id);
+}
+
 /** Feld in der einfachen Sprache - oder unverändert. */
 export function feldEinfach(f, einfach = EINFACH) {
   if (!einfach || !f) return f;
