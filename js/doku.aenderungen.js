@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-16',
+    punkte: [
+      { text: 'Vorlagen am Joch: Hängestützen 2.0 m lang (Ausleger und Fahrleitung entsprechend höher), Lampe mit Rohr am Joch viermal so hoch. Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },
+    ],
+  },
+  {
     datum: '2026-11-15',
     punkte: [
       { text: 'Vorlagen am Masten: Ausleger und Fahrleitung auf das Gleis 3.5 m ab Mastachse, Lampe mit Rohr viermal so hoch, Trafo 0.5 m seitlich; neue Vorlage «Signal (pauschal 1 m², 400 kg)». Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },

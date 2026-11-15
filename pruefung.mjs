@@ -2744,8 +2744,9 @@ titel('18i  Vorlage: Hängestütze mit Flächenlast');
   const fl = flach.find((f) => f.bauteil === 'frei-flaeche');
   wahr('Beide Module erkannt', Boolean(hs && fl));
 
-  pruef('Hängestütze hängt 1.35 m unter der Anschlussebene', hs.z, -1.35, 1e-12, 'm');
-  pruef('Fläche hängt tiefer', fl.z, -2.10, 1e-12, 'm');
+  // Seit dem 16. November 2.0 m lang («die hängestützenlänge auf 2m setzen»).
+  pruef('Hängestütze hängt 1.00 m unter der Anschlussebene (Mitte, 2.0 m lang)', hs.z, -1.0, 1e-12, 'm');
+  pruef('Fläche hängt tiefer', fl.z, -1.40, 1e-12, 'm');
 
   // Die Windlast der freien Fläche folgt der Formel w = A · q_ref(EK) · c
   const { staudruck } = await import(J('data.fl.js'));
@@ -36353,7 +36354,7 @@ titel('202  Anbauteile: Katalog bereinigt (Namen, Aufsätze, Lampen, Trafo, frei
     const lotrecht = (id, z = '0.5,1') => v(id).module.every((m) => (m.x ?? 0) === 0)
       && v(id).module.map((m) => m.z).join() === z;
     wahr('Lampe mit Rohr am Mast und am Joch: Rohr lotrecht, Lampe am Rohrkopf',
-         lotrecht('mast-lampe-alt-rohr', '2,4') && lotrecht('joch-lampe-rohr')
+         lotrecht('mast-lampe-alt-rohr', '2,4') && lotrecht('joch-lampe-rohr', '2,4')
          && A.vorlageOrt(v('joch-lampe-rohr')) === 'joch');
     wahr('Trafo 50 kVA unter «Am Masten», das freie Bauteil unter «Übrige»',
          v('mast-trafo-50').gruppe === 'mast' && v('frei').gruppe === 'uebrige');
@@ -36498,15 +36499,22 @@ titel('204  Aufhängeseile nur auf Zug; Jochaufsatz einfach 2 m / 4 m');
     wahr('Jochaufsatz einfach: Angriffspunkt auf 2 m, Traverse und Leiter auf 4 m',
          m[0].z === 2 && m[1].z === 4 && m[2].z === 4, m.map((x) => x.z).join(' / '));
     const L = AJ.tragauslegerTypen()[0].L;
-    const ta = (vorlage, o = {}) => ({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
+    /*
+     * Seit dem 16. November ist die Hängestütze der Vorlagen 2.0 m lang
+     * («die hängestützenlänge auf 2m setzen»); damit fällt am kürzesten
+     * Ausleger kein Seil mehr aus. Der Mechanismus wird deshalb mit der
+     * bisherigen Länge 2.70 m geprüft (`lang`).
+     */
+    const lang = (t) => ({ ...t, module: t.module.map((m) => ({ ...m, z: m.z === -1 ? -1.35 : m.z === -2 ? -2.7 : m.z })) });
+    const ta = (vorlage, o = {}, f = (t) => t) => ({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
       mastVorhanden: true, twId: 'T1', trasseRadius: 600, flSpannweite: 50, mastH: 7.5,
-      anbauteile: [{ ...A.neuesAnbauteil(vorlage, L - 0.65), name: 'FL' }], ...o });
+      anbauteile: [{ ...f(A.neuesAnbauteil(vorlage, L - 0.65)), name: 'FL' }], ...o });
     const stab = (w0) => {
       const w = N204.rechensatzMitNachbarn(w0);
       const erg = berechne(w, ...N204.kernArgumente(w));
       return AS204.rechneStabwerk({ werte: w0, letzte: { erg }, stabwerk: null });
     };
-    const h = stab(ta('hs-fahrdraht'));
+    const h = stab(ta('hs-fahrdraht', {}, lang));
     const a = h.ausleger?.aufhaengung;
     wahr('Kürzester Ausleger mit Fahrdrahtabzug: kein Seildruck mehr (kein Befund)',
          a && !a.druck && a.ueber === false, JSON.stringify(a?.druck));
@@ -38667,8 +38675,9 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     pruef('Starrkörper der Station = Weg des echten Knotens im selben Modell (quer)', u3[0], u2[0], 1e-3, 'm');
     pruef('… und längs', u3[1], u2[1], 1e-3, 'm');
     const p = SV231.starrPunkt(dat, lsg, [], fd.starr).p;
-    // Ausleger 2.70 m unter der Achse, der Fahrdraht 1.60 m unter dem Tragseil.
-    pruef('Der Fahrdraht liegt 4.30 m unter dem Ausleger', p[2] - ka.z, -4.3, 1e-9, 'm');
+    // Ausleger 2.0 m unter der Achse (Hängestütze seit dem 16. November 2.0 m),
+    // der Fahrdraht 1.60 m unter dem Tragseil.
+    pruef('Der Fahrdraht liegt 3.60 m unter dem Ausleger', p[2] - ka.z, -3.6, 1e-9, 'm');
     // Die Kette für die Figur (4. Oktober): wie am Tragjoch Wurzel und
     // echte Punkte - die Stütze lotrecht, dann der Ausleger, am Ende der
     // Fahrdraht. Kein Strich von der Station schräg zum Fahrdraht.
@@ -38689,7 +38698,7 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     wahr('>>> Die Seitenlage wird am Fahrdraht nachgewiesen, nicht mehr an der Referenzhöhe <<<',
          v?.fahrdraht === true && v.massgebend?.was?.startsWith('Fahrdraht'),
          v?.massgebend ? `${(v.massgebend.wert * 1000).toFixed(1)} mm auf ${v.massgebend.z?.toFixed(2)} m` : '(kein Nachweis)');
-    pruef('… auf der Höhe des Fahrdrahts über dem Mastfuss (H − 4.30)', v?.massgebend?.z, (Number(erg.modell?.mastH ?? 7.5) || 7.5) - 4.3, 0.05, 'm');
+    pruef('… auf der Höhe des Fahrdrahts über dem Mastfuss (H − 3.60)', v?.massgebend?.z, (Number(erg.modell?.mastH ?? 7.5) || 7.5) - 3.6, 0.05, 'm');
     pruef('… quer = Weg quer × ψ 0.70 aus dem Starrkörper',
           v?.massgebend?.wert, Math.abs(SV231.starrPunkt(dat, lsg,
             SN231.anteileFuer(h.roh.faelle.find((l) => l.key === v.massgebend.lastfall), dat), fd.starr).u[0]) * 0.7, 1e-9, 'm');
@@ -38700,7 +38709,8 @@ titel('231  Tragausleger: der Fahrdraht in Figur und Nachweis');
     const kL = L231.roh.dat.kettenStarr?.[0]?.glieder ?? [];
     wahr('Links: die Kette ist das Spiegelbild (x -> −x)', kL.length === gl.length
          && kL.every((g, k) => g.every((r, m) => gleich(r, [-gl[k][m][0], gl[k][m][1], gl[k][m][2]]))));
-    pruef('… und der Nachweis ist derselbe', L231.verformung?.fahrdraht?.massgebend?.wert, v?.massgebend?.wert, 1e-6, 'm');
+    // Relativ 1e-5: das Spiegelbild rechnet mit anderer Reihenfolge (Rechenrauschen ~1e-6).
+    pruef('… und der Nachweis ist derselbe', L231.verformung?.fahrdraht?.massgebend?.wert, v?.massgebend?.wert, 1e-5, 'm');
     // Im Blatt am Jochmasten (ein Stabwerk): Knoten mit dem Präfix des Tragwerks.
     const blatt = { ...C231.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 10 }) };
     const aktiv = { ...blatt, anbauteile: [A231.neuesAnbauteil('hs-nt-ausleger', 8)] };
