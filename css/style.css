@@ -3871,7 +3871,6 @@ html[data-stufe="schulung"] [data-generator] { display: none !important; }
    Drahtwerk-Tabelle, Signalbauer und freies Bauteil gehören der Fachperson. */
 html[data-stufe="schulung"] .at-technik,
 html[data-stufe="schulung"] [data-klapp^="at-fein-"],
-html[data-stufe="schulung"] .at-befestigung,
 html[data-stufe="schulung"] .at-kraft,
 html[data-stufe="schulung"] [data-at-gruppe-name],
 html[data-stufe="schulung"] [data-at-gruppe-dup],
@@ -3888,6 +3887,14 @@ html[data-stufe="schulung"] [data-setz-frei] { display: none !important; }
   background: var(--s1, #1d1f24); color: var(--on, #eee); border: 1px solid var(--ol, #444);
   box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: 12px; line-height: 1.45; }
 .begriff-pop p { margin: 4px 0 0; }
+/* Schulung (15. November): keine Infotexte («die infotexte sind zum teil
+   nicht präzise formuliert, dann besser weglassen»), kein Erklärblock
+   «Befestigung und Achsen» («die erklärung hier braucht es nicht»); die
+   Befestigung oben / unten / beide mit Raster steht in der Karte. */
+html[data-stufe="schulung"] #maske small.hinweis,
+html[data-stufe="schulung"] #maske .hinweis-klapp,
+html[data-stufe="schulung"] #maske [data-klapp="anbau-achsen"],
+html[data-stufe="schulung"] #maske .feld:has(#feld-flSpannweite) .feld-notiz { display: none !important; }
 /* Schulung: «Weiter» unter jedem Schritt (15. November). */
 .schritt-weiter { display: flex; justify-content: flex-end; padding: 14px 0 6px; }
 /* Schulung: keine Sprungleiste über den Gruppen - die Schritte sind kurz. */

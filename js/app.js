@@ -2137,6 +2137,8 @@ function zeichneAuswertung() {
         lastfallName: anzeigeKombi === 'umhuellend' ? null
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
       });
+      // Schulung (15. November): auch am Einzelmasten das einfache Ergebnis.
+      if (EINFACH) einfachesErgebnis(knoten, { traeger: 'Ausleger', teile: stabwerkGilt()?.h?.teile ?? null });
     }
     return;
   }
@@ -2229,7 +2231,7 @@ function zeichneAuswertung() {
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
                                 ?? anzeigeKombi) });
     // Schulung (15. November): ein Satz und Balken, die Kacheln zugeklappt darunter.
-    if (EINFACH) einfachesErgebnis(node, { traeger: tragwerksart(werte).label });
+    if (EINFACH) einfachesErgebnis(node, { traeger: tragwerksart(werte).label, teile: stabwerkGilt()?.h?.teile ?? null });
   } else if (tabAuswertung === 'schnitt') {
     /*
      * >>> DAS ABFANGJOCH HAT SEINEN EIGENEN SCHNITT. <<<

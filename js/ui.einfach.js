@@ -57,6 +57,52 @@ export function bauteilName(titel, gruppe) {
 const farbe = (eta) => (eta > 1 ? 'fail' : eta >= 0.9 ? 'warn' : 'ok');
 const prozent = (eta) => `${Math.round(eta * 100)} %`;
 
+/* --------------------------------------------------------------------------
+ * >>> SPANNUNGEN IN DEN PROFILEN (15. November). <<< Frage: «wäre es möglich
+ * in der übersicht sidebar eine neuen gruppe zu erstellen und die
+ * massgebenden Profile mit deren inneren spannung aufzuzeigen?» Je Teil
+ * (Obergurt, Untergurt, Bindeblech, jeder Mast …) die grösste
+ * Vergleichsspannung σ_v aus dem Stabwerk (Hülle) und die Grenze, gegen
+ * die sie steht. Die Grenze ist σ_v / η - dieselbe Zahl, mit der der
+ * Nachweis rechnet (f_yd bzw. beim plastischen Nachweis η · f_yd); nichts
+ * wird neu gerechnet. Das Profil kommt aus der Kachel desselben Teils.
+ * ------------------------------------------------------------------------ */
+const TEIL_TEXT = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindeblech', mast: 'Mast',
+                    UPE: 'Gurt UPE', gurt: 'Gurtwinkel', rohr: 'Rohr' };
+
+function profilAusKacheln(kacheln, teil, name) {
+  const id = /^Mast (.+)$/.exec(name ?? '')?.[1];
+  const k = (kacheln ?? []).find((x) => (teil === 'mast' && id
+    ? new RegExp(`^η\\s*${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`).test(x.titel)
+    : String(x.titel).includes(TEIL_TEXT[teil] ?? '§')));
+  const p = String(k?.einheit ?? '').split(' · ')[0].trim();
+  return p && !/massgebend/i.test(p) ? p : '';
+}
+
+export function spannungenHtml(teile, kacheln = []) {
+  const liste = Object.values(teile ?? {})
+    .filter((t) => Number.isFinite(t?.sig) && Number.isFinite(t?.eta) && t.eta > 0)
+    .map((t) => ({ ...t, grenze: t.sig / t.eta }))
+    .sort((a, b) => b.eta - a.eta);
+  if (!liste.length) return '';
+  const mehrereJoche = new Set(liste.filter((t) => t.teil !== 'mast').map((t) => t.name)).size > 1;
+  const zeilen = liste.map((t) => {
+    const was = t.teil === 'mast' ? t.name
+      : `${TEIL_TEXT[t.teil] ?? t.teil}${mehrereJoche ? ` · ${t.name}` : ''}`;
+    const profil = profilAusKacheln(kacheln, t.teil, t.name);
+    const b = Math.min(t.eta, 1.25) / 1.25 * 100;
+    return `<div class="ef-zeile" title="${esc(was)}: σ_v ${t.sig.toFixed(0)} von ${t.grenze.toFixed(0)} N/mm² (η ${t.eta.toFixed(2)})">
+      <span class="ef-name">${esc(was)}</span>
+      <span class="ef-bahn"><span class="ef-balken ${farbe(t.eta)}" style="width:${b.toFixed(1)}%"></span
+        ><span class="ef-grenze"></span></span>
+      <span class="ef-wert ${farbe(t.eta)}">${t.sig.toFixed(0)} / ${t.grenze.toFixed(0)}</span>
+      <span class="ef-wer">${esc(profil ? `${profil} · ` : '')}σ_v in N/mm²</span>
+    </div>`;
+  }).join('');
+  return `<div class="sec">Spannungen in den Profilen</div>
+    <div class="ef-balkenfeld">${zeilen}</div>`;
+}
+
 /**
  * @param {Array<{titel:string, eta:number, kopf?:string}>} kacheln
  * @param {{traeger?:string, vorlaeufig?:boolean}} opt  Name des Trägers (Joch, Abfangjoch, Tragausleger)
@@ -103,8 +149,7 @@ export function einfachAusKacheln(kacheln, opt = {}) {
     ${opt.vorlaeufig ? '<p class="ef-leg">Vorläufig - die genaue Rechnung läuft.</p>' : ''}
     <div class="sec">Ausnutzung je Bauteilgruppe</div>
     <div class="ef-balkenfeld">${balken}</div>
-    <p class="ef-leg">100 % = die Grenze ist erreicht (Strich). Gezeigt ist je Gruppe das am
-      stärksten beanspruchte Bauteil, unter Wind, Schnee und Eigengewicht.</p>
+    ${spannungenHtml(opt.teile, kacheln)}
   </div>`;
   return { html, gesamt: max.eta, gruppen };
 }
@@ -126,7 +171,8 @@ export function einfachesErgebnis(node, opt = {}) {
     const feld = k.closest('.kennzahlen');
     const vor = feld?.previousElementSibling;
     const kopf = vor?.classList?.contains('sec-klein') ? (vor.childNodes[0]?.textContent ?? '') : '';
-    return { titel, eta, kopf };
+    const einheit = k.querySelector('.kz-e')?.textContent?.trim() ?? '';
+    return { titel, eta, kopf, einheit };
   });
   const vorlaeufig = /vorläufig/i.test(node.querySelector('.sw-leiste, .stabwerk-leiste')?.textContent ?? '');
   const { html } = einfachAusKacheln(kacheln, { ...opt, vorlaeufig });

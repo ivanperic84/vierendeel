@@ -161,8 +161,14 @@ export function vorlageErlaubt(id, einfach = EINFACH) {
 /** Feld in der einfachen Sprache - oder unverändert. */
 export function feldEinfach(f, einfach = EINFACH) {
   if (!einfach || !f) return f;
+  /*
+   * Ohne Hinweiszeilen (15. November): «die infotexte sind zum teil nicht
+   * präzise formuliert, dann besser weglassen, es wird im kurs abgehandelt
+   * und erfordert sowieso ein gewises vorwissen.» Es bleiben Bezeichnung
+   * und Schrittweite; die Begriffe erklärt das «?».
+   */
   const t = EINFACH_TEXT[f.key];
-  return t ? { ...f, ...t } : { ...f, hinweis: null };
+  return { ...f, ...(t ?? {}), hinweis: null };
 }
 
 /* ------------------------------------------------------------------------
