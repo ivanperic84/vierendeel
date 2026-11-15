@@ -42106,6 +42106,23 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && ef.gruppen[0].titel === 'Tragjoch' && !ef.html.includes('η 0.865<'));
   wahr('Einfaches Ergebnis: überlastet wird beim Namen genannt',
        E.einfachAusKacheln([{ titel: 'η M2', eta: 1.12, kopf: 'Mast' }]).html.includes('überlastet'));
+  // Gewählter Fall (15. November): ohne Fundament, Anker, Verformung.
+  const efFall = E.einfachAusKacheln([{ titel: 'η M1', eta: 0.4, kopf: 'Mast' },
+    { titel: 'η Fundament M1', eta: 0.9, kopf: 'Fundament' }], { fall: 'Starker Wind von links' });
+  wahr('Einfaches Ergebnis im gewählten Fall: ohne Fundament, mit dem Namen des Falls',
+       efFall.gesamt === 0.4 && efFall.html.includes('Im Fall «Starker Wind von links»'));
+  wahr('Lastfälle in einfachen Worten, nach Richtung',
+       E.lastfallEinfach('Wind +x (quer zum Gleis) leitend').gruppe === 'quer'
+       && E.lastfallEinfach('Wind +x (quer zum Gleis) leitend').text === 'Starker Wind von links'
+       && E.lastfallEinfach('Schnee leitend, Wind −y').text === 'Viel Schnee, dazu Wind rückwärts'
+       && E.lastfallEinfach('Schnee leitend, Wind −y').gruppe === 'laengs');
+  // Leiter am Masten (15. November): x = 0, z = 0; Träger und Aufbauten unverändert.
+  const rolle = (id) => ({ L1: 'drahtwerk', T1: 'traeger' }[id]);
+  const amM = A.leiterAmMast({ module: [{ bauteil: 'L1', x: 0.4, y: 0.1, z: -0.35 }] }, rolle);
+  const gemischt = { module: [{ bauteil: 'T1', z: -1 }, { bauteil: 'L1', z: -2 }] };
+  wahr('Leiter-Vorlage am Masten: x = 0, z = 0; mit Träger unverändert',
+       amM.module[0].x === 0 && amM.module[0].z === 0 && amM.module[0].y === 0
+       && A.leiterAmMast(gemischt, rolle) === gemischt);
   // Paket 2 (15. November): gebräuchliche Vorlagen, Begriffe, Schritte, Karte.
   const katalogIds = new Set(A.vorlagen().map((v) => v.id));
   const fehlen = [...S.SCHULUNG_VORLAGEN].filter((id) => !katalogIds.has(id));

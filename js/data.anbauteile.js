@@ -1880,3 +1880,24 @@ export function anbauteilStand() {
   const d = db();
   return { version: d._version, stand: d._stand, vorlagen: d.vorlagen.length };
 }
+
+/*
+ * >>> LEITER AM MASTEN: x = 0, z = 0 (15. November). <<< Zur Durchsicht der
+ * Vorlagen, im Wortlaut: «vorschlag umsetzen bezüglich der voreingabewerte
+ * für die leiter an mast und joch. x auch auf 0 setzen, da man jenachdem auf
+ * welcher seite der leiter abgefangen wird diesen wert anpassen müsste, die
+ * auswirkung bezüglich dieser modellunschärfe ist minimal.»
+ *
+ * Eine Vorlage aus lauter Leitern (Kettenwerk, Rückleiter, die Abfangungen)
+ * sitzt am Masten auf der Mastachse und auf der Höhe, die man beim Setzen
+ * wählt - ohne Versatz. Am Joch bleiben ihre Werte (35 cm unter dem Gurt
+ * bzw. in der Gurtebene). Gilt beim Setzen; gesetzte Teile bleiben, wie sie
+ * sind.
+ */
+export function leiterAmMast(a, rolleVon) {
+  const mods = a?.module ?? [];
+  if (!mods.length) return a;
+  const nurLeiter = mods.every((m) => { try { return rolleVon(m.bauteil) === 'drahtwerk'; } catch { return false; } });
+  if (!nurLeiter) return a;
+  return { ...a, module: mods.map((m) => ({ ...m, x: 0, y: 0, z: 0 })) };
+}

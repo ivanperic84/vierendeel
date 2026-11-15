@@ -2851,8 +2851,12 @@ export function setzeTypOptionen() {
       .map(mitGruppe('Aktuelles Sortiment')),
     ...srt.filter((j) => (j.bauweise ?? 'neu') === 'alt')
       .map(mitGruppe('Altbauweise — Bestand')),
-    ...vgl.map((j) => ({ ...vergleich(j), gruppe: 'Vergleichsmodelle' })),
-    { wert: 'frei', text: 'frei definiert', gruppe: 'Ohne Sortiment' },
+    // Schulung (15. November, Bild der Liste: «diese nicht aufführen»): nur
+    // das Sortiment, keine Vergleichsmodelle und kein frei definiertes Joch.
+    ...(EINFACH ? [] : [
+      ...vgl.map((j) => ({ ...vergleich(j), gruppe: 'Vergleichsmodelle' })),
+      { wert: 'frei', text: 'frei definiert', gruppe: 'Ohne Sortiment' },
+    ]),
   ];
   return f.optionen;
 }

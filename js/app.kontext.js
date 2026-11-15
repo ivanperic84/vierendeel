@@ -45,7 +45,13 @@ export function kontextSchliessen(app) {
  */
 const VIEWER_NICHT = /(bearbeiten …|duplizieren …|entfernen|zwischen .* …| ab .* …|Mast mit Tragausleger|^Masten von|Steg drehen|Gemeinsame Angaben|Zurücksetzen auf die Datenbankwerte|Vom Blatt nehmen|Zeichnung)/;
 const VIEWER_FELD_NICHT = new Set(['Art', 'Lage x₀', 'Typ']);
-const SCHULUNG_NICHT = /Zurücksetzen auf die Datenbankwerte/;
+/*
+ * Schulung (15. November, «kontext menus vereinfachen»): ohne Zeichnung,
+ * Gruppen, Markieren, Nachweisschnitt, «rechnen», Steg drehen, gemeinsame
+ * Angaben und Datenbankwerte; die Bausteinwahl («Typ») ebenso wie in der Karte.
+ */
+const SCHULUNG_NICHT = /(Zurücksetzen auf die Datenbankwerte|Gemeinsame Angaben|Zeichnung|Steg drehen|^Masten von|Vom Blatt nehmen|Nur das gerechnete|Alle gleichen Typs|Auf den Nachweisschnitt| rechnen$|^#|^ohne Gruppe$)/;
+const SCHULUNG_FELD_NICHT = new Set(['Typ']);
 function kontextErlaubt(p) {
   if (!LEICHT || typeof p !== 'object') return true;
   const text = p.text ?? '';
@@ -53,12 +59,21 @@ function kontextErlaubt(p) {
     if (p.feld && VIEWER_FELD_NICHT.has(p.feld.label)) return false;
     return !VIEWER_NICHT.test(text);
   }
+  if (p.feld && SCHULUNG_FELD_NICHT.has(p.feld.label)) return false;
   return !SCHULUNG_NICHT.test(text);
 }
 
 export function kontextZeigen(app, bei, punkte) {
   kontextSchliessen(app);
   const echte = punkte.filter(Boolean).filter(kontextErlaubt);
+  // Eine Kopfzeile ohne Eintrag bis zur nächsten Kopfzeile oder zum Strich fällt weg.
+  for (let i = echte.length - 1; i >= 0; i--) {
+    const p = echte[i];
+    if (p && typeof p === 'object' && p.kopf) {
+      const n = echte[i + 1];
+      if (n === undefined || n === '-' || (typeof n === 'object' && n.kopf)) echte.splice(i, 1);
+    }
+  }
   // Kein Trennstrich am Anfang, am Ende oder doppelt (nach dem Filtern).
   for (let i = echte.length - 1; i >= 0; i--) {
     if (echte[i] === '-' && (i === 0 || i === echte.length - 1 || echte[i - 1] === '-')) echte.splice(i, 1);
