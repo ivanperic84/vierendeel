@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Nachweisbericht (Stabwerk): die verformte Figur quer zum Gleis im Kapitel Gebrauchstauglichkeit - Fahrdrähte und Mastköpfe mit ihrer Auslenkung in mm, massgebender Fall nur Wind × 0.70.' },
       { text: 'Nachweisbericht: die Lastbilder je Lastfall stehen in Isometrie - auch Wind längs zum Gleis ist so zu sehen; Pfeile ausgedünnt.' },
       { text: 'Nachweisbericht: der Ablauf der Fundamentbestimmung steht je Richtung Schritt für Schritt da - jede Prüfung mit Einwirkung, zulässigem Wert und η, jede Abminderung mit eingesetzten Zahlen.' },
     ],

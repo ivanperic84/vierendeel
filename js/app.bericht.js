@@ -17,7 +17,7 @@ import { APP_NAME, tragwerksart, rechensatz, sichtbareTragwerke, tauscheAktives,
          tragwerkPos, tragwerkName, lageVon, mastenVon, mastName, mastAnzeigeKarte,
          mastAnzeigeText, verortung } from './core.constants.js';
 import { stabwerkBericht, blattUrteil } from './export.stabbericht.js';
-import { verfahrenVon } from './core.stabnachweis.js';
+import { verfahrenVon, anteileFuer } from './core.stabnachweis.js';
 import { stabwerkStand, reiheOhneStabmodell, ankerFuerMast,
          verformungFuer } from './app.stabwerk.js';
 import { STEGRICHTUNGEN } from './data.masten.js';
@@ -29,7 +29,10 @@ import { esc, uebertrageTokens } from './design.js';
  */
 import { zustandGeometrie, zustandFall, zustandReihe, zustandSicht, ZL_PUNKTE } from './core.zustandslinien.js';
 import { linienDiagramm } from './render.charts.js';
-import { zustandSvg, systemSvg, lastSvg } from './export.zustandsbild.js';
+import { zustandSvg, systemSvg, lastSvg, verformungSvg } from './export.zustandsbild.js';
+import { verformteFigur, starrPunkt } from './core.stabverformung.js';
+import { nurWindFaelle } from './core.verformung.js';
+import { BETRIEBSWIND } from './core.lasten.js';
 import { bauteilDiagramm, fundamentDiagramm,
          fussKraftDiagramm } from './render.charts.js';
 
@@ -408,6 +411,50 @@ function mastMDiagramme(sw, breite = 900) {
   });
 }
 
+/**
+ * >>> VERFORMUNG QUER ZUM GLEIS IM BERICHT (15. November). <<<
+ * «verformung in den bericht aufnehmen. primär die in querrichtung
+ * (fahrdrahtlage).» Der massgebende Fall der Fahrdrahtlage: unter den
+ * Fällen «nur Wind» × ψ 0.70 (wie der Nachweis) der mit der grössten
+ * Auslenkung quer zum Gleis an einem Fahrdraht; ohne Fahrdraht der mit
+ * dem grössten Weg quer im ganzen Tragwerk.
+ */
+function verformungBild(sw, grenzeM = 0.04) {
+  const roh = sw?.roh;
+  if (!roh?.dat || !roh?.lsg) return null;
+  const dat = roh.dat;
+  const faelle = nurWindFaelle(roh.faelle ?? []);
+  if (!faelle.length) return null;
+  const kn = new Map(dat.knoten.map((k) => [k.name, [k.x, k.y, k.z]]));
+  const fdWeg = (fig, anteile, f) => {
+    if (f.starr) { const sp = starrPunkt(dat, roh.lsg, anteile, f.starr); return sp ? { p: sp.p, u: sp.u } : null; }
+    const p = kn.get(f.knoten);
+    if (!p) return null;
+    let best = null, dmin = 1e-6;
+    fig.linien.forEach((l) => l.punkte.forEach((q, i) => {
+      const d = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+      if (d < dmin) { dmin = d; best = { p, u: l.wege[i] }; }
+    }));
+    return best;
+  };
+  let gewaehlt = null;
+  faelle.forEach((lf) => {
+    const anteile = anteileFuer(lf, dat).map((a) => ({ ...a, faktor: a.faktor * BETRIEBSWIND }));
+    const fig = verformteFigur(dat, roh.lsg, anteile);
+    const fd = (dat.fahrdraehte ?? []).map((f) => {
+      const w = fdWeg(fig, anteile, f);
+      return w ? { ...w, name: f.name } : null;
+    }).filter(Boolean);
+    const mass = fd.length ? Math.max(...fd.map((f) => Math.abs(f.u[0])))
+      : Math.max(0, ...fig.linien.flatMap((l) => l.wege.map((u) => Math.abs(u[0]))));
+    if (!gewaehlt || mass > gewaehlt.mass) gewaehlt = { lf, fig, fd, mass };
+  });
+  if (!gewaehlt) return null;
+  const r = verformungSvg(dat, gewaehlt.fig, { breite: 860, fahrdraehte: gewaehlt.fd, grenze: grenzeM,
+    titel: `${gewaehlt.lf.bez ?? gewaehlt.lf.key} × ψ ${BETRIEBSWIND.toFixed(2)} (Betriebswind)` });
+  return r ? r.svg : null;
+}
+
 function berichtStabwerk(app, wahl) {
   const d = stabwerkBerichtDaten(app);
   const b = wahl.bilder;
@@ -442,6 +489,9 @@ function berichtStabwerk(app, wahl) {
     bauteile: b.bauteile ? bauteilDiagramm(blattUrteil(d), { breite: 860, farbeVon }) : null,
     fundament: Object.keys(fund).length ? fund : null,
     zustand: b.zustand ? zustandBilder(d.sw) : null,
+    // Verformte Figur quer zum Gleis, Fahrdrahtlage (15. November).
+    verformung: b.verformung ? verformungBild(d.sw,
+      (d.tragwerke ?? []).map((tw) => tw.verformung?.fahrdraht?.massgebend?.grenz).find(Number.isFinite) ?? 0.04) : null,
   };
   d.stil = diagrammStil();
   berichtZeigen(stabwerkBericht(d, wahl));

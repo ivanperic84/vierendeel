@@ -510,7 +510,7 @@ function gebrauch(d) {
   const eintraege = (d.tragwerke ?? []).map((tw) => ({ v: tw.verformung, namen: tw.namen ?? {} }));
   return gebrauchKapitel(eintraege,
     (d.opt.bilder.verformung && d.bilder?.verformung)
-      ? bild(d.bilder.verformung, 'Verformung über die Masthöhe') : '',
+      ? bild(d.bilder.verformung, 'Verformte Figur quer zum Gleis - Fahrdrahtlage (massgebender Fall nur Wind × ψ 0.70)') : '',
     d.anzeige ?? ((x) => x), 'stabwerk');
 }
 

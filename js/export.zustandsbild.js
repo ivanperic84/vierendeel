@@ -417,3 +417,74 @@ export function lastSvg(dat, o = {}) {
   </svg>`;
   return { svg, summe };
 }
+
+/**
+ * >>> VERFORMTE FIGUR QUER ZUM GLEIS (15. November). <<<
+ * «verformung in den bericht aufnehmen. primär die in querrichtung
+ * (fahrdrahtlage).» Längsansicht (x quer zum Gleis nach rechts, z oben):
+ * das System grau, die verformte Figur darüber überhöht (runder Faktor,
+ * grösster Weg rund 6 % der Modellgrösse), die Fahrdrähte als Ring an der
+ * verformten Lage mit ihrer Auslenkung quer zum Gleis in mm.
+ *
+ * @param {object} fig  verformteFigur(…) {linien:[{punkte, wege, anbau}]}
+ * @param {object} o    { fahrdraehte:[{p:[x,y,z], u:[ux,uy,uz], name}], titel, grenze, breite }
+ */
+export function verformungSvg(dat, fig, o = {}) {
+  if (!fig?.linien?.length) return null;
+  const B = o.breite ?? 860;
+  const pr = (p) => [p[0], p[2]];
+  const pts = dat.knoten.map((k) => pr([k.x, k.y, k.z]));
+  const ausd = Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
+  const hoehe = Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]));
+  const L = Math.max(ausd, hoehe, 1);
+  // Nur die Wege in der Bildebene (x, z) zählen für den Massstab.
+  let wMax = 0;
+  fig.linien.forEach((l) => l.wege.forEach((u) => { wMax = Math.max(wMax, Math.hypot(u[0], u[2])); }));
+  const roh = wMax > 0 ? 0.06 * L / wMax : 1;
+  const stufe = 10 ** Math.floor(Math.log10(roh));
+  const faktor = [1, 2, 5, 10].map((k) => k * stufe).filter((k) => k <= roh).pop() ?? stufe;
+  const R = rahmen(pts, { l: 0.08 * L, r: 0.08 * L, u: 0.08 * L, o: 0.1 * L }, B);
+  const t = stabSkizze(dat, pr, R, { grau: true });
+  const orange = '#d0661c', rot = '#c8402d';
+  fig.linien.forEach((l) => {
+    const d = l.punkte.map((p, i) => {
+      const u = l.wege[i];
+      const q = pr([p[0] + u[0] * faktor, p[1], p[2] + u[2] * faktor]);
+      return `${i ? 'L' : 'M'}${R.X(q[0])},${R.Z(q[1])}`;
+    }).join(' ');
+    t.push(`<path d="${d}" fill="none" stroke="${orange}" stroke-width="${l.anbau ? 0.9 : 1.6}"/>`);
+  });
+  const belegt = [];
+  (o.fahrdraehte ?? []).forEach((f) => {
+    const q = pr([f.p[0] + f.u[0] * faktor, f.p[1], f.p[2] + f.u[2] * faktor]);
+    const X = R.X(q[0]), Y = R.Z(q[1]);
+    const ux = f.u[0] * 1000;
+    const ueber = o.grenze && Math.abs(ux) > o.grenze * 1000 + 1e-9;
+    t.push(`<circle cx="${X}" cy="${Y}" r="3.2" fill="#fff" stroke="${ueber ? rot : orange}" stroke-width="1.4"/>`);
+    let y = Y + 14;
+    while (belegt.some((b) => Math.abs(b.x - X) < 60 && Math.abs(b.y - y) < 11)) y += 11;
+    belegt.push({ x: X, y });
+    t.push(`<text x="${(X + 5).toFixed(1)}" y="${y.toFixed(1)}" font-size="10" fill="${ueber ? rot : '#333'}">${esc(`Fd ${ux >= 0 ? '+' : '−'}${Math.abs(ux).toFixed(1)} mm`)}</text>`);
+  });
+  // Mastköpfe: Auslenkung quer zum Gleis, grau über dem Kopf.
+  const koepfe = new Map();
+  fig.linien.forEach((l) => {
+    const m = /(?:^|_)MAST_([^_]+)_S\d+$/.exec(l.name);
+    if (!m) return;
+    l.punkte.forEach((p, i) => { const k = koepfe.get(m[1]); if (!k || p[2] > k.p[2]) koepfe.set(m[1], { p, u: l.wege[i] }); });
+  });
+  koepfe.forEach(({ p, u }, name) => {
+    const q = pr([p[0] + u[0] * faktor, p[1], p[2] + u[2] * faktor]);
+    const ux = u[0] * 1000;
+    t.push(`<text x="${R.X(q[0])}" y="${(R.Z(q[1]) - 6).toFixed(1)}" font-size="10" fill="#555" text-anchor="middle">${esc(`${name} ${ux >= 0 ? '+' : '−'}${Math.abs(ux).toFixed(1)} mm`)}</text>`);
+  });
+  const h = R.H + 22;
+  const text = `Längsansicht (x quer zum Gleis nach rechts) · verformt ${faktor >= 1 ? faktor.toFixed(0) : faktor}-fach überhöht`
+    + `${o.titel ? ` · ${o.titel}` : ''}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${R.B} ${h}" width="100%" style="max-width:${R.B}px;font-family:Arial,sans-serif">
+    ${t.join('')}
+    <text x="4" y="${h - 6}" font-size="10" fill="#555">${esc(text)}</text>
+  </svg>`;
+  return { svg, faktor };
+}
+

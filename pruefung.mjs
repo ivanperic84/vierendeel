@@ -39088,6 +39088,29 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
          !!wx && Math.abs(wx.summe[0] - sollWx) < 1e-6 && Math.abs(wx.summe[2]) < 1e-9 && wx.svg.includes('kN/m'),
          `${wx?.summe?.[0]?.toFixed(3)} / ${sollWx.toFixed(3)}`);
     wahr('… ohne Lasten in der Gruppe kein Bild', ZB.lastSvg(a14.roh.dat, { gruppen: ['GibtsNicht'] }) === null);
+    // Verformte Figur quer zum Gleis (15. November, «verformung in den bericht aufnehmen. primär die in querrichtung (fahrdrahtlage)»).
+    {
+      const SV = await import(J('core.stabverformung.js'));
+      const VF = await import(J('core.verformung.js'));
+      const LA = await import(J('core.lasten.js'));
+      const SN = await import(J('core.stabnachweis.js'));
+      const lfx = VF.nurWindFaelle(a14.roh.faelle).find((l) => l.leit === 'WindX');
+      const ant = SN.anteileFuer(lfx, a14.roh.dat).map((x) => ({ ...x, faktor: x.faktor * LA.BETRIEBSWIND }));
+      const fig = SV.verformteFigur(a14.roh.dat, a14.roh.lsg, ant);
+      const kopf = fig.linien.filter((l) => /(?:^|_)MAST_[^_]+_S\d+$/.test(l.name)).flatMap((l) => l.punkte.map((p, i) => [p, l.wege[i]]))
+        .reduce((m, x) => (!m || x[0][2] > m[0][2] ? x : m), null);
+      const vs = ZB.verformungSvg(a14.roh.dat, fig, { fahrdraehte: [{ p: kopf[0], u: kopf[1], name: 'Probe' }], grenze: 0.04 });
+      const lg = Math.log10(vs.faktor), m = vs.faktor / 10 ** Math.floor(lg + 1e-9);
+      const ux = (kopf[1][0] * 1000);
+      wahr('Verformte Figur quer: runder Überhöhungsfaktor, Anschrift = Weg quer in mm, Mastkopf angeschrieben',
+           [1, 2, 5].some((k) => Math.abs(m - k) < 1e-9) && vs.svg.includes(`Fd ${ux >= 0 ? '+' : '−'}${Math.abs(ux).toFixed(1)} mm`)
+           && vs.svg.includes('-fach überhöht') && /M\d \+?[−+]?\d/.test(vs.svg.replace(/<[^>]+>/g, ' ')),
+           `Faktor ${vs.faktor}, Kopf ${ux.toFixed(2)} mm`);
+      const ber16 = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+      wahr('… im Stabwerksbericht als Bild «verformung» (nur Wind × ψ 0.70, Fall mit grösster Fahrdrahtauslenkung)',
+           ber16.includes('verformung: b.verformung ? verformungBild(d.sw,') && ber16.includes('a.faktor * BETRIEBSWIND')
+           && ber16.includes('nurWindFaelle(roh.faelle'));
+    }
     // Isometrie (15. November, «diese darstellungen als iso aufführen»).
     {
       const wyI = ZB.lastSvg(a14.roh.dat, { gruppen: ['WindY'], blick: 'iso' });
