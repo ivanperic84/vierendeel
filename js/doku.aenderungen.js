@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Schulungsfassung: Spannung als Plot und der Reiter Auflager, Lasten je Art und Werte im 3D zuschaltbar, Spannweite und Kurvenradius im Schritt 3, Mastlage auf 0.5 m; Ergebnisfeld im Stil der App. Zahlenfelder zeigen keine Rechenreste mehr (z. B. 16.999999999999996).' },
       { text: 'Bauteilkarte ohne die Lageskizze - Lage und Kette stehen im 3D.' },
       { text: 'Schulungsfassung: Eingabe in drei Schritten mit «Weiter», elf gebräuchliche Vorlagen, Bauteilkarte nur mit Name, Standort und Lage, ein «?» erklärt Fachbegriffe in einfachen Worten; kein Lastgenerator.' },
       { text: 'Schulungsfassung vereinfacht: das Ergebnis steht als ein Satz und je Bauteilgruppe ein Balken in Prozent (Einzelheiten aufklappbar), die Maske zeigt nur, was sich ändern lässt, in einfacher Sprache; die Werkzeugleiste im 3D hat nur noch Blick, Lasten und Ausnutzung/Verformung.' },

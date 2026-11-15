@@ -14,7 +14,7 @@ import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf } from './design.js';
 import { ANSICHTEN, LASTARTEN, MODI } from './render.3d.js';
-import { plotErlaubt } from './stufe.js';
+import { plotErlaubt, EINFACH } from './stufe.js';
 import * as ui from './ui.js';
 import { zl, zlSetzeAn, zlGroesse, zustandLegendeHtml, zustandLegendeVerdrahten } from './app.zustand.js';
 import { FELDER } from './ui.schema.js';
@@ -325,6 +325,9 @@ export function modusKorrigieren(app) {
 const WZ_MERKER = 'tragjoch-wz-zu';
 const WZ_SCHMAL = 560;
 function wzZu() {
+  // Schulung (15. November, «das einklappen button entfernen»): die Leiste
+  // ist kurz und steht immer offen.
+  if (EINFACH) return false;
   let wahl = null;
   try { wahl = localStorage.getItem(WZ_MERKER); } catch { /* kein Speicher */ }
   if (wahl === '1') return true;
@@ -760,7 +763,7 @@ export function zeichneLegende(app) {
 /** Klick auf eine Bemassung im Modell: passendes Eingabefeld öffnen. */
 export function zeigeFeld(app, key) {
   const f = FELDER.find((x) => x.key === key);
-  const tab = ui.EINGABE_TABS.find((t) => t.gruppen.includes(f?.gruppe));
+  const tab = ui.eingabeTabs().find((t) => t.gruppen.includes(f?.gruppe));
   if (!tab) return;
   app.tabEingabe = tab.id;
   app.neuRechnen();

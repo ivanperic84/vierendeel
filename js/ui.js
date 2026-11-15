@@ -238,8 +238,18 @@ export function eingabeTabs() {
    * Nummer und einen Namen, der sagt, was dort zu tun ist.
    */
   if (!EINFACH) return da;
-  const namen = { system: 'Tragwerk', anbau: 'Anbauteile', lasten: 'Wind und Schnee' };
-  return da.map((t, i) => ({ ...t, titel: `${i + 1} ${namen[t.id] ?? t.titel}` }));
+  /*
+   * Spannweite und Radius gehören in der Schulung zu den Einwirkungen
+   * (15. November: «was noch interesannt ist, die eingabe von spannweite und
+   * radius») - offen im Schritt 3 statt zugeklappt über den Anbauteilen.
+   */
+  const namen = { system: 'Tragwerk', anbau: 'Anbauteile', lasten: 'Trasse, Wind, Schnee' };
+  return da.map((t, i) => ({
+    ...t,
+    titel: `${i + 1} ${namen[t.id] ?? t.titel}`,
+    gruppen: t.id === 'anbau' ? t.gruppen.filter((g) => g !== 'trasse')
+      : t.id === 'lasten' ? ['trasse', ...t.gruppen] : t.gruppen,
+  }));
 }
 
 /** Der «Weiter»-Knopf unter einem Schritt der Schulung. */
@@ -327,7 +337,7 @@ let aktuelleWerte = null;
  * angeklickte Karte sprang zurueck. Der Wert war laengst gesetzt.
  */
 export function gruppenFuer(tab, werte) {
-  const gruppen = EINGABE_TABS.find((t) => t.id === tab)?.gruppen ?? [];
+  const gruppen = eingabeTabs().find((t) => t.id === tab)?.gruppen ?? [];
   return gruppen.filter((gid) => gruppeGilt(gid, werte) && gruppeErlaubt(gid));
 }
 
@@ -810,7 +820,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       .join('') + feinBlock + (feinExtra ? '' : zusatz);
     // Der Titel kann je Tragwerksart ein anderer sein (28. September).
     const titel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
-    if (g.zugeklappt) {
+    if (g.zugeklappt && !EINFACH) {
       return block(gid, titel, klapp(`gruppe-${gid}`, titel, inhalt, `${felder.length}`, false));
     }
     return block(gid, titel, `<details class="grp" data-klapp="grp-${esc(gid)}" open>
@@ -1475,8 +1485,15 @@ function feldMax(f, werte) {
   return f.max;
 }
 
-const feldWert = (f, werte) =>
-  (typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key]);
+/*
+ * Ein abgeleiteter Wert kann Rechenrauschen tragen (15. November, Bild:
+ * «Lage des Masten 16.999999999999996»). Angezeigt wird auf 1e-9 gerundet,
+ * gespeichert bleibt, was der Stand trägt.
+ */
+const feldWert = (f, werte) => {
+  const v = typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key];
+  return typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 1e9) / 1e9 : v;
+};
 
 /* ===========================================================================
  * DIE QUERPROFIL-LEISTE

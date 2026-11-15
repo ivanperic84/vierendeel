@@ -1642,7 +1642,8 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
      */
     const uq2 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     wahr('Die Maske kennt das Merkmal',
-         uq2.includes('if (g.zugeklappt)')
+         // Seit dem 15. November ausser in der Schulung (dort offen).
+         uq2.includes('if (g.zugeklappt && !EINFACH)')
          && uq2.includes('klapp(`gruppe-${gid}`'));
   }
 
@@ -42077,7 +42078,7 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        SCH.FELDER.every((f) => S.feldRecht(f.key, 'schulung') !== 'sehen')
        && !S.gruppeErlaubt('prof', 'schulung') && !S.gruppeErlaubt('komb', 'schulung')
        && S.EINFACH === false);
-  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung nur Übersicht',
+  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung Übersicht + Auflager',
        ['uebersicht', 'auflager'].every((t) => S.auswertungErlaubt(t, 'viewer'))
        && !S.auswertungErlaubt('verlauf', 'viewer') && S.auswertungErlaubt('uebersicht', 'schulung')
        && !S.auswertungErlaubt('verlauf', 'schulung'));
@@ -42085,9 +42086,13 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        !S.exportErlaubt('excel', 'viewer') && !S.exportErlaubt('excel', 'schulung')
        && S.exportErlaubt('bericht', 'schulung')
        && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'viewer') && !S.exportErlaubt(x, 'schulung')));
-  wahr('Plots: Viewer η und w, Schulung η und w ohne Spannungen',
+  // 15. November: «unterhalb der resultaten die reaktionskräfte und die
+  // spannungen auswählbar machen» - Spannung als Plot, Reiter Auflager.
+  wahr('Plots: Viewer η und w; Schulung dazu die Spannung; Auflager in der Schulung',
        S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
-       && S.plotErlaubt('eta', 'schulung') && !S.plotErlaubt('sig', 'schulung'));
+       && S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('sig', 'schulung')
+       && !S.plotErlaubt('M', 'schulung') && S.auswertungErlaubt('auflager', 'schulung')
+       && S.feldRecht('mastVorhanden', 'schulung') === 'aus');
   // Das einfache Ergebnisfeld liest die Kacheln: Satz, Balken je Gruppe, Prozent.
   const E = await import(J('ui.einfach.js'));
   const ef = E.einfachAusKacheln([

@@ -92,12 +92,16 @@ export function einfachAusKacheln(kacheln, opt = {}) {
       <span class="ef-wer">${esc(g.name)}</span>
     </div>`;
   }).join('');
+  // In der Designsprache der App: Hauptkachel `.urteil` (ok / warn / nok)
+  // und Überschrift `.sec` wie die übrigen Blöcke der Übersicht.
+  const zustand = f === 'fail' ? 'nok' : f;
   const html = `<div class="einfach">
-    <div class="ef-urteil ${f}">
-      <span class="ef-zahl">${prozent(max.eta)} ${begriffKnopf('ausnutzung')}</span>
-      <p class="ef-satz">${satz}</p>
+    <div class="urteil ${zustand}">
+      <span class="urteil-zahl">${prozent(max.eta)}</span>
+      <span class="ef-satz">${satz} ${begriffKnopf('ausnutzung')}</span>
     </div>
     ${opt.vorlaeufig ? '<p class="ef-leg">Vorläufig - die genaue Rechnung läuft.</p>' : ''}
+    <div class="sec">Ausnutzung je Bauteilgruppe</div>
     <div class="ef-balkenfeld">${balken}</div>
     <p class="ef-leg">100 % = die Grenze ist erreicht (Strich). Gezeigt ist je Gruppe das am
       stärksten beanspruchte Bauteil, unter Wind, Schnee und Eigengewicht.</p>

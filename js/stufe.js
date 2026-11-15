@@ -79,7 +79,7 @@ const SCHULUNG_BEARBEITEN = [
   ...VIEWER_BEARBEITEN.filter((k) => k !== 'bestandesschutz'),
   'linie', 'ortschaft', 'km', 'projektNr', 'bearbeiter', 'datum',
   'xLage', 'typ', 'abfangTyp', 'L', 'auslegerSeite', 'laengsverankerung',
-  'mastVorhanden', 'mastProfil', 'mastSteg', 'mastH',
+  'mastProfil', 'mastSteg', 'mastH',
   'ankerTyp', 'ankerH', 'ankerA', 'ankerRichtung', 'ankerSeite',
   'flSpannweite', 'trasseRadius',
   'windKlasse', 'schneeAktiv', 'schneeKlasse',
@@ -128,7 +128,7 @@ export const EINFACH_TEXT = {
   laengsverankerung: { label: 'Abspannung in Gleisrichtung', hinweis: 'Hält den Ausleger gegen Verdrehen.' },
   mastH: { label: 'Höhe über dem Boden', hinweis: 'Wo der Träger am Masten angeschlossen ist.' },
   mastVorhanden: { label: 'Mit Masten', hinweis: null },
-  mastX: { label: 'Lage des Masten', hinweis: null },
+  mastX: { label: 'Lage des Masten', hinweis: 'Auf den halben Meter gerundet.', schritt: 0.5 },
   mastProfil: { label: 'Mastprofil', hinweis: 'Grössere Nummer = kräftigerer Mast.' },
   mastSteg: { label: 'Ausrichtung des Masten', hinweis: null },
   mastLaenge: { label: 'Mastlänge', hinweis: null },
@@ -185,7 +185,7 @@ export function gruppeErlaubt(gid, stufe = STUFE) {
  * --------------------------------------------------------------------- */
 const AUSWERTUNG = {
   viewer: new Set(['uebersicht', 'auflager']),
-  schulung: new Set(['uebersicht']),
+  schulung: new Set(['uebersicht', 'auflager']),
 };
 export function auswertungErlaubt(tabId, stufe = STUFE) {
   if (stufe === 'voll') return true;
@@ -195,7 +195,7 @@ export function auswertungErlaubt(tabId, stufe = STUFE) {
 // Viewer: Ausnutzung und Verformung (Fokus aufs Abbilden). Schulung: alle.
 const PLOTS = {
   viewer: new Set(['eta', 'w', 'etaGzg', 'positionen', 'neutral']),
-  schulung: new Set(['eta', 'w', 'neutral']),
+  schulung: new Set(['eta', 'sig', 'w', 'neutral']),
 };
 export function plotErlaubt(key, stufe = STUFE) {
   if (stufe === 'voll' || !PLOTS[stufe]) return true;

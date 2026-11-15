@@ -3822,6 +3822,9 @@ function aendern(key, wert) {
     return aendern('mastStelle', { mastId: m.id, x: Number(wert) || 0 });
   }
   if (key === 'mastStelle') {
+    // Schulung (15. November, «hier achten das der mast auf 0.5m gerundet
+    // wird»): Feld, Marke und Ziehen im 3D setzen den Masten auf 0.5 m.
+    if (EINFACH) wert = { ...wert, x: Math.round((Number(wert.x) || 0) * 2) / 2 };
     const r = ui.mastRollen(werte, wert.mastId);
     if (!r) return;
     // Die Regel steht in ui.js (`mastStelleSetzen`), damit der Prüfstand sie

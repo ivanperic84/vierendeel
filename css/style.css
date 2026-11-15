@@ -3807,33 +3807,47 @@ html[data-stufe="viewer"] [data-bs-oeffnen] { pointer-events: none; }
 html[data-stufe="viewer"] .kachel-stift,
 html[data-stufe="schulung"] [data-at-vorlage] { display: none !important; }
 
-/* Schulung, einfaches Ergebnisfeld (15. November, js/ui.einfach.js). */
-.einfach { margin-bottom: 12px; }
-.ef-urteil { display: flex; align-items: center; gap: 12px; padding: 12px;
-  border-radius: 8px; border: 1px solid var(--ol); border-left: 5px solid var(--ok); }
-.ef-urteil.warn { border-left-color: var(--warn); }
-.ef-urteil.fail { border-left-color: var(--fail); }
-.ef-zahl { font-size: 28px; font-weight: 700; white-space: nowrap; }
-.ef-satz { margin: 0; font-size: 13px; line-height: 1.4; }
-.ef-balkenfeld { margin-top: 12px; display: grid; gap: 8px; }
+/* Schulung, einfaches Ergebnisfeld (15. November, js/ui.einfach.js).
+   In der Designsprache der App (Weisung «der stil in der sidebar übersicht
+   entspricht nicht der app designsprache»): oben die Hauptkachel `.urteil`,
+   darunter eine Überschrift `.sec` und je Gruppe Name, Zahl in der
+   Monoschrift und ein dünner Balken wie im Balkendiagramm. */
+.einfach { margin-bottom: 6px; }
+.einfach .urteil { align-items: center; }
+.einfach .ef-satz { color: var(--on); font-size: 12px; line-height: 1.4; flex: 1 1 160px; }
+.ef-balkenfeld { display: grid; gap: 7px; }
 /* Name und Prozent oben, der Balken darunter über die ganze Breite - so
    bleibt die Zahl auch in der schmalen Leiste sichtbar. */
 .ef-zeile { display: grid; grid-template-columns: 1fr auto;
   grid-template-areas: "name wert" "bahn bahn" "wer wer";
-  gap: 3px 8px; align-items: center; font-size: 12px; }
-.ef-zeile .ef-name { grid-area: name; }
+  gap: 2px 8px; align-items: center; }
+.ef-zeile .ef-name { grid-area: name; font-size: 11.5px; color: var(--on2); }
 .ef-zeile .ef-wert { grid-area: wert; }
 .ef-zeile .ef-bahn { grid-area: bahn; }
 .ef-zeile .ef-wer { grid-area: wer; }
-.ef-bahn { position: relative; height: 10px; border-radius: 5px; background: var(--s2, rgba(128,128,128,.18)); }
-.ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--ok); }
+.ef-bahn { position: relative; height: 6px; border-radius: 3px; background: var(--s2);
+  border: 1px solid var(--ol); }
+.ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+  background: var(--ok); opacity: .85; }
 .ef-balken.warn { background: var(--warn); } .ef-balken.fail { background: var(--fail); }
-.ef-grenze { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; background: var(--on, currentColor); opacity: .7; }
-.ef-wert { text-align: right; font-weight: 600; }
+.ef-grenze { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 1px;
+  background: var(--on2); }
+.ef-wert { font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-align: right; }
 .ef-wert.warn { color: var(--warn); } .ef-wert.fail { color: var(--fail); }
-.ef-wer { font-size: 10.5px; color: var(--dim); }
+.ef-wer { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
 .ef-leg { font-size: 10.5px; color: var(--dim); margin: 8px 0 0; }
-.ef-mehr > summary { cursor: pointer; font-size: 11px; color: var(--dim); padding: 6px 0; }
+.ef-mehr > summary { cursor: pointer; font-family: var(--f-mono); font-size: 10px;
+  font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  padding: 8px 0 4px; }
+/* Der Teil für Fachpersonen in der Schulung: nur die Kacheln (15. November,
+   «die Fachperson Zusammensetzung etwas vereinfachen»; «die Plastische
+   nachweisführung blech im Tragjoch braucht es nicht»). */
+html[data-stufe="schulung"] .ef-mehr .urteil,
+html[data-stufe="schulung"] .ef-mehr .nw-arten,
+html[data-stufe="schulung"] .ef-mehr .stabwerk-leiste,
+html[data-stufe="schulung"] .ef-mehr .nw-plastisch,
+html[data-stufe="schulung"] .ef-mehr [data-klapp^="uebersicht-"],
+html[data-stufe="schulung"] .ef-mehr .quellzeile { display: none !important; }
 /* Schulung: Lastfallwahl und technische Fusszeilen weg, immer der ungünstigste Fall. */
 html[data-stufe="schulung"] #einwirkung-wahl,
 html[data-stufe="schulung"] #st-modell,
@@ -3844,10 +3858,12 @@ html[data-stufe="schulung"] .legende-fuss { display: none !important; }
    (Ausnutzung, Verformung) - «nur das nötigste» (15. November). */
 html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-modell),
 html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-zeichnung),
-html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-lasten) .wz-knoepfe,
 html[data-stufe="schulung"] .wz-linie,
-html[data-stufe="schulung"] #wz-r-werte,
+html[data-stufe="schulung"] #wz-zu,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
+/* 15. November: «die auswahl der einzelnen lasten ständig / veränderlich
+   auswählbar machen und die werte einblendbar machen. das einklappen button
+   entfernen.» Lasten je Art und «Werte anschreiben» stehen wieder da. */
 /* Schulung: kein Lastgenerator (15. November, «lastengenerator nicht aufführen»). */
 html[data-stufe="schulung"] [data-generator] { display: none !important; }
 /* Schulung, Paket 2 (15. November): die Bauteilkarte zeigt Name, Standort
