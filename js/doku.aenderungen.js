@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Vorlagen am Masten: Ausleger und Fahrleitung auf das Gleis 3.5 m ab Mastachse, Lampe mit Rohr viermal so hoch, Trafo 0.5 m seitlich; neue Vorlage «Signal (pauschal 1 m², 400 kg)». Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },
       { text: 'Schulungsfassung: Knopf zur Tabelle aller Kombinationen mit ihren Lastbeiwerten; ein eigenes, kurzes Handbuch zum Kurs mit Erklärungen zur Bemessung (Einwirkungen, Beiwerte, Nachweise, Grenzen).' },
       { text: 'Leiter-Vorlagen (Kettenwerk, Rückleiter, Abfangungen) sitzen am Masten auf der Mastachse und der gewählten Höhe, ohne Versatz.' },
       { text: 'Rechtsklick auf einen Lastknopf im 3D zeigt nur diese Last, ein zweiter Rechtsklick wieder alle.' },

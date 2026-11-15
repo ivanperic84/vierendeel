@@ -36348,10 +36348,12 @@ titel('202  Anbauteile: Katalog bereinigt (Namen, Aufsätze, Lampen, Trafo, frei
     // Lampen.
     wahr('LED-Lampen und Trafo 100 kVA sind aus dem Katalog',
          !ids.has('lampe-led') && !ids.has('mast-lampe-led-rohr') && !ids.has('mast-trafo-100'));
-    const lotrecht = (id) => v(id).module.every((m) => (m.x ?? 0) === 0)
-      && v(id).module.map((m) => m.z).join() === '0.5,1';
+    // Am Masten seit dem 15. November viermal so hoch («die lampe mit rohr
+    // mit faktor 4 erhöhen»): Rohrmitte 2.0, Lampe 4.0 m.
+    const lotrecht = (id, z = '0.5,1') => v(id).module.every((m) => (m.x ?? 0) === 0)
+      && v(id).module.map((m) => m.z).join() === z;
     wahr('Lampe mit Rohr am Mast und am Joch: Rohr lotrecht, Lampe am Rohrkopf',
-         lotrecht('mast-lampe-alt-rohr') && lotrecht('joch-lampe-rohr')
+         lotrecht('mast-lampe-alt-rohr', '2,4') && lotrecht('joch-lampe-rohr')
          && A.vorlageOrt(v('joch-lampe-rohr')) === 'joch');
     wahr('Trafo 50 kVA unter «Am Masten», das freie Bauteil unter «Übrige»',
          v('mast-trafo-50').gruppe === 'mast' && v('frei').gruppe === 'uebrige');

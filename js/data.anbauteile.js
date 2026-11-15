@@ -1901,3 +1901,14 @@ export function leiterAmMast(a, rolleVon) {
   if (!nurLeiter) return a;
   return { ...a, module: mods.map((m) => ({ ...m, x: 0, y: 0, z: 0 })) };
 }
+
+/*
+ * >>> SIGNAL AM MASTEN: z = 0 (15. November). <<< Die Signal-Vorlagen hängen
+ * am Joch 1.5 m unter dem Gurt; am Masten gilt die Höhe, die man beim Setzen
+ * wählt (Durchsicht der Vorlagen, Vorschlag «Signal am Masten z = 0», ohne
+ * Einwand übernommen).
+ */
+export function signalAmMast(a, vorlage) {
+  if (vorlage?.gruppe !== 'signal') return a;
+  return { ...a, module: (a?.module ?? []).map((m) => ({ ...m, z: 0 })) };
+}

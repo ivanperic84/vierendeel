@@ -15,7 +15,7 @@ import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangVorgabeFuer } from './core.lasten.js';
-import { anbauGruppe, getVorlage, leiterAmMast, havarieKopieren, istSignalModul, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
+import { anbauGruppe, getVorlage, leiterAmMast, signalAmMast, havarieKopieren, istSignalModul, istSignalVorlage, leiterKennung, mitSignalAuswahl, neuesAnbauteil, signalVorlage, vorlageAbfangung, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -290,7 +290,7 @@ function setzeBaugruppeAnStelle(app, roh) {
   }
   const gesetzt = st.ort === 'joch'
     ? { ...roh, ort: 'joch', x: st.x, hMast: 0 }
-    : leiterAmMast({ ...roh, ort: st.ort, x: 0, hMast: st.hMast }, (id) => getFlBauteil(id).rolle);
+    : signalAmMast(leiterAmMast({ ...roh, ort: st.ort, x: 0, hMast: st.hMast }, (id) => getFlBauteil(id).rolle), vorl);
   // Erst jetzt ist das Raster der Vorlage bekannt - und damit, wo die
   // beiden Klemmen sitzen. Ein Traeger weicht den Blechen aus.
   const t = st.ort === 'joch'
