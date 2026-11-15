@@ -197,7 +197,11 @@ const EPS = 1e-9;
 export function fundamentAblauf(e, z) {
   const schritte = [];
   const pruef = [];          // was eingehalten sein muss: {was, wert, zul}
+  // Je Schritt die Vergleiche [was, Einwirkung, zulässig] und bei einer
+  // Abminderung die Formel mit eingesetzten Zahlen - für den Bericht
+  // (14. November, «Schritte mit Zahlen»).
   const notiere = (nr, text, extra = {}) => schritte.push({ nr, text, ...extra });
+  const f = (v) => (Number.isFinite(v) ? (Math.round(v * 100) / 100).toFixed(2) : '–');
   const muss = (was, wert, zul) => pruef.push({ was, wert, zul, eta: zul > 0 ? wert / zul : (wert > EPS ? Infinity : 0) });
   const ueber = (wert, zul) => wert > zul + EPS;
   const ende = (ergebnis, schritt) => {
@@ -215,90 +219,103 @@ export function fundamentAblauf(e, z) {
     notiere(1, 'alle Basiswerte eingehalten');
     return ende('basis', 1);
   }
-  notiere(1, 'Basiswerte nicht alle eingehalten');
+  notiere(1, 'Basiswerte nicht alle eingehalten',
+    { vgl: basis.filter(([, w, zz]) => ueber(w, zz)).map(([was, w, zz]) => [was, w, zz]) });
   // 2 - harte Grenzen
   muss('V', e.V, z.V); muss('M_tot', e.Mtot, z.Mtot); muss('T', e.T, z.T);
+  const hart = [['V', e.V, z.V], ['M_tot', e.Mtot, z.Mtot], ['T', e.T, z.T]];
   if (ueber(e.V, z.V) || ueber(e.Mtot, z.Mtot) || ueber(e.T, z.T)) {
-    notiere(2, 'V, M_tot oder T über dem zulässigen Wert');
+    notiere(2, 'V, M_tot oder T über dem zulässigen Wert', { vgl: hart });
     return ende('nicht', 2);
   }
-  notiere(2, 'V, M_tot und T eingehalten');
+  notiere(2, 'V, M_tot und T eingehalten', { vgl: hart });
   // 3 - Grenze des veränderlichen Moments
   muss('M_ver gegen Grenze', e.Mver, z.Mvermax);
   if (ueber(e.Mver, z.Mvermax)) {
-    notiere(3, 'M_ver über seiner Grenze');
+    notiere(3, 'M_ver über seiner Grenze', { vgl: [['M_ver gegen M_ver,max', e.Mver, z.Mvermax]] });
     return ende('nicht', 3);
   }
-  notiere(3, 'M_ver unter seiner Grenze');
+  notiere(3, 'M_ver unter seiner Grenze', { vgl: [['M_ver gegen M_ver,max', e.Mver, z.Mvermax]] });
 
   // 6 - 8: veränderliches Moment, ausgeglichen über das ständige
   const schritt6 = () => {
     if (!ueber(e.Mver, z.Mver)) {
       muss('M_ver', e.Mver, z.Mver);
-      notiere(6, 'M_ver eingehalten');
+      notiere(6, 'M_ver eingehalten', { vgl: [['M_ver', e.Mver, z.Mver]] });
       return ende('angepasst', 6);
     }
+    notiere(6, 'M_ver über dem zulässigen Wert', { vgl: [['M_ver', e.Mver, z.Mver]] });
     const neu1 = z.Mst - (e.Mver - z.Mver) * z.redM;
-    notiere(7, 'M_st,zul abgemindert', { wert: neu1 });
+    notiere(7, 'M_st,zul abgemindert', { wert: neu1,
+      formel: `M_st,zul,neu1 = M_st,zul − (M_ver − M_ver,zul) · red_M = ${f(z.Mst)} − (${f(e.Mver)} − ${f(z.Mver)}) · ${f(z.redM)} = ${f(neu1)}` });
     muss('M_st gegen M_st,zul,neu1', e.Mst, neu1);
-    if (ueber(e.Mst, neu1)) { notiere(8, 'M_st über dem abgeminderten Wert'); return ende('nicht', 8); }
-    notiere(8, 'M_st unter dem abgeminderten Wert');
+    const v8 = [['M_st gegen M_st,zul,neu1', e.Mst, neu1]];
+    if (ueber(e.Mst, neu1)) { notiere(8, 'M_st über dem abgeminderten Wert', { vgl: v8 }); return ende('nicht', 8); }
+    notiere(8, 'M_st unter dem abgeminderten Wert', { vgl: v8 });
     return ende('angepasst', 8);
   };
   // 13/14 - 19: Horizontalkraft, ausgeglichen über das Gesamtmoment
   const schritt15 = (Hwirk, nr) => {
     const MtotNeu = z.Mtot - (Hwirk - z.Htot) * z.redH;
     notiere(nr, nr === 14 ? 'M_tot,zul abgemindert mit H_tot,fiktiv' : 'M_tot,zul abgemindert mit H_tot',
-      { wert: MtotNeu });
+      { wert: MtotNeu, formel: `M_tot,zul,neu = M_tot,zul − (${nr === 14 ? 'H_tot,fiktiv' : 'H_tot'} − H_tot,zul) · red_H = ${f(z.Mtot)} − (${f(Hwirk)} − ${f(z.Htot)}) · ${f(z.redH)} = ${f(MtotNeu)}` });
     muss('M_tot gegen M_tot,zul,neu', e.Mtot, MtotNeu);
-    if (ueber(e.Mtot, MtotNeu)) { notiere(15, 'M_tot über dem abgeminderten Wert'); return ende('nicht', 15); }
-    notiere(15, 'M_tot unter dem abgeminderten Wert');
+    const v15 = [['M_tot gegen M_tot,zul,neu', e.Mtot, MtotNeu]];
+    if (ueber(e.Mtot, MtotNeu)) { notiere(15, 'M_tot über dem abgeminderten Wert', { vgl: v15 }); return ende('nicht', 15); }
+    notiere(15, 'M_tot unter dem abgeminderten Wert', { vgl: v15 });
     const anteilVer = z.Mtot > 0 ? z.Mver / z.Mtot : 0;
     const anteilSt = z.Mtot > 0 ? z.Mst / z.Mtot : 0;
     const MverNeu = MtotNeu * anteilVer, MstNeu1 = MtotNeu * anteilSt;
-    notiere(16, 'Anteile ständig / veränderlich am abgeminderten M_tot', { wert: MverNeu });
+    notiere(16, 'Anteile ständig / veränderlich am abgeminderten M_tot', { wert: MverNeu,
+      formel: `M_ver,zul,neu = ${f(MtotNeu)} · ${f(z.Mver)} / ${f(z.Mtot)} = ${f(MverNeu)} ; M_st,zul,neu1 = ${f(MtotNeu)} · ${f(z.Mst)} / ${f(z.Mtot)} = ${f(MstNeu1)}` });
     if (!ueber(e.Mver, MverNeu)) {
       muss('M_ver gegen M_ver,zul,neu', e.Mver, MverNeu);
-      notiere(17, 'M_ver eingehalten');
+      notiere(17, 'M_ver eingehalten', { vgl: [['M_ver gegen M_ver,zul,neu', e.Mver, MverNeu]] });
       return ende('angepasst', 17);
     }
-    notiere(17, 'M_ver über dem abgeminderten Wert');
+    notiere(17, 'M_ver über dem abgeminderten Wert', { vgl: [['M_ver gegen M_ver,zul,neu', e.Mver, MverNeu]] });
     const neu2 = MstNeu1 - (e.Mver - MverNeu) * z.redM;
-    notiere(18, 'M_st,zul abgemindert', { wert: neu2 });
+    notiere(18, 'M_st,zul abgemindert', { wert: neu2,
+      formel: `M_st,zul,neu2 = M_st,zul,neu1 − (M_ver − M_ver,zul,neu) · red_M = ${f(MstNeu1)} − (${f(e.Mver)} − ${f(MverNeu)}) · ${f(z.redM)} = ${f(neu2)}` });
     muss('M_st gegen M_st,zul,neu2', e.Mst, neu2);
-    if (ueber(e.Mst, neu2)) { notiere(19, 'M_st über dem abgeminderten Wert'); return ende('nicht', 19); }
-    notiere(19, 'M_st unter dem abgeminderten Wert');
+    const v19 = [['M_st gegen M_st,zul,neu2', e.Mst, neu2]];
+    if (ueber(e.Mst, neu2)) { notiere(19, 'M_st über dem abgeminderten Wert', { vgl: v19 }); return ende('nicht', 19); }
+    notiere(19, 'M_st unter dem abgeminderten Wert', { vgl: v19 });
     return ende('angepasst', 19);
   };
   const fiktiv = (HstUeberschuss) => {
     const H = e.Htot + (e.Hver - z.Hver) * z.redM + HstUeberschuss;
-    notiere(12, 'H_tot,fiktiv', { wert: H });
+    notiere(12, 'H_tot,fiktiv', { wert: H,
+      formel: `H_tot,fiktiv = H_tot + (H_ver − H_ver,zul) · red_M + ΔH_st = ${f(e.Htot)} + (${f(e.Hver)} − ${f(z.Hver)}) · ${f(z.redM)} + ${f(HstUeberschuss)} = ${f(H)}` });
     return schritt15(H, 14);
   };
 
   // 4
   if (ueber(e.Htot, z.Htot)) {
-    notiere(4, 'H_tot über dem zulässigen Wert');
+    notiere(4, 'H_tot über dem zulässigen Wert', { vgl: [['H_tot', e.Htot, z.Htot]] });
     // 9
-    if (ueber(e.Hver, z.Hver)) { notiere(9, 'H_ver über dem zulässigen Wert'); return fiktiv(e.Hst - z.Hst); }
-    notiere(9, 'H_ver eingehalten');
+    const v9 = [['H_ver', e.Hver, z.Hver]];
+    if (ueber(e.Hver, z.Hver)) { notiere(9, 'H_ver über dem zulässigen Wert', { vgl: v9 }); return fiktiv(e.Hst - z.Hst); }
+    notiere(9, 'H_ver eingehalten', { vgl: v9 });
     muss('H_ver', e.Hver, z.Hver);
     return schritt15(e.Htot, 13);
   }
-  notiere(4, 'H_tot eingehalten');
+  notiere(4, 'H_tot eingehalten', { vgl: [['H_tot', e.Htot, z.Htot]] });
   muss('H_tot', e.Htot, z.Htot);
   // 5
   if (!ueber(e.Hver, z.Hver)) {
-    notiere(5, 'H_ver eingehalten');
+    notiere(5, 'H_ver eingehalten', { vgl: [['H_ver', e.Hver, z.Hver]] });
     muss('H_ver', e.Hver, z.Hver);
     return schritt6();
   }
-  notiere(5, 'H_ver über dem zulässigen Wert');
+  notiere(5, 'H_ver über dem zulässigen Wert', { vgl: [['H_ver', e.Hver, z.Hver]] });
   // 10 / 11
   const HstNeu = z.Hst - (e.Hver - z.Hver) * z.redM;
-  notiere(10, 'H_st,zul abgemindert', { wert: HstNeu });
-  if (ueber(e.Hst, HstNeu)) { notiere(11, 'H_st über dem abgeminderten Wert'); return fiktiv(e.Hst - HstNeu); }
-  notiere(11, 'H_st unter dem abgeminderten Wert');
+  notiere(10, 'H_st,zul abgemindert', { wert: HstNeu,
+    formel: `H_st,zul,neu = H_st,zul − (H_ver − H_ver,zul) · red_M = ${f(z.Hst)} − (${f(e.Hver)} − ${f(z.Hver)}) · ${f(z.redM)} = ${f(HstNeu)}` });
+  const v11 = [['H_st gegen H_st,zul,neu', e.Hst, HstNeu]];
+  if (ueber(e.Hst, HstNeu)) { notiere(11, 'H_st über dem abgeminderten Wert', { vgl: v11 }); return fiktiv(e.Hst - HstNeu); }
+  notiere(11, 'H_st unter dem abgeminderten Wert', { vgl: v11 });
   muss('H_st gegen H_st,zul,neu', e.Hst, HstNeu);
   return schritt6();
 }

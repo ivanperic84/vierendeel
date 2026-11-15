@@ -615,6 +615,35 @@ export const FUNDAMENT_TEXT = `<p>Charakteristische Einwirkung am Fundamentkopf 
     Neigung.</p>`;
 
 /**
+ * >>> DER ABLAUF SCHRITT FÜR SCHRITT (14. November). <<<
+ * Frage «kann man diesen abbilden im bericht?», auf Rückfrage «Schritte mit
+ * Zahlen»: je Richtung jeder gegangene Schritt mit seiner Prüfung
+ * (Einwirkung gegen zulässig, η, eingehalten) bzw. der Abminderung mit
+ * eingesetzten Zahlen - die Werte kommen aus `fundamentAblauf`
+ * (core.fundament.js), der Bericht rechnet nichts.
+ */
+export function ablaufSchritteHtml(r) {
+  const zeilen = r.schritte.map((st) => {
+    const nr = `<td class="r">${st.nr}</td>`;
+    if (st.formel) {
+      return `<tr>${nr}<td>${esc(st.text)}</td><td colspan="4" class="formel">${esc(st.formel)}</td></tr>`;
+    }
+    if (!st.vgl?.length) return `<tr>${nr}<td>${esc(st.text)}</td><td colspan="4"></td></tr>`;
+    return st.vgl.map(([was, w, zul], i) => {
+      const eta = zul > 0 ? w / zul : null;
+      const ok = !(w > zul + 1e-9);
+      return `<tr>${i ? '<td></td>' : nr}<td>${i ? '' : esc(st.text)}</td><td>${esc(was)}</td>`
+        + `<td class="r">${zahl(w, 2)}</td><td class="r">${zahl(zul, 2)}</td>`
+        + `<td class="r">${zahl(eta, 3)} ${ok ? '✓' : '<b>✗</b>'}</td></tr>`;
+    }).join('');
+  }).join('');
+  return `<p class="klein"><b>${esc(r.richtung)} zum Gleis - Schritte</b>
+      (Momente in kNm, Kräfte in kN):</p>
+    <table class="eng ablauf"><thead><tr><th>Schritt</th><th>Prüfung</th><th>Grösse</th>
+      <th>Einwirkung</th><th>zulässig</th><th>η</th></tr></thead><tbody>${zeilen}</tbody></table>`;
+}
+
+/**
  * Die Tabelle eines Mastfundaments (Baustein, 1. Oktober). `schluessel`
  * trägt die Marke, über die der Prüfstand die η nachrechnet.
  */
@@ -638,7 +667,8 @@ export function fundamentHtml(q, name, schluessel, bildHtml = '') {
           : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
           : `nicht zulässig — grösseres Fundament (Schritt ${r.schritt})`),
         esc(r.schritte.map((s) => `${s.nr}${s.wert != null ? ` (${s.wert.toFixed(2)})` : ''}`).join(' → ')),
-        `<span data-pruef="fund-${esc(e)}-ablauf-${esc(r.richtung)}">${zahl(r.eta, 3)}</span>`]), 'eng')}` : '';
+        `<span data-pruef="fund-${esc(e)}-ablauf-${esc(r.richtung)}">${zahl(r.eta, 3)}</span>`]), 'eng')}
+      ${ablauf.filter((r) => r.ergebnis !== 'basis').map((r) => ablaufSchritteHtml(r)).join('')}` : '';
     const heben = q.abheben
       ? `<p class="klein"><b>Abheben:</b> ${zahl(q.abheben.wert, 1)} kN in `
         + `«${esc(q.abheben.bez)}». Die zulässigen Lasten gelten für eine `
@@ -909,6 +939,8 @@ export const STIL = `
   table.angaben th { width: 45%; background: #f6f6f6; font-weight: 500; }
   .formel { margin: 1mm 0 1mm 4mm; font-variant-numeric: tabular-nums; }
   .formel .sym { display: inline-block; min-width: 14mm; }
+  table.ablauf td.r { text-align: right; white-space: nowrap; }
+  table.ablauf td.formel { margin: 0; font-size: 0.92em; }
   .klein { font-size: 8pt; color: #444; }
   .marke { font-weight: 600; }
   .marke.ok { color: #1a6b2a; } .marke.nok { color: #b00020; } .marke.offen { color: #8a5a00; }

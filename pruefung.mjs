@@ -39680,6 +39680,23 @@ titel('248  Fundament: Ablauf der Fundamentbestimmung und Gelände über 14°');
     const e = F248.fundamentAblauf({ Mst: 2, Mver: 77, Mtot: 79, Hst: 4, Hver: 4, Htot: 8, V: 12, T: 0 }, z('q'));
     wahr(`M_ver über seiner Grenze (${t.Mq_vermax}): Schritt 3`, t.Mq_vermax === 76 && e.ergebnis === 'nicht' && e.schritt === 3,
          `${e.ergebnis} ${e.schritt}`);
+    // Bericht «Schritte mit Zahlen» (14. November): jeder Schritt trägt seinen
+    // Vergleich oder seine Formel mit eingesetzten Zahlen.
+    wahr('Ablauf im Bericht: Schritt 7 mit eingesetzter Formel',
+         (b.schritte.find((s) => s.nr === 7)?.formel ?? '').includes('= 40.00 − (45.00 − 40.00) · 1.11 = 34.45'),
+         b.schritte.find((s) => s.nr === 7)?.formel);
+    wahr('… jeder Schritt hat Vergleich oder Formel (ausser «alle Basiswerte eingehalten»)',
+         [a, b, c, d, e].every((x) => x.schritte.every((s) => s.vgl?.length || s.formel
+           || (s.nr === 1 && s.text === 'alle Basiswerte eingehalten'))));
+    {
+      const NB = await import(J('export.nachweisbericht.js'));
+      const h = NB.ablaufSchritteHtml({ ...c, richtung: 'quer' });
+      wahr('… Schritttabelle: alle Schritte des Wegs, Formel zu Schritt 14, ✓/✗ an den Vergleichen',
+           c.schritte.every((s) => h.includes(`<td class="r">${s.nr}</td>`)) && h.includes('H_tot,fiktiv')
+           && h.includes('M_tot,zul,neu = M_tot,zul') && h.includes('✓') && h.includes('<b>✗</b>'));
+      const ber = readFileSync(join(HIER, 'js', 'export.nachweisbericht.js'), 'utf8');
+      wahr('… im Abschnitt Mastfundament je Richtung eingebunden', ber.includes("ablauf.filter((r) => r.ergebnis !== 'basis').map((r) => ablaufSchritteHtml(r))"));
+    }
 
     // Im Kern: das Gelände am Masten wählt Typ und Werte.
     const lauf = (gel) => {

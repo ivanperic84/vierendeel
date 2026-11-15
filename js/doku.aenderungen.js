@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-15',
+    punkte: [
+      { text: 'Nachweisbericht: der Ablauf der Fundamentbestimmung steht je Richtung Schritt für Schritt da - jede Prüfung mit Einwirkung, zulässigem Wert und η, jede Abminderung mit eingesetzten Zahlen.' },
+    ],
+  },
+  {
     datum: '2026-11-14',
     punkte: [
       { text: 'Werkzeugleiste im 3D: alle Gruppen gleich breit, der Schalter «Linie» steht abgesetzt zuoberst unter Resultate. Mastdiagramm im Bericht ohne Füllfläche.' },
