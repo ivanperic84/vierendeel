@@ -14,6 +14,7 @@ import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf } from './design.js';
 import { ANSICHTEN, LASTARTEN, MODI } from './render.3d.js';
+import { plotErlaubt } from './stufe.js';
 import * as ui from './ui.js';
 import { zl, zlSetzeAn, zlGroesse, zustandLegendeHtml, zustandLegendeVerdrahten } from './app.zustand.js';
 import { FELDER } from './ui.schema.js';
@@ -293,8 +294,10 @@ function lastartenVorhanden(app) {
  * immer da - sie zeigen das Modell, nicht ein Ergebnis.
  * ========================================================================= */
 export function modiFuer(art = 'beide') {
-  if (art !== 'trag' && art !== 'gzg') return MODI;
-  return MODI.filter((m) => m.art !== 'plot' || (m.nachweisart ?? 'trag') === art);
+  // Viewer (15. November): Ausnutzung und Verformung, Fokus aufs Abbilden.
+  const alle = MODI.filter((m) => plotErlaubt(m.key));
+  if (art !== 'trag' && art !== 'gzg') return alle;
+  return alle.filter((m) => m.art !== 'plot' || (m.nachweisart ?? 'trag') === art);
 }
 
 /**

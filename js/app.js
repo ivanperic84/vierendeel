@@ -8,6 +8,7 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
+import { STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -1397,6 +1398,8 @@ function rechneTragwerk(werte, joch) {
   // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
   // gehört in die Liste, sonst stünde nur das Phantomjoch da.
   if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
+  // Ein Stand aus Viewer oder Schulung sagt es der Fachperson (15. November).
+  if (!LEICHT && herkunftHinweis(werte)) hinw.unshift(herkunftHinweis(werte));
   // Masten auf einem Unterbau (Perrondach, 12. Oktober): was gilt und was nicht.
   const ubNamen = [rs.mastUnterbauA ? rs.mastNameA : null, rs.mastUnterbauB ? rs.mastNameB : null]
     .filter(Boolean);
@@ -2075,8 +2078,9 @@ function zeichneAuswertung() {
      * den es ohne Joch nicht gibt (Weisung: «entsprechend wie beim
      * tragjoch gestalten»).
      */
-    if (!ui.EINZELMAST_TABS.some((t) => t.id === tabAuswertung)) tabAuswertung = 'uebersicht';
-    ui.zeichneTabs(ui.el('tabs-auswertung'), ui.EINZELMAST_TABS, tabAuswertung, (t) => {
+    const emTabs = ui.auswertungTabs(werte, false);
+    if (!emTabs.some((t) => t.id === tabAuswertung)) tabAuswertung = 'uebersicht';
+    ui.zeichneTabs(ui.el('tabs-auswertung'), emTabs, tabAuswertung, (t) => {
       tabAuswertung = t; zeichneAuswertung();
     });
     const knoten = ui.el('auswertung');
@@ -5715,7 +5719,24 @@ function springeZu(st, x) {
  * denselben Dialog wie bisher, das gewaehlte schon angewaehlt -
  * Knotenmodell, Auflager und Starrelemente werden weiter dort gewaehlt.
  */
+/*
+ * VIEWER UND SCHULUNG (15. November): nur die Blätter und der Bericht;
+ * Ausleitungen und Gegenrechnung gehören der Fachperson (js/stufe.js).
+ */
+function exportMenueLeicht() {
+  return [
+    { kopf: 'Bericht und Blätter' },
+    { id: 'bericht', text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
+    { id: 'reaktionen', text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
+    { id: 'anschluss', text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
+    { id: 'bestand', text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
+    { id: 'excel', text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
+    { id: 'drucken', text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
+  ].filter((e) => !e.id || exportErlaubt(e.id));
+}
+
 function exportMenue() {
+  if (LEICHT) return exportMenueLeicht();
   const ax = (f) => () => dialogAxisvm(app, f);
   return [
     { kopf: 'AxisVM' },
@@ -6096,6 +6117,8 @@ const DATEN_SETZER = {
 const datenAnsicht = { aktiv: null, filter: '', regel: {} };
 
 function dialogBauteildaten() {
+  // Viewer / Schulung (15. November): die Datenbasis gehört der Fachperson.
+  if (LEICHT) { meldeImBalken('Bauteildaten sind in dieser Fassung nicht zugänglich.'); return; }
   const best = datenBestand();
   const tabellen = alsTabellen(best);
   if (!datenAnsicht.aktiv) datenAnsicht.aktiv = ersteAnsicht(best);
@@ -7286,6 +7309,20 @@ function zuruecksetzen() {
 
 export async function start() {
   uebertrageTokens(thema);
+  /*
+   * VIEWER UND SCHULUNG (15. November): die Stufe steht am Wurzelelement
+   * (das Stilblatt blendet danach aus) und als Band im Kopf - mit dem
+   * Vermerk, dass hier kein geprüfter Nachweis entsteht.
+   */
+  document.documentElement.dataset.stufe = STUFE;
+  if (LEICHT) {
+    document.title = `${APP_NAME} · ${STUFEN_TITEL[STUFE]}`;
+    const logo = document.querySelector('.tb-logo');
+    if (logo && !document.querySelector('.stufe-band')) {
+      logo.insertAdjacentHTML('afterend',
+        `<span class="stufe-band" title="${esc(VERMERK)}">${esc(STUFEN_TITEL[STUFE].toUpperCase())} · ${esc(VERMERK)}</span>`);
+    }
+  }
   // Ablage im Browser und Installationsangebot. Muss vor dem ersten
   // baueKopf() stehen, damit der Knopf beim ersten Zeichnen schon da sein
   // kann; erscheint das Angebot später, wird der Kopf neu gebaut.
@@ -7367,6 +7404,7 @@ export async function start() {
   // Fusszeile das Einzige, woran sich die Herkunft noch ablesen lässt.
   const zeigeFuss = () => {
     ui.el('st-version').textContent = `${APP_NAME} ${VERSION}`
+      + (LEICHT ? ` · ${STUFEN_TITEL[STUFE]}` : '')
       + (alsProgramm() ? ' · installiert' : '')
       + (netzZustand() ? ' · ohne Netz' : '');
   };

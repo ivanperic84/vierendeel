@@ -42037,6 +42037,69 @@ titel('277  «Bauteil zuweisen» mit Auswahl; Kamera nie näher als 5 m');
        RQ.includes('const dist = Math.max(hoehe * 1.9, halb * 2.2, 5);'));
 }
 
+titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeuge');
+/* 15. November: «light version … für schulungszwecken … oder als viewer», «beides»,
+ * «ja so bauen», «eine separate datei die nur das nötigste enthält» (js/stufe.js). */
+{
+  const S = await import(J('stufe.js'));
+  const SCH = await import(J('ui.schema.js'));
+  const keys = new Set(SCH.FELDER.map((f) => f.key));
+  wahr('Modulversion ohne Adresse: Vollversion, alles bearbeitbar',
+       S.STUFE === 'voll' && !S.LEICHT && S.feldRecht('gammaG') === 'bearbeiten'
+       && S.gruppeErlaubt('aufl') && S.auswertungErlaubt('verlauf') && S.exportErlaubt('excel'));
+  // Jeder Feldschlüssel der Freigabeliste ist ein Feld des Schemas: ein Tippfehler
+  // blendete das Feld sonst still aus.
+  const QS = readFileSync(join(HIER, 'js', 'stufe.js'), 'utf8');
+  const listen = QS.slice(QS.indexOf('const VIEWER_BEARBEITEN'), QS.indexOf('const FELDER = {'));
+  const unbekannt = [...listen.matchAll(/'([A-Za-z][A-Za-z0-9]*)'/g)].map((m) => m[1])
+    .filter((k) => !keys.has(k));
+  wahr('Jeder Schlüssel der Freigabeliste ist ein Feld des Schemas', !unbekannt.length, unbekannt.join(', '));
+  wahr('Viewer: Mastlänge und Anbauteile bearbeitbar, Typ nur sichtbar, Auflager und Lastbeiwerte aus',
+       S.feldRecht('mastLaenge', 'viewer') === 'bearbeiten' && S.feldRecht('anbauteile', 'viewer') === 'bearbeiten'
+       && S.feldRecht('typ', 'viewer') === 'sehen' && S.feldRecht('cPhi', 'viewer') === 'aus'
+       && S.feldRecht('gammaG', 'viewer') === 'aus' && S.feldRecht('wkManuell', 'viewer') === 'aus'
+       && !S.gruppeErlaubt('aufl', 'viewer'));
+  wahr('Schulung: Typ, Profil, Anker, Wind bearbeitbar; Lasten von Hand und Auflager aus',
+       ['typ', 'L', 'mastProfil', 'ankerTyp', 'windKlasse', 'schneeAktiv']
+         .every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
+       && S.feldRecht('gkManuell', 'schulung') === 'aus' && S.feldRecht('mastWindX', 'schulung') === 'aus'
+       && !S.gruppeErlaubt('aufl', 'schulung'));
+  wahr('Was der Viewer bearbeiten darf, darf auch die Schulung',
+       SCH.FELDER.every((f) => S.feldRecht(f.key, 'viewer') !== 'bearbeiten'
+                              || S.feldRecht(f.key, 'schulung') === 'bearbeiten'));
+  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung dazu Verläufe',
+       ['uebersicht', 'auflager'].every((t) => S.auswertungErlaubt(t, 'viewer'))
+       && !S.auswertungErlaubt('verlauf', 'viewer') && S.auswertungErlaubt('verlauf', 'schulung')
+       && !S.auswertungErlaubt('schnitt', 'schulung'));
+  wahr('Export: keine Ausleitung nach AxisVM/PyNite in den leichten Stufen, Excel nur in der Schulung',
+       !S.exportErlaubt('excel', 'viewer') && S.exportErlaubt('excel', 'schulung')
+       && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'viewer') && !S.exportErlaubt(x, 'schulung')));
+  wahr('Plots im Viewer: η und w; Schulung alle',
+       S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
+       && S.plotErlaubt('sig', 'schulung'));
+  const h = S.herkunftMarkieren({ a: 1 }, 'viewer');
+  wahr('Herkunftsmerker: gesetzt in der leichten Stufe, Hinweis in der Vollversion',
+       h.geaendertIn === 'viewer' && S.herkunftMarkieren({ a: 1 }, 'voll').geaendertIn === undefined
+       && /Viewer/.test(S.herkunftHinweis(h) ?? '') && S.herkunftHinweis({}) === null);
+  // Die Stellvertreter des Bündlers dürfen nie an der Rechnung hängen.
+  const BQ = readFileSync(join(HIER, 'build_html.py'), 'utf8');
+  const stell = (BQ.match(/STELLVERTRETER = \(([^)]*)\)/)?.[1] ?? '').match(/"[^"]+"/g)?.map((x) => x.slice(1, -1)) ?? [];
+  const importeure = (n) => readdirSync(join(HIER, 'js')).filter((f) => f.endsWith('.js')
+    && readFileSync(join(HIER, 'js', f), 'utf8').includes(`from './${n}'`));
+  const anRechnung = stell.flatMap((n) => importeure(n).filter((f) => /^(core|data)\./.test(f)).map((f) => `${f} → ${n}`));
+  wahr('Bündler ersetzt fünf Fachwerkzeuge, keines davon hängt an core.* oder data.*',
+       stell.length === 5 && !anRechnung.length, anRechnung.join(', '));
+  wahr('Bündler: --stufe schreibt STUFE_FEST, leichte Dateien ohne Daten und ohne COM-Skripte',
+       QS.includes('const STUFE_FEST = null;') && BQ.includes("const STUFE_FEST = '{stufe}';")
+       && BQ.includes('"--mit-daten" not in sys.argv') && BQ.includes('([] if stufe else COM_SKRIPTE)'));
+  const AQ = APP_QUELLE();
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Oberfläche: Stufe am Wurzelelement, Band mit Vermerk, Stilblatt blendet Werkzeuge aus',
+       AQ.includes('document.documentElement.dataset.stufe = STUFE;') && AQ.includes('stufe-band')
+       && CQ.includes('html[data-stufe="viewer"] [data-generator]')
+       && CQ.includes('html[data-stufe="viewer"] .qp-kacheln'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

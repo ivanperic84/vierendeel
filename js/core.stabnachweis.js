@@ -30,6 +30,7 @@
 import { randspannung, winkelwerteFuer, winkelGetauscht } from './core.winkel.js';
 import { getProfil, getGurtprofil } from './data.profiles.js';
 import { woelbtorsion } from './core.mast.js';
+import { LEICHT } from './stufe.js';
 
 /** Welche Rolle spielt dieser Stab im Tragwerk? */
 export function stabRolle(name, art = 'stab') {
@@ -1397,10 +1398,14 @@ export const STABWERK_AUSLOESUNG = [
   { key: 'knopf', titel: 'Auf Knopfdruck', was: 'rechnet nur mit «Rechnen» in der Stabwerksleiste' },
 ];
 export const stabwerkAuslosungVon = (werte) =>
-  (werte?.stabwerkAuslosung === 'knopf' ? 'knopf' : 'echtzeit');
+  // Viewer / Schulung (15. November): immer Echtzeit - kein Knopf zu suchen.
+  (!LEICHT && werte?.stabwerkAuslosung === 'knopf' ? 'knopf' : 'echtzeit');
 
 /** Welches Verfahren gilt? Alte Staende kennen das Feld nicht. */
 export function verfahrenVon(werte) {
+  // Viewer / Schulung (15. November): immer das Stabwerk - der Ersatzbalken
+  // ist ein Werkzeug der Fachperson.
+  if (LEICHT) return 'stabwerk';
   const k = werte?.rechenverfahren;
   return RECHENVERFAHREN.some((v) => v.key === k) ? k : RECHENVERFAHREN_VORGABE;
 }

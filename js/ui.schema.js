@@ -43,6 +43,7 @@ import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { nachweiseAuswahl } from './core.checks.js';
+import { feldRecht, optionenThemaErlaubt } from './stufe.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
          SPANNUNGSMODELLE, KNOTENBEREICHE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
@@ -2603,7 +2604,9 @@ export function sichtbareFelder(gruppe, werte) {
    */
   return FELDER.filter((f) => (typeof f.gruppeAus === 'function' ? f.gruppeAus(werte) : f.gruppe) === gruppe
                            && !f.optionenDialog && !f.versteckt
-                           && (!f.sichtbar || f.sichtbar(werte)));
+                           && (!f.sichtbar || f.sichtbar(werte))
+                           // Viewer / Schulung (15. November): nur Freigegebenes.
+                           && feldRecht(f.key) !== 'aus');
 }
 
 /**
@@ -2693,7 +2696,8 @@ export function optionenFelder(werte, thema = null) {
 
 /** Reiter, die tatsaechlich etwas zu zeigen haben. */
 export function optionenThemen(werte) {
-  return OPTIONEN_THEMEN.filter((t) => t.eigen || optionenFelder(werte, t.key).length);
+  return OPTIONEN_THEMEN.filter((t) => (t.eigen || optionenFelder(werte, t.key).length)
+    && optionenThemaErlaubt(t.key));
 }
 
 /** Übernimmt einen Katalogtyp in die Eingabewerte. */

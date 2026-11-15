@@ -22,6 +22,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { STUFE, LEICHT, STUFEN_TITEL, VERMERK } from './stufe.js';
 import { gelaendeVon } from './data.masten.js';
 import { verortung, tragwerksart } from './core.constants.js';
 import { NACHWEISGRUPPEN } from './core.checks.js';
@@ -142,6 +143,7 @@ function deckblatt(d) {
   const ort = verortung(werte);
   return `<section class="deckblatt">
     <p class="ueber">Statischer Nachweis</p>
+    ${LEICHT ? `<p class="vermerk-stufe">${esc(VERMERK)} · Fassung «${esc(STUFEN_TITEL[STUFE])}»</p>` : ''}
     <h1>${esc(werte.name || art.label)}</h1>
     ${ort ? `<p class="ort">${esc(ort)}</p>` : ''}
     ${angaben([
@@ -946,6 +948,8 @@ export const STIL = `
   .marke.ok { color: #1a6b2a; } .marke.nok { color: #b00020; } .marke.offen { color: #8a5a00; }
   .deckblatt .ueber { text-transform: uppercase; letter-spacing: .12em; color: #555; margin-top: 20mm; }
   .deckblatt .ort { font-size: 11pt; color: #333; }
+  .deckblatt .vermerk-stufe { border: 1.5px solid #b00; color: #b00; padding: 2mm 3mm;
+    font-weight: 600; display: inline-block; margin: 2mm 0; }
   .gesamturteil { border: 2px solid; padding: 4mm; margin: 8mm 0 4mm; }
   .gesamturteil.ok { border-color: #1a6b2a; } .gesamturteil.nok { border-color: #b00020; }
   .gesamturteil .gz { font-size: 18pt; font-weight: 700; }

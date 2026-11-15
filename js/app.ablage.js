@@ -9,6 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { STUFE, LEICHT, herkunftMarkieren } from './stufe.js';
 import { standAnheben, fzNachObenAnheben, psiAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart, sichtbareTragwerke, lageVon, lageOrtsnull,
@@ -781,6 +782,22 @@ export async function ablageSpeichern(app, neu = false) {
 
 /** Den jetzigen Stand in die Ablage legen - ueberschreiben oder neu. */
 export async function sichereAktuell(app, neu = false, bemerkung = undefined) {
+  /*
+   * VIEWER UND SCHULUNG (15. November): der Stand trägt, wo er verändert
+   * wurde. Der Viewer überschreibt nie einen fremden Eintrag - beim ersten
+   * Sichern entsteht eine Kopie «… (Viewer)», danach wird diese
+   * nachgeführt (Weisung «Speichern nur als Kopie», Freigabeliste).
+   */
+  if (LEICHT) app.werte = herkunftMarkieren(app.werte);
+  if (STUFE === 'viewer' && !neu && app.projekt.id) {
+    const vorher = await store.laden(app.projekt.id).catch(() => null);
+    if (vorher?.werte?.geaendertIn !== 'viewer') {
+      neu = true;
+      if (!/\(Viewer\)$/.test(app.projekt.name ?? '')) {
+        app.projekt = { ...app.projekt, name: `${app.projekt.name ?? 'Tragwerk'} (Viewer)` };
+      }
+    }
+  }
   // Ohne Datum gilt der Tag der Ablage; der Bearbeiter wird vorgemerkt.
   if (!String(app.werte.datum ?? '').trim()) app.werte = { ...app.werte, datum: heute() };
   if (String(app.werte.bearbeiter ?? '').trim()) {

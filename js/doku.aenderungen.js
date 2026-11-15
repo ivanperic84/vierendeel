@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Zwei leichte Fassungen für Auftraggeber und Schulung: «Viewer» (ansehen, Anbauteile setzen und verschieben, Mastlänge und -lage ändern) und «Schulung» (Tragwerke selbst aufbauen, Einwirkungen variieren). Beide rechnen mit dem Stabwerk wie die Vollversion, tragen den Vermerk «Vorabprüfung - kein geprüfter statischer Nachweis» und kennen keine Ausleitung nach AxisVM. Ein Stand, der dort verändert wurde, ist in der Vollversion als solcher gekennzeichnet.' },
       { text: 'Nachweisbericht (Stabwerk): die verformte Figur quer zum Gleis im Kapitel Gebrauchstauglichkeit - Fahrdrähte und Mastköpfe mit ihrer Auslenkung in mm, massgebender Fall nur Wind × 0.70.' },
       { text: 'Nachweisbericht: die Lastbilder je Lastfall stehen in Isometrie - auch Wind längs zum Gleis ist so zu sehen; Pfeile ausgedünnt.' },
       { text: 'Nachweisbericht: der Ablauf der Fundamentbestimmung steht je Richtung Schritt für Schritt da - jede Prüfung mit Einwirkung, zulässigem Wert und η, jede Abminderung mit eingesetzten Zahlen.' },

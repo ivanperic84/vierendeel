@@ -16,6 +16,7 @@ import { anbauGruppe } from './data.anbauteile.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
+import { STUFE, LEICHT } from './stufe.js';
 import * as ui from './ui.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
@@ -34,9 +35,34 @@ export function kontextSchliessen(app) {
  * @param {[number,number]} bei   Punkt in CSS-Pixeln
  * @param {Array} punkte          {text, tun, warn} - null trennt Gruppen
  */
+/*
+ * VIEWER UND SCHULUNG (15. November): das Kontextmenü bietet nur, was die
+ * Freigabeliste erlaubt. Der Viewer baut keine Tragwerke an oder um
+ * (anlegen, Art, Lage, duplizieren, entfernen, Masten und Anker bearbeiten,
+ * Bausteinwahl); die Schulung setzt keine Lasten von Hand zurück. Gefiltert
+ * wird an EINER Stelle nach dem Wortlaut der Einträge - jeder Menüpunkt
+ * geht hier durch.
+ */
+const VIEWER_NICHT = /(bearbeiten …|duplizieren …|entfernen|zwischen .* …| ab .* …|Mast mit Tragausleger|^Masten von|Steg drehen|Gemeinsame Angaben|Zurücksetzen auf die Datenbankwerte|Vom Blatt nehmen|Zeichnung)/;
+const VIEWER_FELD_NICHT = new Set(['Art', 'Lage x₀', 'Typ']);
+const SCHULUNG_NICHT = /Zurücksetzen auf die Datenbankwerte/;
+function kontextErlaubt(p) {
+  if (!LEICHT || typeof p !== 'object') return true;
+  const text = p.text ?? '';
+  if (STUFE === 'viewer') {
+    if (p.feld && VIEWER_FELD_NICHT.has(p.feld.label)) return false;
+    return !VIEWER_NICHT.test(text);
+  }
+  return !SCHULUNG_NICHT.test(text);
+}
+
 export function kontextZeigen(app, bei, punkte) {
   kontextSchliessen(app);
-  const echte = punkte.filter(Boolean);
+  const echte = punkte.filter(Boolean).filter(kontextErlaubt);
+  // Kein Trennstrich am Anfang, am Ende oder doppelt (nach dem Filtern).
+  for (let i = echte.length - 1; i >= 0; i--) {
+    if (echte[i] === '-' && (i === 0 || i === echte.length - 1 || echte[i - 1] === '-')) echte.splice(i, 1);
+  }
   if (!echte.length) return;
   const n = document.createElement('div');
   n.className = 'kontext';

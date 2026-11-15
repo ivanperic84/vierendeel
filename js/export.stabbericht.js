@@ -30,6 +30,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { STUFE, LEICHT, STUFEN_TITEL, VERMERK } from './stufe.js';
 import { esc, zahl, tabelle, angaben, formel, urteilMarke, bild, feldText,
          STIL, FARBEN_DRUCK, knickHtml, fundamentHtml, FUNDAMENT_TEXT,
          gebrauchKapitel, NUR_JOCH, berichtVorgabe } from './export.nachweisbericht.js';
@@ -226,6 +227,7 @@ function deckblatt(d, U) {
   const gut = U.eta !== null && !U.ueber;
   return `<section class="deckblatt">
     <p class="ueber">Statischer Nachweis · Stabwerk</p>
+    ${LEICHT ? `<p class="vermerk-stufe">${esc(VERMERK)} · Fassung «${esc(STUFEN_TITEL[STUFE])}»</p>` : ''}
     <h1>${esc(b.name || 'Querprofil')}</h1>
     ${b.ort ? `<p class="ort">${esc(b.ort)}</p>` : ''}
     ${d.opt.bilder.modell3d && d.bilder?.modell3d

@@ -56,6 +56,9 @@ Vergleich_AxisVM_Signaljoch.md
 # `python3 build_html.py [--ohne-daten]` stellt sie in Sekunden wieder her.
 vierendeel_tool.html
 vierendeel_tool_ohne_daten.html
+# Viewer und Schulung (15. November): `python3 build_html.py --stufe viewer|schulung`.
+vierendeel_viewer*.html
+vierendeel_schulung*.html
 
 # Der Excel-Erzeuger nennt Betreiber und Zeichnungsnummern im Klartext und ist
 # mit dem heutigen Rechenkern ohnehin nicht mehr synchron.

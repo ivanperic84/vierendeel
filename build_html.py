@@ -13,7 +13,8 @@ Die Module bleiben die Quelle - hier wird nur gebündelt:
     Hilfsfunktionen (esc, n, rect, ...) sich nicht in die Quere kommen
   * die Reihenfolge ergibt sich aus einer topologischen Sortierung
 
-Aufruf:  python3 build_html.py
+Aufruf:  python3 build_html.py [--ohne-daten]
+        python3 build_html.py --stufe viewer|schulung [--mit-daten]
 ================================================================================
 """
 
@@ -312,7 +313,48 @@ def schreibe_stand():
     print(f"Stand: {datum}, Fassung {fassung}")
 
 
-def main(ohne_daten=False):
+# ---------------------------------------------------------------------------
+# VIEWER UND SCHULUNG (15. November)
+#
+# Weisung: «ich wäre für eine separate datei die nur das nötigste enthält. eine
+# für viewer und eine für die schulung.» `--stufe viewer|schulung` schreibt
+# js/stufe.js mit der festen Stufe um und ersetzt die Werkzeuge der Fachperson
+# durch Stellvertreter: die Ausleitungen nach AxisVM/SAF/DXF (Dialog), PyNite,
+# die COM-Skripte und die Gegenrechnung stehen in der Datei gar nicht erst -
+# ein ausgeblendeter Knopf liesse sich mit zwei Zeilen wieder einschalten, ein
+# fehlendes Modul nicht. Jede Funktion des Stellvertreters meldet laut, dass
+# sie in dieser Fassung fehlt; die Oberfläche bietet sie ohnehin nicht an.
+#
+# Ohne `--mit-daten` OHNE Betreiberdaten: die leichten Dateien sind zum
+# Weitergeben gedacht, das Datenpaket wird intern verteilt.
+# ---------------------------------------------------------------------------
+STUFEN = ("viewer", "schulung")
+STELLVERTRETER = ("app.axisvm.js", "export.pynite.js", "export.comskripte.js",
+                  "core.axisvergleich.js", "export.gegenrechnung.js")
+
+
+def stellvertreter(name, text):
+    """Ein Modul mit denselben Exporten, die nichts tun ausser zu melden."""
+    zeilen = [f"/* {name}: in dieser Fassung nicht enthalten (build_html.py --stufe). */",
+              "const fehlt = (n) => () => { throw new Error(n + ': in dieser Fassung nicht enthalten.'); };"]
+    for m in RE_EXPORT_DECL.finditer(text):
+        art, n = m.group(2), m.group(3)
+        if art in ("function", "class"):
+            zeilen.append(f"export const {n} = fehlt('{n}');")
+        else:
+            # Konstanten: was sie waren, ist nicht zu ersetzen - ein leerer Wert,
+            # der gelesen werden kann, ohne zu brechen.
+            zeilen.append(f"export const {n} = Object.freeze([]);")
+    for m in RE_EXPORT_LISTE.finditer(text):
+        for teil in m.group(1).split(","):
+            teil = teil.strip()
+            if teil:
+                n = teil.split(" as ")[-1].strip()
+                zeilen.append(f"export const {n} = fehlt('{n}');")
+    return "\n".join(zeilen) + "\n"
+
+
+def main(ohne_daten=False, stufe=None):
     """
     ohne_daten: die drei Datenbanken NICHT einbetten. Ergibt eine Ausgabe, die
     ohne Zahlen des Betreibers weitergegeben werden kann; die Anwendung fragt
@@ -322,6 +364,15 @@ def main(ohne_daten=False):
     # der Meldung. Erst danach zusammensetzen.
     pruefe_module(sorted(JS.glob("*.js")))
     module = {p.name: p.read_text(encoding="utf-8") for p in sorted(JS.glob("*.js"))}
+    if stufe:
+        if stufe not in STUFEN:
+            raise SystemExit(f"--stufe {stufe}: bekannt sind {', '.join(STUFEN)}")
+        alt = "const STUFE_FEST = null;"
+        if alt not in module["stufe.js"]:
+            raise SystemExit("js/stufe.js: Zeile «const STUFE_FEST = null;» fehlt.")
+        module["stufe.js"] = module["stufe.js"].replace(alt, f"const STUFE_FEST = '{stufe}';")
+        for n in STELLVERTRETER:
+            module[n] = stellvertreter(n, module[n])
     if EINSTIEG not in module:
         raise SystemExit(f"Einstiegsmodul {EINSTIEG} fehlt in {JS}")
 
@@ -478,7 +529,7 @@ def main(ohne_daten=False):
     if TAG_COM not in html:
         raise SystemExit("Platzhalter fehlt in index.html:\n  " + TAG_COM)
     skripte = {}
-    for n in COM_SKRIPTE:
+    for n in ([] if stufe else COM_SKRIPTE):
         p = WURZEL / "com" / n
         if not p.is_file():
             raise SystemExit(f"com/{n} fehlt - die Bruecke waere unvollstaendig.")
@@ -502,6 +553,8 @@ def main(ohne_daten=False):
     # Die datenfreie Ausgabe bekommt einen eigenen Namen, damit sie die
     # vollständige nicht überschreibt.
     ziel = ZIEL.with_name(ZIEL.stem + "_ohne_daten" + ZIEL.suffix) if ohne_daten else ZIEL
+    if stufe:
+        ziel = WURZEL / (f"vierendeel_{stufe}" + ("" if ohne_daten else "_mit_daten") + ".html")
     # SYNTAXPRÜFUNG DES BUNDLES
     # Die Modulversion verträgt Schreibweisen, die das Bundle nicht verträgt
     # (siehe benannter_import). Ein Syntaxfehler zeigt sich dort erst beim
@@ -523,4 +576,10 @@ if __name__ == "__main__":
     # jedem Bauen aufgefrischt, unabhängig davon, welche Einzeldatei entsteht.
     schreibe_stand()
     schreibe_sw()
-    sys.exit(main(ohne_daten="--ohne-daten" in sys.argv))
+    stufe = None
+    if "--stufe" in sys.argv:
+        i = sys.argv.index("--stufe")
+        stufe = sys.argv[i + 1] if i + 1 < len(sys.argv) else ""
+    # Leichte Dateien sind zum Weitergeben: ohne Daten, ausser ausdruecklich.
+    ohne = "--ohne-daten" in sys.argv or (stufe is not None and "--mit-daten" not in sys.argv)
+    sys.exit(main(ohne_daten=ohne, stufe=stufe))

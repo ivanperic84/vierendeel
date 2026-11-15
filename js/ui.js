@@ -35,6 +35,7 @@ import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerTypen, abfangBindeblech, abfangLaengen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
+import { LEICHT, feldRecht, gruppeErlaubt, auswertungErlaubt } from './stufe.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -251,9 +252,11 @@ export const EINZELMAST_TABS = AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt')
  * und verschwände wieder. Eine Stelle für Reiterleiste und Schiene.
  */
 export function auswertungTabs(werte, mitJoch = true) {
-  if (!mitJoch) return EINZELMAST_TABS;
-  return verfahrenVon(werte) === 'stabwerk'
-    ? AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt') : AUSWERTUNG_TABS;
+  const alle = !mitJoch ? EINZELMAST_TABS
+    : verfahrenVon(werte) === 'stabwerk'
+      ? AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt') : AUSWERTUNG_TABS;
+  // Viewer / Schulung (15. November): nur die freigegebenen Reiter.
+  return alle.filter((t) => auswertungErlaubt(t.id));
 }
 
 export function zeichneTabs(node, tabs, aktiv, beiWahl) {
@@ -298,7 +301,7 @@ let aktuelleWerte = null;
  */
 export function gruppenFuer(tab, werte) {
   const gruppen = EINGABE_TABS.find((t) => t.id === tab)?.gruppen ?? [];
-  return gruppen.filter((gid) => gruppeGilt(gid, werte));
+  return gruppen.filter((gid) => gruppeGilt(gid, werte) && gruppeErlaubt(gid));
 }
 
 export function maskenSignatur(werte, tab) {
@@ -1322,6 +1325,8 @@ export function blechUebersichtHtml(erg) {
  * womit gerechnet wird. Entsperrt schaltet die Herkunft auf "manuell".
  */
 function lastenKnopf(werte) {
+  // Lasten von Hand gehören der Fachperson (Viewer / Schulung).
+  if (LEICHT) return '';
   return `<button class="btn btn-mini${werte.lastenBearbeiten ? ' btn-acc' : ''}"
     data-lasten-bearbeiten type="button"
     title="${werte.lastenBearbeiten
@@ -1331,6 +1336,8 @@ function lastenKnopf(werte) {
 }
 
 function bearbeitenKnopf(werte) {
+  // Katalogmasse freischalten gehört der Fachperson (Viewer / Schulung).
+  if (LEICHT) return '';
   return `<button class="btn btn-mini${werte.bearbeiten ? ' btn-acc' : ''}"
     data-bearbeiten type="button"
     title="${werte.bearbeiten
@@ -2668,7 +2675,9 @@ export function feldHtml(f, wert, werte) {
   // Groesse anschreibt und keine Eingabe ist (w_Mast,y seit 20. September).
   const gesperrt = (f.ausDB && !werte.bearbeiten) ||
                    (f.ausLast && !werte.lastenBearbeiten) ||
-                   f.nurAnzeige === true;
+                   f.nurAnzeige === true ||
+                   // Viewer / Schulung: sichtbar, aber nicht freigegeben.
+                   feldRecht(f.key) === 'sehen';
   /*
    * DER HINWEIS DARF EINE FUNKTION SEIN - wie das Label darueber.
    *
