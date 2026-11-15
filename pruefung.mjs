@@ -39088,6 +39088,23 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
          !!wx && Math.abs(wx.summe[0] - sollWx) < 1e-6 && Math.abs(wx.summe[2]) < 1e-9 && wx.svg.includes('kN/m'),
          `${wx?.summe?.[0]?.toFixed(3)} / ${sollWx.toFixed(3)}`);
     wahr('… ohne Lasten in der Gruppe kein Bild', ZB.lastSvg(a14.roh.dat, { gruppen: ['GibtsNicht'] }) === null);
+    // Isometrie (15. November, «diese darstellungen als iso aufführen»).
+    {
+      const wyI = ZB.lastSvg(a14.roh.dat, { gruppen: ['WindY'], blick: 'iso' });
+      const wyL = ZB.lastSvg(a14.roh.dat, { gruppen: ['WindY'], blick: 'laengs' });
+      const pfeile = (r) => (r?.svg.match(/<polygon points="[^"]*" fill="#/g) ?? []).length;
+      const [ux, vx] = ZB.isoProjektion([1, 0, 0]), [uy, vy] = ZB.isoProjektion([0, 1, 0]), [uz, vz] = ZB.isoProjektion([0, 0, 1]);
+      wahr('Lastbild Isometrie: Wind längs sichtbar (Pfeile, die in der Längsansicht fehlen), Summe gleich, Achsenkreuz',
+           !!wyI && pfeile(wyI) > pfeile(wyL) && Math.abs(wyI.summe[1] - wyL.summe[1]) < 1e-9
+           && wyI.svg.includes('Isometrie (x quer, y längs zum Gleis, z lotrecht)') && />z<\/text>/.test(wyI.svg),
+           `Pfeile iso ${pfeile(wyI)} / längs ${pfeile(wyL)}`);
+      wahr('… Projektion: x nach rechts unten, y nach rechts oben, z lotrecht',
+           ux > 0 && vx < 0 && uy > 0 && vy > 0 && Math.abs(uz) < 1e-12 && vz > 0);
+      const ber15 = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+      const lb = ber15.slice(ber15.indexOf('function lastBilder('), ber15.indexOf('function mastMDiagramme('));
+      wahr('… alle vier Lastbilder des Berichts in Isometrie', (lb.match(/\], 'iso',/g) ?? []).length === 4
+           && !/\], '(laengs|quer)',/.test(lb));
+    }
     wahr('… 3D-Bild auf dem Deckblatt, kein Kapitel «Übersicht» mehr; Lastbilder im Kapitel Einwirkungen',
          sber.includes('class="titelbild"') && !sber.includes('§ Übersicht') && sber.includes('Lastbilder je Lastfall')
          && ber.includes('lasten: b.lasten ? lastBilder(d.sw) : null'));

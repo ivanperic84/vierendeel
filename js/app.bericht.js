@@ -352,11 +352,11 @@ function lastBilder(sw) {
   const dat = sw?.roh?.dat;
   if (!dat) return null;
   return [
-    ['Ständige Lasten (Eigengewicht der Stäbe, Anbauteile, Ablenkkräfte)', ['G', 'G_Anbau', 'G_Ablenk'], 'laengs',
+    ['Ständige Lasten (Eigengewicht der Stäbe, Anbauteile, Ablenkkräfte)', ['G', 'G_Anbau', 'G_Ablenk'], 'iso',
      'Eigengewicht der Masten wirkt in Stabrichtung (nur in der Summe)'],
-    ['Wind quer zum Gleis (+x)', ['WindX'], 'laengs', ''],
-    ['Wind längs zum Gleis (+y)', ['WindY'], 'quer', ''],
-    ['Schnee', ['Schnee'], 'laengs', ''],
+    ['Wind quer zum Gleis (+x)', ['WindX'], 'iso', ''],
+    ['Wind längs zum Gleis (+y)', ['WindY'], 'iso', ''],
+    ['Schnee', ['Schnee'], 'iso', ''],
   ].map(([titel, gruppen, blick, hinweis]) => {
     const r = lastSvg(dat, { gruppen, blick, breite: 860, hinweis });
     return r ? { titel, svg: r.svg } : null;

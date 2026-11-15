@@ -288,9 +288,27 @@ export function systemSvg(dat, o = {}) {
 
 const RICHTUNG = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
 
+/** Isometrie der Lastbilder: Azimut 15°, Höhe 25° (Bildachsen rechts, oben) - das Joch bleibt fast waagrecht. */
+const ISO_A = 15 * Math.PI / 180, ISO_E = 25 * Math.PI / 180;
+const ISO_R = [Math.cos(ISO_A), Math.sin(ISO_A), 0];
+const ISO_O = [-Math.sin(ISO_A) * Math.sin(ISO_E), Math.cos(ISO_A) * Math.sin(ISO_E), Math.cos(ISO_E)];
+export const isoProjektion = (p) => [p[0] * ISO_R[0] + p[1] * ISO_R[1] + p[2] * ISO_R[2],
+                                     p[0] * ISO_O[0] + p[1] * ISO_O[1] + p[2] * ISO_O[2]];
+
+/** Kleines Achsenkreuz x, y, z an der Stelle (X, Y) im Bild. */
+function isoAchsen(X, Y) {
+  const l = 22;
+  return [['x', [1, 0, 0]], ['y', [0, 1, 0]], ['z', [0, 0, 1]]].map(([n, d]) => {
+    const [u, v] = isoProjektion(d);
+    const x2 = X + u * l, y2 = Y - v * l;
+    return `<line x1="${X}" y1="${Y}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#777" stroke-width="0.9"/>`
+      + `<text x="${(x2 + u * 6 - 3).toFixed(1)}" y="${(y2 - v * 6 + 3).toFixed(1)}" font-size="9.5" fill="#777">${n}</text>`;
+  }).join('');
+}
+
 /**
  * Ein Lastbild: die Lasten einiger Lastfallgruppen der Modelldatei auf dem
- * System. Streckenlasten als Band mit Pfeil zum Stab, Einzellasten als
+ * System (Isometrie, Längsansicht oder Querschnitt). Streckenlasten als Band mit Pfeil zum Stab, Einzellasten als
  * Pfeil mit Wert; was in Blickrichtung oder in Stabrichtung wirkt (z. B. das
  * Eigengewicht der Masten), steht nur in der Summe darunter.
  *
@@ -298,8 +316,16 @@ const RICHTUNG = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
  * @returns {{svg: string, summe: number[]}|null}
  */
 export function lastSvg(dat, o = {}) {
-  const H = o.blick === 'quer' ? 1 : 0, Hn = H === 0 ? 1 : 0;   // Hn: Blickrichtung
-  const pr = (p) => [p[H], p[2]];
+  /*
+   * >>> ISOMETRIE (15. November). <<< «diese darstellungen als iso
+   * aufführen, so lässt isch besser erkennen wo welche kraft angreift.»
+   * Senkrechte Parallelprojektion, Blick von vorn links oben (Azimut 15°,
+   * Höhe 25°): x nach rechts unten, y nach rechts oben in die Tiefe, z
+   * lotrecht. Keine Richtung liegt in Blickrichtung - jede Last steht da.
+   */
+  const iso = o.blick === 'iso';
+  const H = o.blick === 'quer' ? 1 : 0, Hn = iso ? -1 : (H === 0 ? 1 : 0);   // Hn: Blickrichtung
+  const pr = iso ? isoProjektion : (p) => [p[H], p[2]];
   const gr = new Set(o.gruppen ?? []);
   const kn = new Map(dat.knoten.map((k) => [k.name, [k.x, k.y, k.z]]));
   const stab = new Map(dat.staebe.map((s) => [s.name, s]));
@@ -315,7 +341,8 @@ export function lastSvg(dat, o = {}) {
   const xAusd = Math.max(...dat.knoten.map((k) => k.x)) - Math.min(...dat.knoten.map((k) => k.x));
   const L = Math.max(ausd, xAusd, hoehe, 1);
   const mL = B / (xAusd + 0.24 * L);
-  const R = rahmen(pts, { l: 0.12 * L, r: 0.12 * L, u: 0.1 * L, o: 0.14 * L }, B, H === 1 ? mL : null);
+  const R = rahmen(pts, iso ? { l: 0.1 * L, r: 0.1 * L, u: 0.06 * L, o: 0.08 * L }
+    : { l: 0.12 * L, r: 0.12 * L, u: 0.1 * L, o: 0.14 * L }, B, H === 1 && !iso ? mL : null);
   const Bb = Math.max(R.B, 360);
   const t = stabSkizze(dat, pr, R, { grau: true });
   const summe = [0, 0, 0];
@@ -329,6 +356,7 @@ export function lastSvg(dat, o = {}) {
       + `<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(x2 - ux * 6 - uy * 3).toFixed(1)},${(y2 - uy * 6 + ux * 3).toFixed(1)} ${(x2 - ux * 6 + uy * 3).toFixed(1)},${(y2 - uy * 6 - ux * 3).toFixed(1)}" fill="${farbe}"/>`;
   };
   const marken = [];
+  const pfeilSpitzen = new Map();
   strecke.forEach((l) => {
     const s = stab.get(l.stab), a = kn.get(s.von), b = kn.get(s.bis);
     const d = RICHTUNG[l.richtung], w = l.wert;
@@ -343,9 +371,15 @@ export function lastSvg(dat, o = {}) {
     t.push(`<line x1="${R.X(A2[0])}" y1="${R.Z(A2[1])}" x2="${R.X(B2[0])}" y2="${R.Z(B2[1])}" stroke="${blau}" stroke-width="0.8"/>`);
     const mx = (R.X(A2[0]) + R.X(B2[0])) / 2, my = (R.Z(A2[1]) + R.Z(B2[1])) / 2;
     const tx = (R.X(A[0]) + R.X(Bq[0])) / 2, ty = (R.Z(A[1]) + R.Z(Bq[1])) / 2;
-    if (Math.hypot(tx - mx, ty - my) > 7) t.push(pfeil(mx, my, tx, ty, blau));
     // Je Stabzug (Name ohne Abschnittsnummer) nur EINE Anschrift: der grösste Wert.
     const zug = `${l.stab.replace(/_S\d+$/, '')}|${l.richtung}`;
+    // Pfeile je Stabzug höchstens alle 28 px (an kurzen Gurtabschnitten
+    // standen sie sonst dicht an dicht, gemeldet 15. November).
+    const spitzen = pfeilSpitzen.get(zug) ?? [];
+    if (Math.hypot(tx - mx, ty - my) > 7 && !spitzen.some(([x, y]) => Math.hypot(x - tx, y - ty) < 28)) {
+      t.push(pfeil(mx, my, tx, ty, blau));
+      spitzen.push([tx, ty]); pfeilSpitzen.set(zug, spitzen);
+    }
     marken.push({ x: mx, y: my, text: `${Math.abs(w).toFixed(2)} kN/m`, v: Math.abs(w), zug });
   });
   punkt.forEach((l) => {
@@ -369,14 +403,17 @@ export function lastSvg(dat, o = {}) {
   marken.filter((mk) => !mk.zug || behalten.has(mk)).sort((a, b) => b.v - a.v).forEach((mk) => {
     const w = mk.text.length * 5.4 + 4, x = mk.x + 3, y = mk.y - 3;
     if (belegt.some((b) => Math.abs(b.x - x) < (b.w + w) / 2 + 6 && Math.abs(b.y - y) < 12)) return;
-    belegt.push({ x, y, w });
+    // Derselbe Wert nicht ein zweites Mal in der Nähe (Isometrie: vier Gurte nebeneinander).
+    if (iso && belegt.some((b) => b.text === mk.text && Math.hypot(b.x - x, b.y - y) < 0.3 * Bb)) return;
+    belegt.push({ x, y, w, text: mk.text });
     t.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="9.5" fill="${mk.farbe ?? blau}">${esc(mk.text)}</text>`);
   });
+  if (iso) t.push(isoAchsen(18, R.H - 14));
   const h = R.H + 22;
   const sumText = `Summe: F_x ${summe[0].toFixed(2)} · F_y ${summe[1].toFixed(2)} · F_z ${summe[2].toFixed(2)} kN`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Bb} ${h}" width="100%" style="max-width:${Bb}px;font-family:Arial,sans-serif">
     ${t.join('')}
-    <text x="4" y="${h - 6}" font-size="10" fill="#555">${esc(`${o.blick === 'quer' ? 'Querschnitt (y nach rechts)' : 'Längsansicht (x nach rechts)'} · ${sumText}${o.hinweis ? ` · ${o.hinweis}` : ''}`)}</text>
+    <text x="4" y="${h - 6}" font-size="10" fill="#555">${esc(`${iso ? 'Isometrie (x quer, y längs zum Gleis, z lotrecht)' : o.blick === 'quer' ? 'Querschnitt (y nach rechts)' : 'Längsansicht (x nach rechts)'} · ${sumText}${o.hinweis ? ` · ${o.hinweis}` : ''}`)}</text>
   </svg>`;
   return { svg, summe };
 }
