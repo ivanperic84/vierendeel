@@ -2731,9 +2731,11 @@ export function handbuchDatei(o = {}) {
       .join(';\n  ');
   }
 
-  const toc = HANDBUCH.map((s) =>
+  // Mit `kurs` das Handbuch zum Kurs (Schulung, 15. November).
+  const kapitel = o.kurs ? KURS_HANDBUCH : HANDBUCH;
+  const toc = kapitel.map((s) =>
     `<a class="hb-toc-e" href="#hb-${s.id}">${s.titel}</a>`).join('');
-  const rumpf = HANDBUCH.map((s) =>
+  const rumpf = kapitel.map((s) =>
     `<section class="hb-abschnitt" id="hb-${s.id}"><h3>${s.titel}</h3>${s.html}</section>`)
     .join('');
 
@@ -2762,4 +2764,95 @@ export function handbuchDatei(o = {}) {
 <nav class="hb-toc"><div class="hb-toc-t">Inhalt</div>${toc}</nav>
 ${rumpf}
 </div></body></html>`;
+}
+
+/* ==========================================================================
+ * >>> DAS HANDBUCH ZUM KURS (15. November). <<<
+ * Weisung: «handbuch kürzen entsprechend der funktionalität im kursmodus. und
+ * biete noch einzelnen erklärungen bezüglich der tragwerksbemessung.» Die
+ * Schulungsfassung zeigt statt der 21 Kapitel der Herleitung dieses kurze
+ * Handbuch: was man tut, was das Ergebnis heisst und wie bemessen wird. Die
+ * Zahlen sind die Vorgaben der Anwendung (Bahn-Satz, S235) - nichts davon
+ * ist hier neu festgelegt.
+ * ======================================================================== */
+export const KURS_HANDBUCH = [
+  { id: 'k-ablauf', titel: '1 So arbeiten Sie', html: `
+    <p>Die Eingabe geht in drei Schritten, mit «Weiter» von einem zum nächsten:</p>
+    <ol>
+      <li><b>Tragwerk</b> - Art (Tragjoch, Einzelmast, Tragausleger, Abfangjoch),
+        Jochtyp und Länge, Höhe des Jochs über dem Boden, die Masten (Profil,
+        Länge, Lage) und bei Bedarf eine Abspannung.</li>
+      <li><b>Anbauteile</b> - eine Vorlage wählen und im 3D an die Stelle klicken,
+        wo das Teil hingehört. In der Karte stehen Standort, Lage bzw. Höhe und
+        am Joch die Befestigung (Untergurt, Obergurt oder beide) mit dem Raster
+        der Klemmen.</li>
+      <li><b>Trasse, Wind, Schnee</b> - Abstand zum nächsten Masten, Kurvenradius,
+        Windzone und Schnee. Darunter steht, welche Lastfälle gerechnet werden.</li>
+    </ol>
+    <p>Gerechnet wird nach jeder Eingabe von selbst. Das Ergebnis steht rechts.</p>` },
+  { id: 'k-ergebnis', titel: '2 Das Ergebnis lesen', html: `
+    <p><b>Ausnutzung</b> = Beanspruchung geteilt durch Widerstand. 100 % heisst:
+      genau an der Grenze. Über 100 % ist ein Bauteil zu schwach.</p>
+    <p>Je Gruppe (Träger, Masten, Anker, Fundamente, Verformung) steht das am
+      stärksten beanspruchte Bauteil. Die Farbe: grün bis 90 %, gelb bis 100 %,
+      rot darüber.</p>
+    <p><b>Spannungen in den Profilen</b>: die grösste Vergleichsspannung σ_v im
+      Profil und die Grenze, gegen die sie steht, in N/mm². Für Stahl S235 ist
+      die Grenze f_yd = 235 / 1.05 = 224 N/mm².</p>
+    <p>Ein Klick auf einen Lastfall unter «Was gerechnet wird» zeigt diesen Fall im
+      3D und im Ergebnis; «Alle Fälle» zeigt je Bauteil den ungünstigsten.</p>` },
+  { id: 'k-modell', titel: '3 Wie gerechnet wird', html: `
+    <p>Das Tragwerk ist ein räumliches <b>Stabwerk</b>: die vier Winkel des Jochs,
+      die Bindebleche dazwischen und die Masten sind Stäbe. Die Masten sind am
+      Fuss eingespannt; das Joch ist an den Masten angeschlossen.</p>
+    <p>Gerechnet wird linear-elastisch: die Schnittgrössen (Normalkraft,
+      Querkraft, Biegung, Torsion) folgen aus den Lasten am unverformten
+      Tragwerk. Anbauteile hängen über starre Glieder an Joch oder Mast; ihre
+      Lasten greifen dort an, wo sie hängen.</p>` },
+  { id: 'k-einwirkungen', titel: '4 Einwirkungen', html: `
+    <ul>
+      <li><b>Eigengewicht</b> - Stäbe, Anbauteile und Leitungen.</li>
+      <li><b>Wind</b> - auf Joch, Masten, Anbauteile und Leitungen; die Windzone
+        legt den Staudruck fest. Er wirkt je Lastfall in einer Richtung: quer zum
+        Gleis (von links oder rechts) oder längs (vorwärts oder rückwärts).</li>
+      <li><b>Schnee</b> - auf Joch und Leitungen, wenn eingeschaltet.</li>
+      <li><b>Umlenkkraft</b> - in der Kurve zieht jede Leitung seitlich am
+        Tragwerk: Z · c / R (Leiterzug mal Abstand zum nächsten Masten durch
+        Kurvenradius). Auf gerader Strecke ist sie null.</li>
+    </ul>` },
+  { id: 'k-kombinationen', titel: '5 Lastfälle und Beiwerte', html: `
+    <p>Ein Lastfall (eine Kombination) überlagert die Einwirkungen mit Beiwerten:</p>
+    <p class="formel">E_d = γ_G · Eigengewicht + γ_Q · leitende Einwirkung + ψ₀ · begleitende Einwirkung</p>
+    <p>Vorgabe (Bahn): γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65. «Starker Wind von links»
+      ist also 1.30 · Eigengewicht + 1.30 · Wind + 0.65 · Schnee; «Viel Schnee,
+      dazu Wind» vertauscht Wind und Schnee. Wo das Eigengewicht entlastet, steht
+      es mit 1.0 in der Kombination.</p>
+    <p>Die Tabelle aller Kombinationen mit ihren Beiwerten öffnet der Knopf
+      «Alle Kombinationen mit Lastbeiwerten» im Schritt 3.</p>` },
+  { id: 'k-nachweise', titel: '6 Nachweise', html: `
+    <ul>
+      <li><b>Joch und Masten</b> - Spannung: σ_v = √(σ² + 3τ²) ≤ f_yd, an jedem
+        Stab, im ungünstigsten Lastfall.</li>
+      <li><b>Fundament</b> - die Kräfte am Mastfuss mit allen Beiwerten 1.0
+        (charakteristisch) gegen die zulässigen Lasten des Fundamenttyps.</li>
+      <li><b>Abspannung</b> - Seil- bzw. Stützenkraft gegen die zulässige Kraft
+        des Typs.</li>
+      <li><b>Verformung</b> - die Seitenlage des Fahrdrahts quer zum Gleis unter
+        Betriebswind (Wind × 0.70) höchstens 40 mm.</li>
+    </ul>` },
+  { id: 'k-grenzen', titel: '7 Grenzen dieser Fassung', html: `
+    <p>Die Schulungsfassung ist eine <b>Vorabprüfung</b>, kein geprüfter
+      statischer Nachweis. Das Knicken der Masten ist in der Vorgabe nicht eingeschaltet;
+      Rechenmodell, Beiwerte und Bauteildaten sind fest eingestellt. Den
+      Nachweis für ein Projekt führt eine Fachperson in der Vollversion.</p>` },
+];
+
+export function kursHandbuchHtml() {
+  const toc = KURS_HANDBUCH.map((s) => `<a class="hb-toc-e" data-zu="${s.id}">${s.titel}</a>`).join('');
+  const rumpf = KURS_HANDBUCH.map((s) =>
+    `<section class="hb-abschnitt" id="hb-${s.id}"><h3>${s.titel}</h3>${s.html}</section>`).join('');
+  return `<div class="hb">
+    <nav class="hb-toc"><div class="hb-toc-t">Inhalt</div>${toc}</nav>
+    <div class="hb-text">${rumpf}</div>
+  </div>`;
 }

@@ -3915,3 +3915,10 @@ html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; backgroun
 /* Schulung: kein Klappblock «Masse aus dem Sortiment» (Katalogmasse und
    Hebelarme gehören der Fachperson). */
 html[data-stufe="schulung"] #maske [data-klapp^="fein-"] { display: none !important; }
+/* Schulung (15. November, «biete noch die möglichkeit die kombinationen matrix
+   aufzurufen mit den einzelnen lastbeiwerten»): die Matrix zum Ansehen -
+   Fälle anpassen, entfernen oder neu anlegen gehört der Fachperson. */
+.lf-matrix-knopf { margin-top: 8px; }
+html[data-stufe="schulung"] [data-lf],
+html[data-stufe="schulung"] [data-lf-weg],
+html[data-stufe="schulung"] [data-lf-neu] { display: none !important; }

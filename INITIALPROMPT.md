@@ -315,7 +315,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7365 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7370 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

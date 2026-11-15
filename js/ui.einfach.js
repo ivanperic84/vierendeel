@@ -337,5 +337,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend') {
       <span><b>Alle Fälle</b> (je Bauteil der ungünstigste)</span><span></span></div>
     ${block('Quer zum Gleis', je.quer)}
     ${block('Längs zum Gleis', je.laengs)}
-    ${block('Weitere', je.weitere)}`;
+    ${block('Weitere', je.weitere)}
+    <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster
+      title="Die Tabelle aller Kombinationen mit den Beiwerten je Einwirkung">Alle Kombinationen mit Lastbeiwerten …</button></div>`;
 }

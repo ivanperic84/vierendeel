@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Schulungsfassung: Knopf zur Tabelle aller Kombinationen mit ihren Lastbeiwerten; ein eigenes, kurzes Handbuch zum Kurs mit Erklärungen zur Bemessung (Einwirkungen, Beiwerte, Nachweise, Grenzen).' },
       { text: 'Leiter-Vorlagen (Kettenwerk, Rückleiter, Abfangungen) sitzen am Masten auf der Mastachse und der gewählten Höhe, ohne Versatz.' },
       { text: 'Rechtsklick auf einen Lastknopf im 3D zeigt nur diese Last, ein zweiter Rechtsklick wieder alle.' },
       { text: 'Schulungsfassung: «Was gerechnet wird» - die Lastfälle nach quer und längs zum Gleis mit ihrer Ausnutzung, ein Klick zeigt den Fall; Zeichnung hinterlegen und über Joch oder Mast einmessen; Skala der Ausnutzung bis 1.0; ohne Nachweisbericht, gespreizte Masten und Gittermasten.' },

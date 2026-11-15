@@ -20,7 +20,8 @@ import { abfangLaengenbereich, abfangjoche } from './data.abfangjoche.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { laengenbereich, tragjoche } from './data.tragjoche.js';
 import { abschnitt, esc, FARBEN as farben, icon } from './design.js';
-import { handbuchDatei, handbuchHtml } from './doku.handbuch.js';
+import { handbuchDatei, handbuchHtml, kursHandbuchHtml } from './doku.handbuch.js';
+import { EINFACH } from './stufe.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { typUebernehmen } from './ui.schema.js';
@@ -384,7 +385,9 @@ function dialogSortimentAbfang(app, { f0, f2, f3 }) {
 const farbtokens = (thema) => farben[thema] ?? farben.hell;
 
 export function dialogHandbuch(app) {
-  const d = app.dialog('Handbuch, Herleitung und Modellgrenzen', handbuchHtml(),
+  // Schulung (15. November): das kurze Handbuch zum Kurs.
+  const d = app.dialog(EINFACH ? 'Handbuch zum Kurs' : 'Handbuch, Herleitung und Modellgrenzen',
+    EINFACH ? kursHandbuchHtml() : handbuchHtml(),
     '<button class="btn" data-datei>Als Datei sichern</button>' +
     '<button class="btn" data-drucken>Drucken / PDF</button>' +
     '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
@@ -393,7 +396,7 @@ export function dialogHandbuch(app) {
   // dass die ganze Anwendung mitgeschickt werden muss.
   d.node.querySelector('[data-datei]').onclick = () => {
     // Helles Thema: die Datei wird gelesen, beigelegt und gedruckt.
-    const html = handbuchDatei({ fussnote: `${APP_NAME} ${app.VERSION}`,
+    const html = handbuchDatei({ fussnote: `${APP_NAME} ${app.VERSION}`, kurs: EINFACH,
                                  tokens: farbtokens('hell') });
     store.dateiSpeichern(html, `${APP_NAME}_Handbuch_${new Date().toISOString().slice(0, 10)}.html`,
                          'text/html;charset=utf-8');

@@ -42106,6 +42106,19 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && ef.gruppen[0].titel === 'Tragjoch' && !ef.html.includes('η 0.865<'));
   wahr('Einfaches Ergebnis: überlastet wird beim Namen genannt',
        E.einfachAusKacheln([{ titel: 'η M2', eta: 1.12, kopf: 'Mast' }]).html.includes('überlastet'));
+  // Handbuch zum Kurs (15. November): die Zahlen sind die Vorgaben der Anwendung.
+  const HB = await import(J('doku.handbuch.js'));
+  const kursText = HB.KURS_HANDBUCH.map((k) => k.html).join(' ');
+  const SCH278 = await import(J('ui.schema.js'));
+  const std = (k) => SCH278.FELDER.find((f) => f.key === k)?.standard;
+  wahr('Handbuch zum Kurs: sieben Kapitel, Beiwerte und f_yd wie die Vorgaben',
+       HB.KURS_HANDBUCH.length === 7 && std('gammaG') === 1.30 && std('psi0') === 0.65 && std('gammaM0') === 1.05
+       && kursText.includes('γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65') && kursText.includes('235 / 1.05 = 224')
+       && kursText.includes('Wind × 0.70) höchstens 40 mm')
+       && HB.kursHandbuchHtml().includes('Grenzen dieser Fassung'));
+  wahr('Lastfälle der Schulung: Knopf zur Matrix mit den Beiwerten',
+       E.kombiEinfachHtml({ lastfaelle: [{ key: 'a', bez: 'Wind +x (quer zum Gleis) leitend', nachweis: true, eta: 0.4 }] })
+         .includes('data-lf-fenster'));
   // Gewählter Fall (15. November): ohne Fundament, Anker, Verformung.
   const efFall = E.einfachAusKacheln([{ titel: 'η M1', eta: 0.4, kopf: 'Mast' },
     { titel: 'η Fundament M1', eta: 0.9, kopf: 'Fundament' }], { fall: 'Starker Wind von links' });
