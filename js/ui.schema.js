@@ -50,7 +50,7 @@ import { TORSIONSMODELLE } from './core.statics.js';
 
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
          mastImModell, mastLaengeVorgabe, einzelmastLaenge,
-         mastLaengeFuer } from './core.auflager.js';
+         mastLaengeFuer, jochEingespannt } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
@@ -800,6 +800,23 @@ export const FELDER = [
    * eta 0.4567 -> 0.5086. Wer die alte Rechnung will, waehlt «teilweise.
    * Steifigkeit aus Mast» - die Wahl bleibt, nur die Vorgabe wechselt.
    */
+  /*
+   * >>> EINSPANNUNG DES JOCHS AM MASTEN, NUR IN DER SCHULUNG (16. November). <<<
+   * Wunsch vom 15. November: «die einspannung der Tragjoche steuern zu
+   * können um zu sehen wie sich das verändet mit der verformung und den
+   * ausnutzungen der joche masten»; am 16. November «einspannung fertig
+   * machen». Zwei Stufen, weil die heutige Lagerung (Obergurt x y, Untergurt
+   * y z, K_XX) in der Jochebene schon gelenkig wirkt - nur EIN Gurt hält in
+   * Jochachse, ein Kräftepaar entsteht nicht. «eingespannt» = beide Gurte
+   * halten x, y, z und K_XX (`JOCH_EINGESPANNT`). Geschrieben wird in
+   * `auflagerLinks`, dieselbe Stelle wie die Auflagerskizze der Vollversion.
+   */
+  { key: 'jochEinspannung', gruppe: 'mast', typ: 'auswahl', label: 'Anschluss Joch am Masten',
+    standard: 'gebaut',
+    optionen: [{ wert: 'gebaut', text: 'wie gebaut (in der Jochebene gelenkig)' },
+               { wert: 'eingespannt', text: 'eingespannt (beide Gurte halten)' }],
+    sichtbar: (w) => EINFACH && tragwerksart(w).key === 'joch' && w.mastVorhanden !== false,
+    wertAus: (w) => (jochEingespannt(w.auflagerLinks) ? 'eingespannt' : 'gebaut') },
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'links', optionen: opt(ENDBEDINGUNGEN),
     sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w),

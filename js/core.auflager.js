@@ -1327,6 +1327,18 @@ export function ohneMastLagerung(inp) {
   return { OG: og, UG: ug, xEnde: e.xEnde === 'B' ? 'B' : 'A', hinweise };
 }
 
+/*
+ * >>> DAS EINGESPANNTE JOCH (16. November, Schulung). <<< Beide Gurte halten
+ * x, y, z und die Torsion; die übrigen Drehungen bleiben frei wie bei jedem
+ * Linkelement (Entscheid vom 9. September). Das Kräftepaar der beiden Gurte
+ * in Jochachse spannt das Joch in seiner Ebene ein.
+ */
+export const JOCH_EINGESPANNT = { OG: { ...VOLL, xx: 'Rigid' }, UG: { ...VOLL, xx: 'Rigid' } };
+export function jochEingespannt(links) {
+  const gleich = (a, b) => a && Object.keys(b).every((k) => a[k] === b[k]);
+  return Boolean(links) && gleich(links.OG, JOCH_EINGESPANNT.OG) && gleich(links.UG, JOCH_EINGESPANNT.UG);
+}
+
 export const LINK_VORGABEN = {
   joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },
   /*

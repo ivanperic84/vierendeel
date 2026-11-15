@@ -538,6 +538,28 @@ def main(ohne_daten=False, stufe=None):
     html = html.replace(
         TAG_COM, '<script type="application/json" id="com-skripte">' + comtext + "</script>")
 
+    # ---------------------------------------------------------------------
+    # DIE UEBUNGSBEISPIELE DER SCHULUNG (16. November, «übungsbeispiel
+    # aufnehmen»). Ablage-Pakete aus data/uebungen.json, als Base64 in die
+    # Schulungsdatei MIT Daten - sie stammen aus Querprofilen des Betreibers
+    # und gehen deshalb nie in eine Datei ohne Daten.
+    # ---------------------------------------------------------------------
+    TAG_UE = '<script type="application/json" id="uebungen-db"></script>'
+    if TAG_UE in html:
+        ue = []
+        liste = DB_JSON.parent / "uebungen.json"
+        if stufe == "schulung" and not ohne_daten and liste.exists():
+            import base64
+            for u in json.loads(liste.read_text(encoding="utf-8")):
+                pfad = WURZEL / u["datei"]
+                if pfad.is_file():
+                    ue.append({"titel": u["titel"],
+                               "b64": base64.b64encode(pfad.read_bytes()).decode("ascii")})
+        html = html.replace(TAG_UE, '<script type="application/json" id="uebungen-db">'
+                            + json.dumps(ue, ensure_ascii=True) + "</script>")
+        if ue:
+            print(f"Übungsbeispiele eingebettet: {len(ue)}")
+
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein
     # fehlendes Manifest; js/pwa.js erkennt an ihrem Fehlen ausserdem, dass es

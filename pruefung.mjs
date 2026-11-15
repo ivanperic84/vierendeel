@@ -42123,8 +42123,8 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   const kursText = HB.KURS_HANDBUCH.map((k) => k.html).join(' ');
   const SCH278 = await import(J('ui.schema.js'));
   const std = (k) => SCH278.FELDER.find((f) => f.key === k)?.standard;
-  wahr('Handbuch zum Kurs: sieben Kapitel, Beiwerte und f_yd wie die Vorgaben',
-       HB.KURS_HANDBUCH.length === 7 && std('gammaG') === 1.30 && std('psi0') === 0.65 && std('gammaM0') === 1.05
+  wahr('Handbuch zum Kurs: acht Kapitel (mit Nutzung), Beiwerte und f_yd wie die Vorgaben',
+       HB.KURS_HANDBUCH.length === 8 && HB.kursHandbuchHtml().includes('Nutzung und Weitergabe') && std('gammaG') === 1.30 && std('psi0') === 0.65 && std('gammaM0') === 1.05
        && kursText.includes('γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65') && kursText.includes('235 / 1.05 = 224')
        && kursText.includes('Wind × 0.70) höchstens 40 mm')
        && HB.kursHandbuchHtml().includes('Grenzen dieser Fassung'));
@@ -42187,6 +42187,19 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        AQ.includes('document.documentElement.dataset.stufe = STUFE;') && AQ.includes('stufe-band')
        && CQ.includes('html[data-stufe="viewer"] [data-generator]')
        && CQ.includes('html[data-stufe="viewer"] .qp-kacheln'));
+  /*
+   * UEBUNGSBEISPIELE (16. November, «übungsbeispiel aufnehmen»). Die Pakete
+   * stammen aus Querprofilen des Betreibers: eingebettet nur in die Schulung
+   * MIT Daten, der Ordner nie in der Ablage, geladen über den Einlesedialog.
+   */
+  const UQ = readFileSync(join(HIER, 'js', 'app.uebungen.js'), 'utf8');
+  wahr('Übungsbeispiele: nur Schulung mit Daten, data/uebungen/ ausgeschlossen',
+       BQ.includes('stufe == "schulung" and not ohne_daten')
+       && readFileSync(join(HIER, '.gitignore'), 'utf8').includes('data/uebungen/')
+       && readFileSync(join(HIER, 'index.html'), 'utf8').includes('id="uebungen-db"'));
+  wahr('Übungsbeispiele: Knopf nur in der Schulung, Laden über dialogEinlesen',
+       AQ.includes('...(EINFACH && uebungenHtml() ? { art: uebungenHtml() } : {})')
+       && AQ.includes('await dialogEinlesen(app, roh,') && UQ.includes('data-uebung'));
 }
 
 console.log('\n' + '='.repeat(104));

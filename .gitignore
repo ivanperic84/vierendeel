@@ -35,6 +35,10 @@ data/*.json
 # Betreiberdaten - bleibt draussen wie die Dateien selbst.
 data/sicherung/
 
+# Übungsbeispiele der Schulung (16. November): Ablage-Pakete aus den
+# Querprofilen des Betreibers - örtlich, wie die Daten.
+data/uebungen/
+
 # Projektunterlagen des Betreibers
 Grundlagen/
 *.axs

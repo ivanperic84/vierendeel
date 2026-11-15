@@ -8,6 +8,7 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
+import { uebungenVorbereiten, uebungenHtml, uebungBytes } from './app.uebungen.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
@@ -125,7 +126,7 @@ import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB,
          mastenDbDa, gitterOhneObenName } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe, einzelmastLaenge,
-         mastLaengeFuer } from './core.auflager.js';
+         mastLaengeFuer, JOCH_EINGESPANNT } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
 import { pwaEinrichten, kannInstallieren, installiere, alsProgramm,
@@ -1616,6 +1617,8 @@ function neuRechnen(neuZeichnen = true) {
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
+          // Schulung (16. November): die Übungsbeispiele im Schritt 1.
+          ...(EINFACH && uebungenHtml() ? { art: uebungenHtml() } : {}),
           // Schulung (15. November): die Lastfälle vereinfacht, nach Richtung.
           komb: EINFACH
             ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi)
@@ -1647,6 +1650,7 @@ function neuRechnen(neuZeichnen = true) {
     if (sig === maskeSig && ui.el('maske').children.length) {
       ui.aktualisiereMaske(ui.el('maske'), werte, extras);
       verdrahteExtras(app);
+      verdrahteUebungen();
       maskenAnkerHalten();
       return;
     }
@@ -1672,6 +1676,7 @@ function neuRechnen(neuZeichnen = true) {
     // Havarie: alle Leiter im 3D, solange der Reiter Lasten offen ist (7. Oktober).
     if (ansicht) ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null;
     verdrahteExtras(app);
+    verdrahteUebungen();
     mEl.scrollTop = rollAlt;
     maskenAnkerHalten();
   };
@@ -3405,6 +3410,12 @@ function aendern(key, wert) {
     werte = setzeMastUnterbau(werte, m.id, u);
     neuRechnen();
     return;
+  }
+  // Einspannung des Jochs (Schulung, 16. November): schreibt die Lagerung am
+  // Masten - eingespannt die beiden Gurte voll, sonst wieder die Vorgabe.
+  if (key === 'jochEinspannung') {
+    return aendern('auflagerLinks', wert === 'eingespannt'
+      ? JSON.parse(JSON.stringify(JOCH_EINGESPANNT)) : null);
   }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });
@@ -7332,6 +7343,19 @@ function zuruecksetzen() {
 
 // --- Start ------------------------------------------------------------------
 
+/** Knopf «… laden» der Übungsbeispiele: derselbe Einlesedialog wie eine Datei. */
+function verdrahteUebungen() {
+  if (!EINFACH) return;
+  ui.el('maske').querySelectorAll('[data-uebung]').forEach((k) => {
+    k.onclick = async () => {
+      try {
+        const roh = await uebungBytes(+k.dataset.uebung);
+        await dialogEinlesen(app, roh, { dateiname: k.textContent.replace(/ laden …$/, '') });
+      } catch (e) { meldeImBalken(`Beispiel nicht lesbar: ${e.message}`); }
+    };
+  });
+}
+
 export async function start() {
   uebertrageTokens(thema);
   /*
@@ -7340,7 +7364,7 @@ export async function start() {
    * Vermerk, dass hier kein geprüfter Nachweis entsteht.
    */
   document.documentElement.dataset.stufe = STUFE;
-  if (EINFACH) begriffeVerdrahten();
+  if (EINFACH) { begriffeVerdrahten(); await uebungenVorbereiten(); }
   if (LEICHT) {
     document.title = `${APP_NAME} · ${STUFEN_TITEL[STUFE]}`;
     const logo = document.querySelector('.tb-logo');

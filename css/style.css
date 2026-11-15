@@ -3922,3 +3922,7 @@ html[data-stufe="schulung"] #maske [data-klapp^="fein-"] { display: none !import
 html[data-stufe="schulung"] [data-lf],
 html[data-stufe="schulung"] [data-lf-weg],
 html[data-stufe="schulung"] [data-lf-neu] { display: none !important; }
+
+/* Übungsbeispiele der Schulung (16. November). */
+.uebungen { margin-top: 10px; }
+.uebungen .btn { margin: 4px 6px 0 0; }

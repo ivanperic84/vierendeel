@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Schulungsfassung: Anschluss Joch am Masten wählbar (wie gebaut / eingespannt), um die Wirkung auf Ausnutzung und Verformung zu sehen.' },
+      { text: 'Schulungsfassung: Übungsbeispiel Tragjoch (Kursaufgabe 1) mit hinterlegter Planzeichnung, im Schritt 1 zu laden; Nutzungsbedingungen im Handbuch zum Kurs.' },
       { text: 'Vorlagen am Joch: Hängestützen 2.0 m lang (Ausleger und Fahrleitung entsprechend höher), Lampe mit Rohr am Joch viermal so hoch. Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },
     ],
   },

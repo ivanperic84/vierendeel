@@ -2845,6 +2845,14 @@ export const KURS_HANDBUCH = [
       statischer Nachweis. Das Knicken der Masten ist in der Vorgabe nicht eingeschaltet;
       Rechenmodell, Beiwerte und Bauteildaten sind fest eingestellt. Den
       Nachweis für ein Projekt führt eine Fachperson in der Vollversion.</p>` },
+  // Nutzungsbedingungen (16. November, «lizenztext und verteilungstext
+  // einfügen»); der volle Text steht in LIZENZ.md der Ablage.
+  { id: 'k-nutzung', titel: '8 Nutzung und Weitergabe', html: `
+    <p>Diese Fassung ist für die Ausbildung im Kurs bestimmt. Sie und die
+      eingebetteten Daten sind vertraulich: nicht weitergeben, nicht
+      veröffentlichen, nicht verändern. Die Ergebnisse dürfen nicht als
+      statischer Nachweis verwendet oder eingereicht werden. Die Anwendung
+      wird ohne Gewähr bereitgestellt; alle Rechte bleiben vorbehalten.</p>` },
 ];
 
 export function kursHandbuchHtml() {
