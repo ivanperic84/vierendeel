@@ -3841,3 +3841,5 @@ html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-lasten) .wz-knoepfe,
 html[data-stufe="schulung"] .wz-linie,
 html[data-stufe="schulung"] #wz-r-werte,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
+/* Schulung: kein Lastgenerator (15. November, «lastengenerator nicht aufführen»). */
+html[data-stufe="schulung"] [data-generator] { display: none !important; }
