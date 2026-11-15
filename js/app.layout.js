@@ -1072,7 +1072,7 @@ export function zeichneSchienen(app) {
 
   const l = ui.el('schiene-links');
   if (l) {
-    l.innerHTML = ui.EINGABE_TABS
+    l.innerHTML = ui.eingabeTabs()
       .map((t) => knopf(t.id, t.icon, `${t.titel} öffnen`, t.id === app.tabEingabe)).join('');
     l.querySelectorAll('[data-reiter]').forEach((b) => {
       b.onclick = () => { app.tabEingabe = b.dataset.reiter; app.neuRechnen(); ausklappen('links'); };

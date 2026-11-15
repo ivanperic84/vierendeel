@@ -35,7 +35,7 @@ import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerTypen, abfangBindeblech, abfangLaengen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
-import { LEICHT, feldRecht, gruppeErlaubt, auswertungErlaubt } from './stufe.js';
+import { LEICHT, feldRecht, gruppeErlaubt, auswertungErlaubt, feldEinfach } from './stufe.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -226,6 +226,11 @@ export const EINGABE_TABS = [
   // Nach Einwirkung gegliedert (6. Oktober): ständig, Wind, Schnee, Bestandesschutz.
   { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['staendig', 'ein', 'schnee', 'bestand', 'havarie', 'komb'] },
 ];
+
+/** Reiter der Eingabe, die in dieser Stufe etwas zeigen (15. November). */
+export function eingabeTabs() {
+  return EINGABE_TABS.filter((t) => t.gruppen.some((g) => gruppeErlaubt(g)));
+}
 
 /** Reiter der Auswertung. */
 export const AUSWERTUNG_TABS = [
@@ -925,7 +930,8 @@ export function aktualisiereMaske(container, werte, extras = {}) {
    * jedem Tastendruck jeden Text im Formular neu zu setzen.
    */
   container.querySelectorAll('[data-feld]').forEach((inp) => {
-    const f = FELDER.find((x) => x.key === inp.dataset.feld);
+    // Schulung (15. November): die einfache Bezeichnung gilt auch hier.
+    const f = feldEinfach(FELDER.find((x) => x.key === inp.dataset.feld));
     if (typeof f?.label !== 'function') return;
     const l = inp.closest('.feld')?.querySelector('label');
     if (!l) return;
@@ -2657,6 +2663,8 @@ export function querprofilLeisteHtml(werte) {
  * DOM - der Aufruf laeuft auch in Node.
  */
 export function feldHtml(f, wert, werte) {
+  // Schulung (15. November): Bezeichnung und Hinweis in einfacher Sprache.
+  f = feldEinfach(f);
   const id = `feld-${f.key}`;
   /*
    * EINE BESCHRIFTUNG DARF DEN MASTEN NENNEN.
@@ -6819,6 +6827,8 @@ export function gzgKacheln(erg) {
        * Hauptkachel regelt weiter `urteilMitGebrauch`.
        */
       ampel(mg.eta), {
+        // Für das einfache Ergebnisfeld der Schulung (15. November).
+        eta: mg.eta,
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
          * Tragsicherheit, und welche von ihnen massgebend wurde, steht

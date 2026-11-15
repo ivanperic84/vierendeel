@@ -7,7 +7,7 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 14. November 2026 - hier weitermachen
 
-Zuletzt (15. November): **Viewer und Schulung** als leichte Fassungen gebaut (`js/stufe.js`, `python3 build_html.py --stufe viewer|schulung`), örtlich committet, nicht gepusht; offen die Übungsbeispiele (Tragjoch, Einzelmast mit NT-Ausleger aus `Grundlagen/QP`), Lizenztext, Verteilung über Pages. Davor: verformte Figur quer zum Gleis im Bericht (gepusht am 15. November); davor Lastbilder im Bericht als Isometrie (gepusht am 15. November); davor Fundamentablauf im Nachweisbericht Schritt für Schritt mit Zahlen (gepusht am 15. November). Davor (14. November): im Nachweisbericht je Mast ein Diagramm M quer / M längs mit Vorzeichen, Zustandsbilder nur noch Gurte M_y und σ_v (Weisung «Ja, so aufteilen»; gepusht am 14. November). Davor: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
+Zuletzt (15. November): **Schulung vereinfacht** (Paket 1: `js/ui.einfach.js`, einfache Sprache in `js/stufe.js`; offen Pakete 2/3 - Anbauteilkarte, Schritte, Begriffe, Viewer). Davor: **Viewer und Schulung** als leichte Fassungen gebaut (`js/stufe.js`, `python3 build_html.py --stufe viewer|schulung`), örtlich committet, nicht gepusht; offen die Übungsbeispiele (Tragjoch, Einzelmast mit NT-Ausleger aus `Grundlagen/QP`), Lizenztext, Verteilung über Pages. Davor: verformte Figur quer zum Gleis im Bericht (gepusht am 15. November); davor Lastbilder im Bericht als Isometrie (gepusht am 15. November); davor Fundamentablauf im Nachweisbericht Schritt für Schritt mit Zahlen (gepusht am 15. November). Davor (14. November): im Nachweisbericht je Mast ein Diagramm M quer / M längs mit Vorzeichen, Zustandsbilder nur noch Gurte M_y und σ_v (Weisung «Ja, so aufteilen»; gepusht am 14. November). Davor: **Zustandslinien im 3D** gebaut (Schalter «Linie» in den Resultaten, Steuerung in der Legende,
 `core.zustandslinien.js`, `app.zustand.js`) und im Nachweisbericht (`export.zustandsbild.js`, fünf Bilder
 im Kapitel Schnittgrössen), dazu Lastbilder je Lastfall, Systemskizze als Vektorbild und das 3D-Bild auf
 dem Deckblatt; örtlich committet, **nicht gepusht**.
@@ -315,7 +315,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7359 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7362 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

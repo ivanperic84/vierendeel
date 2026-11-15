@@ -8,7 +8,8 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
-import { STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { einfachesErgebnis } from './ui.einfach.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -1647,7 +1648,7 @@ function neuRechnen(neuZeichnen = true) {
       return;
     }
     maskeSig = sig;
-    ui.zeichneTabs(ui.el('tabs'), ui.EINGABE_TABS, tabEingabe, (t) => {
+    ui.zeichneTabs(ui.el('tabs'), ui.eingabeTabs(), tabEingabe, (t) => {
       tabEingabe = t; neuRechnen();
     });
     /*
@@ -2227,6 +2228,8 @@ function zeichneAuswertung() {
                              : (kombi.lastfaelle
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
                                 ?? anzeigeKombi) });
+    // Schulung (15. November): ein Satz und Balken, die Kacheln zugeklappt darunter.
+    if (EINFACH) einfachesErgebnis(node, { traeger: tragwerksart(werte).label });
   } else if (tabAuswertung === 'schnitt') {
     /*
      * >>> DAS ABFANGJOCH HAT SEINEN EIGENEN SCHNITT. <<<

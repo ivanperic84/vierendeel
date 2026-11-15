@@ -42064,19 +42064,38 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
          .every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
        && S.feldRecht('gkManuell', 'schulung') === 'aus' && S.feldRecht('mastWindX', 'schulung') === 'aus'
        && !S.gruppeErlaubt('aufl', 'schulung'));
-  wahr('Was der Viewer bearbeiten darf, darf auch die Schulung',
-       SCH.FELDER.every((f) => S.feldRecht(f.key, 'viewer') !== 'bearbeiten'
+  // Schulung vereinfacht (15. November, «Ja, Paket 1 bauen»): nur was man ändern
+  // kann; der Bestandesschutz bleibt dem Viewer.
+  wahr('Was der Viewer bearbeiten darf, darf auch die Schulung (ausser Bestandesschutz)',
+       SCH.FELDER.every((f) => f.key === 'bestandesschutz' || S.feldRecht(f.key, 'viewer') !== 'bearbeiten'
                               || S.feldRecht(f.key, 'schulung') === 'bearbeiten'));
-  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung dazu Verläufe',
+  wahr('Schulung zeigt keine gesperrten Felder, keine Reiter Profile/Lastfälle',
+       SCH.FELDER.every((f) => S.feldRecht(f.key, 'schulung') !== 'sehen')
+       && !S.gruppeErlaubt('prof', 'schulung') && !S.gruppeErlaubt('komb', 'schulung')
+       && S.EINFACH === false);
+  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung nur Übersicht',
        ['uebersicht', 'auflager'].every((t) => S.auswertungErlaubt(t, 'viewer'))
-       && !S.auswertungErlaubt('verlauf', 'viewer') && S.auswertungErlaubt('verlauf', 'schulung')
-       && !S.auswertungErlaubt('schnitt', 'schulung'));
-  wahr('Export: keine Ausleitung nach AxisVM/PyNite in den leichten Stufen, Excel nur in der Schulung',
-       !S.exportErlaubt('excel', 'viewer') && S.exportErlaubt('excel', 'schulung')
+       && !S.auswertungErlaubt('verlauf', 'viewer') && S.auswertungErlaubt('uebersicht', 'schulung')
+       && !S.auswertungErlaubt('verlauf', 'schulung'));
+  wahr('Export: keine Ausleitung nach AxisVM/PyNite und kein Excel in den leichten Stufen',
+       !S.exportErlaubt('excel', 'viewer') && !S.exportErlaubt('excel', 'schulung')
+       && S.exportErlaubt('bericht', 'schulung')
        && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'viewer') && !S.exportErlaubt(x, 'schulung')));
-  wahr('Plots im Viewer: η und w; Schulung alle',
+  wahr('Plots: Viewer η und w, Schulung η und w ohne Spannungen',
        S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
-       && S.plotErlaubt('sig', 'schulung'));
+       && S.plotErlaubt('eta', 'schulung') && !S.plotErlaubt('sig', 'schulung'));
+  // Das einfache Ergebnisfeld liest die Kacheln: Satz, Balken je Gruppe, Prozent.
+  const E = await import(J('ui.einfach.js'));
+  const ef = E.einfachAusKacheln([
+    { titel: 'η Obergurt', eta: 0.42, kopf: 'Joch' }, { titel: 'η Bindeblech', eta: 0.52, kopf: 'Joch' },
+    { titel: 'η M1', eta: 0.69, kopf: 'Mast' }, { titel: 'η Fundament M2', eta: 0.865, kopf: 'Fundament' },
+    { titel: 'Verformung M1', eta: 0.15 }], { traeger: 'Tragjoch' });
+  wahr('Einfaches Ergebnis: ein Satz mit dem Massgebenden, je Gruppe ein Balken in Prozent',
+       ef.gesamt === 0.865 && ef.gruppen.map((g) => g.key).join(',') === 'traeger,mast,fundament,verformung'
+       && ef.html.includes('87 %') && ef.html.includes('Fundament M2') && ef.html.includes('Mast M1')
+       && ef.gruppen[0].titel === 'Tragjoch' && !ef.html.includes('η 0.865<'));
+  wahr('Einfaches Ergebnis: überlastet wird beim Namen genannt',
+       E.einfachAusKacheln([{ titel: 'η M2', eta: 1.12, kopf: 'Mast' }]).html.includes('überlastet'));
   const h = S.herkunftMarkieren({ a: 1 }, 'viewer');
   wahr('Herkunftsmerker: gesetzt in der leichten Stufe, Hinweis in der Vollversion',
        h.geaendertIn === 'viewer' && S.herkunftMarkieren({ a: 1 }, 'voll').geaendertIn === undefined

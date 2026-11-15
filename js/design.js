@@ -316,7 +316,10 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
    * «Gebrauchstauglichkeit selten: Wind +y (Gleisrichtung)» verdrängte die
    * Zahl, um die es geht.
    */
-  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}">
+  // η als Attribut (15. November): das einfache Ergebnisfeld der Schulung
+  // liest die Kacheln - eine Quelle für beide Darstellungen.
+  const etaAttr = Number.isFinite(ziel?.eta) ? ` data-eta="${ziel.eta}"` : '';
+  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}"${etaAttr}>
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>
     ${einheit ? `<div class="kz-e">${esc(einheit)}</div>` : ''}

@@ -3806,3 +3806,38 @@ html[data-stufe="viewer"] [data-bs-oeffnen] { pointer-events: none; }
 /* Beide leichten Stufen: eigene Vorlagen speichern gehört der Fachperson. */
 html[data-stufe="viewer"] .kachel-stift,
 html[data-stufe="schulung"] [data-at-vorlage] { display: none !important; }
+
+/* Schulung, einfaches Ergebnisfeld (15. November, js/ui.einfach.js). */
+.einfach { margin-bottom: 12px; }
+.ef-urteil { display: flex; align-items: center; gap: 12px; padding: 12px;
+  border-radius: 8px; border: 1px solid var(--ol); border-left: 5px solid var(--ok); }
+.ef-urteil.warn { border-left-color: var(--warn); }
+.ef-urteil.fail { border-left-color: var(--fail); }
+.ef-zahl { font-size: 28px; font-weight: 700; white-space: nowrap; }
+.ef-satz { margin: 0; font-size: 13px; line-height: 1.4; }
+.ef-balkenfeld { margin-top: 12px; display: grid; gap: 8px; }
+.ef-zeile { display: grid; grid-template-columns: 96px 1fr 44px; gap: 2px 8px;
+  align-items: center; font-size: 12px; }
+.ef-bahn { position: relative; height: 10px; border-radius: 5px; background: var(--s2, rgba(128,128,128,.18)); }
+.ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--ok); }
+.ef-balken.warn { background: var(--warn); } .ef-balken.fail { background: var(--fail); }
+.ef-grenze { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; background: var(--on, currentColor); opacity: .7; }
+.ef-wert { text-align: right; font-weight: 600; }
+.ef-wert.warn { color: var(--warn); } .ef-wert.fail { color: var(--fail); }
+.ef-wer { grid-column: 2 / 4; font-size: 10.5px; color: var(--dim); }
+.ef-leg { font-size: 10.5px; color: var(--dim); margin: 8px 0 0; }
+.ef-mehr > summary { cursor: pointer; font-size: 11px; color: var(--dim); padding: 6px 0; }
+/* Schulung: Lastfallwahl und technische Fusszeilen weg, immer der ungünstigste Fall. */
+html[data-stufe="schulung"] #einwirkung-wahl,
+html[data-stufe="schulung"] #st-modell,
+html[data-stufe="schulung"] #st-db,
+html[data-stufe="schulung"] label:has(> [data-at-bestand]),
+html[data-stufe="schulung"] .legende-fuss { display: none !important; }
+/* Schulung: Werkzeugleiste im 3D auf Blick, Lasten ein/aus und Ergebnis
+   (Ausnutzung, Verformung) - «nur das nötigste» (15. November). */
+html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-modell),
+html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-zeichnung),
+html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-lasten) .wz-knoepfe,
+html[data-stufe="schulung"] .wz-linie,
+html[data-stufe="schulung"] #wz-r-werte,
+html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
