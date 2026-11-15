@@ -42154,11 +42154,13 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   wahr('Schulung: die gebräuchlichen Vorlagen stehen alle im Katalog, die übrigen fallen weg',
        !fehlen.length && S.vorlageErlaubt('hs-fahrdraht', true) && !S.vorlageErlaubt('frei', true)
        && !S.vorlageErlaubt('signal', true) && S.vorlageErlaubt('frei', false), fehlen.join(', '));
-  wahr('Begriffe: jeder Knopf des Ergebnisses und der Maske hat seine Erklärung',
+  // Seit 16. November ohne «?» («solche fragezeichen texte auch weglassen»);
+  // die Texte bleiben für den Schalter BEGRIFFE_ZEIGEN.
+  wahr('Begriffe: Texte vorhanden, aber kein «?» in Ergebnis und Maske',
        ['joch', 'mast', 'anker', 'fundament', 'verformung', 'ausnutzung', 'wind', 'schnee',
         'spannweite', 'radius', 'anbauteil'].every((k) => E.BEGRIFFE[k]?.text?.length > 40)
-       && E.begriffKnopf('mast').includes('data-begriff="mast"') && E.begriffKnopf('gibtsnicht') === ''
-       && ef.html.includes('data-begriff="ausnutzung"'));
+       && E.BEGRIFFE_ZEIGEN === false && E.begriffKnopf('mast') === ''
+       && !ef.html.includes('data-begriff='));
   const UQ278 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   const CQ278 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Schulung: Schritte mit «Weiter», Karte ohne Module/Gruppe/Kräfte, keine Lageskizze',

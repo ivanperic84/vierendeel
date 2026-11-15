@@ -36,7 +36,7 @@ import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
 import { LEICHT, EINFACH, feldRecht, gruppeErlaubt, auswertungErlaubt, feldEinfach, vorlageErlaubt } from './stufe.js';
-import { begriffeInMaske } from './ui.einfach.js';
+import { begriffeInMaske, BEGRIFFE_ZEIGEN } from './ui.einfach.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -836,7 +836,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     : '';
   container.innerHTML = sprung + koerper + schrittWeiterHtml(tab);
   // Schulung (15. November): «?» hinter den Begriffen, die Laien fremd sind.
-  if (EINFACH) begriffeInMaske(container);
+  if (EINFACH && BEGRIFFE_ZEIGEN) begriffeInMaske(container);
   // Schulung: «Weiter» wählt den nächsten Schritt wie ein Klick auf den Reiter.
   container.querySelector('[data-schritt]')?.addEventListener('click', (e) => {
     document.querySelector(`#tabs [data-tab="${CSS.escape(e.currentTarget.dataset.schritt)}"]`)?.click();

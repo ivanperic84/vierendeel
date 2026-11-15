@@ -224,9 +224,18 @@ const FELD_BEGRIFF = {
 const GRUPPE_BEGRIFF = { traeger: 'joch', mast: 'mast', anker: 'anker',
                          fundament: 'fundament', verformung: 'verformung' };
 
+/*
+ * >>> KEINE «?»-ERKLÄRUNGEN MEHR (16. November). <<<
+ * Weisung mit Bild des «?» an «Jochtyp» und «Länge»: «solche fragezeichen
+ * texte auch weglassen» - wie die Infotexte vom 15. November; die Begriffe
+ * behandelt der Kurs und das Handbuch zum Kurs. Die Texte bleiben hier
+ * stehen, der Schalter holt sie zurück.
+ */
+export const BEGRIFFE_ZEIGEN = false;
+
 export function begriffKnopf(key) {
   const b = BEGRIFFE[key];
-  if (!b) return '';
+  if (!b || !BEGRIFFE_ZEIGEN) return '';
   return `<button type="button" class="begriff-knopf" data-begriff="${esc(key)}"
     title="Was heisst «${esc(b.titel)}»?" aria-label="Erklärung: ${esc(b.titel)}">?</button>`;
 }
