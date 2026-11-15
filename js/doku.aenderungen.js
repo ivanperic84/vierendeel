@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-15',
     punkte: [
+      { text: 'Rechtsklick auf einen Lastknopf im 3D zeigt nur diese Last, ein zweiter Rechtsklick wieder alle.' },
+      { text: 'Schulungsfassung: «Was gerechnet wird» - die Lastfälle nach quer und längs zum Gleis mit ihrer Ausnutzung, ein Klick zeigt den Fall; Zeichnung hinterlegen und über Joch oder Mast einmessen; Skala der Ausnutzung bis 1.0; ohne Nachweisbericht, gespreizte Masten und Gittermasten.' },
       { text: 'Schulungsfassung: ohne Infotexte, Befestigung (Untergurt / Obergurt / beide) mit Raster in der Bauteilkarte, neue Gruppe «Spannungen in den Profilen» (Vergleichsspannung je Profil gegen ihre Grenze); das einfache Ergebnis auch am Einzelmasten.' },
       { text: 'Schulungsfassung: Spannung als Plot und der Reiter Auflager, Lasten je Art und Werte im 3D zuschaltbar, Spannweite und Kurvenradius im Schritt 3, Mastlage auf 0.5 m; Ergebnisfeld im Stil der App. Zahlenfelder zeigen keine Rechenreste mehr (z. B. 16.999999999999996).' },
       { text: 'Bauteilkarte ohne die Lageskizze - Lage und Kette stehen im 3D.' },

@@ -43,7 +43,7 @@ import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { nachweiseAuswahl } from './core.checks.js';
-import { feldRecht, optionenThemaErlaubt } from './stufe.js';
+import { feldRecht, optionenThemaErlaubt, EINFACH } from './stufe.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
          SPANNUNGSMODELLE, KNOTENBEREICHE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
@@ -960,7 +960,9 @@ export const FELDER = [
            + 'Anzeige, Bericht und Excel; gerechnet und ausgeleitet wird '
            + 'weiter unter M1. Leer: M1.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
-    standard: 'HEB 260', optionenAus: () => opt(mastprofileWahl(), 'name', 'name'),
+    standard: 'HEB 260',
+    // Schulung (15. November, «dgp und gittermasten nicht aufführen»): nur Walzprofile.
+    optionenAus: () => opt(mastprofileWahl().filter((p) => !EINFACH || (!p.gitter && !p.gespreizt)), 'name', 'name'),
     // Der Wähler zeigt den Grundtyp; «ohne Rohr» steht im Kästchen darunter.
     wertAus: (w) => gitterBasisName(amMast('profil', 'mastProfil')(w)),
     sichtbar: (w) => mastDa(w) },

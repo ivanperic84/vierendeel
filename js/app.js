@@ -8,7 +8,7 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
-import { einfachesErgebnis, begriffeVerdrahten } from './ui.einfach.js';
+import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -1616,7 +1616,10 @@ function neuRechnen(neuZeichnen = true) {
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
-          komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
+          // Schulung (15. November): die Lastfälle vereinfacht, nach Richtung.
+          komb: EINFACH
+            ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi)
+            : ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
                   { kurz: true, stabwerk: kombiEtaStabwerk(),
                     vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }),
           /*
@@ -2231,7 +2234,14 @@ function zeichneAuswertung() {
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
                                 ?? anzeigeKombi) });
     // Schulung (15. November): ein Satz und Balken, die Kacheln zugeklappt darunter.
-    if (EINFACH) einfachesErgebnis(node, { traeger: tragwerksart(werte).label, teile: stabwerkGilt()?.h?.teile ?? null });
+    if (EINFACH) {
+      einfachesErgebnis(node, { traeger: tragwerksart(werte).label,
+        // Ein gewählter Fall: dessen Spannungen und sein Name im Satz.
+        teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
+          : (stabwerkAnsicht()?.h?.teile ?? null),
+        fall: anzeigeKombi === 'umhuellend' ? null
+          : lastfallEinfach(kombi.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
+    }
   } else if (tabAuswertung === 'schnitt') {
     /*
      * >>> DAS ABFANGJOCH HAT SEINEN EIGENEN SCHNITT. <<<

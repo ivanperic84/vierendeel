@@ -10,6 +10,7 @@
  * Kontextobjekt app. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { EINFACH } from './stufe.js';
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { ausrichtPunkte, ausrichten, bezuegeFuer, bildNachWelt, erkennungsWelt, kalibriere, kalibriereFrei, verkleinere, vorlaeufigeLage } from './bild.zeichnung.js';
 import * as store from './store.js';
@@ -64,7 +65,13 @@ export async function zeichnungEinlegen(app, blob, name = 'Zeichnung') {
      * Jochachse am linken Masten. Genommen wird der erste Bezug, den das
      * Modell hergibt - das Joch, wo es eines gibt, sonst der Mast.
      */
-    const moeglich = bezuegeFuer(app.letzte?.erg?.modell ?? null, app.ansicht.szene);
+    /*
+   * Schulung (15. November, «aber nur das joch oder den masten abgreifen als
+   * option aufführen»): eingemessen wird über die Jochlänge oder die ganze
+   * Mastlänge - kein freies Mass, keine Anschlusshöhe.
+   */
+  const moeglich = bezuegeFuer(app.letzte?.erg?.modell ?? null, app.ansicht.szene)
+    .filter((b) => !EINFACH || b.key === 'joch' || b.key === 'mastLaenge');
     /*
      * DIE MODELLPUNKTE PASSEND ZU DEM, WAS GEFUNDEN WIRD: die Erkennung
      * findet Mastachsen auf der Jochachse und den Mastfuss, nicht Jochenden

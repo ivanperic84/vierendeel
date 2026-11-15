@@ -400,7 +400,8 @@ export function zeichneModellWerkzeuge(app) {
     gruppe('lasten', 'Lasten', gL, WZ_LASTEN(app).map((s) => {
       const fehlt = !s.haupt && !da[s.key];
       return schalter(`wz-l-${s.key}`, s.icon,
-        fehlt ? `${s.text} – im gewählten Lastfall nicht vorhanden` : s.text,
+        fehlt ? `${s.text} – im gewählten Lastfall nicht vorhanden`
+          : `${s.text}${s.haupt ? '' : ' · Rechtsklick: nur diese Last'}`,
         s.haupt ? app.ansicht.ebenen.last : app.ansicht.lastarten[s.key], !gL || fehlt);
     }).join('')) +
     gruppe('resultate', 'Resultate', gR,
@@ -471,6 +472,22 @@ export function zeichneModellWerkzeuge(app) {
       else app.ansicht.lastarten[s.key] = !app.ansicht.lastarten[s.key];
       nach();
     };
+    /*
+     * >>> RECHTSKLICK: NUR DIESE LAST (15. November). <<< Weisung, mit Bild
+     * der Gruppe Lasten: «hier mit rechtsklick die last separieren (alle
+     * anderen ausblenden)». Steht sie schon allein, holt ein zweiter
+     * Rechtsklick alle zurück.
+     */
+    if (!s.haupt) {
+      ui.el(`wz-l-${s.key}`).oncontextmenu = (e) => {
+        e.preventDefault();
+        const arten = WZ_LASTEN(app).filter((x) => !x.haupt).map((x) => x.key);
+        const allein = arten.every((k) => Boolean(app.ansicht.lastarten[k]) === (k === s.key));
+        arten.forEach((k) => { app.ansicht.lastarten[k] = allein ? true : k === s.key; });
+        app.ansicht.ebenen.last = true;
+        nach();
+      };
+    }
   });
   if (!ohneBalken) {
     ui.el('wz-r-kraefte').onclick = () => {
@@ -712,7 +729,13 @@ export function zeichneLegende(app) {
   if (p) {
     // η hat eine feste Skala bis 1.25; alle übrigen Grössen werden auf den
     // grössten Betrag im Modell bezogen, der deshalb dabeisteht.
-    const marken = p.fest
+    /*
+     * Schulung (15. November, «hier sollte die Grenze bei 1.0 sein und nicht
+     * 1.25, sonst kann das missverstanden werden vom user»): die Skala endet
+     * bei 1.0, was darüber liegt, steht rot. Die Farben bleiben dieselben.
+     */
+    const marken = p.fest && EINFACH ? ['0', '0.5', '1.0']
+      : p.fest
       ? ['0', '0.6', '1.0', '1.25']
       : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
     n.innerHTML =

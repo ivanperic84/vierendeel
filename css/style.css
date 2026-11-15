@@ -3857,7 +3857,6 @@ html[data-stufe="schulung"] .legende-fuss { display: none !important; }
 /* Schulung: Werkzeugleiste im 3D auf Blick, Lasten ein/aus und Ergebnis
    (Ausnutzung, Verformung) - «nur das nötigste» (15. November). */
 html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-modell),
-html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-zeichnung),
 html[data-stufe="schulung"] .wz-linie,
 html[data-stufe="schulung"] #wz-zu,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
@@ -3899,3 +3898,17 @@ html[data-stufe="schulung"] #maske .feld:has(#feld-flSpannweite) .feld-notiz { d
 .schritt-weiter { display: flex; justify-content: flex-end; padding: 14px 0 6px; }
 /* Schulung: keine Sprungleiste über den Gruppen - die Schritte sind kurz. */
 html[data-stufe="schulung"] #maske > .sprung { display: none !important; }
+
+/* Schulung (15. November): Zeichnung hinterlegen wieder da («die option
+   querprofilzeichnung hinterlegen wieder aufführen»), eingemessen nur über
+   Joch oder Mast - ohne Masskette und Ausrichten. */
+html[data-stufe="schulung"] #wz-z-masskette,
+html[data-stufe="schulung"] [data-z-ausr] { display: none !important; }
+/* Schulung: die η-Skala endet bei 1.0 - der sichtbare Teil der Rampe ist
+   0 … 1.0 (die Rampe selbst läuft bis 1.25 und wird gestreckt). */
+html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; background-position: left; }
+/* Schulung: «Was gerechnet wird» - je Fall eine Zeile, Klick zeigt ihn im 3D. */
+.lf-einfach { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  padding: 4px 6px; border-radius: var(--m-r1); font-size: 11.5px; color: var(--on2); cursor: pointer; }
+.lf-einfach:hover { background: var(--acc-s); }
+.lf-einfach.gewaehlt { background: var(--acc-s); color: var(--on); box-shadow: inset 2px 0 0 var(--acc); }

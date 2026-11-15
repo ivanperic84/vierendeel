@@ -41945,7 +41945,8 @@ titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fens
   wahr('Lastfälle voll: Tabelle mit allen Zeilen wie bisher',
        voll.includes('<table class="dt kombi">') && [...voll.matchAll(/data-lf-wahl=/g)].length === 7);
   wahr('Leiste zeigt die Kurzfassung, das Fenster die ganze Tabelle',
-       /komb: ui\.kombiMatrixHtml\(letzte\.kombi, erkenneNormensatz\(werte\),\s*\{ kurz: true,/.test(AQ)
+       // Seit dem 15. November mit der vereinfachten Liste der Schulung davor.
+       /: ui\.kombiMatrixHtml\(letzte\.kombi, erkenneNormensatz\(werte\),\s*\{ kurz: true,/.test(AQ)
        && AQ.includes('lastfallTabelle: () =>') && OQ.includes('function dialogLastfaelle(app)'));
   wahr('Fenster kommt nach Anpassen oder Entfernen eines Lastfalls wieder',
        OQ.includes('function dialogLastfall(app, key, zurueck = null)') && OQ.includes('entferneLastfall(app, b.dataset.lfWeg); zurueck?.();'));
@@ -42074,9 +42075,9 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   wahr('Was der Viewer bearbeiten darf, darf auch die Schulung (ausser Bestandesschutz)',
        SCH.FELDER.every((f) => f.key === 'bestandesschutz' || S.feldRecht(f.key, 'viewer') !== 'bearbeiten'
                               || S.feldRecht(f.key, 'schulung') === 'bearbeiten'));
-  wahr('Schulung zeigt keine gesperrten Felder, keine Reiter Profile/Lastfälle',
+  wahr('Schulung zeigt keine gesperrten Felder, kein Reiter Profile, Lastfälle vereinfacht',
        SCH.FELDER.every((f) => S.feldRecht(f.key, 'schulung') !== 'sehen')
-       && !S.gruppeErlaubt('prof', 'schulung') && !S.gruppeErlaubt('komb', 'schulung')
+       && !S.gruppeErlaubt('prof', 'schulung') && S.gruppeErlaubt('komb', 'schulung')
        && S.EINFACH === false);
   wahr('Auswertung: Viewer Übersicht + Auflager, Schulung Übersicht + Auflager',
        ['uebersicht', 'auflager'].every((t) => S.auswertungErlaubt(t, 'viewer'))
@@ -42084,7 +42085,7 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && !S.auswertungErlaubt('verlauf', 'schulung'));
   wahr('Export: keine Ausleitung nach AxisVM/PyNite und kein Excel in den leichten Stufen',
        !S.exportErlaubt('excel', 'viewer') && !S.exportErlaubt('excel', 'schulung')
-       && S.exportErlaubt('bericht', 'schulung')
+       && !S.exportErlaubt('bericht', 'schulung') && S.exportErlaubt('reaktionen', 'schulung')
        && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'viewer') && !S.exportErlaubt(x, 'schulung')));
   // 15. November: «unterhalb der resultaten die reaktionskräfte und die
   // spannungen auswählbar machen» - Spannung als Plot, Reiter Auflager.

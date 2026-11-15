@@ -90,11 +90,11 @@ export function spannungenHtml(teile, kacheln = []) {
     const was = t.teil === 'mast' ? t.name
       : `${TEIL_TEXT[t.teil] ?? t.teil}${mehrereJoche ? ` · ${t.name}` : ''}`;
     const profil = profilAusKacheln(kacheln, t.teil, t.name);
-    const b = Math.min(t.eta, 1.25) / 1.25 * 100;
+    const b = Math.min(t.eta, 1) * 100;
     return `<div class="ef-zeile" title="${esc(was)}: σ_v ${t.sig.toFixed(0)} von ${t.grenze.toFixed(0)} N/mm² (η ${t.eta.toFixed(2)})">
       <span class="ef-name">${esc(was)}</span>
       <span class="ef-bahn"><span class="ef-balken ${farbe(t.eta)}" style="width:${b.toFixed(1)}%"></span
-        ><span class="ef-grenze"></span></span>
+        ></span>
       <span class="ef-wert ${farbe(t.eta)}">${t.sig.toFixed(0)} / ${t.grenze.toFixed(0)}</span>
       <span class="ef-wer">${esc(profil ? `${profil} · ` : '')}σ_v in N/mm²</span>
     </div>`;
@@ -116,7 +116,13 @@ export function einfachAusKacheln(kacheln, opt = {}) {
     const alt = je.get(g);
     if (!alt || k.eta > alt.eta) je.set(g, { eta: k.eta, name: bauteilName(k.titel, g) });
   });
-  const gruppen = GRUPPEN.filter((g) => je.has(g.key)).map((g) => ({
+  /*
+   * Ein gewählter Fall (15. November) zeigt nur, was dieser Fall beansprucht:
+   * Fundament, Anker und Verformung stehen auf eigenen Lastniveaus und
+   * gehören nicht in seine Zahl - dieselbe Regel wie `etaImFall` in ui.js.
+   */
+  const imFall = (g) => !opt.fall || !['fundament', 'anker', 'verformung'].includes(g.key);
+  const gruppen = GRUPPEN.filter((g) => je.has(g.key) && imFall(g)).map((g) => ({
     ...g, titel: g.key === 'traeger' ? (opt.traeger ?? g.titel) : g.titel, ...je.get(g.key),
   }));
   if (!gruppen.length) {
@@ -125,15 +131,15 @@ export function einfachAusKacheln(kacheln, opt = {}) {
   }
   const max = gruppen.reduce((a, b) => (b.eta > a.eta ? b : a));
   const f = farbe(max.eta);
-  const satz = max.eta > 1
+  const satz = (opt.fall ? `Im Fall «${esc(opt.fall)}»: ` : '') + (max.eta > 1
     ? `Das Tragwerk ist <b>überlastet</b>: ${esc(max.name)} erreicht ${prozent(max.eta)} seiner Grenze.`
-    : `Das Tragwerk ist zu <b>${prozent(max.eta)}</b> ausgelastet. Am stärksten beansprucht: ${esc(max.name)}.`;
+    : `Das Tragwerk ist zu <b>${prozent(max.eta)}</b> ausgelastet. Am stärksten beansprucht: ${esc(max.name)}.`);
   const balken = gruppen.map((g) => {
-    const b = Math.min(g.eta, 1.25) / 1.25 * 100;
+    const b = Math.min(g.eta, 1) * 100;
     return `<div class="ef-zeile" title="${esc(g.name)}: ${prozent(g.eta)} (η ${g.eta.toFixed(2)})">
       <span class="ef-name">${esc(g.titel)} ${begriffKnopf(GRUPPE_BEGRIFF[g.key])}</span>
       <span class="ef-bahn"><span class="ef-balken ${farbe(g.eta)}" style="width:${b.toFixed(1)}%"></span
-        ><span class="ef-grenze"></span></span>
+        ></span>
       <span class="ef-wert ${farbe(g.eta)}">${prozent(g.eta)}</span>
       <span class="ef-wer">${esc(g.name)}</span>
     </div>`;
@@ -271,4 +277,65 @@ export function begriffeVerdrahten() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') document.querySelector('.begriff-pop')?.remove();
   });
+}
+
+/* ==========================================================================
+ * >>> WAS GERECHNET WIRD, VEREINFACHT (15. November). <<< Weisung:
+ * «kombinationen vereinfacht aufführen. damit man ein gefühl hat was genau
+ * gerechnet wird, längs und querrichung». Die Lastfälle der Bemessung
+ * (`nachweis`), gegliedert nach Richtung, mit der Ausnutzung je Fall; ein
+ * Klick zeigt den Fall im 3D (`data-lf-wahl`, derselbe Weg wie die Tabelle
+ * der Vollversion), «Alle Fälle» kehrt zum ungünstigsten zurück.
+ * ======================================================================== */
+export function lastfallEinfach(bez) {
+  const b = String(bez ?? '');
+  const seite = /\+/.test(b) ? 1 : (/[−-]\s*[xy]/.test(b) ? -1 : 0);
+  if (/Havarie|bruch|reisst/i.test(b)) return { gruppe: 'weitere', text: 'Leiterbruch (ein Leiter reisst)' };
+  // «leitend» = die volle Einwirkung, die andere steht abgemindert dabei.
+  // «Wind +x leitend» = starker Wind, «Schnee leitend, Wind +x» = viel Schnee
+  // mit Wind (gemessen an den Fällen des Startjochs, 15. November).
+  const schneeLeitend = /Schnee leitend/i.test(b);
+  const vorn = (t) => (schneeLeitend ? `Viel Schnee, dazu Wind ${t}` : `Starker Wind ${t}`);
+  if (/Wind\s*[+−-]?\s*x|quer zum Gleis/i.test(b)) {
+    return { gruppe: 'quer', text: vorn(`von ${seite >= 0 ? 'links' : 'rechts'}`) };
+  }
+  if (/Wind\s*[+−-]?\s*y|längs zum Gleis/i.test(b)) {
+    return { gruppe: 'laengs', text: vorn(seite >= 0 ? 'vorwärts' : 'rückwärts') };
+  }
+  if (/Schnee/i.test(b)) return { gruppe: 'weitere', text: 'Eigengewicht + Schnee' };
+  if (/Ständig|Eigengewicht/i.test(b)) return { gruppe: 'weitere', text: 'Eigengewicht allein' };
+  return { gruppe: 'weitere', text: b };
+}
+
+/**
+ * @param {{lastfaelle:Array}} kombi
+ * @param {object|null} etaJe   je Fall {eta, name} aus dem Stabwerk (oder null)
+ * @param {string} gewaehlt      der angezeigte Fall ('umhuellend' = alle)
+ */
+export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend') {
+  const faelle = (kombi?.lastfaelle ?? []).filter((k) => k.nachweis);
+  if (!faelle.length) return '';
+  const eta = (k) => (etaJe?.[k.key]?.eta ?? k.eta);
+  const je = { quer: [], laengs: [], weitere: [] };
+  faelle.forEach((k) => {
+    const e = lastfallEinfach(k.bez);
+    je[e.gruppe].push({ k, text: e.text });
+  });
+  const zeile = ({ k, text }) => {
+    const e = eta(k);
+    const f = Number.isFinite(e) ? farbe(e) : '';
+    return `<div class="lf-einfach${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
+        data-lf-wahl="${esc(k.key)}" title="${esc(k.bez)} - im 3D zeigen">
+      <span>${esc(text)}</span>
+      <span class="ef-wert ${f}">${Number.isFinite(e) ? prozent(e) : '–'}</span></div>`;
+  };
+  const block = (titel, l) => (l.length
+    ? `<div class="sec-klein">${esc(titel)}</div>${l.map(zeile).join('')}` : '');
+  return `<div class="sec">Was gerechnet wird</div>
+    <div class="lf-einfach${gewaehlt === 'umhuellend' ? ' gewaehlt' : ''}" role="button" tabindex="0"
+      data-lf-wahl="umhuellend" title="Im 3D den ungünstigsten Fall je Bauteil zeigen">
+      <span><b>Alle Fälle</b> (je Bauteil der ungünstigste)</span><span></span></div>
+    ${block('Quer zum Gleis', je.quer)}
+    ${block('Längs zum Gleis', je.laengs)}
+    ${block('Weitere', je.weitere)}`;
 }

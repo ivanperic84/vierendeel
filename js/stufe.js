@@ -178,7 +178,7 @@ export function feldEinfach(f, einfach = EINFACH) {
 const GRUPPEN_AUS = {
   // Auflager: Endbedingung, Federn, Lagerung - Rechenmodell der Fachperson.
   viewer: new Set(['ort', 'aufl', 'blech', 'staendig', 'havarie']),
-  schulung: new Set(['aufl', 'staendig', 'prof', 'blech', 'stueck', 'bestand', 'havarie', 'komb']),
+  schulung: new Set(['aufl', 'staendig', 'prof', 'blech', 'stueck', 'bestand', 'havarie']),
 };
 
 export function gruppeErlaubt(gid, stufe = STUFE) {
@@ -215,7 +215,7 @@ export function plotErlaubt(key, stufe = STUFE) {
  */
 const EXPORT = {
   viewer: new Set(['bericht', 'reaktionen', 'anschluss', 'bestand', 'drucken']),
-  schulung: new Set(['bericht', 'reaktionen', 'drucken']),
+  schulung: new Set(['reaktionen', 'drucken']),
 };
 export function exportErlaubt(id, stufe = STUFE) {
   if (stufe === 'voll') return true;

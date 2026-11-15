@@ -810,10 +810,9 @@ function verdrahteLastfaelle(app, knoten = null, zurueck = null) {
       if (e.target.closest('button')) return;
       app.anzeigeKombi = z.dataset.lfWahl;
       app.neuRechnen(false);
-      // Im Fenster zeigt die Zeile, was gewaehlt ist (die Tabelle bleibt stehen).
-      if (knoten) {
-        n.querySelectorAll('[data-lf-wahl]').forEach((x) => x.classList.toggle('gewaehlt', x === z));
-      }
+      // Die Zeile zeigt, was gewaehlt ist (die Tabelle bleibt stehen) - im
+      // Fenster wie in der Liste der Schulung (15. November).
+      n.querySelectorAll('[data-lf-wahl]').forEach((x) => x.classList.toggle('gewaehlt', x === z));
     };
   });
   n.querySelectorAll('[data-lf]').forEach((b) => {
