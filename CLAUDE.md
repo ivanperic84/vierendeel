@@ -470,7 +470,7 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **15. Nov., verformte Figur quer zum Gleis (Fahrdrahtlage) im Bericht** (örtlich committet, nicht gepusht).
+- **15. Nov., verformte Figur quer zum Gleis (Fahrdrahtlage) im Bericht** (gepusht auf Weisung «Ja, pushen», 15. November).
 - **15. Nov., Lastbilder im Bericht als Isometrie** (gepusht auf Weisung «Ja, pushen», 15. November).
 - **15. Nov., Fundamentablauf im Bericht Schritt für Schritt mit Zahlen** (gepusht auf Weisung «Ja, pushen», 15. November).
 - **14. Nov., Mastdiagramm ohne Füllfläche; Werkzeugleiste gleich breit, «Linie» abgesetzt** (gepusht auf Weisung «Push», 14. November).
