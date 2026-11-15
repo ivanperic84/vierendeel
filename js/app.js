@@ -2093,7 +2093,10 @@ function zeichneAuswertung() {
       // Aus dem Stabwerk, wenn es gilt (4. Oktober), der Kern eingeklappt.
       ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));
     } else if (tabAuswertung === 'auflager') {
-      ui.zeichneMastfuss(knoten, letzte.kombi);
+      // Schulung (16. November, Bild des Blocks «Mastfuss aus dem
+      // Ersatzbalken»: «dies weglassen»): nur die Reaktionskräfte.
+      if (EINFACH) knoten.innerHTML = '';
+      else ui.zeichneMastfuss(knoten, letzte.kombi);
       // Auch am Einzelmasten (30. September: «warum kann ich hier nicht den
       // reaktionskräfte output generieren bei masten ohne joch?»).
       reaktionsBlockEinfuegen(knoten);
@@ -2280,12 +2283,16 @@ function zeichneAuswertung() {
      * je eigener Regliertemperatur -, und aufgeschluesselt wird deshalb nach
      * Faellen.
      */
-    if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
+    // Schulung (16. November, «dies weglassen» zum Block «Mastfuss aus dem
+    // Ersatzbalken»): nur die Reaktionskräfte, ohne Ersatzbalken und ohne
+    // die Kräfte am Jochanschluss (deren Blatt bietet die Schulung nicht an).
+    if (EINFACH) node.innerHTML = '';
+    else if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
     // Gilt das Stabwerk, fallen die Tabellen des Ersatzbalkens je Gruppe
     // weg (2. Oktober, «Hülle bleibt, dazu der gewählte Fall»).
     else ui.zeichneAuflager(node, letzte.auflager, erg, { stabwerk: Boolean(stabwerkGilt()) });
     reaktionsBlockEinfuegen(node);
-    anschlussBlockEinfuegen(node);
+    if (!EINFACH) anschlussBlockEinfuegen(node);
   } else {
     /*
      * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN VERLAEUFE. <<<
