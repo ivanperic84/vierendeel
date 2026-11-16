@@ -11,7 +11,7 @@ import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
 import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
-import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, VERMERK_SCHULUNG, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -7408,7 +7408,10 @@ export async function start() {
     const logo = document.querySelector('.tb-logo');
     if (logo && !document.querySelector('.stufe-band')) {
       logo.insertAdjacentHTML('afterend',
-        `<span class="stufe-band" title="${esc(VERMERK)}">${esc(STUFEN_TITEL[STUFE].toUpperCase())} · ${esc(VERMERK)}</span>`);
+        // Schulung (17. November): «VORDIMENSIONIERUNG» statt «SCHULUNG ·
+        // Vorabprüfung» - die Fassung dient auch der Vordimensionierung.
+        `<span class="stufe-band" title="${esc(EINFACH ? VERMERK_SCHULUNG : VERMERK)}">${
+          EINFACH ? esc(VERMERK_SCHULUNG) : `${esc(STUFEN_TITEL[STUFE].toUpperCase())} · ${esc(VERMERK)}`}</span>`);
     }
   }
   // «Mehr zeigen» ist wieder weg (16. November, abends: «lass den mehr
@@ -7420,9 +7423,10 @@ export async function start() {
      * Kopf. Umschalten lädt die Seite neu - der Stand ist gespeichert, und so
      * steht jeder Text von Anfang an in der gewählten Sprache.
      */
-    const mk = document.querySelector('.stufe-band');
+    // Ganz rechts im Kopf (17. November, «die sprachauswahl button nach rechts nehmen»).
+    const mk = document.querySelector('.topbar');
     if (mk && !document.getElementById('sprachwahl')) {
-      mk.insertAdjacentHTML('afterend', `<span class="sprachwahl" id="sprachwahl" role="group" aria-label="Sprache" data-kein-tr>${
+      mk.insertAdjacentHTML('beforeend', `<span class="sprachwahl" id="sprachwahl" role="group" aria-label="Sprache" data-kein-tr>${
         SPRACHEN.map((x) => `<button type="button" class="btn btn-mini${x.key === sprache() ? ' an' : ''}"
           data-sprache="${x.key}" title="${x.name}" aria-pressed="${x.key === sprache()}">${x.label}</button>`).join('')}</span>`);
       document.querySelectorAll('[data-sprache]').forEach((b) => {

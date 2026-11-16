@@ -66,6 +66,13 @@ export const STUFEN_TITEL = {
 
 /** Der Vermerk auf Bildschirm und Bericht. */
 export const VERMERK = 'Vorabprüfung - kein geprüfter statischer Nachweis';
+/*
+ * Der rote Vermerk der Schulung (17. November): «kann man den roten
+ * hinweistext so anpassen, das nicht mehr schulung steht, die app kann auch
+ * als vordimensionierungswerkzeug benutzt werden», auf Rückfrage
+ * «Vordimensionierung». Mit ihm der erste Satz der Nutzungsbedingungen.
+ */
+export const VERMERK_SCHULUNG = 'VORDIMENSIONIERUNG · kein geprüfter statischer Nachweis';
 
 /*
  * NUTZUNGSBEDINGUNGEN DER SCHULUNG (16. November). Weisung: «die
@@ -75,7 +82,7 @@ export const VERMERK = 'Vorabprüfung - kein geprüfter statischer Nachweis';
  * LIZENZ.md sagt dasselbe für die Ablage.
  */
 export const NUTZUNG_HTML = `
-  <p>Diese Fassung ist für die Ausbildung im Kurs bestimmt.</p>
+  <p>Diese Fassung ist für die Ausbildung und die Vordimensionierung bestimmt.</p>
   <ul>
     <li><b>Kein statischer Nachweis.</b> Die Ergebnisse sind eine Vorabprüfung.
       Sie dürfen nicht als statischer Nachweis verwendet, eingereicht oder
@@ -97,7 +104,7 @@ export const NUTZUNG_HTML = `
  * über das Wörterbuch. Italienisch zur Durchsicht.
  */
 export const NUTZUNG_HTML_FR = `
-  <p>Cette version est destinée à la formation dans le cadre du cours.</p>
+  <p>Cette version est destinée à la formation et au prédimensionnement.</p>
   <ul>
     <li><b>Pas de justification statique.</b> Les résultats sont une vérification
       préliminaire. Ils ne doivent pas être utilisés, déposés ou transmis comme
@@ -113,7 +120,7 @@ export const NUTZUNG_HTML_FR = `
       d'exactitude ni d'exhaustivité. Tous droits réservés.</li>
   </ul>`;
 export const NUTZUNG_HTML_IT = `
-  <p>Questa versione è destinata alla formazione nell'ambito del corso.</p>
+  <p>Questa versione è destinata alla formazione e al predimensionamento.</p>
   <ul>
     <li><b>Nessuna verifica statica.</b> I risultati sono una verifica
       preliminare. Non devono essere utilizzati, presentati o trasmessi come

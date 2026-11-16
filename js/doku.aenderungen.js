@@ -12,6 +12,12 @@
 /** Je Tag: Titel und Punkte. `rechnung: true` = ändert Nachweiszahlen. */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-17',
+    punkte: [
+      { text: 'Schulungsfassung: roter Vermerk «Vordimensionierung - kein geprüfter statischer Nachweis»; Sprachwahl ganz rechts; Übungsbeispiel Tragjoch mit eingespanntem Anschluss, Schnee und Masten HEB 260.' },
+    ],
+  },
+  {
     datum: '2026-11-16',
     punkte: [
       { text: 'Neues Blatt: zur Hängestütze mit Fahrdrahtabzug kommt das Kettenwerk (Gewicht der Fahrleitung am Joch); gespeicherte Stände bleiben.', rechnung: true },

@@ -9,6 +9,14 @@
  * sonst bleibt er in FR/IT deutsch.
  */
 export const TEXTE = {
+ "VORDIMENSIONIERUNG · kein geprüfter statischer Nachweis": {
+  "fr": "PRÉDIMENSIONNEMENT · pas de justification statique vérifiée",
+  "it": "PREDIMENSIONAMENTO · nessuna verifica statica controllata"
+ },
+ "Diese Fassung ist für die Ausbildung und die Vordimensionierung bestimmt.": {
+  "fr": "Cette version est destinée à la formation et au prédimensionnement.",
+  "it": "Questa versione è destinata alla formazione e al predimensionamento."
+ },
  "Handbuch zum Kurs (Taste h)": {
   "fr": "Manuel du cours (touche h)",
   "it": "Manuale del corso (tasto h)"

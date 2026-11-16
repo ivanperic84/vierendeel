@@ -13,7 +13,7 @@ Die öffentliche Einsehbarkeit dieser Ablage räumt keine Nutzungs-,
 |---|---|---|
 | Vollversion | `index.html`, `vierendeel_tool.html` | durch die beauftragte Fachperson |
 | Viewer | `vierendeel_viewer.html` | Ansehen und kleine Anpassungen bestehender Modelle durch Auftraggeber |
-| Schulung | `vierendeel_schulung.html` | Ausbildung im Rahmen der Kurse |
+| Schulung | `vierendeel_schulung.html` | Ausbildung im Rahmen der Kurse und Vordimensionierung |
 
 Viewer und Schulung dürfen nur für den genannten Zweck verwendet und nicht
 an Dritte weitergegeben, verändert, nachgebaut oder in andere Produkte

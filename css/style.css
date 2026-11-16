@@ -3951,7 +3951,7 @@ html[data-stufe="schulung"] .at-technik [data-signalbauer] { display: none !impo
 html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: block !important; }
 
 /* Sprachwahl der Schulung (16. November). */
-.sprachwahl { display: inline-flex; gap: 2px; margin-left: 8px; }
+.sprachwahl { display: inline-flex; gap: 2px; margin-left: 8px; flex-shrink: 0; }
 .sprachwahl .btn { min-width: 30px; padding: 2px 6px; }
 .sprachwahl .btn.an { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
 

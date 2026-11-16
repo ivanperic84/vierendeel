@@ -2722,8 +2722,9 @@ die Datei <i>mit Daten</i> trägt die Übungsbeispiele
 Die Schulung zeigt beim Öffnen die Nutzungsbedingungen (auch
 <code>LIZENZ.md</code>), hat ein eigenes Handbuch und lässt die Anbauteile
 mit ihren Bausteinen frei bearbeiten. Beide rechnen immer
-mit dem Stabwerk und tragen den Vermerk «Vorabprüfung - kein geprüfter
-statischer Nachweis»; ein dort veränderter Stand ist in der Vollversion als
+mit dem Stabwerk und tragen einen roten Vermerk (Viewer «Vorabprüfung - kein
+geprüfter statischer Nachweis», Schulung «Vordimensionierung - kein geprüfter
+statischer Nachweis»); ein dort veränderter Stand ist in der Vollversion als
 solcher gekennzeichnet.</p>
 `,
 },
