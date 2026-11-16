@@ -55,7 +55,9 @@ export function bauteilName(titel, gruppe) {
 }
 
 const farbe = (eta) => (eta > 1 ? 'fail' : eta >= 0.9 ? 'warn' : 'ok');
-const prozent = (eta) => `${Math.round(eta * 100)} %`;
+// Über der Grenze nie «100 %» (Audit 16. November): η 1.004 stand als
+// «100 %» neben «überlastet» - aufgerundet auf mindestens 101 %.
+const prozent = (eta) => `${eta > 1 ? Math.max(101, Math.round(eta * 100)) : Math.round(eta * 100)} %`;
 
 /* --------------------------------------------------------------------------
  * >>> SPANNUNGEN IN DEN PROFILEN (15. November). <<< Frage: «wäre es möglich

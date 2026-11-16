@@ -9,6 +9,10 @@
  * sonst bleibt er in FR/IT deutsch.
  */
 export const TEXTE = {
+ "ziehen": {
+  "fr": "déplacer",
+  "it": "sposta"
+ },
  "(je Bauteil der ungünstigste)": {
   "fr": "(le plus défavorable par élément)",
   "it": "(il più sfavorevole per elemento)"
@@ -1969,6 +1973,7 @@ export function name(t, s) {
 }
 const N = (s) => (t) => name(t, s);
 export const MUSTER = [
+  { re: /^Geladen: (.+)$/, fr: 'Chargé : $1', it: 'Caricato: $1' },
   { re: /^Mast (\S+)$/, fr: 'Mât $1', it: 'Palo $1' },
   { re: /^Fundament (\S+)$/, fr: 'Fondation $1', it: 'Fondazione $1' },
   { re: /^Verformung (\S+)$/, fr: 'Déformation $1', it: 'Deformazione $1' },
@@ -1985,7 +1990,7 @@ export const MUSTER = [
   { re: /^ausgelastet\. Am stärksten beansprucht: (.+)\.$/,
     fr: (w) => `. Élément le plus sollicité : ${name(w, 'fr')}.`, it: (w) => `. Elemento più sollecitato: ${name(w, 'it')}.` },
   { re: /^: (.+) erreicht ([\d.]+ %) seiner Grenze\.$/,
-    fr: (w, p) => `: ${name(w, 'fr')} atteint ${p} de sa limite.`, it: (w, p) => `: ${name(w, 'it')} raggiunge il ${p} del suo limite.` },
+    fr: (w, p) => ` : ${name(w, 'fr')} atteint ${p} de sa limite.`, it: (w, p) => `: ${name(w, 'it')} raggiunge il ${p} del suo limite.` },
   { re: /^Im Fall «(.+)»: Das Tragwerk ist( zu)?$/,
     fr: (f, z, t) => `Dans le cas «${t(f)}» : la structure est${z ? ' utilisée à' : ''}`,
     it: (f, z, t) => `Nel caso «${t(f)}»: la struttura è${z ? ' utilizzata al' : ''}` },

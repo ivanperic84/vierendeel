@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Ein langer Projektname schiebt die Seite nicht mehr über den Bildschirmrand; über 100 % stehen nie als «100 %»; einige Meldungen auf Französisch und Italienisch nachgetragen.' },
       { text: 'Vorlagen Jochaufsatz doppelt und alt: die Zusatzleiter liegen auf der Höhe der Traverse (wie beim einfachen). Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },
       { text: 'Schulungsfassung auf Französisch und Italienisch: Umschalter DE / FR / IT oben rechts (die Wahl bleibt gemerkt); Oberfläche, Nutzungsbedingungen (im Startfenster in jeder der drei Sprachen lesbar) und Handbuch zum Kurs übersetzt. Die italienischen Begriffe sind zur Durchsicht bestimmt.' },
       { text: 'Handbuch: neues Kapitel 22 (Bedienung, Vorlagen, leichte Fassungen); Handbuch zum Kurs mit dem Ablauf Schritt für Schritt.' },

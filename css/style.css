@@ -73,7 +73,11 @@ small, sub, sup { font-size: max(10px, .83em); }
 
 /* --- Kopfleiste ----------------------------------------------------------- */
 
+/* min-width: 0 (Audit 16. November): als Rasterzeile der App wuchs der Kopf
+   sonst mit seinem Inhalt - ein langer Projektname (Übungsbeispiel 2) machte
+   die Seite bei 1440 px 1646 px breit, die rechte Leiste lief hinaus. */
 .topbar {
+  min-width: 0;
   display: flex; align-items: center; gap: 6px; padding: 0 10px;
   background: var(--s1); border-bottom: 1px solid var(--ol); z-index: 20;
 }
@@ -3778,6 +3782,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
   padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
   border: 1px solid var(--fail, #c33); color: var(--fail, #c33);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
+  min-width: 0; flex-shrink: 3;
 }
 html[data-stufe="viewer"] .stufe-band,
 html[data-stufe="schulung"] .stufe-band { display: inline-flex; }
