@@ -708,10 +708,24 @@ export async function zeichneSchublade(app) {
   auf('[data-import]', () => ablageEinlesenWaehlen(app, false));
   // Übungsbeispiele der Schulung (16. November: «diese im projektmanager
   // aufführen und nicht in der sidebar»): derselbe Einlesedialog wie eine Datei.
+  // Audit 16. November («alle umsetzen»): mit EINEM Klick geladen, ohne den
+  // Einlesedialog (Ablegen in, Projekt aus der Datei - für Kursteilnehmer zu
+  // technisch). Steht das Beispiel schon in der Ablage, wird dieser Eintrag
+  // geladen statt einer zweiten Kopie.
   auf('[data-uebung]', async (b) => {
     try {
       const roh = await uebungBytes(+b.dataset.uebung);
-      await dialogEinlesen(app, roh, { dateiname: b.dataset.titel ?? '' });
+      const inhalt = await store.paketInhalt(roh);
+      const da = inhalt.liste.length === 1 ? inhalt.liste[0].doppeltZu : null;
+      if (da) { await eintragLaden(app, da, true); app.meldeImBalken(`Geladen: ${b.dataset.titel ?? ''}`); return; }
+      const r = await store.einlesen(roh, { ids: inhalt.liste.map((e) => e.id), doppelt: {},
+        vorlagen: false, zeichnungen: true, einstellungen: false });
+      if (r.neueIds.length === 1) {
+        await eintragLaden(app, r.neueIds[0], true);
+        app.meldeImBalken(`Geladen: ${b.dataset.titel ?? ''}`);
+      } else {
+        await dialogEinlesen(app, roh, { dateiname: b.dataset.titel ?? '' });
+      }
     } catch (e) { app.meldeImBalken(`Beispiel nicht lesbar: ${e.message}`); }
   });
   auf('[data-sicherung]', async () => {

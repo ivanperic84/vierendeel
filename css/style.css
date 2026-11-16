@@ -85,7 +85,9 @@ small, sub, sup { font-size: max(10px, .83em); }
   font-family: var(--f-mono); font-size: 13px; font-weight: 500;
   letter-spacing: .04em; white-space: nowrap;
 }
-.tb-mitte { flex: 1; display: flex; justify-content: center; min-width: 0; }
+/* Der Projektknopf behält einen Rest (Audit 16. November): bei 860 px nahm
+   das Band der Schulung sonst den ganzen Platz. */
+.tb-mitte { flex: 1; display: flex; justify-content: center; min-width: min(160px, 22vw); }
 .tb-proj {
   display: flex; align-items: center; gap: 8px; background: transparent;
   border: none; color: var(--on2); cursor: pointer; padding: 5px 10px;
@@ -3782,7 +3784,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
   padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
   border: 1px solid var(--fail, #c33); color: var(--fail, #c33);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
-  min-width: 0; flex-shrink: 3;
+  min-width: 0; flex-shrink: 20;
 }
 html[data-stufe="viewer"] .stufe-band,
 html[data-stufe="schulung"] .stufe-band { display: inline-flex; }
@@ -3870,15 +3872,14 @@ html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
    entfernen.» Lasten je Art und «Werte anschreiben» stehen wieder da. */
 /* Schulung: kein Lastgenerator (15. November, «lastengenerator nicht aufführen»). */
 html[data-stufe="schulung"] [data-generator] { display: none !important; }
-/* Schulung, Paket 2 (15. November): die Bauteilkarte zeigt Name, Standort
+/* 16. November abends («die eingabe der anbauteile soll so flexibel wie
+   notwendig bleiben»): Gruppe, Bausteine hinzufügen / tauschen / entfernen
+   und der Signalbauer stehen in der Schulung immer da.
+   Schulung, Paket 2 (15. November): die Bauteilkarte zeigt Name, Standort
    und Lage; Module, Lastblöcke, Befestigung, Gruppe, Kräftezeilen,
    Drahtwerk-Tabelle, Signalbauer und freies Bauteil gehören der Fachperson. */
-html[data-stufe="schulung"]:not([data-mehr]) [data-klapp^="at-fein-"],
 html[data-stufe="schulung"]:not([data-mehr]) .at-kraft,
-html[data-stufe="schulung"]:not([data-mehr]) [data-at-gruppe-name],
-html[data-stufe="schulung"]:not([data-mehr]) [data-at-gruppe-dup],
 html[data-stufe="schulung"] [data-klapp="at-drahtwerke-v2"],
-html[data-stufe="schulung"]:not([data-mehr]) [data-signal-direkt],
 html[data-stufe="schulung"] [data-setz-frei] { display: none !important; }
 
 /* Begriffe erklären (Schulung, 15. November, js/ui.einfach.js). */
@@ -3936,8 +3937,6 @@ html[data-stufe="schulung"] [data-lf-neu] { display: none !important; }
    einer Fläche Gewicht und Flächen. Baustein wechseln, hinzufügen, entfernen,
    Wirkung, Abfangung, Kette und Kräftezeilen gehören der Fachperson. */
 html[data-stufe="schulung"] .at-technik > :not(.modul-liste):not(.sec):not([data-mod-neu]),
-html[data-stufe="schulung"]:not([data-mehr]) .at-technik > .sec,
-html[data-stufe="schulung"]:not([data-mehr]) .at-technik > [data-mod-neu],
 html[data-stufe="schulung"] .at-technik .modul-partner,
 html[data-stufe="schulung"] .at-technik .modul-abfang,
 html[data-stufe="schulung"] .at-technik .wirkung,
@@ -3945,12 +3944,7 @@ html[data-stufe="schulung"] .at-technik .modul > .sec-klein:has(+ .wirkung),
 html[data-stufe="schulung"] .at-technik .modul-kette,
 html[data-stufe="schulung"] .at-technik .modul-lasten,
 html[data-stufe="schulung"] .at-technik [data-klapp],
-html[data-stufe="schulung"]:not([data-mehr]) .at-technik [data-mod-weg],
 html[data-stufe="schulung"] .at-technik [data-signalbauer] { display: none !important; }
-html[data-stufe="schulung"]:not([data-mehr]) .at-technik .bs-knopf { pointer-events: none; }
-/* Schalter «Mehr zeigen» im Kopf (16. November). */
-.mehr-knopf { margin-left: 8px; }
-html[data-mehr] .mehr-knopf { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
 
 /* Schulung (16. November): ein Wert, der aus der Gesamtlänge folgt, sagt es -
    sonst sieht er wie ein gesperrtes Eingabefeld aus. */

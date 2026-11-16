@@ -2139,7 +2139,16 @@ export function tragwerkHinzu(w, art, vorlage = {}) {
    * getrennt. Angeschlossen wird am letzten MASTEN (`bereichVon` endet
    * dort, nicht am Gurtende). Eine Vorlage mit Kragarm (Duplizieren) geht vor.
    */
-  return { ...w, ...anschluss, kragA: 0, kragB: 0, ...vorlage, tragwerksart: art,
+  /*
+   * >>> EIN NEUER EINZELMAST STEHT AUF EINEM NEUEN MASTEN (Audit 16. November). <<<
+   * Er übernahm die Mastlänge des gewählten Tragwerks - nach einem
+   * Tragausleger 14.00 m statt 8.50 m, mit Traverse und Leiter oben auf
+   * 13.85 m; die Seitenlage des Leiters lag damit über 40 mm (117 %). Ohne
+   * eigene Angabe gilt die Vorgabe (`einzelmastLaenge`).
+   */
+  const eigenerMast = ohneLaenge && vorlage.mastLaenge == null
+    ? { mastLaenge: 0, mastLaengeB: 0 } : {};
+  return { ...w, ...anschluss, kragA: 0, kragB: 0, ...eigenerMast, ...vorlage, tragwerksart: art,
            twId: `T${nr + 1}`, pos,
            weitere: [...rest, bisher] };
 }

@@ -67,6 +67,9 @@ export const KURS_FR = [
       supérieure, les deux) avec le pas des pinces. En dessous, pour chaque
       module, le <b>point d'application</b> x, y, z (sur le joug depuis l'axe de
       gravité de la membrure, au mât depuis le raccordement).</p>
+    <p>La fiche permet d'ajouter, d'échanger et de supprimer des <b>modules</b>
+      et d'attribuer l'élément à un <b>groupe</b> (p. ex. «voie 1») ; le groupe
+      peut être renommé et dupliqué.</p>
     <ul>
       <li>Une valeur marquée «milieu de la longueur totale» découle de la
         <b>longueur totale</b> au-dessus - la modifier là.</li>
@@ -125,16 +128,15 @@ export const KURS_FR = [
         comparaison), M, V, N, T (efforts intérieurs), w (déformation), Pos
         (éléments par position).</li>
     </ul>` },
-  { id: 'k-mehr', titel: '7 Afficher plus, appuis et export', html: `
-    <p><b>Afficher plus</b> (bouton en haut) affiche d'autres saisies et
-      évaluations : numéro du mât, décalage du pied, fondation, terrain,
-      porte-à-faux du joug, angle du hauban, ajout ou échange de modules dans un
-      équipement, l'onglet Diagrammes, les diagrammes d'efforts («Ligne»), les
-      calques du modèle et le choix du cas de charge en haut de la 3D.
-      «Afficher moins» les masque à nouveau.</p>
+  { id: 'k-mehr', titel: '7 Appuis et export', html: `
+    <p>L'onglet <b>Appuis</b> montre les réactions aux fondations,
+      caractéristiques (tous les coefficients 1.0), séparément perpendiculaire
+      et parallèle à la voie.</p>
     <p><b>Exporter</b> : la feuille des réactions (avec croquis et remarques) et
-      l'impression ; avec «Afficher plus», en plus la feuille des efforts au
-      raccordement du joug et le classeur Excel.</p>` },
+      l'impression.</p>
+    <p>La <b>barre du bas</b> dit la même chose que la vignette du résultat. Si
+      elle indique «certaines justifications seulement dans la version
+      complète», le survol montre lesquelles (p. ex. flambage).</p>` },
   { id: 'k-modell', titel: '8 Comment le calcul est effectué', html: `
     <p>La structure est un <b>treillis spatial</b> : les quatre cornières du joug,
       les plats de liaison entre elles et les mâts sont des barres. Les mâts sont
@@ -242,6 +244,9 @@ export const KURS_IT = [
       superiore, entrambi) con il passo dei morsetti. Sotto, per ogni modulo, il
       <b>punto di applicazione</b> x, y, z (sul portale dall'asse baricentrico
       del corrente, al palo dal collegamento).</p>
+    <p>La scheda permette di aggiungere, sostituire ed eliminare i
+      <b>moduli</b> e di assegnare l'elemento a un <b>gruppo</b> (p. es.
+      «binario 1»); il gruppo si può rinominare e duplicare.</p>
     <ul>
       <li>Un valore indicato con «metà della lunghezza totale» deriva dalla
         <b>lunghezza totale</b> sopra - modificarlo lì.</li>
@@ -303,16 +308,15 @@ export const KURS_IT = [
         M, V, N, T (sollecitazioni interne), w (deformazione), Pos (elementi per
         posizione).</li>
     </ul>` },
-  { id: 'k-mehr', titel: '7 Mostra di più, appoggi ed esportazione', html: `
-    <p><b>Mostra di più</b> (pulsante in alto) mostra ulteriori dati ed
-      elaborazioni: numero del palo, spostamento del piede, fondazione, terreno,
-      sbalzi del portale, angolo del tirante, aggiunta o sostituzione di moduli
-      in un equipaggiamento, la scheda Andamenti, i diagrammi delle
-      sollecitazioni («Linea»), i livelli del modello e la scelta del caso di
-      carico in alto nel 3D. «Mostra di meno» li nasconde di nuovo.</p>
+  { id: 'k-mehr', titel: '7 Appoggi ed esportazione', html: `
+    <p>La scheda <b>Appoggi</b> mostra le reazioni alle fondazioni,
+      caratteristiche (tutti i coefficienti 1.0), separatamente trasversali e
+      longitudinali al binario.</p>
     <p><b>Esporta</b>: il foglio delle reazioni (con schizzo e note) e la
-      stampa; con «Mostra di più» anche il foglio delle forze al collegamento
-      del portale e la cartella Excel.</p>` },
+      stampa.</p>
+    <p>La <b>barra in basso</b> dice la stessa cosa del riquadro del
+      risultato. Se indica «alcune verifiche solo nella versione completa»,
+      passandoci sopra si vede quali (p. es. instabilità).</p>` },
   { id: 'k-modell', titel: '8 Come viene calcolato', html: `
     <p>La struttura è un <b>telaio spaziale</b>: i quattro angolari del
       portale, le piastre di collegamento tra di essi e i pali sono aste. I pali

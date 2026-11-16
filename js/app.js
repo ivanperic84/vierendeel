@@ -11,7 +11,7 @@ import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
 import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
-import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, nutzungHtml, mehrAn, mehrSetzen, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -364,7 +364,14 @@ function frisch(art = 'joch') {
   const std = { ...standardwerte(), bearbeiten: false, fzNachOben: true, psiOhneGamma: true,
                 schneeAktiv: true, havarieAus: true };
   let w = typUebernehmen(std, getTragjoch(std.typ));
-  w.anbauteile = [{ ...neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrleitung Gleis 1' }];
+  // Startbeispiel mit der ganzen Fahrleitung (Audit 16. November, «alle
+  // umsetzen»): bisher nur die Hängestütze mit Fahrdrahtabzug - das Gewicht
+  // der Fahrleitung (Tragseil am Joch) fehlte. Dazu das Kettenwerk wie im
+  // Lastgenerator (Tragseil ganz, vom Fahrdraht nur das Gewicht).
+  w.anbauteile = [
+    { ...neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrdrahtabzug Gleis 1', gleis: 1 },
+    { ...neuesAnbauteil('kw-nfl-joch', 10), name: 'Kettenwerk Gleis 1', gleis: 1 },
+  ];
   if (art && art !== 'joch') {
     /*
      * DIE ID DES TRAGJOCHS ZUERST MERKEN. `tragwerkHinzu` macht das NEUE
@@ -921,7 +928,8 @@ function reaktionsBlatt() {
     merken,
     bauen: (z) => { reaktionsWahl = z;
                     return reaktionenBlattHtml(d, { ...z, hinweisText: entwurf ?? rkVorlage() }); },
-    aktionen: [
+    // Schulung (Audit 16. November): die Vorlage des Hinweistexts gehört der Fachperson.
+    aktionen: EINFACH ? [] : [
       { key: 'rk-vorlage', label: 'Hinweise als Vorlage',
         titel: 'Den Hinweistext, wie er auf dem Blatt steht, als Vorlage speichern - '
              + 'er gilt dann für jedes neue Blatt (in diesem Browser).',
@@ -2148,6 +2156,7 @@ function zeichneAuswertung() {
       // Der gewählte Fall gilt auch hier (16. November: «warum wird hier immer die
       // gleiche spannung angezeigt, egal welchen lastfall ich auswähle»).
       if (EINFACH) einfachesErgebnis(knoten, { traeger: 'Ausleger',
+        nichtGefuehrt: letzte?.urteil?.nichtGefuehrt ?? [],
         teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
           : (stabwerkAnsicht()?.h?.teile ?? null),
         gzgFall: letzte?.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.stufe === 'betrieb',
@@ -2247,6 +2256,7 @@ function zeichneAuswertung() {
     // Schulung (15. November): ein Satz und Balken, die Kacheln zugeklappt darunter.
     if (EINFACH) {
       einfachesErgebnis(node, { traeger: tragwerksart(werte).label,
+        nichtGefuehrt: letzte?.urteil?.nichtGefuehrt ?? [],
         // Ein gewählter Fall: dessen Spannungen und sein Name im Satz.
         teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
           : (stabwerkAnsicht()?.h?.teile ?? null),
@@ -3066,9 +3076,14 @@ function aktualisiereFuss(erg, urteil, joch) {
   // Dieselbe Zahl geht beim Speichern in die Projektliste (8. Oktober).
   urteilKurz = { eta: e, wer: bt?.massgebend?.name ?? null,
                  quelle: stabwerkGilt() ? 'stabwerk' : 'ersatzbalken' };
-  ui.el('st-urteil').innerHTML =
-    `<span class="pkt" style="background:${farbe}"></span>` +
-    urteilFusszeile({ gut, eta: e, wer, urteil });
+  // Schulung: die Fussleiste schreibt das einfache Ergebnis (ui.einfach.js,
+  // dieselbe Zahl wie die Kachel); hier nur, wenn die Übersicht nicht steht.
+  if (!(EINFACH && tabAuswertung === 'uebersicht')) {
+    ui.el('st-urteil').innerHTML =
+      `<span class="pkt" style="background:${farbe}"></span>` +
+      urteilFusszeile({ gut, eta: e, wer, urteil });
+    ui.el('st-urteil').title = '';
+  }
   /*
    * DIE ZEILE BESCHREIBT DAS TRAGWERK, DAS DASTEHT.
    *
@@ -5765,7 +5780,8 @@ function springeZu(st, x) {
  */
 function exportMenueLeicht() {
   return [
-    { kopf: 'Bericht und Blätter' },
+    // Schulung ohne Bericht (Audit 16. November): nur «Blätter».
+    { kopf: EINFACH ? 'Blätter' : 'Bericht und Blätter' },
     { id: 'bericht', text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
     { id: 'reaktionen', text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
     { id: 'anschluss', text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
@@ -5907,7 +5923,7 @@ function baueKopf() {
       + knopfWort('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern', 'Speichern'))
     + strich
     + gruppe('Hilfe und Einstellungen',
-      knopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen', 'handbuch')
+      knopf('btn-handbuch', 'info', EINFACH ? 'Handbuch zum Kurs' : 'Handbuch: Herleitung und Modellgrenzen', 'handbuch')
       + knopf('btn-optionen', 'optionen',
               'Optionen, Bauteildaten, Tastenkürzel und Darstellung', 'optionen'))
     // Nur solange der Browser es anbietet - ganz rechts, damit nichts springt.
@@ -7395,32 +7411,16 @@ export async function start() {
         `<span class="stufe-band" title="${esc(VERMERK)}">${esc(STUFEN_TITEL[STUFE].toUpperCase())} · ${esc(VERMERK)}</span>`);
     }
   }
-  /*
-   * «MEHR ZEIGEN» (Schulung, 16. November): ein Schalter im Kopf. Umschalten
-   * baut Maske, Werkzeugleiste und Auswertung neu - gerechnet wird dasselbe.
-   */
+  // «Mehr zeigen» ist wieder weg (16. November, abends: «lass den mehr
+  // anzeigen button weg, es ist doch zu viel für den user»).
   if (EINFACH) {
-    mehrSetzen(mehrAn());
-    const band = document.querySelector('.stufe-band');
-    if (band && !document.getElementById('btn-mehr')) {
-      band.insertAdjacentHTML('afterend', `<button class="btn btn-mini mehr-knopf" id="btn-mehr" type="button"
-        aria-pressed="${mehrAn()}" title="Weitere Eingaben und Auswertungen ein- oder ausblenden">${mehrAn() ? 'Weniger zeigen' : 'Mehr zeigen'}</button>`);
-      document.getElementById('btn-mehr').onclick = (ev) => {
-        mehrSetzen(!mehrAn());
-        ev.currentTarget.textContent = mehrAn() ? 'Weniger zeigen' : 'Mehr zeigen';
-        ev.currentTarget.setAttribute('aria-pressed', String(mehrAn()));
-        maskeSig = null;
-        baueModellWerkzeuge(app);
-        neuRechnen();
-      };
-    }
     /*
      * SPRACHE (16. November, «übersetzung ins französische und italienische»;
      * Rückfrage «Umschalter in der App», «Schulung zuerst»): DE / FR / IT im
      * Kopf. Umschalten lädt die Seite neu - der Stand ist gespeichert, und so
      * steht jeder Text von Anfang an in der gewählten Sprache.
      */
-    const mk = document.getElementById('btn-mehr');
+    const mk = document.querySelector('.stufe-band');
     if (mk && !document.getElementById('sprachwahl')) {
       mk.insertAdjacentHTML('afterend', `<span class="sprachwahl" id="sprachwahl" role="group" aria-label="Sprache" data-kein-tr>${
         SPRACHEN.map((x) => `<button type="button" class="btn btn-mini${x.key === sprache() ? ' an' : ''}"

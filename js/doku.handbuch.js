@@ -2720,8 +2720,8 @@ Sprache, vereinfachtes Ergebnis). Gebündelt mit
 die Datei <i>mit Daten</i> trägt die Übungsbeispiele
 (<code>data/uebungen.json</code>, Ablage-Pakete in <code>data/uebungen/</code>).
 Die Schulung zeigt beim Öffnen die Nutzungsbedingungen (auch
-<code>LIZENZ.md</code>), hat ein eigenes Handbuch und den Schalter
-<b>Mehr zeigen</b> für weitere Felder und Auswertungen. Beide rechnen immer
+<code>LIZENZ.md</code>), hat ein eigenes Handbuch und lässt die Anbauteile
+mit ihren Bausteinen frei bearbeiten. Beide rechnen immer
 mit dem Stabwerk und tragen den Vermerk «Vorabprüfung - kein geprüfter
 statischer Nachweis»; ein dort veränderter Stand ist in der Vollversion als
 solcher gekennzeichnet.</p>
@@ -2902,6 +2902,9 @@ export const KURS_HANDBUCH = [
       beide) mit dem Raster der Klemmen. Darunter je Baustein der
       <b>Angriffspunkt</b> x, y, z (am Joch ab der Schwerachse des Gurts, am
       Masten ab dem Anschluss).</p>
+    <p>Die Karte lässt die <b>Bausteine</b> hinzufügen, tauschen und entfernen
+      und das Teil einer <b>Gruppe</b> zuordnen (z. B. «Gleis 1»); die Gruppe
+      lässt sich benennen und duplizieren.</p>
     <ul>
       <li>Ein Wert mit «Mitte der Gesamtlänge» folgt aus der <b>Gesamtlänge</b>
         darüber - dort ändern.</li>
@@ -2958,15 +2961,15 @@ export const KURS_HANDBUCH = [
       <li><b>Resultate</b> - η (Ausnutzung), σ_v (Vergleichsspannung), M, V, N,
         T (Schnittkräfte), w (Verformung), Pos (Bauteile nach Position).</li>
     </ul>` },
-  { id: 'k-mehr', titel: '7 Mehr zeigen, Auflager und Export', html: `
-    <p><b>Mehr zeigen</b> (Knopf oben) blendet weitere Eingaben und
-      Auswertungen ein: Mastnummer, Fussversatz, Fundament, Gelände, Kragarme
-      des Jochs, Ankerwinkel, Bausteine im Anbauteil hinzufügen oder tauschen,
-      den Reiter Verläufe, Zustandslinien («Linie»), die Modellebenen und die
-      Wahl des Lastfalls oben im 3D. «Weniger zeigen» blendet sie wieder aus.</p>
+  { id: 'k-mehr', titel: '7 Auflager und Export', html: `
+    <p>Der Reiter <b>Auflager</b> zeigt die Reaktionskräfte an den
+      Fundamenten, charakteristisch (alle Beiwerte 1.0), getrennt quer und
+      längs zum Gleis.</p>
     <p><b>Export</b>: das Blatt der Reaktionskräfte (mit Skizze und Hinweisen)
-      und Drucken; mit «Mehr zeigen» dazu das Blatt der Kräfte am
-      Jochanschluss und die Excel-Mappe.</p>` },
+      und Drucken.</p>
+    <p>Die <b>Fussleiste</b> unten sagt dasselbe wie die Ergebniskachel. Steht
+      dort «einige Nachweise rechnet nur die Vollversion», zeigt das
+      Überfahren, welche (z. B. Knicken).</p>` },
   { id: 'k-modell', titel: '8 Wie gerechnet wird', html: `
     <p>Das Tragwerk ist ein räumliches <b>Stabwerk</b>: die vier Winkel des Jochs,
       die Bindebleche dazwischen und die Masten sind Stäbe. Die Masten sind am

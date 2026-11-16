@@ -185,7 +185,8 @@ export function einfachesErgebnis(node, opt = {}) {
     return { titel, eta, kopf, einheit };
   });
   const vorlaeufig = /vorläufig/i.test(node.querySelector('.sw-leiste, .stabwerk-leiste')?.textContent ?? '');
-  const { html } = einfachAusKacheln(kacheln, { ...opt, vorlaeufig });
+  const erg = einfachAusKacheln(kacheln, { ...opt, vorlaeufig });
+  const { html } = erg;
   const rest = document.createElement('details');
   rest.className = 'ef-mehr';
   rest.open = offen;
@@ -194,6 +195,28 @@ export function einfachesErgebnis(node, opt = {}) {
   rest.addEventListener('toggle', () => { offen = rest.open; });
   node.insertAdjacentHTML('afterbegin', html);
   node.appendChild(rest);
+  fusszeileEinfach(erg, opt);
+}
+
+/*
+ * DIE FUSSLEISTE DER SCHULUNG SAGT DASSELBE WIE DIE KACHEL (Audit 16. November,
+ * «alle umsetzen»). Vorher stand dort «Tragsicherheit erfüllt» grün neben einer
+ * roten Kachel (die Verformung zählt in der Kachel mit), bei Gleichstand ein
+ * anderes Fundament, und «3 nicht geführt» ohne Erklärung. Jetzt dieselbe Zahl
+ * und derselbe Name; was die Kursfassung nicht rechnet, steht als Satz und im
+ * Titel mit Namen.
+ */
+function fusszeileEinfach(erg, opt = {}) {
+  const el = typeof document !== 'undefined' ? document.getElementById('st-urteil') : null;
+  if (!el || !erg?.gruppen?.length) return;
+  const max = erg.gruppen.reduce((a, b) => (b.eta > a.eta ? b : a));
+  const farbe = max.eta > 1 ? 'var(--fail)' : max.eta > 0.9 ? 'var(--warn)' : 'var(--ok)';
+  const offen = (opt.nichtGefuehrt ?? []).map((g) => g.titel).filter(Boolean);
+  const satz = (opt.fall ? `Im Fall «${opt.fall}»: ` : '')
+    + (max.eta > 1 ? `überlastet: ${max.name} ${prozent(max.eta)}` : `${prozent(max.eta)} ausgelastet: ${max.name}`)
+    + (offen.length ? ' · einige Nachweise rechnet nur die Vollversion' : '');
+  el.innerHTML = `<span class="pkt" style="background:${farbe}"></span>${esc(satz)}`;
+  el.title = offen.length ? `Nur in der Vollversion: ${offen.join(', ')}` : '';
 }
 
 /* ==========================================================================

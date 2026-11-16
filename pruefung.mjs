@@ -42134,9 +42134,9 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   const SCH278 = await import(J('ui.schema.js'));
   const std = (k) => SCH278.FELDER.find((f) => f.key === k)?.standard;
   // 16. November: der Ablauf Schritt für Schritt (Kapitel 1-7), dann die Bemessung.
-  wahr('Handbuch zum Kurs: Ablauf in sieben Kapiteln (Start, drei Schritte, Ergebnis, 3D, Mehr zeigen)',
+  wahr('Handbuch zum Kurs: Ablauf in sieben Kapiteln (Start, drei Schritte, Ergebnis, 3D, Auflager und Export)',
        ['Erste Schritte', 'Schritt 1: Tragwerk', 'Schritt 2: Anbauteile', 'Schritt 3: Trasse, Wind, Schnee',
-        'Das Ergebnis lesen', 'Das 3D-Bild', 'Mehr zeigen, Auflager und Export']
+        'Das Ergebnis lesen', 'Das 3D-Bild', 'Auflager und Export']
          .every((t, k) => HB.KURS_HANDBUCH[k]?.titel === `${k + 1} ${t}`)
        && kursText.includes('Übungsbeispiele') && kursText.includes('Strg+Umschalt+Z') && kursText.includes('Mitte der Gesamtlänge'));
   wahr('Handbuch zum Kurs: dreizehn Kapitel (mit Nutzung), Beiwerte und f_yd wie die Vorgaben',
@@ -42234,20 +42234,17 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        ABQ.includes('${EINFACH && uebungenHtml() ?') && ABQ.includes("auf('[data-uebung]'")
        && ABQ.includes('await dialogEinlesen(app, roh,') && UQ.includes('data-uebung')
        && !readFileSync(join(HIER, 'js', 'app.js'), 'utf8').includes('uebungenHtml'));
-  // «Mehr zeigen» (16. November): ohne Schalter wie bisher, mit ihm Gruppe A frei;
-  // der Längsanker des Tragauslegers immer mit seiner Stelle.
-  S.mehrSetzen(false);
-  const ohneMehr = S.feldRecht('mastNummer', 'schulung') === 'aus' && !S.auswertungErlaubt('verlauf', 'schulung')
-    && !S.exportErlaubt('excel', 'schulung') && !S.gruppeErlaubt('aufl', 'schulung');
-  S.mehrSetzen(true);
-  const mitMehr = ['mastNummer', 'mastFuss', 'kragA', 'ankerWinkel'].every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
-    && S.auswertungErlaubt('verlauf', 'schulung') && S.exportErlaubt('excel', 'schulung')
-    && S.exportErlaubt('anschluss', 'schulung') && !S.exportErlaubt('bericht', 'schulung')
-    && S.feldRecht('havarieAus', 'schulung') === 'aus' && S.gruppeErlaubt('aufl', 'schulung')
-    && S.feldRecht('kragA', 'viewer') !== 'bearbeiten';
-  S.mehrSetzen(false);
-  wahr('Schulung: «Mehr zeigen» gibt Gruppe A frei, ohne Schalter bleibt sie zu; Längsanker mit Stelle',
-       ohneMehr && mitMehr && S.feldRecht('laengsverankerungX', 'schulung') === 'bearbeiten');
+  // «Mehr zeigen» wieder weg (16. November abends: «lass den mehr anzeigen
+  // button weg … die eingabe der anbauteile soll so flexibel wie notwendig
+  // bleiben»): Gruppe A zu, die Anbauteile mit Bausteinen und Gruppe offen.
+  const CSS278 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const ohneMehr = !S.mehrAn() && S.feldRecht('mastNummer', 'schulung') === 'aus'
+    && !S.auswertungErlaubt('verlauf', 'schulung') && !S.exportErlaubt('excel', 'schulung')
+    && !S.gruppeErlaubt('aufl', 'schulung') && !APP_QUELLE().includes('btn-mehr');
+  const anbauOffen = !/\[data-mehr\]\) (\.at-technik > \[data-mod-neu\]|\.at-technik \[data-mod-weg\]|\[data-at-gruppe-name\]|\[data-at-gruppe-dup\]|\[data-signal-direkt\]|\[data-klapp\^="at-fein-"\])/.test(CSS278)
+    && !CSS278.includes('.at-technik .bs-knopf { pointer-events: none; }');
+  wahr('Schulung: kein «Mehr zeigen»; Bausteine, Gruppe und Signalbauer der Anbauteile offen; Längsanker mit Stelle',
+       ohneMehr && anbauOffen && S.feldRecht('laengsverankerungX', 'schulung') === 'bearbeiten');
   // Nutzungsbedingungen bei jedem Öffnen der Schulung, mit dem Hinweis auf den Rechenkern.
   wahr('Schulung: Nutzungsbedingungen beim Start, Hinweis «nicht geprüfter Rechenkern»',
        S.NUTZUNG_HTML.includes('Nicht geprüfter Rechenkern') && !S.NUTZUNG_HTML.includes('Rechtsdienst')
@@ -42303,6 +42300,40 @@ titel('279  Sprachen der Schulung: Französisch und Italienisch');
   const AQ = APP_QUELLE();
   wahr('Umschalter DE/FR/IT nur in der Schulung, Übersetzer beim Start',
        AQ.includes('sprachwahl') && AQ.includes('uebersetzerStarten()'));
+}
+
+// ===========================================================================
+titel('280  Audit der Schulung: Kopfzeile, 100 %, Startbeispiel, Fussleiste, Übungsbeispiel, neuer Einzelmast');
+/* 16. November: «mach ein audit der schulungsversion …», danach «alle umsetzen». */
+{
+  const E = await import(J('ui.einfach.js'));
+  const C = await import(J('core.constants.js'));
+  const CSS = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const AQ = APP_QUELLE();
+  const ABQ = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  const EQ = readFileSync(join(HIER, 'js', 'ui.einfach.js'), 'utf8');
+  wahr('Kopfzeile wächst nicht über das Fenster (min-width 0), Projektknopf behält einen Rest',
+       /\.topbar \{\s*min-width: 0;/.test(CSS) && CSS.includes('.tb-mitte { flex: 1; display: flex; justify-content: center; min-width: min(160px, 22vw); }'));
+  const h = E.einfachAusKacheln([{ titel: 'η Fundament M1', eta: 1.004, kopf: 'Fundament' }]).html;
+  wahr('η 1.004 steht als 101 % neben «überlastet», nie als 100 %', h.includes('101 %') && !h.includes('>100 %'));
+  wahr('Startblatt mit Fahrdrahtabzug UND Kettenwerk (Gleis 1)',
+       AQ.includes("neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrdrahtabzug Gleis 1', gleis: 1")
+       && AQ.includes("neuesAnbauteil('kw-nfl-joch', 10), name: 'Kettenwerk Gleis 1', gleis: 1"));
+  wahr('Fussleiste der Schulung aus dem einfachen Ergebnis (gleiche Zahl, gleicher Name, nicht Geführtes im Titel)',
+       EQ.includes('function fusszeileEinfach') && EQ.includes('Nur in der Vollversion:')
+       && AQ.includes("if (!(EINFACH && tabAuswertung === 'uebersicht'))"));
+  wahr('Übungsbeispiel mit einem Klick: steht es in der Ablage, wird es geladen, sonst eingelesen und geladen',
+       ABQ.includes('inhalt.liste[0].doppeltZu') && ABQ.includes('await eintragLaden(app, r.neueIds[0], true)'));
+  wahr('Schulung: Export «Blätter», Reaktionsblatt ohne Vorlage des Hinweistexts, Handbuchknopf «Handbuch zum Kurs»',
+       AQ.includes("{ kopf: EINFACH ? 'Blätter' : 'Bericht und Blätter' }") && AQ.includes('aktionen: EINFACH ? [] : [')
+       && AQ.includes("EINFACH ? 'Handbuch zum Kurs' : 'Handbuch: Herleitung und Modellgrenzen'"));
+  // Ein neuer Einzelmast übernimmt nicht die Mastlänge des gewählten Tragwerks.
+  const w0 = { tragwerksart: 'tragausleger', twId: 'T1', L: 10, xLage: 0, mastLaenge: 14, flSpannweite: 40 };
+  const w1 = C.tragwerkHinzu(w0, 'einzelmast');
+  const w2 = C.tragwerkHinzu({ ...w0, tragwerksart: 'joch', L: 20 }, 'joch');
+  wahr('Neuer Einzelmast mit der Vorgabelänge (nicht 14 m vom Tragausleger); ein Joch erbt weiter',
+       w1.mastLaenge === 0 && w1.mastLaengeB === 0 && w2.mastLaenge === 14
+       && C.tragwerkHinzu(w0, 'einzelmast', { mastLaenge: 9 }).mastLaenge === 9);
 }
 
 console.log('\n' + '='.repeat(104));

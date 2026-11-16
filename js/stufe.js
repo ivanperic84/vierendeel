@@ -42,24 +42,17 @@ export const LEICHT = STUFE !== 'voll';
 export const EINFACH = STUFE === 'schulung';
 
 /*
- * >>> SCHALTER «MEHR ZEIGEN» IN DER SCHULUNG (16. November). <<<
- * Kursteilnehmer: «die funktionalität teilweise eingeschränkt»; auf die Liste
- * im Wortlaut «so umsetzen» (Gruppe A und der Schalter). Die Schulung startet
- * einfach; «Mehr zeigen» gibt Mastfelder, Kragarme, Ankerwinkel, Bausteine im
- * Anbauteil, Verläufe, Zustandslinien, Modellebenen, Lastfallwahl, Blatt des
- * Jochanschlusses, Excel und einige Kontextbefehle frei. Nichts davon ändert
- * eine Nachweisregel. Die Wahl bleibt im Browser gemerkt.
+ * >>> SCHALTER «MEHR ZEIGEN» - WIEDER WEG (16. November, abends). <<<
+ * Weisung: «lass den mehr anzeigen button weg, es ist doch zu viel für den
+ * user. die eingabe der anbauteile soll so flexibel wie notwendig bleiben.»
+ * Der Schalter ist weg; was er für die Anbauteile freigab (Bausteine
+ * hinzufügen, tauschen, entfernen, Gruppe benennen und duplizieren,
+ * Signalbauer), steht in der Schulung jetzt immer da (Stilblatt). Die
+ * übrigen Teile (Mastfelder, Kragarme, Verläufe, Zustandslinien, Excel …)
+ * bleiben zu. `mehrAn` bleibt als Stelle stehen und sagt immer nein.
  */
-const MEHR_KEY = 'tragjoch-schulung-mehr';
-let MEHR = false;
-try { MEHR = typeof localStorage !== 'undefined' && localStorage.getItem(MEHR_KEY) === '1'; } catch { MEHR = false; }
-/** In der Schulung mit «Mehr zeigen»? (ausserhalb der Schulung immer false) */
-export function mehrAn(stufe = STUFE) { return stufe === 'schulung' && MEHR; }
-export function mehrSetzen(an) {
-  MEHR = Boolean(an);
-  try { localStorage.setItem(MEHR_KEY, MEHR ? '1' : '0'); } catch { /* kein Speicher */ }
-  if (typeof document !== 'undefined') document.documentElement.toggleAttribute('data-mehr', mehrAn());
-}
+/** Früher der Schalter «Mehr zeigen»; jetzt immer false. */
+export function mehrAn() { return false; }
 export const MEHR_FELDER = new Set([
   'mastNummer', 'mastFuss', 'mastFundament', 'mastGelaende',
   'kragA', 'kragB', 'stuetzweite',

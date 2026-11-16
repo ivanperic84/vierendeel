@@ -14,6 +14,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Neues Blatt: zur Hängestütze mit Fahrdrahtabzug kommt das Kettenwerk (Gewicht der Fahrleitung am Joch); gespeicherte Stände bleiben.', rechnung: true },
+      { text: 'Ein neuer Einzelmast übernimmt nicht mehr die Mastlänge des gewählten Tragwerks.' },
+      { text: 'Schulungsfassung: Schalter «Mehr zeigen» wieder weg; Anbauteile mit Bausteinen und Gruppe immer bearbeitbar; Fussleiste wie die Ergebniskachel; Übungsbeispiele mit einem Klick.' },
       { text: 'Ein langer Projektname schiebt die Seite nicht mehr über den Bildschirmrand; über 100 % stehen nie als «100 %»; einige Meldungen auf Französisch und Italienisch nachgetragen.' },
       { text: 'Vorlagen Jochaufsatz doppelt und alt: die Zusatzleiter liegen auf der Höhe der Traverse (wie beim einfachen). Bereits gesetzte Teile bleiben, wie sie sind.', rechnung: true },
       { text: 'Schulungsfassung auf Französisch und Italienisch: Umschalter DE / FR / IT oben rechts (die Wahl bleibt gemerkt); Oberfläche, Nutzungsbedingungen (im Startfenster in jeder der drei Sprachen lesbar) und Handbuch zum Kurs übersetzt. Die italienischen Begriffe sind zur Durchsicht bestimmt.' },

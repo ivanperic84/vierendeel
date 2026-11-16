@@ -9,6 +9,30 @@
  * sonst bleibt er in FR/IT deutsch.
  */
 export const TEXTE = {
+ "Handbuch zum Kurs (Taste h)": {
+  "fr": "Manuel du cours (touche h)",
+  "it": "Manuale del corso (tasto h)"
+ },
+ "Knicken Mast": {
+  "fr": "Flambage du mât",
+  "it": "Instabilità del palo"
+ },
+ "Knicken Joch": {
+  "fr": "Flambage du joug",
+  "it": "Instabilità del portale"
+ },
+ "Blätter": {
+  "fr": "Feuilles",
+  "it": "Fogli"
+ },
+ "Fahrdrahtabzug Gleis 1": {
+  "fr": "Retenue du fil de contact voie 1",
+  "it": "Tiro del filo di contatto binario 1"
+ },
+ "Kettenwerk Gleis 1": {
+  "fr": "Caténaire voie 1",
+  "it": "Catenaria binario 1"
+ },
  "ziehen": {
   "fr": "déplacer",
   "it": "sposta"
@@ -1973,6 +1997,15 @@ export function name(t, s) {
 }
 const N = (s) => (t) => name(t, s);
 export const MUSTER = [
+  { re: /^(?:Im Fall «(.+)»: )?(?:überlastet: (.+) (\d+ %)|(\d+ %) ausgelastet: (.+?))( · einige Nachweise rechnet nur die Vollversion)?$/,
+    fr: (f, wu, pu, pa, wa, rest, t) => (f ? `Dans le cas «${t(f)}» : ` : '')
+      + (wu ? `surchargée : ${name(wu, 'fr')} ${pu}` : `utilisée à ${pa} : ${name(wa, 'fr')}`)
+      + (rest ? ' · certaines justifications seulement dans la version complète' : ''),
+    it: (f, wu, pu, pa, wa, rest, t) => (f ? `Nel caso «${t(f)}»: ` : '')
+      + (wu ? `sovraccarica: ${name(wu, 'it')} ${pu}` : `utilizzata al ${pa}: ${name(wa, 'it')}`)
+      + (rest ? ' · alcune verifiche solo nella versione completa' : '') },
+  { re: /^Nur in der Vollversion: (.+)$/, fr: (a, t) => `Seulement dans la version complète : ${a.split(', ').map(t).join(', ')}`,
+    it: (a, t) => `Solo nella versione completa: ${a.split(', ').map(t).join(', ')}` },
   { re: /^Geladen: (.+)$/, fr: 'Chargé : $1', it: 'Caricato: $1' },
   { re: /^Mast (\S+)$/, fr: 'Mât $1', it: 'Palo $1' },
   { re: /^Fundament (\S+)$/, fr: 'Fondation $1', it: 'Fondazione $1' },
