@@ -21,6 +21,7 @@ import { getProfil, getStahl } from './data.profiles.js';
 import { laengenbereich, tragjoche } from './data.tragjoche.js';
 import { abschnitt, esc, FARBEN as farben, icon } from './design.js';
 import { handbuchDatei, handbuchHtml, kursHandbuchHtml } from './doku.handbuch.js';
+import { sprache } from './sprache.js';
 import { EINFACH } from './stufe.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
@@ -387,7 +388,7 @@ const farbtokens = (thema) => farben[thema] ?? farben.hell;
 export function dialogHandbuch(app) {
   // Schulung (15. November): das kurze Handbuch zum Kurs.
   const d = app.dialog(EINFACH ? 'Handbuch zum Kurs' : 'Handbuch, Herleitung und Modellgrenzen',
-    EINFACH ? kursHandbuchHtml() : handbuchHtml(),
+    EINFACH ? kursHandbuchHtml(sprache()) : handbuchHtml(),
     '<button class="btn" data-datei>Als Datei sichern</button>' +
     '<button class="btn" data-drucken>Drucken / PDF</button>' +
     '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
@@ -396,7 +397,7 @@ export function dialogHandbuch(app) {
   // dass die ganze Anwendung mitgeschickt werden muss.
   d.node.querySelector('[data-datei]').onclick = () => {
     // Helles Thema: die Datei wird gelesen, beigelegt und gedruckt.
-    const html = handbuchDatei({ fussnote: `${APP_NAME} ${app.VERSION}`, kurs: EINFACH,
+    const html = handbuchDatei({ fussnote: `${APP_NAME} ${app.VERSION}`, kurs: EINFACH, sprache: sprache(),
                                  tokens: farbtokens('hell') });
     store.dateiSpeichern(html, `${APP_NAME}_Handbuch_${new Date().toISOString().slice(0, 10)}.html`,
                          'text/html;charset=utf-8');

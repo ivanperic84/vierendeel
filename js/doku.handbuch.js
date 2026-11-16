@@ -20,6 +20,7 @@
  */
 
 import { NUTZUNG_HTML } from './stufe.js';
+import { KURS_FR, KURS_IT } from './doku.kurs.sprachen.js';
 import { skizze, pf, mass, knoten, winkel, raus, rein, txt }
   from './doku.skizze.js';
 
@@ -2800,8 +2801,10 @@ export function handbuchDatei(o = {}) {
       .join(';\n  ');
   }
 
-  // Mit `kurs` das Handbuch zum Kurs (Schulung, 15. November).
-  const kapitel = o.kurs ? KURS_HANDBUCH : HANDBUCH;
+  // Mit `kurs` das Handbuch zum Kurs (Schulung, 15. November), in der
+  // Sprache `o.sprache` (16. November).
+  const kapitel = o.kurs ? kursKapitel(o.sprache) : HANDBUCH;
+  const wo = o.kurs ? (o.sprache ?? 'de') : 'de';
   const toc = kapitel.map((s) =>
     `<a class="hb-toc-e" href="#hb-${s.id}">${s.titel}</a>`).join('');
   const rumpf = kapitel.map((s) =>
@@ -2809,7 +2812,7 @@ export function handbuchDatei(o = {}) {
     .join('');
 
   return `<!doctype html>
-<html lang="de"><head><meta charset="utf-8">
+<html lang="${wo}"><head><meta charset="utf-8">
 <title>${titel}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>${css}</style>
@@ -2829,8 +2832,8 @@ export function handbuchDatei(o = {}) {
 </style>
 </head><body><div class="hb-datei">
 <h1>${titel}</h1>
-<p class="notiz hb-stand">Stand ${stand}${o.fussnote ? ` · ${o.fussnote}` : ''}</p>
-<nav class="hb-toc"><div class="hb-toc-t">Inhalt</div>${toc}</nav>
+<p class="notiz hb-stand">${STAND_WORT[wo] ?? 'Stand'} ${stand}${o.fussnote ? ` · ${o.fussnote}` : ''}</p>
+<nav class="hb-toc"><div class="hb-toc-t">${INHALT_WORT[wo] ?? 'Inhalt'}</div>${toc}</nav>
 ${rumpf}
 </div></body></html>`;
 }
@@ -3015,12 +3018,25 @@ export const KURS_HANDBUCH = [
   { id: 'k-nutzung', titel: '13 Nutzung und Weitergabe', html: NUTZUNG_HTML },
 ];
 
-export function kursHandbuchHtml() {
-  const toc = KURS_HANDBUCH.map((s) => `<a class="hb-toc-e" data-zu="${s.id}">${s.titel}</a>`).join('');
-  const rumpf = KURS_HANDBUCH.map((s) =>
+/*
+ * Sprachen des Kurs-Handbuchs (16. November, «übersetzung ins französische
+ * und italienische»): die Kapitel stehen in doku.kurs.sprachen.js mit
+ * denselben Kennungen. Der Block trägt `data-kein-tr` - das Wörterbuch der
+ * Oberfläche soll nicht in einen schon übersetzten Text greifen.
+ */
+const INHALT_WORT = { de: 'Inhalt', fr: 'Sommaire', it: 'Indice' };
+const STAND_WORT = { de: 'Stand', fr: 'État', it: 'Stato' };
+export function kursKapitel(sprache = 'de') {
+  return sprache === 'fr' ? KURS_FR : sprache === 'it' ? KURS_IT : KURS_HANDBUCH;
+}
+
+export function kursHandbuchHtml(sprache = 'de') {
+  const kap = kursKapitel(sprache);
+  const toc = kap.map((s) => `<a class="hb-toc-e" data-zu="${s.id}">${s.titel}</a>`).join('');
+  const rumpf = kap.map((s) =>
     `<section class="hb-abschnitt" id="hb-${s.id}"><h3>${s.titel}</h3>${s.html}</section>`).join('');
-  return `<div class="hb">
-    <nav class="hb-toc"><div class="hb-toc-t">Inhalt</div>${toc}</nav>
+  return `<div class="hb" data-kein-tr lang="${sprache}">
+    <nav class="hb-toc"><div class="hb-toc-t">${INHALT_WORT[sprache] ?? 'Inhalt'}</div>${toc}</nav>
     <div class="hb-text">${rumpf}</div>
   </div>`;
 }

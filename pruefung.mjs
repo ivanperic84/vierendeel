@@ -42251,8 +42251,58 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   // Nutzungsbedingungen bei jedem Öffnen der Schulung, mit dem Hinweis auf den Rechenkern.
   wahr('Schulung: Nutzungsbedingungen beim Start, Hinweis «nicht geprüfter Rechenkern»',
        S.NUTZUNG_HTML.includes('Nicht geprüfter Rechenkern') && !S.NUTZUNG_HTML.includes('Rechtsdienst')
-       && AQ.includes("dialog('Nutzungsbedingungen', NUTZUNG_HTML,")
+       && AQ.includes("dialog('Nutzungsbedingungen',") && AQ.includes('data-nutzung-sprache') && AQ.includes('nutzungHtml(s)')
        && S.plotErlaubt('sig_v', 'schulung') && S.plotErlaubt('positionen', 'schulung'));
+}
+
+// ===========================================================================
+titel('279  Sprachen der Schulung: Französisch und Italienisch');
+/* 16. November: «nutze das alte statiktool excel und die regelwerk dokumente
+ * im grundlagenordner für eine übersetzung ins französische und italienische
+ * des tools.» Auf Rückfrage «Schulung zuerst», «Umschalter in der App». */
+{
+  const SP = await import(J('sprache.js'));
+  const T = await import(J('sprache.texte.js'));
+  const S = await import(J('stufe.js'));
+  const K = await import(J('doku.kurs.sprachen.js'));
+  const H = await import(J('doku.handbuch.js'));
+  wahr('Ohne Wahl Deutsch; tr lässt Deutsch unverändert', SP.sprache() === 'de'
+       && SP.tr('Joch', 'de') === 'Joch' && SP.SPRACHEN.map((x) => x.key).join() === 'de,fr,it');
+  // Jeder Eintrag hat beide Sprachen und keinen leeren Text.
+  const leer = Object.entries(T.TEXTE).filter(([, v]) => !v.fr || !v.it);
+  wahr(`Wörterbuch: ${Object.keys(T.TEXTE).length} Einträge, jeder mit FR und IT`, leer.length === 0,
+       leer.map(([k]) => k).slice(0, 5).join(' | '));
+  // Fachbegriffe nach der Texttabelle der alten Mastberechnung.
+  wahr('Fachbegriffe FR: Mât, Joug support, Joug d\'amarrage, Console haubanée',
+       SP.tr('Mast 429', 'fr') === 'Mât 429' && T.TEXTE['Tragjoch']?.fr === 'Joug support'
+       && T.TEXTE['Abfangjoch']?.fr === "Joug d'amarrage" && T.TEXTE['Tragausleger']?.fr === 'Console haubanée');
+  // Muster mit Zahlen, auch zusammengesetzte Lastfallnamen.
+  wahr('Muster: Lastfallnamen quer/längs zum Gleis, Betriebswind, Fussleiste',
+       SP.tr('LF13 · Wind −y (längs zum Gleis) leitend', 'fr') === 'LF13 · Vent −y (parallèle à la voie) dominant'
+       && SP.tr('LF9 · Ständig + Wind −y (längs zum Gleis)', 'it') === 'LF9 · Permanente + vento −y (longitudinale al binario)'
+       && SP.tr('LF20 · Betriebswind (ψ 0.70): Wind +x (quer zum Gleis)', 'fr')
+          === 'LF20 · Vent de service (ψ 0.70) : Vent +x (perpendiculaire à la voie)'
+       && SP.tr('EK1 · L_FL 40 m · gerade · Schnee', 'it') === 'EK1 · L_FL 40 m · rettilineo · neve');
+  // Ein übersetzter Text wird nicht noch einmal übersetzt - die Seite hing
+  // sonst in einer Schleife (der Beobachter sieht jede Änderung).
+  const e1 = SP.tr('Mast 429: 86 % (η 0.86)', 'fr');
+  wahr('Kein zweites Übersetzen (Schleife)', e1 === 'Mât 429 : 86 % (η 0.86)' && SP.tr(e1, 'fr') === e1, e1);
+  // Was nicht im Wörterbuch steht, bleibt Deutsch.
+  wahr('Unbekannter Text bleibt unverändert', SP.tr('Xyzabc Unbekannt', 'fr') === 'Xyzabc Unbekannt');
+  // Nutzungsbedingungen und Kurs-Handbuch als ganze Texte, gleiche Kapitel.
+  const ids = (k) => k.map((x) => x.id).join();
+  wahr('Kurs-Handbuch FR/IT: dieselben 13 Kapitel wie Deutsch, Nutzung in der Sprache',
+       ids(K.KURS_FR) === ids(H.KURS_HANDBUCH) && ids(K.KURS_IT) === ids(H.KURS_HANDBUCH)
+       && K.KURS_FR.at(-1).html === S.NUTZUNG_HTML_FR && K.KURS_IT.at(-1).html === S.NUTZUNG_HTML_IT
+       && H.kursHandbuchHtml('fr').includes('Sommaire') && H.kursHandbuchHtml('it').includes('Indice')
+       && H.kursHandbuchHtml().includes('Inhalt') && H.kursHandbuchHtml('fr').includes('data-kein-tr'));
+  wahr('Nutzungsbedingungen FR/IT mit dem Hinweis auf den nicht geprüften Rechenkern',
+       S.nutzungHtml('fr').includes('Noyau de calcul non vérifié') && S.nutzungHtml('it').includes('Nucleo di calcolo non verificato')
+       && S.nutzungHtml('de') === S.NUTZUNG_HTML);
+  // Der Umschalter steht nur in der Schulung (die Vollversion bleibt Deutsch).
+  const AQ = APP_QUELLE();
+  wahr('Umschalter DE/FR/IT nur in der Schulung, Übersetzer beim Start',
+       AQ.includes('sprachwahl') && AQ.includes('uebersetzerStarten()'));
 }
 
 console.log('\n' + '='.repeat(104));

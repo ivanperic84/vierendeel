@@ -98,6 +98,48 @@ export const NUTZUNG_HTML = `
       und Vollständigkeit bereitgestellt. Alle Rechte vorbehalten.</li>
   </ul>`;
 
+/*
+ * Die Nutzungsbedingungen auf Französisch und Italienisch (16. November,
+ * «übersetzung ins französische und italienische»). Ganze Absätze - nicht
+ * über das Wörterbuch. Italienisch zur Durchsicht.
+ */
+export const NUTZUNG_HTML_FR = `
+  <p>Cette version est destinée à la formation dans le cadre du cours.</p>
+  <ul>
+    <li><b>Pas de justification statique.</b> Les résultats sont une vérification
+      préliminaire. Ils ne doivent pas être utilisés, déposés ou transmis comme
+      justification statique.</li>
+    <li><b>Noyau de calcul non vérifié.</b> Le calcul est effectué par un solveur
+      de treillis spatial propre, qui n'est ni vérifié ni certifié comme logiciel
+      de calcul statique. Les calculs comparatifs ne remplacent pas une
+      vérification ; les résultats peuvent être erronés. Pour un ouvrage, un
+      spécialiste établit la justification avec un logiciel vérifié.</li>
+    <li><b>Confidentiel.</b> Ne pas transmettre, publier ni modifier le fichier
+      et les données qu'il contient.</li>
+    <li><b>Sans garantie.</b> L'application est fournie sans garantie
+      d'exactitude ni d'exhaustivité. Tous droits réservés.</li>
+  </ul>`;
+export const NUTZUNG_HTML_IT = `
+  <p>Questa versione è destinata alla formazione nell'ambito del corso.</p>
+  <ul>
+    <li><b>Nessuna verifica statica.</b> I risultati sono una verifica
+      preliminare. Non devono essere utilizzati, presentati o trasmessi come
+      verifica statica.</li>
+    <li><b>Nucleo di calcolo non verificato.</b> Il calcolo è eseguito con un
+      risolutore di telai spaziali proprio, non verificato né certificato come
+      programma di calcolo statico. I calcoli comparativi non sostituiscono una
+      verifica; i risultati possono essere errati. Per un'opera la verifica è
+      eseguita da uno specialista con un programma verificato.</li>
+    <li><b>Riservato.</b> Non trasmettere, pubblicare né modificare il file e
+      i dati in esso contenuti.</li>
+    <li><b>Senza garanzia.</b> L'applicazione è fornita senza garanzia di
+      correttezza e completezza. Tutti i diritti riservati.</li>
+  </ul>`;
+/** Die Nutzungsbedingungen in einer Sprache ('de' | 'fr' | 'it'). */
+export function nutzungHtml(s = 'de') {
+  return s === 'fr' ? NUTZUNG_HTML_FR : s === 'it' ? NUTZUNG_HTML_IT : NUTZUNG_HTML;
+}
+
 /* ------------------------------------------------------------------------
  * FELDER DER MASKE
  * --------------------------------------------------------------------- */

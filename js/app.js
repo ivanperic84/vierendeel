@@ -9,8 +9,9 @@
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
+import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
-import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, NUTZUNG_HTML, mehrAn, mehrSetzen, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, nutzungHtml, mehrAn, mehrSetzen, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -7413,6 +7414,27 @@ export async function start() {
         neuRechnen();
       };
     }
+    /*
+     * SPRACHE (16. November, «übersetzung ins französische und italienische»;
+     * Rückfrage «Umschalter in der App», «Schulung zuerst»): DE / FR / IT im
+     * Kopf. Umschalten lädt die Seite neu - der Stand ist gespeichert, und so
+     * steht jeder Text von Anfang an in der gewählten Sprache.
+     */
+    const mk = document.getElementById('btn-mehr');
+    if (mk && !document.getElementById('sprachwahl')) {
+      mk.insertAdjacentHTML('afterend', `<span class="sprachwahl" id="sprachwahl" role="group" aria-label="Sprache" data-kein-tr>${
+        SPRACHEN.map((x) => `<button type="button" class="btn btn-mini${x.key === sprache() ? ' an' : ''}"
+          data-sprache="${x.key}" title="${x.name}" aria-pressed="${x.key === sprache()}">${x.label}</button>`).join('')}</span>`);
+      document.querySelectorAll('[data-sprache]').forEach((b) => {
+        b.onclick = () => {
+          if (b.dataset.sprache === sprache()) return;
+          spracheSetzen(b.dataset.sprache);
+          try { const u = new URL(location.href); u.searchParams.delete('lang'); location.replace(u.href); }
+          catch { location.reload(); }
+        };
+      });
+    }
+    uebersetzerStarten();
   }
   // Ablage im Browser und Installationsangebot. Muss vor dem ersten
   // baueKopf() stehen, damit der Knopf beim ersten Zeichnen schon da sein
@@ -7718,8 +7740,23 @@ export async function start() {
   }
   // Schulung: die Nutzungsbedingungen bei JEDEM Öffnen (16. November).
   if (EINFACH) {
-    dialog('Nutzungsbedingungen', NUTZUNG_HTML,
+    // Dreisprachig wählbar (16. November, «die nutzungsvereinfahrung müsste
+    // auch dreisprachig auswählbar sein»): die Knöpfe tauschen nur den Text
+    // der Bedingungen; die Sprache der Oberfläche bleibt beim Umschalter oben.
+    const d = dialog('Nutzungsbedingungen',
+      `<div data-kein-tr><div class="sprachwahl nutzung-sprache" role="group" aria-label="Sprache">${
+        SPRACHEN.map((x) => `<button type="button" class="btn${x.key === sprache() ? ' an' : ''}" data-nutzung-sprache="${x.key}" lang="${x.key}" title="${x.name}">${x.label}</button>`).join('')
+      }</div><div class="nutzung-text" lang="${sprache()}">${nutzungHtml(sprache())}</div></div>`,
       '<button class="btn btn-acc" data-zu>Gelesen und einverstanden</button>', 'dialog-nutzung');
+    d?.node?.querySelectorAll('[data-nutzung-sprache]').forEach((b) => {
+      b.onclick = () => {
+        const s = b.dataset.nutzungSprache;
+        const t = d.node.querySelector('.nutzung-text');
+        t.innerHTML = nutzungHtml(s);
+        t.lang = s;
+        d.node.querySelectorAll('[data-nutzung-sprache]').forEach((x) => x.classList.toggle('an', x === b));
+      };
+    });
   }
 }
 

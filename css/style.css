@@ -3950,3 +3950,10 @@ html[data-mehr] .mehr-knopf { background: var(--acc-s); border-color: var(--acc)
 /* Schulung (16. November): ein Wert, der aus der Gesamtlänge folgt, sagt es -
    sonst sieht er wie ein gesperrtes Eingabefeld aus. */
 html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: block !important; }
+
+/* Sprachwahl der Schulung (16. November). */
+.sprachwahl { display: inline-flex; gap: 2px; margin-left: 8px; }
+.sprachwahl .btn { min-width: 30px; padding: 2px 6px; }
+.sprachwahl .btn.an { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
+
+.nutzung-sprache { margin: 0 0 10px; }
