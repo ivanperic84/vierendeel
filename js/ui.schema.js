@@ -813,10 +813,15 @@ export const FELDER = [
    */
   { key: 'jochEinspannung', gruppe: 'mast', typ: 'auswahl', label: 'Anschluss Joch am Masten',
     standard: 'gebaut',
+    // Dritte Stufe (17. November, «bis zur schraubengrenze»): eingespannt,
+    // die Kraft je Gurtanschluss in Jochachse höchstens F_Grenz
+    // (core.stabschraube.js).
     optionen: [{ wert: 'gebaut', text: 'wie gebaut (in der Jochebene gelenkig)' },
-               { wert: 'eingespannt', text: 'eingespannt (beide Gurte halten)' }],
+               { wert: 'grenze', text: 'eingespannt bis zur Grenze der Hakenschrauben' },
+               { wert: 'eingespannt', text: 'voll eingespannt (ohne Grenze)' }],
     sichtbar: (w) => EINFACH && tragwerksart(w).key === 'joch' && w.mastVorhanden !== false,
-    wertAus: (w) => (jochEingespannt(w.auflagerLinks) ? 'eingespannt' : 'gebaut') },
+    wertAus: (w) => (w.auflagerLinks?.schraubenGrenze === true ? 'grenze'
+      : jochEingespannt(w.auflagerLinks) ? 'eingespannt' : 'gebaut') },
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'links', optionen: opt(ENDBEDINGUNGEN),
     sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w),

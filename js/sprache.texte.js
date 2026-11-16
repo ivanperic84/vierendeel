@@ -9,6 +9,14 @@
  * sonst bleibt er in FR/IT deutsch.
  */
 export const TEXTE = {
+ "eingespannt bis zur Grenze der Hakenschrauben": {
+  "fr": "encastré jusqu'à la limite des boulons à crochet",
+  "it": "incastrato fino al limite dei bulloni a gancio"
+ },
+ "voll eingespannt (ohne Grenze)": {
+  "fr": "entièrement encastré (sans limite)",
+  "it": "completamente incastrato (senza limite)"
+ },
  "VORDIMENSIONIERUNG · kein geprüfter statischer Nachweis": {
   "fr": "PRÉDIMENSIONNEMENT · pas de justification statique vérifiée",
   "it": "PREDIMENSIONAMENTO · nessuna verifica statica controllata"

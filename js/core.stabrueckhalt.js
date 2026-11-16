@@ -50,11 +50,11 @@ const KOMP = { X: 0, Y: 1, Z: 2, Mx: 3, My: 4, Mz: 5 };
  * Die gehaltenen Punkte der Datei: je Hilfsfall seine Einheitslast (Kräfte
  * und Momente an Knoten) und der Grösstwert aus dem Schlüssel.
  */
-export function rueckhaltPunkte(dat) {
+export function rueckhaltPunkte(dat, praefix = RUECKHALT_FALL) {
   const je = new Map();
   const nimm = (l) => {
     const fall = String(l?.lastfall ?? '');
-    if (!fall.startsWith(RUECKHALT_FALL)) return;
+    if (!fall.startsWith(praefix)) return;
     const c = KOMP[l.richtung];
     if (c === undefined || !l.wert) return;
     if (!je.has(fall)) {
@@ -125,6 +125,21 @@ function loeseKlein(A, b) {
  *            groesste: Array<{key, max, f, ausgeschoepft, fall, bez}>}}
  */
 export function rueckhaltHalten(dat, lsg, punkte, faelle) {
+  // Der Halt gilt nur mit Wind längs und wächst mit dessen Beiwert.
+  return begrenzterHalt(dat, lsg, punkte, faelle, {
+    praefix: RUECKHALT_FALL,
+    skala: (anteile) => Math.abs(anteile.filter((x) => x.lastfall === WIND_LAENGS)
+      .reduce((s, x) => s + (x.faktor || 0), 0)),
+  });
+}
+
+/**
+ * >>> DER BEGRENZTE HALT, ALLGEMEIN (17. November). <<<
+ * Derselbe Rechenweg für die Rückhaltekraft der Leiter und die Hakenschrauben
+ * am Jochanschluss (core.stabschraube.js): `praefix` der Hilfsfälle, `skala`
+ * je Kombination (0 = kein Halt in diesem Fall); die Grenze ist max × skala.
+ */
+export function begrenzterHalt(dat, lsg, punkte, faelle, { praefix, skala }) {
   const je = new Map();
   if (!punkte?.length || !lsg?.u || !lsg.knotenIdx) return { je, punkte: 0, groesste: [] };
   // Der Weg des Punkts i in einem Grundfall = Arbeit seiner Einheitslast.
@@ -151,9 +166,8 @@ export function rueckhaltHalten(dat, lsg, punkte, faelle) {
   const vorhanden = new Map((dat.kombinationen ?? []).map((k) => [k.key, k]));
 
   faelle.forEach((lf) => {
-    const anteile = anteileFuer(lf, dat).filter((x) => !String(x.lastfall).startsWith(RUECKHALT_FALL));
-    const fw = Math.abs(anteile.filter((x) => x.lastfall === WIND_LAENGS)
-      .reduce((s, x) => s + (x.faktor || 0), 0));
+    const anteile = anteileFuer(lf, dat).filter((x) => !String(x.lastfall).startsWith(praefix));
+    const fw = skala(anteile, lf);
     if (!(fw > 1e-12)) return;
     const u0 = punkte.map((_, i) => anteile.reduce(
       (s, { lastfall, faktor }) => s + (faktor || 0) * weg(i, lastfall), 0));

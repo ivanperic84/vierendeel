@@ -775,6 +775,16 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
     const summe = new Map();
     anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
       if (!faktor) return;
+      /*
+       * Begrenzter Anschluss (17. November, core.stabschraube.js): das Link
+       * gibt x frei, die Kraft der Schraube ist der Faktor ihres Hilfsfalls
+       * (Kräftepaar 1 kN, `Schraube|<Link>|<F_Grenz>`).
+       */
+      if (String(lastfall).startsWith('Schraube|')) {
+        const nm = String(lastfall).split('|')[1];
+        summe.set(nm, (summe.get(nm) ?? 0) + faktor);
+        return;
+      }
       fxVon(lastfall).forEach((v, name) => summe.set(name, (summe.get(name) ?? 0) + faktor * v));
     });
     summe.forEach((v, name) => {

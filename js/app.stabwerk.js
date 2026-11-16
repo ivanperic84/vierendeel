@@ -40,7 +40,8 @@
  * ---------------------------------------------------------------------------
  */
 import { rueckhaltVon, rueckhaltMaxVon } from './data.anbauteile.js';
-import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL } from './core.stabrueckhalt.js';
+import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL, begrenzterHalt } from './core.stabrueckhalt.js';
+import { schraubenGrenzeEinsetzen, SCHRAUBE_FALL, SCHRAUBE_SKALA } from './core.stabschraube.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
@@ -321,6 +322,9 @@ export function stabwerkModell(werte, erg, satz, eingaben, opt) {
     bau.lasten = lasten(erg.modell, bau, opt);
   }
   const dat = stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz, eingaben });
+  // Einspannung bis zur Grenze der Hakenschrauben (17. November): die
+  // Hilfsfälle stehen vor dem Lösen in der Datei (core.stabschraube.js).
+  schraubenGrenzeEinsetzen(dat, eingaben);
   return { dat, bau };
 }
 
@@ -355,12 +359,17 @@ export function stabwerkDatei(werte, erg, opt = {}) {
  * (COM-Datei eines einzelnen Tragwerks: AxisVM setzt es selbst an).
  */
 export function rueckhaltInDatei(dat, eingaben, { eigengewicht = true } = {}) {
+  // Auch die Hakenschrauben (17. November): dieselbe Lösung, danach begrenzt.
+  schraubenGrenzeEinsetzen(dat, eingaben);
   const punkte = rueckhaltPunkte(dat);
-  if (!punkte.length) return null;
+  const schrauben = rueckhaltPunkte(dat, SCHRAUBE_FALL);
+  if (!punkte.length && !schrauben.length) return null;
   const lsg = loese(dat, { eigengewicht });
   const faelle = (eingaben ?? []).flatMap((s) => lastfaelle(s))
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
-  return rueckhaltHalten(dat, lsg, punkte, faelle);
+  const r = rueckhaltHalten(dat, lsg, punkte, faelle);
+  begrenzterHalt(dat, lsg, schrauben, faelle, { praefix: SCHRAUBE_FALL, skala: SCHRAUBE_SKALA });
+  return r;
 }
 
 export function rechneStabwerk(app, aufruf = {}) {
@@ -432,6 +441,9 @@ export function rechneStabwerk(app, aufruf = {}) {
   // Zuerst der Halt der Leiter (er schreibt seine Faktoren in die
   // Kombinationen), dann der Ausfall der Seile mit ihm zusammen.
   const haltInfo = rueckhaltHalten(dat, lsg, rueckhaltPunkte(dat), alleFaelleS);
+  // Die Hakenschrauben am Jochanschluss, begrenzt auf F_Grenz (17. November).
+  const schraubenInfo = begrenzterHalt(dat, lsg, rueckhaltPunkte(dat, SCHRAUBE_FALL), alleFaelleS,
+    { praefix: SCHRAUBE_FALL, skala: SCHRAUBE_SKALA });
   const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).

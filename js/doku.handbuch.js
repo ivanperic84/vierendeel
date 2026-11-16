@@ -2879,8 +2879,11 @@ export const KURS_HANDBUCH = [
         Lage aller Tragwerke und Masten auf dem Querprofil; ein Klick wählt.</li>
       <li><b>Joch</b> - Typ und Länge (die Längen des Sortiments), Höhe über dem
         Boden. «Anschluss Joch am Masten»: <i>wie gebaut</i> (in der Jochebene
-        gelenkig) oder <i>eingespannt</i> - zum Vergleichen, wie sich
-        Ausnutzung und Verformung ändern.</li>
+        gelenkig), <i>eingespannt bis zur Grenze der Hakenschrauben</i> (der
+        Untergurt gibt am Masten höchstens 24 kN je Anschluss weiter, darüber
+        gleitet er) oder <i>voll eingespannt</i> (ohne Grenze, nur zum
+        Vergleichen) - so sieht man, wie sich Ausnutzung und Verformung
+        ändern.</li>
       <li><b>Masten</b> - Profil, Länge (auf 0.5 m), Ausrichtung des Stegs, Lage.
         Im 3D lässt sich ein Mast am Schaft verschieben und am Kopf verlängern.</li>
       <li><b>Abspannung</b> - Zuganker oder Druckstütze am Masten («Anker» als

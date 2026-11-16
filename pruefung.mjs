@@ -42336,6 +42336,61 @@ titel('280  Audit der Schulung: Kopfzeile, 100 %, Startbeispiel, Fussleiste, Üb
        && C.tragwerkHinzu(w0, 'einzelmast', { mastLaenge: 9 }).mastLaenge === 9);
 }
 
+// ===========================================================================
+titel('281  Einspannung des Jochs bis zur Grenze der Hakenschrauben');
+/* 17. November: «bis zur schraubengrenze», «beide gurte gleich begrenzen wenn
+ * das einen einfluss hat auf den einspanngrad. sonst belassen um die
+ * performance nicht einzubüsen. der grenzwert gilt global für alle typen und
+ * längen.» (js/core.stabschraube.js) */
+{
+  const SG = await import(J('core.stabschraube.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const A = await import(J('core.auflager.js'));
+  let w0 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  // Grenze 10 kN, damit sie am Startjoch greift (voll eingespannt rund 20 kN).
+  w0 = { ...w0, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', schraubenFgrenz: 10,
+         nachweise: { ...(w0.nachweise ?? {}), auflagerJoch: true } };
+  const voll = JSON.parse(JSON.stringify(A.JOCH_EINGESPANNT));
+  const rechne = (links) => {
+    const w = { ...w0, auflagerLinks: links };
+    const satz = N.rechensatzMitNachbarn(w);
+    const erg = V.berechne(satz, ...N.kernArgumente(satz));
+    return AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const fmax = (h, gurt) => Math.max(0, ...(h?.buegel?.zeilen ?? []).filter((z) => z.gurt === gurt).map((z) => z.F));
+  const hV = rechne(voll);
+  const hG = rechne({ ...voll, schraubenGrenze: true });
+  const hB = rechne(null);
+  const ug = fmax(hG, 'UG');
+  wahr('Grenze global 24 kN, nur der Untergurt begrenzt (Obergurt bleibt fest, sonst kein Halt in x)',
+       SG.F_GRENZ_VORGABE === 24 && SG.GURTE.join() === 'UG' && SG.fGrenzVon({}) === 24);
+  wahr('Voll eingespannt überschreitet die Grenze am Untergurt (Ausgangslage des Befunds)',
+       fmax(hV, 'UG') > 10, `${fmax(hV, 'UG').toFixed(1)} kN`);
+  wahr('Bis zur Grenze: der Untergurt trägt höchstens F_Grenz, und er schöpft sie aus',
+       ug <= 10 + 1e-6 && ug > 9.99, `${ug.toFixed(3)} kN`);
+  const eJ = (h) => h?.reihe?.find((b) => /Joch/.test(b.name))?.eta ?? NaN;
+  wahr('Der Einspanngrad liegt zwischen «wie gebaut» und «voll»: η Joch voll ≤ Grenze ≤ wie gebaut',
+       eJ(hV) <= eJ(hG) + 1e-3 && eJ(hG) <= eJ(hB) + 1e-3 && eJ(hG) > eJ(hV) + 1e-4,
+       `${eJ(hV).toFixed(3)} / ${eJ(hG).toFixed(3)} / ${eJ(hB).toFixed(3)}`);
+  // Die Datei für AxisVM trägt die Hilfsfälle und das Link frei in x.
+  const dat = { staebe: [{ name: 'LINK_M1_UGL', art: 'link', von: 'A', bis: 'B', kraftuebertragung: { x: 'Rigid' } },
+                         { name: 'LINK_M1_OGL', art: 'link', von: 'C', bis: 'D', kraftuebertragung: { x: 'Rigid' } }],
+                lasten: { punkt: [] }, lastfaelle: [] };
+  const n = SG.schraubenGrenzeEinsetzen(dat, [{ auflagerLinks: { schraubenGrenze: true } }]);
+  wahr('Modelldatei: je Untergurtanschluss ein Hilfsfall (Kräftepaar 1 kN), Link frei in x, zweimal gerufen nichts doppelt',
+       n === 1 && dat.staebe[0].kraftuebertragung.x === 'Free' && dat.staebe[1].kraftuebertragung.x === 'Rigid'
+       && dat.lasten.punkt.length === 2 && dat.lastfaelle[0].key === 'Schraube|LINK_M1_UGL|24.0000'
+       && SG.schraubenGrenzeEinsetzen(dat, [{ auflagerLinks: { schraubenGrenze: true } }]) === 0);
+  const SCH = await import(J('ui.schema.js'));
+  const f = SCH.FELDER.find((x) => x.key === 'jochEinspannung');
+  wahr('Feld der Schulung: wie gebaut / bis zur Grenze der Hakenschrauben / voll eingespannt',
+       f.optionen.map((o) => o.wert).join() === 'gebaut,grenze,eingespannt'
+       && f.wertAus({ auflagerLinks: { ...voll, schraubenGrenze: true } }) === 'grenze'
+       && f.wertAus({ auflagerLinks: voll }) === 'eingespannt' && f.wertAus({}) === 'gebaut');
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

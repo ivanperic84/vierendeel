@@ -42,8 +42,11 @@ export const KURS_FR = [
         sur le profil transversal ; un clic sélectionne.</li>
       <li><b>Joug</b> - type et longueur (longueurs de l'assortiment), hauteur
         au-dessus du sol. «Liaison joug - mât» : <i>tel que construit</i>
-        (articulé dans le plan du joug) ou <i>encastré</i> - pour comparer
-        l'évolution du taux d'utilisation et de la déformation.</li>
+        (articulé dans le plan du joug), <i>encastré jusqu'à la limite des
+        boulons à crochet</i> (la membrure inférieure transmet au plus 24 kN
+        par raccordement, au-delà elle glisse) ou <i>entièrement encastré</i>
+        (sans limite, seulement pour comparer) - pour voir l'évolution du taux
+        d'utilisation et de la déformation.</li>
       <li><b>Mâts</b> - profilé, longueur (par 0.5 m), orientation de l'âme,
         position. Dans la 3D, un mât se déplace par le fût et s'allonge par la tête.</li>
       <li><b>Haubanage</b> - hauban ou contrefiche au mât (glisser la vignette
@@ -219,8 +222,11 @@ export const KURS_IT = [
         pali sul profilo trasversale; un clic seleziona.</li>
       <li><b>Portale</b> - tipo e lunghezza (lunghezze dell'assortimento),
         altezza dal suolo. «Collegamento portale - palo»: <i>come costruito</i>
-        (incernierato nel piano del portale) o <i>incastrato</i> - per
-        confrontare come cambiano grado di utilizzo e deformazione.</li>
+        (incernierato nel piano del portale), <i>incastrato fino al limite dei
+        bulloni a gancio</i> (il corrente inferiore trasmette al massimo 24 kN
+        per collegamento, oltre scorre) o <i>completamente incastrato</i>
+        (senza limite, solo per confronto) - per vedere come cambiano grado di
+        utilizzo e deformazione.</li>
       <li><b>Pali</b> - profilo, lunghezza (a passi di 0.5 m), orientamento
         dell'anima, posizione. Nel 3D un palo si sposta afferrando il fusto e si
         allunga dalla testa.</li>

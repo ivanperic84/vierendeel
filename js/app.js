@@ -3433,8 +3433,10 @@ function aendern(key, wert) {
   // Einspannung des Jochs (Schulung, 16. November): schreibt die Lagerung am
   // Masten - eingespannt die beiden Gurte voll, sonst wieder die Vorgabe.
   if (key === 'jochEinspannung') {
-    return aendern('auflagerLinks', wert === 'eingespannt'
-      ? JSON.parse(JSON.stringify(JOCH_EINGESPANNT)) : null);
+    // «grenze» (17. November): eingespannt, die Hakenschrauben begrenzen.
+    return aendern('auflagerLinks', wert === 'eingespannt' || wert === 'grenze'
+      ? { ...JSON.parse(JSON.stringify(JOCH_EINGESPANNT)), ...(wert === 'grenze' ? { schraubenGrenze: true } : {}) }
+      : null);
   }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });

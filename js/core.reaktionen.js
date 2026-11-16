@@ -526,6 +526,15 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     const out = new Map();
     anteile(lf, dat).forEach(({ lastfall, faktor }) => {
       if (!faktor) return;
+      // Begrenzter Anschluss (17. November): die Schraubenkraft in x ist der
+      // Faktor des Hilfsfalls; auf den Mastknoten wirkt sie mit −.
+      if (String(lastfall).startsWith('Schraube|')) {
+        const nm = String(lastfall).split('|')[1];
+        const z = out.get(nm) ?? [0, 0, 0, 0, 0, 0];
+        z[0] -= faktor;
+        out.set(nm, z);
+        return;
+      }
       vonLf(lastfall).forEach((f, name) => {
         const z = out.get(name) ?? [0, 0, 0, 0, 0, 0];
         for (let r = 0; r < 6; r += 1) z[r] += faktor * f[r];
