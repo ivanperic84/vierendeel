@@ -1619,7 +1619,7 @@ function neuRechnen(neuZeichnen = true) {
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
           // Schulung (15. November): die Lastfälle vereinfacht, nach Richtung.
           komb: EINFACH
-            ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi)
+            ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach())
             : ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
                   { kurz: true, stabwerk: kombiEtaStabwerk(),
                     vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }),
@@ -2145,7 +2145,13 @@ function zeichneAuswertung() {
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
       });
       // Schulung (15. November): auch am Einzelmasten das einfache Ergebnis.
-      if (EINFACH) einfachesErgebnis(knoten, { traeger: 'Ausleger', teile: stabwerkGilt()?.h?.teile ?? null });
+      // Der gewählte Fall gilt auch hier (16. November: «warum wird hier immer die
+      // gleiche spannung angezeigt, egal welchen lastfall ich auswähle»).
+      if (EINFACH) einfachesErgebnis(knoten, { traeger: 'Ausleger',
+        teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
+          : (stabwerkAnsicht()?.h?.teile ?? null),
+        fall: anzeigeKombi === 'umhuellend' ? null
+          : lastfallEinfach(letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
     }
     return;
   }
@@ -7338,6 +7344,29 @@ function zuruecksetzen() {
 }
 
 // --- Start ------------------------------------------------------------------
+
+/**
+ * Die Nachweise der Gebrauchstauglichkeit für die Lastfallliste der Schulung
+ * (16. November): je Messstelle der massgebende mit η und Fall - dieselbe
+ * Quelle wie die Kacheln (Stabwerk, sonst Ersatzbalken).
+ */
+function gzgEinfach() {
+  const v = stabwerkGilt()?.h?.verformung ?? letzte?.erg?.verformung;
+  if (!v) return [];
+  const namen = letzte?.erg?.modell?.federn?.namen ?? {};
+  const gesehen = new Set();
+  return ['fahrdraht', 'ausleger', 'A', 'B'].map((ende) => {
+    const q = v[ende];
+    const mg = q?.massgebend;
+    if (!mg) return null;
+    const name = ende === 'fahrdraht' ? 'Seitenlage Fahrdraht'
+      : ende === 'ausleger' ? 'Verdrehung Tragausleger'
+      : `${mg.verdrehung ? 'Verdrehung' : mg.spitze ? 'Spitze' : 'Weg'} Mast ${namen[ende] || ende}`;
+    if (gesehen.has(name)) return null;
+    gesehen.add(name);
+    return { name, was: mg.was, eta: mg.eta, bez: mg.bez };
+  }).filter(Boolean);
+}
 
 export async function start() {
   uebertrageTokens(thema);

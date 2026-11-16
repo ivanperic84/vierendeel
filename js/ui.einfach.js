@@ -321,7 +321,27 @@ export function lastfallEinfach(bez) {
  * @param {object|null} etaJe   je Fall {eta, name} aus dem Stabwerk (oder null)
  * @param {string} gewaehlt      der angezeigte Fall ('umhuellend' = alle)
  */
-export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend') {
+/*
+ * >>> DIE VERFORMUNG IN DER LISTE (16. November). <<<
+ * Weisung mit Bild: «die verformung wird nicht angezeigt in der linken sidebar
+ * bei den kombinationen.» Sie steht auf einem eigenen Lastniveau - nur Wind,
+ * Betriebswind × 0.70 (Gebrauchstauglichkeit) -, deshalb ein eigener Block
+ * unter den Bemessungsfällen, je Nachweis mit seinem Fall; anwählen lässt er
+ * sich nicht (das 3D zeigt die Bemessungsfälle).
+ */
+function gzgEinfachHtml(gzg = []) {
+  if (!gzg?.length) return '';
+  const zeilen = gzg.map((g) => {
+    const f = Number.isFinite(g.eta) ? farbe(g.eta) : '';
+    const fall = lastfallEinfach(g.bez ?? '').text;
+    return `<div class="lf-einfach lf-gzg" title="${esc(`${g.was ?? ''} · ${g.bez ?? ''} × 0.70`)}">
+      <span>${esc(g.name)}${fall ? ` <span class="ab-leise">· ${esc(fall)}</span>` : ''}</span>
+      <span class="ef-wert ${f}">${Number.isFinite(g.eta) ? prozent(g.eta) : '–'}</span></div>`;
+  }).join('');
+  return `<div class="sec-klein">Verformung (nur Wind × 0.70)</div>${zeilen}`;
+}
+
+export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', gzg = []) {
   const faelle = (kombi?.lastfaelle ?? []).filter((k) => k.nachweis);
   if (!faelle.length) return '';
   const eta = (k) => (etaJe?.[k.key]?.eta ?? k.eta);
@@ -347,6 +367,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend') {
     ${block('Quer zum Gleis', je.quer)}
     ${block('Längs zum Gleis', je.laengs)}
     ${block('Weitere', je.weitere)}
+    ${gzgEinfachHtml(gzg)}
     <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster
       title="Die Tabelle aller Kombinationen mit den Beiwerten je Einwirkung">Alle Kombinationen mit Lastbeiwerten …</button></div>`;
 }

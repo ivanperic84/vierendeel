@@ -106,7 +106,8 @@ const SCHULUNG_BEARBEITEN = [
   'mastProfil', 'mastSteg', 'mastH', 'jochEinspannung',
   'ankerTyp', 'ankerH', 'ankerA', 'ankerRichtung', 'ankerSeite',
   'flSpannweite', 'trasseRadius',
-  'windKlasse', 'schneeAktiv', 'schneeKlasse',
+  // 16. November: «hier noch die windreduktion angeben».
+  'windKlasse', 'windReduktion', 'schneeAktiv', 'schneeKlasse',
 ];
 /*
  * >>> IN DER SCHULUNG STEHT NUR, WAS MAN ÄNDERN KANN (15. November). <<<
@@ -165,6 +166,7 @@ export const EINFACH_TEXT = {
   flSpannweite: { label: 'Abstand zum nächsten Masten (Gleisrichtung)', hinweis: 'Je grösser, desto mehr Leitung hängt am Tragwerk.' },
   trasseRadius: { label: 'Kurvenradius des Gleises', hinweis: 'Leer oder sehr gross = gerades Gleis.' },
   windKlasse: { label: 'Windzone', hinweis: 'Höhere Zone = stärkerer Wind.' },
+  windReduktion: { label: 'Windreduktion (dicht überbautes Gebiet, Wind × 0.74)' },
   schneeAktiv: { label: 'Mit Schnee rechnen', hinweis: null },
   schneeKlasse: { label: 'Schneezone', hinweis: null },
 };
@@ -228,7 +230,10 @@ const PLOTS = {
   viewer: new Set(['eta', 'w', 'etaGzg', 'positionen', 'neutral']),
   // 16. November: «die spannungen und die tragwerksteile als auswahl in der
   // layersteuerung ergänzen» - Vergleichsspannung σ_v und Positionen (Teile).
-  schulung: new Set(['eta', 'sig_v', 'sig', 'w', 'positionen', 'neutral']),
+  // Die Normalspannung σ (nur N/A) weg: am Masten rund 1 N/mm² und in jedem
+  // Fall fast gleich - «warum wird hier immer die gleiche spannung angezeigt»
+  // (16. November). σ_v zeigt die Biegung mit.
+  schulung: new Set(['eta', 'sig_v', 'w', 'positionen', 'neutral']),
 };
 export function plotErlaubt(key, stufe = STUFE) {
   if (stufe === 'voll' || !PLOTS[stufe]) return true;

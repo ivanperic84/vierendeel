@@ -42103,7 +42103,7 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   // spannungen auswählbar machen» - Spannung als Plot, Reiter Auflager.
   wahr('Plots: Viewer η und w; Schulung dazu die Spannung; Auflager in der Schulung',
        S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
-       && S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('sig', 'schulung')
+       && S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('sig_v', 'schulung') && !S.plotErlaubt('sig', 'schulung')
        && !S.plotErlaubt('M', 'schulung') && S.auswertungErlaubt('auflager', 'schulung')
        && S.feldRecht('mastVorhanden', 'schulung') === 'aus');
   // Das einfache Ergebnisfeld liest die Kacheln: Satz, Balken je Gruppe, Prozent.
