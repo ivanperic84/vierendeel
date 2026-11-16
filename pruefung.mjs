@@ -42199,9 +42199,17 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        BQ.includes('stufe == "schulung" and not ohne_daten')
        && readFileSync(join(HIER, '.gitignore'), 'utf8').includes('data/uebungen/')
        && readFileSync(join(HIER, 'index.html'), 'utf8').includes('id="uebungen-db"'));
-  wahr('Übungsbeispiele: Knopf nur in der Schulung, Laden über dialogEinlesen',
-       AQ.includes('...(EINFACH && uebungenHtml() ? { art: uebungenHtml() } : {})')
-       && AQ.includes('await dialogEinlesen(app, roh,') && UQ.includes('data-uebung'));
+  // Seit 16. November im Projektmanager, nicht mehr in der Seitenleiste.
+  const ABQ = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  wahr('Übungsbeispiele: im Projektmanager nur in der Schulung, Laden über dialogEinlesen',
+       ABQ.includes('${EINFACH && uebungenHtml() ?') && ABQ.includes("auf('[data-uebung]'")
+       && ABQ.includes('await dialogEinlesen(app, roh,') && UQ.includes('data-uebung')
+       && !readFileSync(join(HIER, 'js', 'app.js'), 'utf8').includes('uebungenHtml'));
+  // Nutzungsbedingungen bei jedem Öffnen der Schulung, mit dem Hinweis auf den Rechenkern.
+  wahr('Schulung: Nutzungsbedingungen beim Start, Hinweis «nicht geprüfter Rechenkern»',
+       S.NUTZUNG_HTML.includes('Nicht geprüfter Rechenkern') && !S.NUTZUNG_HTML.includes('Rechtsdienst')
+       && AQ.includes("dialog('Nutzungsbedingungen', NUTZUNG_HTML,")
+       && S.plotErlaubt('sig_v', 'schulung') && S.plotErlaubt('positionen', 'schulung'));
 }
 
 console.log('\n' + '='.repeat(104));

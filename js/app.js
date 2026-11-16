@@ -8,9 +8,9 @@
 
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
-import { uebungenVorbereiten, uebungenHtml, uebungBytes } from './app.uebungen.js';
+import { uebungenVorbereiten } from './app.uebungen.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
-import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, NUTZUNG_HTML, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -1617,8 +1617,6 @@ function neuRechnen(neuZeichnen = true) {
               + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
-          // Schulung (16. November): die Übungsbeispiele im Schritt 1.
-          ...(EINFACH && uebungenHtml() ? { art: uebungenHtml() } : {}),
           // Schulung (15. November): die Lastfälle vereinfacht, nach Richtung.
           komb: EINFACH
             ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi)
@@ -1650,7 +1648,6 @@ function neuRechnen(neuZeichnen = true) {
     if (sig === maskeSig && ui.el('maske').children.length) {
       ui.aktualisiereMaske(ui.el('maske'), werte, extras);
       verdrahteExtras(app);
-      verdrahteUebungen();
       maskenAnkerHalten();
       return;
     }
@@ -1676,7 +1673,6 @@ function neuRechnen(neuZeichnen = true) {
     // Havarie: alle Leiter im 3D, solange der Reiter Lasten offen ist (7. Oktober).
     if (ansicht) ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null;
     verdrahteExtras(app);
-    verdrahteUebungen();
     mEl.scrollTop = rollAlt;
     maskenAnkerHalten();
   };
@@ -7343,19 +7339,6 @@ function zuruecksetzen() {
 
 // --- Start ------------------------------------------------------------------
 
-/** Knopf «… laden» der Übungsbeispiele: derselbe Einlesedialog wie eine Datei. */
-function verdrahteUebungen() {
-  if (!EINFACH) return;
-  ui.el('maske').querySelectorAll('[data-uebung]').forEach((k) => {
-    k.onclick = async () => {
-      try {
-        const roh = await uebungBytes(+k.dataset.uebung);
-        await dialogEinlesen(app, roh, { dateiname: k.textContent.replace(/ laden …$/, '') });
-      } catch (e) { meldeImBalken(`Beispiel nicht lesbar: ${e.message}`); }
-    };
-  });
-}
-
 export async function start() {
   uebertrageTokens(thema);
   /*
@@ -7674,6 +7657,11 @@ export async function start() {
     case 'ablage': schubladeUmschalten(app); break;
     case 'handbuch': dialogHandbuch(app); break;
     default: break;
+  }
+  // Schulung: die Nutzungsbedingungen bei JEDEM Öffnen (16. November).
+  if (EINFACH) {
+    dialog('Nutzungsbedingungen', NUTZUNG_HTML,
+      '<button class="btn btn-acc" data-zu>Gelesen und einverstanden</button>', 'dialog-nutzung');
   }
 }
 

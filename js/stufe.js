@@ -48,6 +48,30 @@ export const STUFEN_TITEL = {
 /** Der Vermerk auf Bildschirm und Bericht. */
 export const VERMERK = 'Vorabprüfung - kein geprüfter statischer Nachweis';
 
+/*
+ * NUTZUNGSBEDINGUNGEN DER SCHULUNG (16. November). Weisung: «die
+ * nutzungsbedingung immer beim öffnen der schulungsapp anzeigen» und «bei der
+ * nutzungsvereinbarung hindeuten das es sich um einen nicht geprüften solver
+ * handelt». Eine Stelle für das Fenster beim Start und das Handbuch zum Kurs;
+ * LIZENZ.md sagt dasselbe für die Ablage.
+ */
+export const NUTZUNG_HTML = `
+  <p>Diese Fassung ist für die Ausbildung im Kurs bestimmt.</p>
+  <ul>
+    <li><b>Kein statischer Nachweis.</b> Die Ergebnisse sind eine Vorabprüfung.
+      Sie dürfen nicht als statischer Nachweis verwendet, eingereicht oder
+      weitergegeben werden.</li>
+    <li><b>Nicht geprüfter Rechenkern.</b> Gerechnet wird mit einem eigenen
+      Stabwerkslöser, der nicht als Statikprogramm geprüft oder zertifiziert
+      ist. Vergleichsrechnungen ersetzen keine Prüfung; die Ergebnisse können
+      fehlerhaft sein. Für ein Bauwerk führt eine Fachperson den Nachweis mit
+      einem geprüften Programm.</li>
+    <li><b>Vertraulich.</b> Die Datei und die eingebetteten Daten nicht
+      weitergeben, nicht veröffentlichen, nicht verändern.</li>
+    <li><b>Ohne Gewähr.</b> Die Anwendung wird ohne Gewähr für Richtigkeit
+      und Vollständigkeit bereitgestellt. Alle Rechte vorbehalten.</li>
+  </ul>`;
+
 /* ------------------------------------------------------------------------
  * FELDER DER MASKE
  * --------------------------------------------------------------------- */
@@ -202,7 +226,9 @@ export function auswertungErlaubt(tabId, stufe = STUFE) {
 // Viewer: Ausnutzung und Verformung (Fokus aufs Abbilden). Schulung: alle.
 const PLOTS = {
   viewer: new Set(['eta', 'w', 'etaGzg', 'positionen', 'neutral']),
-  schulung: new Set(['eta', 'sig', 'w', 'neutral']),
+  // 16. November: «die spannungen und die tragwerksteile als auswahl in der
+  // layersteuerung ergänzen» - Vergleichsspannung σ_v und Positionen (Teile).
+  schulung: new Set(['eta', 'sig_v', 'sig', 'w', 'positionen', 'neutral']),
 };
 export function plotErlaubt(key, stufe = STUFE) {
   if (stufe === 'voll' || !PLOTS[stufe]) return true;

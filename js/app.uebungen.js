@@ -53,14 +53,13 @@ export async function uebungBytes(i) {
   return new Uint8Array(await r.arrayBuffer());
 }
 
-/** Block im Schritt 1 der Schulung; leer, wenn keine Beispiele da sind. */
+/**
+ * Knöpfe der Beispiele für den Projektmanager (16. November: «diese im
+ * projektmanager aufführen und nicht in der sidebar»); leer ohne Beispiele.
+ * Laden legt das Beispiel als Eintrag in die Ablage und öffnet es.
+ */
 export function uebungenHtml() {
   if (!liste.length) return '';
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  return `<div class="uebungen">
-    <div class="sec">Übungsbeispiele</div>
-    <p class="notiz">Das Querprofil liegt als Zeichnung hinter dem Modell.
-      Ein Beispiel ersetzt den Arbeitsstand nicht, es kommt als Eintrag in die Projektablage.</p>
-    ${liste.map((u, i) => `<button class="btn" data-uebung="${i}">${esc(u.titel)} laden …</button>`).join(' ')}
-  </div>`;
+  return liste.map((u, i) => `<button class="btn btn-mini" data-uebung="${i}" data-titel="${esc(u.titel)}">${esc(u.titel)} laden …</button>`).join(' ');
 }

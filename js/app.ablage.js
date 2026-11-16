@@ -9,7 +9,8 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { STUFE, LEICHT, herkunftMarkieren } from './stufe.js';
+import { STUFE, LEICHT, EINFACH, herkunftMarkieren } from './stufe.js';
+import { uebungenHtml, uebungBytes } from './app.uebungen.js';
 import { standAnheben, fzNachObenAnheben, psiAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart, sichtbareTragwerke, lageVon, lageOrtsnull,
@@ -478,6 +479,9 @@ export async function zeichneSchublade(app) {
           <button class="btn btn-mini" data-sicherung title="Alles: Tragwerke, Vorlagen, Zeichnungen, Einstellungen">Sicherung erstellen</button>
           <button class="btn btn-mini" data-sicherung-ein>Sicherung einspielen</button>
         </div>
+        ${EINFACH && uebungenHtml() ? `<div class="uebungen">${abschnitt('Übungsbeispiele',
+            'Querprofile aus dem Kurs, die Zeichnung liegt hinter dem Modell')}
+          ${uebungenHtml()}</div>` : ''}
       </div>
       <div>
         ${abschnitt('Dieses Tragwerk', 'Projekt, Bezeichnung und Angaben')}
@@ -702,6 +706,14 @@ export async function zeichneSchublade(app) {
   });
   auf('[data-export]', () => dialogAusleiten(app, null));
   auf('[data-import]', () => ablageEinlesenWaehlen(app, false));
+  // Übungsbeispiele der Schulung (16. November: «diese im projektmanager
+  // aufführen und nicht in der sidebar»): derselbe Einlesedialog wie eine Datei.
+  auf('[data-uebung]', async (b) => {
+    try {
+      const roh = await uebungBytes(+b.dataset.uebung);
+      await dialogEinlesen(app, roh, { dateiname: b.dataset.titel ?? '' });
+    } catch (e) { app.meldeImBalken(`Beispiel nicht lesbar: ${e.message}`); }
+  });
   auf('[data-sicherung]', async () => {
     const tag = new Date().toISOString().slice(0, 10);
     store.dateiSpeichern(await store.alsSicherung(),

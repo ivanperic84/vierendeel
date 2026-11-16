@@ -19,6 +19,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { NUTZUNG_HTML } from './stufe.js';
 import { skizze, pf, mass, knoten, winkel, raus, rein, txt }
   from './doku.skizze.js';
 
@@ -2847,12 +2848,7 @@ export const KURS_HANDBUCH = [
       Nachweis für ein Projekt führt eine Fachperson in der Vollversion.</p>` },
   // Nutzungsbedingungen (16. November, «lizenztext und verteilungstext
   // einfügen»); der volle Text steht in LIZENZ.md der Ablage.
-  { id: 'k-nutzung', titel: '8 Nutzung und Weitergabe', html: `
-    <p>Diese Fassung ist für die Ausbildung im Kurs bestimmt. Sie und die
-      eingebetteten Daten sind vertraulich: nicht weitergeben, nicht
-      veröffentlichen, nicht verändern. Die Ergebnisse dürfen nicht als
-      statischer Nachweis verwendet oder eingereicht werden. Die Anwendung
-      wird ohne Gewähr bereitgestellt; alle Rechte bleiben vorbehalten.</p>` },
+  { id: 'k-nutzung', titel: '8 Nutzung und Weitergabe', html: NUTZUNG_HTML },
 ];
 
 export function kursHandbuchHtml() {

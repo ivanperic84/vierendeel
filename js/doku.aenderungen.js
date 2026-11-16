@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Schulungsfassung: Nutzungsbedingungen bei jedem Öffnen, mit Hinweis auf den nicht geprüften Rechenkern; Vergleichsspannung σ_v und Positionen als Ebenen; Übungsbeispiele im Projektmanager.' },
       { text: 'Schulungsfassung: zweites Übungsbeispiel Einzelmast DP22 / 11.5 m mit Ausleger, Rückleiter, Traverse und Signal.' },
       { text: 'Eine hinterlegte Zeichnung ohne gespeicherte Bildmasse erscheint wieder.' },
       { text: 'Schulungsfassung ohne «?»-Erklärungen an Feldern und im Ergebnis.' },
