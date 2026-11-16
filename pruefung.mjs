@@ -36107,8 +36107,8 @@ titel('197  Anbauteile finden: Symbolkacheln, Suche, Filter');
        /<path d="M(\S+) [\d.]+L\1 /.test(sym.get('mast-trafo-50')));
   const findet = (q) => alle.filter((v) => S197.suchtextPasst(S197.vorlageSuchtext(v), q))
     .map((v) => v.id).sort().join(',');
-  wahr('«hangestutze nt» findet nur die Hängestütze mit NT-Ausleger (Wortanfang, ohne Umlaut)',
-       findet('hangestutze nt') === 'hs-nt-ausleger', findet('hangestutze nt'));
+  wahr('«hangestutze nt» findet nur die Hängestützen mit NT-Ausleger (rechts und links) (Wortanfang, ohne Umlaut)',
+       findet('hangestutze nt') === 'hs-nt-ausleger,hs-nt-ausleger-links', findet('hangestutze nt'));
   wahr('«95» findet die Vorlagen mit Cu 95 über ihre Bausteine',
        findet('95').split(',').includes('ja-einfach') && findet('95').split(',').includes('leiter-rl'));
   // Gezählt am Katalog (die Prüfvorlagen führen die alten LED-Lampen
@@ -42150,6 +42150,19 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && A.leiterAmMast(gemischt, rolle) === gemischt);
   // Paket 2 (15. November): gebräuchliche Vorlagen, Begriffe, Schritte, Karte.
   const katalogIds = new Set(A.vorlagen().map((v) => v.id));
+  // Ausleger links und rechts (16. November: «für die ausleger jeweils eine links
+  // und eine rechts variante … für die joche mit hängestütze und für die masten»):
+  // die linke ist die rechte mit gespiegeltem x, sonst gleich.
+  const spiegelOk = ['hs-nt-ausleger', 'ausleger-rohr', 'mast-nt-ausleger', 'mast-rohrausleger'].every((id) => {
+    const r = A.vorlagen().find((v) => v.id === id);
+    const l = A.vorlagen().find((v) => v.id === `${id}-links`);
+    if (!r || !l || (r.module ?? []).length !== (l.module ?? []).length || !(r.module ?? []).length) return false;
+    return r.module.every((m, k) => m.bauteil === l.module[k].bauteil && (m.z ?? 0) === (l.module[k].z ?? 0)
+      && Math.abs((m.x ?? 0) + (l.module[k].x ?? 0)) < 1e-12)
+      && r.module.some((m) => (m.x ?? 0) > 0) && /rechts/.test(r.name) && /links/.test(l.name);
+  });
+  wahr('Ausleger-Vorlagen: je eine rechte und eine linke (x gespiegelt), am Joch und am Masten', spiegelOk);
+
   const fehlen = [...S.SCHULUNG_VORLAGEN].filter((id) => !katalogIds.has(id));
   wahr('Schulung: alle Vorlagen ausser dem freien Bauteil (die gebräuchlichen stehen im Katalog)',
        !fehlen.length && S.vorlageErlaubt('hs-fahrdraht', true) && !S.vorlageErlaubt('frei', true)
@@ -42205,6 +42218,20 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        ABQ.includes('${EINFACH && uebungenHtml() ?') && ABQ.includes("auf('[data-uebung]'")
        && ABQ.includes('await dialogEinlesen(app, roh,') && UQ.includes('data-uebung')
        && !readFileSync(join(HIER, 'js', 'app.js'), 'utf8').includes('uebungenHtml'));
+  // «Mehr zeigen» (16. November): ohne Schalter wie bisher, mit ihm Gruppe A frei;
+  // der Längsanker des Tragauslegers immer mit seiner Stelle.
+  S.mehrSetzen(false);
+  const ohneMehr = S.feldRecht('mastNummer', 'schulung') === 'aus' && !S.auswertungErlaubt('verlauf', 'schulung')
+    && !S.exportErlaubt('excel', 'schulung') && !S.gruppeErlaubt('aufl', 'schulung');
+  S.mehrSetzen(true);
+  const mitMehr = ['mastNummer', 'mastFuss', 'kragA', 'ankerWinkel'].every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
+    && S.auswertungErlaubt('verlauf', 'schulung') && S.exportErlaubt('excel', 'schulung')
+    && S.exportErlaubt('anschluss', 'schulung') && !S.exportErlaubt('bericht', 'schulung')
+    && S.feldRecht('havarieAus', 'schulung') === 'aus' && S.gruppeErlaubt('aufl', 'schulung')
+    && S.feldRecht('kragA', 'viewer') !== 'bearbeiten';
+  S.mehrSetzen(false);
+  wahr('Schulung: «Mehr zeigen» gibt Gruppe A frei, ohne Schalter bleibt sie zu; Längsanker mit Stelle',
+       ohneMehr && mitMehr && S.feldRecht('laengsverankerungX', 'schulung') === 'bearbeiten');
   // Nutzungsbedingungen bei jedem Öffnen der Schulung, mit dem Hinweis auf den Rechenkern.
   wahr('Schulung: Nutzungsbedingungen beim Start, Hinweis «nicht geprüfter Rechenkern»',
        S.NUTZUNG_HTML.includes('Nicht geprüfter Rechenkern') && !S.NUTZUNG_HTML.includes('Rechtsdienst')

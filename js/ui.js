@@ -4165,8 +4165,11 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
       </div>` : ''}
       <div class="at-gitter">
         ${['x', 'y', 'z'].map((ax) => (ax === laengsAchse
-          ? `<span class="at-feld lesbar" data-feldname="${ax}"><span>${ax} <i>m</i></span>
-               <b>${f2(Number(m[ax]) || 0)}</b><small class="hinweis">Mitte der Länge</small></span>`
+          // 16. November (Kurs: «in den koordinatenfelder … gewisse werte nicht
+          // schreiben»): das Feld folgt aus der Gesamtlänge - so steht es da.
+          ? `<span class="at-feld lesbar" data-feldname="${ax}"
+               title="Mitte der Gesamtlänge - ändern über «Gesamtlänge» oder durch Ziehen am Ende im 3D"><span>${ax} <i>m</i></span>
+               <b>${f2(Number(m[ax]) || 0)}</b><small class="hinweis">Mitte der Gesamtlänge</small></span>`
           : modFeld(i, k, ax, ax, modWert(m, ax), 'm', ax === 'z' ? 0.05 : 0.1))).join('')}
         ${modFeld(i, k, 'anzahl', 'Anzahl', modWert(m, 'anzahl'), '–', 1)}
       </div>

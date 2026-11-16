@@ -10,7 +10,7 @@ import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGrupp
 import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
-import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, NUTZUNG_HTML, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
+import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, NUTZUNG_HTML, mehrAn, mehrSetzen, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -7393,6 +7393,26 @@ export async function start() {
     if (logo && !document.querySelector('.stufe-band')) {
       logo.insertAdjacentHTML('afterend',
         `<span class="stufe-band" title="${esc(VERMERK)}">${esc(STUFEN_TITEL[STUFE].toUpperCase())} · ${esc(VERMERK)}</span>`);
+    }
+  }
+  /*
+   * «MEHR ZEIGEN» (Schulung, 16. November): ein Schalter im Kopf. Umschalten
+   * baut Maske, Werkzeugleiste und Auswertung neu - gerechnet wird dasselbe.
+   */
+  if (EINFACH) {
+    mehrSetzen(mehrAn());
+    const band = document.querySelector('.stufe-band');
+    if (band && !document.getElementById('btn-mehr')) {
+      band.insertAdjacentHTML('afterend', `<button class="btn btn-mini mehr-knopf" id="btn-mehr" type="button"
+        aria-pressed="${mehrAn()}" title="Weitere Eingaben und Auswertungen ein- oder ausblenden">${mehrAn() ? 'Weniger zeigen' : 'Mehr zeigen'}</button>`);
+      document.getElementById('btn-mehr').onclick = (ev) => {
+        mehrSetzen(!mehrAn());
+        ev.currentTarget.textContent = mehrAn() ? 'Weniger zeigen' : 'Mehr zeigen';
+        ev.currentTarget.setAttribute('aria-pressed', String(mehrAn()));
+        maskeSig = null;
+        baueModellWerkzeuge(app);
+        neuRechnen();
+      };
     }
   }
   // Ablage im Browser und Installationsangebot. Muss vor dem ersten

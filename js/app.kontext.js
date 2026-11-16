@@ -16,7 +16,7 @@ import { anbauGruppe } from './data.anbauteile.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
-import { STUFE, LEICHT } from './stufe.js';
+import { STUFE, LEICHT, mehrAn } from './stufe.js';
 import * as ui from './ui.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
@@ -60,6 +60,8 @@ function kontextErlaubt(p) {
     return !VIEWER_NICHT.test(text);
   }
   if (p.feld && SCHULUNG_FELD_NICHT.has(p.feld.label)) return false;
+  // «Mehr zeigen» (16. November): Steg drehen, Masten von …, Zeichnung.
+  if (mehrAn() && /(Steg drehen|^Masten von|Zeichnung)/.test(text)) return true;
   return !SCHULUNG_NICHT.test(text);
 }
 

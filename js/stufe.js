@@ -41,6 +41,32 @@ export const LEICHT = STUFE !== 'voll';
 /** Einfache Darstellung (ein Urteil mit Balken, kurze Sprache): die Schulung. */
 export const EINFACH = STUFE === 'schulung';
 
+/*
+ * >>> SCHALTER «MEHR ZEIGEN» IN DER SCHULUNG (16. November). <<<
+ * Kursteilnehmer: «die funktionalität teilweise eingeschränkt»; auf die Liste
+ * im Wortlaut «so umsetzen» (Gruppe A und der Schalter). Die Schulung startet
+ * einfach; «Mehr zeigen» gibt Mastfelder, Kragarme, Ankerwinkel, Bausteine im
+ * Anbauteil, Verläufe, Zustandslinien, Modellebenen, Lastfallwahl, Blatt des
+ * Jochanschlusses, Excel und einige Kontextbefehle frei. Nichts davon ändert
+ * eine Nachweisregel. Die Wahl bleibt im Browser gemerkt.
+ */
+const MEHR_KEY = 'tragjoch-schulung-mehr';
+let MEHR = false;
+try { MEHR = typeof localStorage !== 'undefined' && localStorage.getItem(MEHR_KEY) === '1'; } catch { MEHR = false; }
+/** In der Schulung mit «Mehr zeigen»? (ausserhalb der Schulung immer false) */
+export function mehrAn(stufe = STUFE) { return stufe === 'schulung' && MEHR; }
+export function mehrSetzen(an) {
+  MEHR = Boolean(an);
+  try { localStorage.setItem(MEHR_KEY, MEHR ? '1' : '0'); } catch { /* kein Speicher */ }
+  if (typeof document !== 'undefined') document.documentElement.toggleAttribute('data-mehr', mehrAn());
+}
+export const MEHR_FELDER = new Set([
+  'mastNummer', 'mastFuss', 'mastFundament', 'mastGelaende',
+  'kragA', 'kragB', 'stuetzweite',
+  'ankerWinkel', 'ankerD', 'ankerBef',
+  'auslegerB', 'auslegerWinkel', 'auslegerSpreizung',
+]);
+
 export const STUFEN_TITEL = {
   voll: 'Vollversion', viewer: 'Viewer', schulung: 'Schulung',
 };
@@ -102,7 +128,10 @@ const VIEWER_SEHEN = [
 const SCHULUNG_BEARBEITEN = [
   ...VIEWER_BEARBEITEN.filter((k) => k !== 'bestandesschutz'),
   'linie', 'ortschaft', 'km', 'projektNr', 'bearbeiter', 'datum',
-  'xLage', 'typ', 'abfangTyp', 'L', 'auslegerSeite', 'laengsverankerung',
+  // 'laengsverankerungX' (16. November): ohne die Stelle fehlte der Längsanker
+  // am Tragausleger («die längsverankerung beim tragausleger … war auch nicht
+  // vorhanden in der einfach version»).
+  'xLage', 'typ', 'abfangTyp', 'L', 'auslegerSeite', 'laengsverankerung', 'laengsverankerungX',
   'mastProfil', 'mastSteg', 'mastH', 'jochEinspannung',
   'ankerTyp', 'ankerH', 'ankerA', 'ankerRichtung', 'ankerSeite',
   'flSpannweite', 'trasseRadius',
@@ -133,6 +162,7 @@ export function feldRecht(key, stufe = STUFE) {
   const f = FELDER[stufe];
   if (!f) return 'aus';
   if (f.bearbeiten.has(key)) return 'bearbeiten';
+  if (mehrAn(stufe) && MEHR_FELDER.has(key)) return 'bearbeiten';
   if (f.sehen.has(key)) return 'sehen';
   return 'aus';
 }
@@ -177,9 +207,10 @@ export const EINFACH_TEXT = {
  * üblicherweise aufgebaut wird. Was nicht im Katalog steht, fällt still weg.
  */
 export const SCHULUNG_VORLAGEN = new Set([
-  'hs-fahrdraht', 'hs-nt-ausleger', 'ausleger-rohr', 'ja-einfach', 'ja-doppelt',
+  'hs-fahrdraht', 'hs-nt-ausleger', 'hs-nt-ausleger-links', 'ausleger-rohr', 'ausleger-rohr-links',
+  'ja-einfach', 'ja-doppelt',
   'leiter-nfl', 'leiter-rfl', 'leiter-rl',
-  'mast-nt-ausleger', 'leiter-traverse', 'mast-lampe-alt-rohr',
+  'mast-nt-ausleger', 'mast-nt-ausleger-links', 'leiter-traverse', 'mast-lampe-alt-rohr',
 ]);
 /*
  * >>> SEIT 16. NOVEMBER ALLE VORLAGEN. <<< Weisung: «bei der schulungs app ist
@@ -217,6 +248,9 @@ const GRUPPEN_AUS = {
 
 export function gruppeErlaubt(gid, stufe = STUFE) {
   if (stufe === 'voll') return true;
+  // «Mehr zeigen»: die Gruppe Auflager wegen der Kragarme (die übrigen
+  // Auflagerfelder bleiben über feldRecht aus).
+  if (mehrAn(stufe) && gid === 'aufl') return true;
   return !(GRUPPEN_AUS[stufe]?.has(gid));
 }
 
@@ -229,6 +263,7 @@ const AUSWERTUNG = {
 };
 export function auswertungErlaubt(tabId, stufe = STUFE) {
   if (stufe === 'voll') return true;
+  if (mehrAn(stufe) && tabId === 'verlauf') return true;
   return AUSWERTUNG[stufe]?.has(tabId) ?? false;
 }
 
@@ -260,6 +295,7 @@ const EXPORT = {
 };
 export function exportErlaubt(id, stufe = STUFE) {
   if (stufe === 'voll') return true;
+  if (mehrAn(stufe) && (id === 'anschluss' || id === 'excel')) return true;
   return EXPORT[stufe]?.has(id) ?? false;
 }
 

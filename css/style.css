@@ -3805,7 +3805,7 @@ html[data-stufe="viewer"] [data-bs-oeffnen] { pointer-events: none; }
 
 /* Beide leichten Stufen: eigene Vorlagen speichern gehört der Fachperson. */
 html[data-stufe="viewer"] .kachel-stift,
-html[data-stufe="schulung"] [data-at-vorlage] { display: none !important; }
+html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !important; }
 
 /* Schulung, einfaches Ergebnisfeld (15. November, js/ui.einfach.js).
    In der Designsprache der App (Weisung «der stil in der sidebar übersicht
@@ -3849,15 +3849,15 @@ html[data-stufe="schulung"] .ef-mehr .nw-plastisch,
 html[data-stufe="schulung"] .ef-mehr [data-klapp^="uebersicht-"],
 html[data-stufe="schulung"] .ef-mehr .quellzeile { display: none !important; }
 /* Schulung: Lastfallwahl und technische Fusszeilen weg, immer der ungünstigste Fall. */
-html[data-stufe="schulung"] #einwirkung-wahl,
+html[data-stufe="schulung"]:not([data-mehr]) #einwirkung-wahl,
 html[data-stufe="schulung"] #st-modell,
 html[data-stufe="schulung"] #st-db,
 html[data-stufe="schulung"] label:has(> [data-at-bestand]),
 html[data-stufe="schulung"] .legende-fuss { display: none !important; }
 /* Schulung: Werkzeugleiste im 3D auf Blick, Lasten ein/aus und Ergebnis
    (Ausnutzung, Verformung) - «nur das nötigste» (15. November). */
-html[data-stufe="schulung"] .wz-gruppe:has(#wz-g-modell),
-html[data-stufe="schulung"] .wz-linie,
+html[data-stufe="schulung"]:not([data-mehr]) .wz-gruppe:has(#wz-g-modell),
+html[data-stufe="schulung"]:not([data-mehr]) .wz-linie,
 html[data-stufe="schulung"] #wz-zu,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
 /* 15. November: «die auswahl der einzelnen lasten ständig / veränderlich
@@ -3868,12 +3868,12 @@ html[data-stufe="schulung"] [data-generator] { display: none !important; }
 /* Schulung, Paket 2 (15. November): die Bauteilkarte zeigt Name, Standort
    und Lage; Module, Lastblöcke, Befestigung, Gruppe, Kräftezeilen,
    Drahtwerk-Tabelle, Signalbauer und freies Bauteil gehören der Fachperson. */
-html[data-stufe="schulung"] [data-klapp^="at-fein-"],
-html[data-stufe="schulung"] .at-kraft,
-html[data-stufe="schulung"] [data-at-gruppe-name],
-html[data-stufe="schulung"] [data-at-gruppe-dup],
+html[data-stufe="schulung"]:not([data-mehr]) [data-klapp^="at-fein-"],
+html[data-stufe="schulung"]:not([data-mehr]) .at-kraft,
+html[data-stufe="schulung"]:not([data-mehr]) [data-at-gruppe-name],
+html[data-stufe="schulung"]:not([data-mehr]) [data-at-gruppe-dup],
 html[data-stufe="schulung"] [data-klapp="at-drahtwerke-v2"],
-html[data-stufe="schulung"] [data-signal-direkt],
+html[data-stufe="schulung"]:not([data-mehr]) [data-signal-direkt],
 html[data-stufe="schulung"] [data-setz-frei] { display: none !important; }
 
 /* Begriffe erklären (Schulung, 15. November, js/ui.einfach.js). */
@@ -3901,7 +3901,7 @@ html[data-stufe="schulung"] #maske > .sprung { display: none !important; }
 /* Schulung (15. November): Zeichnung hinterlegen wieder da («die option
    querprofilzeichnung hinterlegen wieder aufführen»), eingemessen nur über
    Joch oder Mast - ohne Masskette und Ausrichten. */
-html[data-stufe="schulung"] #wz-z-masskette,
+html[data-stufe="schulung"]:not([data-mehr]) #wz-z-masskette,
 html[data-stufe="schulung"] [data-z-ausr] { display: none !important; }
 /* Schulung: die η-Skala endet bei 1.0 - der sichtbare Teil der Rampe ist
    0 … 1.0 (die Rampe selbst läuft bis 1.25 und wird gestreckt). */
@@ -3913,7 +3913,7 @@ html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; backgroun
 .lf-einfach.gewaehlt { background: var(--acc-s); color: var(--on); box-shadow: inset 2px 0 0 var(--acc); }
 /* Schulung: kein Klappblock «Masse aus dem Sortiment» (Katalogmasse und
    Hebelarme gehören der Fachperson). */
-html[data-stufe="schulung"] #maske [data-klapp^="fein-"] { display: none !important; }
+html[data-stufe="schulung"]:not([data-mehr]) #maske [data-klapp^="fein-"] { display: none !important; }
 /* Schulung (15. November, «biete noch die möglichkeit die kombinationen matrix
    aufzurufen mit den einzelnen lastbeiwerten»): die Matrix zum Ansehen -
    Fälle anpassen, entfernen oder neu anlegen gehört der Fachperson. */
@@ -3930,7 +3930,9 @@ html[data-stufe="schulung"] [data-lf-neu] { display: none !important; }
    Karte stehen die Angriffspunkte der Bausteine - x, y, z, Anzahl, Länge, bei
    einer Fläche Gewicht und Flächen. Baustein wechseln, hinzufügen, entfernen,
    Wirkung, Abfangung, Kette und Kräftezeilen gehören der Fachperson. */
-html[data-stufe="schulung"] .at-technik > :not(.modul-liste),
+html[data-stufe="schulung"] .at-technik > :not(.modul-liste):not(.sec):not([data-mod-neu]),
+html[data-stufe="schulung"]:not([data-mehr]) .at-technik > .sec,
+html[data-stufe="schulung"]:not([data-mehr]) .at-technik > [data-mod-neu],
 html[data-stufe="schulung"] .at-technik .modul-partner,
 html[data-stufe="schulung"] .at-technik .modul-abfang,
 html[data-stufe="schulung"] .at-technik .wirkung,
@@ -3938,7 +3940,13 @@ html[data-stufe="schulung"] .at-technik .modul > .sec-klein:has(+ .wirkung),
 html[data-stufe="schulung"] .at-technik .modul-kette,
 html[data-stufe="schulung"] .at-technik .modul-lasten,
 html[data-stufe="schulung"] .at-technik [data-klapp],
-html[data-stufe="schulung"] .at-technik [data-mod-weg],
-html[data-stufe="schulung"] .at-technik [data-mod-spiegeln],
+html[data-stufe="schulung"]:not([data-mehr]) .at-technik [data-mod-weg],
 html[data-stufe="schulung"] .at-technik [data-signalbauer] { display: none !important; }
-html[data-stufe="schulung"] .at-technik .bs-knopf { pointer-events: none; }
+html[data-stufe="schulung"]:not([data-mehr]) .at-technik .bs-knopf { pointer-events: none; }
+/* Schalter «Mehr zeigen» im Kopf (16. November). */
+.mehr-knopf { margin-left: 8px; }
+html[data-mehr] .mehr-knopf { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
+
+/* Schulung (16. November): ein Wert, der aus der Gesamtlänge folgt, sagt es -
+   sonst sieht er wie ein gesperrtes Eingabefeld aus. */
+html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: block !important; }

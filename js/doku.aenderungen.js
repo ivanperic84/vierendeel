@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Ausleger-Vorlagen am Joch (mit Hängestütze) und am Masten je nach rechts und nach links.' },
+      { text: 'Schulungsfassung: Schalter «Mehr zeigen» für weitere Eingaben und Auswertungen; Spiegeln des Auslegers und Stelle des Längsankers; Koordinaten aus der Gesamtlänge sind als solche bezeichnet.' },
       { text: 'Schulungsfassung: alle Vorlagen (ausser dem freien Bauteil), Angriffspunkte in der Bauteilkarte, Schnittkräfte M, V, N, T als Plot, Betriebswind-Fälle der Verformung anwählbar.' },
       { text: 'Schulungsfassung: die Verformung steht in der Liste der Lastfälle; am Einzelmasten folgen die Spannungen dem gewählten Fall; Windreduktion (× 0.74) wählbar.' },
       { text: 'Schulungsfassung: Nutzungsbedingungen bei jedem Öffnen, mit Hinweis auf den nicht geprüften Rechenkern; Vergleichsspannung σ_v und Positionen als Ebenen; Übungsbeispiele im Projektmanager.' },
