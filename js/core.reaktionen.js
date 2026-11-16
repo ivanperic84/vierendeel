@@ -363,6 +363,12 @@ export function skizzeAusModell(dat) {
     // kurzen Anschlussstücke des Jochs nicht.
     const anbau = s.art === 'starr' && laenge > 0.4;
     if (!(s.art === 'stab' || anbau || (s.art === 'link' && laenge > 0.3))) return;
+    // Die Abspannung zeichnet die Skizze selbst (Strebe mit Gelenk, längs
+    // umgeklappt). Abgezeichnet stand eine Druckstütze längs als Leiter aus
+    // zwei U-Profilen und Blechen auf dem Masten, quer doppelt (16. November:
+    // «bei den druckstüzen werden diese nicht korrekt dargestellt im
+    // reaktionskräfte output blatt»).
+    if (/(?:^|_)(?:ANKER[A-Z]*|SEILKOPF)_/.test(String(s.name))) return;
     let p = [r2(a.x), r2(a.z), r2(b.x), r2(b.z)];
     let gedreht = false;
     if (p[0] > p[2] || (p[0] === p[2] && p[1] > p[3])) { p = [p[2], p[3], p[0], p[1]]; gedreht = true; }

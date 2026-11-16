@@ -1618,11 +1618,10 @@ function neuRechnen(neuZeichnen = true) {
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte,
                   { umfang: profilUmfang(), blatt: profilBlatt() }),
           // Schulung (15. November): die Lastfälle vereinfacht, nach Richtung.
-          komb: EINFACH
-            ? kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach())
-            : ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
-                  { kurz: true, stabwerk: kombiEtaStabwerk(),
-                    vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }),
+          // Seit 16. November auch in der Vollversion die einfache Liste
+          // (Rückfrage «Lastfallliste einfach»: nach quer / längs / Verformung,
+          // Klick zeigt den Fall); die ganze Tabelle bleibt im Fenster.
+          komb: kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach()),
           /*
            * >>> DIE BÜGELSCHRAUBEN SCHON BEI DER EINGABE (7. Oktober). <<<
            * «… oder ich bekomme schon bei der eingabe der steifigkeit eine

@@ -2658,6 +2658,74 @@ Ablauf rechnet wie die <b>Zellen</b>: Schritt 12 <b>addiert</b> den
 mit red_M. So vom Auftraggeber bestätigt (7. Oktober).</p>
 `,
 },
+{
+  id: 'bedienung',
+  titel: '22 · Bedienung, Vorlagen und leichte Fassungen',
+  html: `
+${q(`Weisung vom 16. November: «das handbuch ist auch zu aktualisieren und bei
+der schulungsversion mit den notwendigen erkärungen zum workflow zu versehen.»`)}
+
+<h4>22.1 Die Lastfallliste im Reiter Lasten</h4>
+<p>Unter «Was gerechnet wird» stehen die Bemessungsfälle nach Richtung:
+<b>quer zum Gleis</b> (Wind von links / rechts, mit und ohne viel Schnee),
+<b>längs zum Gleis</b> (vorwärts / rückwärts), <b>Weitere</b> (Eigengewicht,
+Schnee, Leiterbruch), je mit der Ausnutzung des Falls. Darunter die
+<b>Verformung</b>: je Nachweis der massgebende Betriebswind (nur Wind × 0.70).
+Ein Klick wählt den Fall für 3D und Übersicht, «Alle Fälle» die Hülle. Die
+ganze Tabelle mit allen Beiwerten - auch zum Anpassen und Entfernen - öffnet
+«Alle Kombinationen mit Lastbeiwerten» als Fenster.</p>
+
+<h4>22.2 Vorlagen der Anbauteile</h4>
+<table class="dt">
+<tr><th>Vorlage</th><th>Geometrie</th></tr>
+<tr><td>Hängestützen (Fahrdrahtabzug, NT-, Rohrausleger, Fläche)</td>
+    <td>Stütze 2.0 m, Mitte z −1.0; Ausleger und Tragseil auf −2.0, Fahrdraht NT −3.6, Rohr −4.4</td></tr>
+<tr><td>Ausleger am Masten (NT, Rohr)</td>
+    <td>Gleis 3.50 m ab Mastachse: Ausleger 3.50 m (Mitte 1.75), Tragseil und Fahrdrähte bei 3.50</td></tr>
+<tr><td>Ausleger, je nach rechts und nach links</td>
+    <td>die linke Vorlage (<code>…-links</code>) ist die rechte mit gespiegeltem x</td></tr>
+<tr><td>Lampe mit Rohr (Joch, Mast)</td><td>Rohr 4 m, Lampe am Rohrkopf</td></tr>
+<tr><td>Trafo 50 kVA</td><td>Schwerpunkt 0.50 m neben der Mastachse in Gleisrichtung (y)</td></tr>
+<tr><td>Signal pauschal</td><td>1 m² quer und längs, 400 kg</td></tr>
+<tr><td>Leiter am Masten</td><td>auf der Mastachse und der gewählten Höhe (x = y = z = 0)</td></tr>
+</table>
+
+<h4>22.3 Im 3D ziehen</h4>
+<p>Jede Vorlage lässt sich als Ganzes ziehen: am Joch längs (x), am Masten in
+der Höhe. Ein <b>Angriffspunkt</b> wandert auf der Achse des Glieds, das zu
+ihm führt (Stütze lotrecht, Ausleger waagrecht); ein Ausleger an einer
+Hängestütze geht in der Höhe, und was an ihm hängt, wandert mit. Der
+<b>Endgriff</b> eines Teils mit Länge (Stütze, Aufsatz, Ausleger, Konsole,
+Traverse am Masten, Lampenrohr) ändert die Gesamtlänge. Strg beim Ziehen
+legt eine Kopie ab. Keinen eigenen Punktgriff haben Punkte auf ihrem
+Anschluss (Leiter direkt am Masten, abgefangene Leiter, Signal am Masten)
+und Punkte quer zur Bildebene (Trafo, y); die Traverse auf einem
+Jochaufsatz ist symmetrisch und hat keinen Endgriff - ihre Länge steht in
+der Karte. Ein Feld «Mitte der Gesamtlänge» in der Karte folgt aus der
+Gesamtlänge darüber.</p>
+
+<h4>22.4 Blatt der Reaktionskräfte</h4>
+<p>Die Übersichtsskizze zeichnet die Stäbe aus dem Stabmodell ab - ausser
+der Abspannung. Zuganker und Druckstütze stehen als eine Strebe mit Gelenk am
+Ankerfundament; eine Abspannung längs zum Gleis seitlich umgeklappt und
+gestrichelt.</p>
+
+<h4>22.5 Viewer und Schulung</h4>
+<p>Dieselbe Anwendung in zwei leichten Stufen (<code>js/stufe.js</code>):
+der <b>Viewer</b> für Auftraggeber (ansehen, Anbauteile und Masten
+anpassen) und die <b>Schulung</b> (aufbauen in drei Schritten, einfache
+Sprache, vereinfachtes Ergebnis). Gebündelt mit
+<code>python3 build_html.py --stufe viewer|schulung [--mit-daten]</code>; nur
+die Datei <i>mit Daten</i> trägt die Übungsbeispiele
+(<code>data/uebungen.json</code>, Ablage-Pakete in <code>data/uebungen/</code>).
+Die Schulung zeigt beim Öffnen die Nutzungsbedingungen (auch
+<code>LIZENZ.md</code>), hat ein eigenes Handbuch und den Schalter
+<b>Mehr zeigen</b> für weitere Felder und Auswertungen. Beide rechnen immer
+mit dem Stabwerk und tragen den Vermerk «Vorabprüfung - kein geprüfter
+statischer Nachweis»; ein dort veränderter Stand ist in der Vollversion als
+solcher gekennzeichnet.</p>
+`,
+},
 ];
 
 /** Das ganze Handbuch als HTML, mit Inhaltsverzeichnis. */
@@ -2777,21 +2845,92 @@ ${rumpf}
  * ist hier neu festgelegt.
  * ======================================================================== */
 export const KURS_HANDBUCH = [
-  { id: 'k-ablauf', titel: '1 So arbeiten Sie', html: `
-    <p>Die Eingabe geht in drei Schritten, mit «Weiter» von einem zum nächsten:</p>
+  /*
+   * >>> DER ABLAUF SCHRITT FÜR SCHRITT (16. November). <<< Weisung: «das
+   * handbuch ist auch zu aktualisieren und bei der schulungsversion mit den
+   * notwendigen erkärungen zum workflow zu versehen.» Kapitel 1-7 führen
+   * durch die Bedienung, 8-13 erklären die Bemessung.
+   */
+  { id: 'k-start', titel: '1 Erste Schritte', html: `
+    <p><b>Beim Öffnen</b> stehen die Nutzungsbedingungen (Kapitel 13). Mit
+      «Gelesen und einverstanden» geht es weiter.</p>
+    <p><b>In der Kopfzeile</b> steht das Tragwerk, an dem man arbeitet (Projekt und
+      Name). Ein Klick darauf öffnet den <b>Projektmanager</b>:</p>
+    <ul>
+      <li><b>Übungsbeispiele</b> - ein Querprofil aus dem Kurs laden; die
+        Planzeichnung liegt dabei hinter dem Modell (in der Längsansicht
+        sichtbar). Das Beispiel kommt als Eintrag in die Ablage.</li>
+      <li><b>Neues Querprofil</b> - mit einem leeren Tragwerk beginnen.</li>
+      <li><b>Speichern</b> - der Stand kommt in die Ablage dieses Browsers;
+        «Ausleiten» schreibt ihn als Datei, «Einlesen» holt eine Datei herein.</li>
+    </ul>
+    <p>Die Eingabe läuft in <b>drei Schritten</b> (Reiter links oben, «Weiter»
+      unten): 1 Tragwerk, 2 Anbauteile, 3 Trasse, Wind, Schnee. Gerechnet wird
+      nach jeder Eingabe von selbst, das Ergebnis steht rechts.</p>
+    <p>Rückgängig: <b>Strg+Z</b> (oder die Pfeile oben neben «Export»), wiederherstellen: <b>Strg+Umschalt+Z</b>.</p>` },
+  { id: 'k-tragwerk', titel: '2 Schritt 1: Tragwerk', html: `
     <ol>
-      <li><b>Tragwerk</b> - Art (Tragjoch, Einzelmast, Tragausleger, Abfangjoch),
-        Jochtyp und Länge, Höhe des Jochs über dem Boden, die Masten (Profil,
-        Länge, Lage) und bei Bedarf eine Abspannung.</li>
-      <li><b>Anbauteile</b> - eine Vorlage wählen und im 3D an die Stelle klicken,
-        wo das Teil hingehört. In der Karte stehen Standort, Lage bzw. Höhe und
-        am Joch die Befestigung (Untergurt, Obergurt oder beide) mit dem Raster
-        der Klemmen.</li>
-      <li><b>Trasse, Wind, Schnee</b> - Abstand zum nächsten Masten, Kurvenradius,
-        Windzone und Schnee. Darunter steht, welche Lastfälle gerechnet werden.</li>
+      <li><b>Art wählen</b> - die Kacheln Tragjoch, Einzelmast, Tragausleger,
+        Abfangjoch anklicken oder ins 3D ziehen. Das Band darüber zeigt die
+        Lage aller Tragwerke und Masten auf dem Querprofil; ein Klick wählt.</li>
+      <li><b>Joch</b> - Typ und Länge (die Längen des Sortiments), Höhe über dem
+        Boden. «Anschluss Joch am Masten»: <i>wie gebaut</i> (in der Jochebene
+        gelenkig) oder <i>eingespannt</i> - zum Vergleichen, wie sich
+        Ausnutzung und Verformung ändern.</li>
+      <li><b>Masten</b> - Profil, Länge (auf 0.5 m), Ausrichtung des Stegs, Lage.
+        Im 3D lässt sich ein Mast am Schaft verschieben und am Kopf verlängern.</li>
+      <li><b>Abspannung</b> - Zuganker oder Druckstütze am Masten («Anker» als
+        Kachel auf einen Masten ziehen oder unter «Abspannung des Masten»).</li>
+      <li><b>Tragausleger</b> - Länge, Seite (links/rechts) und der Längsanker am
+        Kragarm mit seiner Stelle.</li>
+    </ol>` },
+  { id: 'k-anbau', titel: '3 Schritt 2: Anbauteile', html: `
+    <h4>Setzen</h4>
+    <ol>
+      <li>Unter «Anbauteil hinzufügen» eine Vorlage suchen (Suchfeld) und
+        anklicken - oder «Bauteil zuweisen» und dann ins Modell klicken; dort
+        steht die Auswahl, die an diese Stelle passt.</li>
+      <li>Ins 3D an die Stelle klicken: am Joch die Lage x, am Masten die Höhe.
+        Ausleger gibt es je <b>nach rechts</b> und <b>nach links</b>.</li>
     </ol>
-    <p>Gerechnet wird nach jeder Eingabe von selbst. Das Ergebnis steht rechts.</p>` },
-  { id: 'k-ergebnis', titel: '2 Das Ergebnis lesen', html: `
+    <h4>Die Karte</h4>
+    <p>Ein Klick auf eine Zeile öffnet die Karte: Name, Standort (Joch oder
+      Mast), Lage bzw. Höhe, am Joch die Befestigung (Untergurt, Obergurt,
+      beide) mit dem Raster der Klemmen. Darunter je Baustein der
+      <b>Angriffspunkt</b> x, y, z (am Joch ab der Schwerachse des Gurts, am
+      Masten ab dem Anschluss).</p>
+    <ul>
+      <li>Ein Wert mit «Mitte der Gesamtlänge» folgt aus der <b>Gesamtlänge</b>
+        darüber - dort ändern.</li>
+      <li><b>x ⇄</b> spiegelt einen Ausleger samt Fahrleitung auf die andere Seite.</li>
+      <li>Das Häkchen schaltet ein Teil aus (nicht gerechnet), der Papierkorb
+        löscht es, das Doppelblatt kopiert es.</li>
+    </ul>
+    <h4>Im 3D ziehen</h4>
+    <ul>
+      <li>Das <b>Teil</b> anfassen: am Joch längs verschieben, am Masten in der Höhe.</li>
+      <li>Ein <b>Angriffspunkt</b> (Kugel) wandert auf seiner Achse - eine
+        Hängestütze lotrecht, ein Ausleger waagrecht; was am Ausleger hängt,
+        wandert mit.</li>
+      <li>Das <b>Ende</b> (Würfel) eines Teils mit Länge ändert die Gesamtlänge.</li>
+      <li>Mit <b>Strg</b> gezogen entsteht eine Kopie. Rechtsklick öffnet die Befehle.</li>
+    </ul>` },
+  { id: 'k-trasse', titel: '4 Schritt 3: Trasse, Wind, Schnee', html: `
+    <ul>
+      <li><b>Abstand zum nächsten Masten</b> (Spannweite) und <b>Kurvenradius</b>
+        (+ und − für die beiden Kurvenrichtungen; 0 = gerade). Daraus folgt
+        die Umlenkkraft der Leitungen.</li>
+      <li><b>Windzone</b>, dazu die <b>Windreduktion</b> × 0.74 für dicht
+        überbautes Gebiet.</li>
+      <li><b>Schnee</b> ein oder aus.</li>
+    </ul>
+    <p><b>Was gerechnet wird</b> listet die Lastfälle nach Richtung: quer zum
+      Gleis (Wind von links oder rechts), längs zum Gleis (vorwärts oder
+      rückwärts), Weitere, und darunter die <b>Verformung</b> (nur Wind × 0.70).
+      Ein Klick zeigt den Fall im 3D und im Ergebnis; «Alle Fälle» zeigt je
+      Bauteil den ungünstigsten. «Alle Kombinationen mit Lastbeiwerten» öffnet
+      die ganze Tabelle.</p>` },
+  { id: 'k-ergebnis', titel: '5 Das Ergebnis lesen', html: `
     <p><b>Ausnutzung</b> = Beanspruchung geteilt durch Widerstand. 100 % heisst:
       genau an der Grenze. Über 100 % ist ein Bauteil zu schwach.</p>
     <p>Je Gruppe (Träger, Masten, Anker, Fundamente, Verformung) steht das am
@@ -2800,9 +2939,32 @@ export const KURS_HANDBUCH = [
     <p><b>Spannungen in den Profilen</b>: die grösste Vergleichsspannung σ_v im
       Profil und die Grenze, gegen die sie steht, in N/mm². Für Stahl S235 ist
       die Grenze f_yd = 235 / 1.05 = 224 N/mm².</p>
-    <p>Ein Klick auf einen Lastfall unter «Was gerechnet wird» zeigt diesen Fall im
-      3D und im Ergebnis; «Alle Fälle» zeigt je Bauteil den ungünstigsten.</p>` },
-  { id: 'k-modell', titel: '3 Wie gerechnet wird', html: `
+    <p>Ist ein Lastfall gewählt, gelten Satz, Balken und Spannungen diesem Fall
+      («Im Fall …»). Der Reiter <b>Auflager</b> zeigt die Reaktionskräfte an
+      den Fundamenten (charakteristisch).</p>` },
+  { id: 'k-3d', titel: '6 Das 3D-Bild', html: `
+    <ul>
+      <li><b>Blick</b> - Isometrie, Längsansicht (quer zum Gleis gesehen),
+        Querschnitt, Draufsicht. Drehen mit gedrückter Maus, schieben mit der
+        rechten, zoomen mit dem Rad.</li>
+      <li><b>Zeichnung</b> - ein Querprofil (Bild oder PDF-Seite) hinterlegen
+        und an Joch- oder Mastlänge einmessen.</li>
+      <li><b>Lasten</b> - je Art ein- und ausblenden (ständig, Umlenkung, Wind
+        quer, Wind längs, Schnee), Werte anschreiben. Rechtsklick auf einen
+        Knopf zeigt nur diese Last.</li>
+      <li><b>Resultate</b> - η (Ausnutzung), σ_v (Vergleichsspannung), M, V, N,
+        T (Schnittkräfte), w (Verformung), Pos (Bauteile nach Position).</li>
+    </ul>` },
+  { id: 'k-mehr', titel: '7 Mehr zeigen, Auflager und Export', html: `
+    <p><b>Mehr zeigen</b> (Knopf oben) blendet weitere Eingaben und
+      Auswertungen ein: Mastnummer, Fussversatz, Fundament, Gelände, Kragarme
+      des Jochs, Ankerwinkel, Bausteine im Anbauteil hinzufügen oder tauschen,
+      den Reiter Verläufe, Zustandslinien («Linie»), die Modellebenen und die
+      Wahl des Lastfalls oben im 3D. «Weniger zeigen» blendet sie wieder aus.</p>
+    <p><b>Export</b>: das Blatt der Reaktionskräfte (mit Skizze und Hinweisen)
+      und Drucken; mit «Mehr zeigen» dazu das Blatt der Kräfte am
+      Jochanschluss und die Excel-Mappe.</p>` },
+  { id: 'k-modell', titel: '8 Wie gerechnet wird', html: `
     <p>Das Tragwerk ist ein räumliches <b>Stabwerk</b>: die vier Winkel des Jochs,
       die Bindebleche dazwischen und die Masten sind Stäbe. Die Masten sind am
       Fuss eingespannt; das Joch ist an den Masten angeschlossen.</p>
@@ -2810,7 +2972,7 @@ export const KURS_HANDBUCH = [
       Querkraft, Biegung, Torsion) folgen aus den Lasten am unverformten
       Tragwerk. Anbauteile hängen über starre Glieder an Joch oder Mast; ihre
       Lasten greifen dort an, wo sie hängen.</p>` },
-  { id: 'k-einwirkungen', titel: '4 Einwirkungen', html: `
+  { id: 'k-einwirkungen', titel: '9 Einwirkungen', html: `
     <ul>
       <li><b>Eigengewicht</b> - Stäbe, Anbauteile und Leitungen.</li>
       <li><b>Wind</b> - auf Joch, Masten, Anbauteile und Leitungen; die Windzone
@@ -2821,16 +2983,17 @@ export const KURS_HANDBUCH = [
         Tragwerk: Z · c / R (Leiterzug mal Abstand zum nächsten Masten durch
         Kurvenradius). Auf gerader Strecke ist sie null.</li>
     </ul>` },
-  { id: 'k-kombinationen', titel: '5 Lastfälle und Beiwerte', html: `
+  { id: 'k-kombinationen', titel: '10 Lastfälle und Beiwerte', html: `
     <p>Ein Lastfall (eine Kombination) überlagert die Einwirkungen mit Beiwerten:</p>
     <p class="formel">E_d = γ_G · Eigengewicht + γ_Q · leitende Einwirkung + ψ₀ · begleitende Einwirkung</p>
-    <p>Vorgabe (Bahn): γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65. «Starker Wind von links»
+    <p>Vorgabe (Bahn): γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65. «Wind quer zum Gleis, von links»
       ist also 1.30 · Eigengewicht + 1.30 · Wind + 0.65 · Schnee; «Viel Schnee,
       dazu Wind» vertauscht Wind und Schnee. Wo das Eigengewicht entlastet, steht
       es mit 1.0 in der Kombination.</p>
     <p>Die Tabelle aller Kombinationen mit ihren Beiwerten öffnet der Knopf
-      «Alle Kombinationen mit Lastbeiwerten» im Schritt 3.</p>` },
-  { id: 'k-nachweise', titel: '6 Nachweise', html: `
+      «Alle Kombinationen mit Lastbeiwerten» im Schritt 3. Die Verformung
+      rechnet eigene Fälle: nur Wind, mit 0.70 abgemindert (Betriebswind).</p>` },
+  { id: 'k-nachweise', titel: '11 Nachweise', html: `
     <ul>
       <li><b>Joch und Masten</b> - Spannung: σ_v = √(σ² + 3τ²) ≤ f_yd, an jedem
         Stab, im ungünstigsten Lastfall.</li>
@@ -2841,14 +3004,15 @@ export const KURS_HANDBUCH = [
       <li><b>Verformung</b> - die Seitenlage des Fahrdrahts quer zum Gleis unter
         Betriebswind (Wind × 0.70) höchstens 40 mm.</li>
     </ul>` },
-  { id: 'k-grenzen', titel: '7 Grenzen dieser Fassung', html: `
+  { id: 'k-grenzen', titel: '12 Grenzen dieser Fassung', html: `
     <p>Die Schulungsfassung ist eine <b>Vorabprüfung</b>, kein geprüfter
       statischer Nachweis. Das Knicken der Masten ist in der Vorgabe nicht eingeschaltet;
-      Rechenmodell, Beiwerte und Bauteildaten sind fest eingestellt. Den
+      Rechenmodell, Beiwerte, Lastfälle und Bauteildaten sind fest eingestellt,
+      die Havarie (Leiterbruch) wird nicht gerechnet. Den
       Nachweis für ein Projekt führt eine Fachperson in der Vollversion.</p>` },
   // Nutzungsbedingungen (16. November, «lizenztext und verteilungstext
   // einfügen»); der volle Text steht in LIZENZ.md der Ablage.
-  { id: 'k-nutzung', titel: '8 Nutzung und Weitergabe', html: NUTZUNG_HTML },
+  { id: 'k-nutzung', titel: '13 Nutzung und Weitergabe', html: NUTZUNG_HTML },
 ];
 
 export function kursHandbuchHtml() {

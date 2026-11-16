@@ -2300,7 +2300,8 @@ titel('29  Handbuch');
    * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
    */
   // 21 seit dem 7. Oktober (Fundamentbestimmung: der Ablauf).
-  wahr('Handbuch hat alle einundzwanzig Abschnitte', HB.HANDBUCH.length === 21,
+  // 22 seit dem 16. November (Bedienung, Vorlagen und leichte Fassungen).
+  wahr('Handbuch hat alle zweiundzwanzig Abschnitte', HB.HANDBUCH.length === 22,
        `${HB.HANDBUCH.length} Abschnitte`);
   /*
    * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
@@ -41109,6 +41110,15 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
       const svg = RK264.skizzeSvg(sk, [], { mastGrau: true });
       wahr('Blatt Jochanschluss: die Masten stehen grau in der Skizze, das Joch nicht',
            (svg.match(/class="sk-mast-grau"/g) ?? []).length === 1 && !RK264.skizzeSvg(sk, []).includes('class="sk-mast-grau"'));
+      // 16. November: die Stäbe der Abspannung (Druckstütze, Seil) zeichnet die
+      // Skizze nicht ab - sie zeichnet den Anker selbst (Strebe mit Gelenk).
+      const skA = RKc.skizzeAusModell({ knoten: [{ name: 'a', x: 0, y: 0, z: 0 }, { name: 'b', x: 0, y: 0, z: 8 },
+        { name: 'f', x: 4, y: 0, z: 0 }, { name: 'g', x: 0, y: 3, z: 0 }],
+        staebe: [{ name: 'MAST_M1_S1', von: 'a', bis: 'b', art: 'stab' },
+          { name: 'T1_ANKERPROFIL_M1_L1', von: 'f', bis: 'b', art: 'stab' }, { name: 'ANKER_M1', von: 'g', bis: 'b', art: 'link' },
+          { name: 'ANKERBLECH_M1_O1', von: 'g', bis: 'f', art: 'stab' }, { name: 'SEILKOPF_M1', von: 'g', bis: 'a', art: 'starr' }] });
+      wahr('Reaktionsblatt: Ankerstäbe (Profile, Bleche, Seil, Seilkopf) nicht aus dem Modell abgezeichnet',
+           skA.linien.length === 1);
     }
     // Anker am Tragausleger-Mast und Mastlänge am Abfangjoch im Stabmodell (9. Oktober).
     {
@@ -41957,8 +41967,8 @@ titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fens
   wahr('Lastfälle voll: Tabelle mit allen Zeilen wie bisher',
        voll.includes('<table class="dt kombi">') && [...voll.matchAll(/data-lf-wahl=/g)].length === 7);
   wahr('Leiste zeigt die Kurzfassung, das Fenster die ganze Tabelle',
-       // Seit dem 15. November mit der vereinfachten Liste der Schulung davor.
-       /: ui\.kombiMatrixHtml\(letzte\.kombi, erkenneNormensatz\(werte\),\s*\{ kurz: true,/.test(AQ)
+       // Seit dem 16. November in allen Fassungen die einfache Liste (Rückfrage).
+       AQ.includes('komb: kombiEinfachHtml(letzte.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach()),')
        && AQ.includes('lastfallTabelle: () =>') && OQ.includes('function dialogLastfaelle(app)'));
   wahr('Fenster kommt nach Anpassen oder Entfernen eines Lastfalls wieder',
        OQ.includes('function dialogLastfall(app, key, zurueck = null)') && OQ.includes('entferneLastfall(app, b.dataset.lfWeg); zurueck?.();'));
@@ -42123,8 +42133,14 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   const kursText = HB.KURS_HANDBUCH.map((k) => k.html).join(' ');
   const SCH278 = await import(J('ui.schema.js'));
   const std = (k) => SCH278.FELDER.find((f) => f.key === k)?.standard;
-  wahr('Handbuch zum Kurs: acht Kapitel (mit Nutzung), Beiwerte und f_yd wie die Vorgaben',
-       HB.KURS_HANDBUCH.length === 8 && HB.kursHandbuchHtml().includes('Nutzung und Weitergabe') && std('gammaG') === 1.30 && std('psi0') === 0.65 && std('gammaM0') === 1.05
+  // 16. November: der Ablauf Schritt für Schritt (Kapitel 1-7), dann die Bemessung.
+  wahr('Handbuch zum Kurs: Ablauf in sieben Kapiteln (Start, drei Schritte, Ergebnis, 3D, Mehr zeigen)',
+       ['Erste Schritte', 'Schritt 1: Tragwerk', 'Schritt 2: Anbauteile', 'Schritt 3: Trasse, Wind, Schnee',
+        'Das Ergebnis lesen', 'Das 3D-Bild', 'Mehr zeigen, Auflager und Export']
+         .every((t, k) => HB.KURS_HANDBUCH[k]?.titel === `${k + 1} ${t}`)
+       && kursText.includes('Übungsbeispiele') && kursText.includes('Strg+Umschalt+Z') && kursText.includes('Mitte der Gesamtlänge'));
+  wahr('Handbuch zum Kurs: dreizehn Kapitel (mit Nutzung), Beiwerte und f_yd wie die Vorgaben',
+       HB.KURS_HANDBUCH.length === 13 && HB.kursHandbuchHtml().includes('Nutzung und Weitergabe') && std('gammaG') === 1.30 && std('psi0') === 0.65 && std('gammaM0') === 1.05
        && kursText.includes('γ_G = 1.30, γ_Q = 1.30, ψ₀ = 0.65') && kursText.includes('235 / 1.05 = 224')
        && kursText.includes('Wind × 0.70) höchstens 40 mm')
        && HB.kursHandbuchHtml().includes('Grenzen dieser Fassung'));
@@ -42138,8 +42154,8 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        efFall.gesamt === 0.4 && efFall.html.includes('Im Fall «Starker Wind von links»'));
   wahr('Lastfälle in einfachen Worten, nach Richtung',
        E.lastfallEinfach('Wind +x (quer zum Gleis) leitend').gruppe === 'quer'
-       && E.lastfallEinfach('Wind +x (quer zum Gleis) leitend').text === 'Starker Wind von links'
-       && E.lastfallEinfach('Schnee leitend, Wind −y').text === 'Viel Schnee, dazu Wind rückwärts'
+       && E.lastfallEinfach('Wind +x (quer zum Gleis) leitend').text === 'Wind quer zum Gleis, von links'
+       && E.lastfallEinfach('Schnee leitend, Wind −y').text === 'Viel Schnee, dazu Wind längs zum Gleis, rückwärts'
        && E.lastfallEinfach('Schnee leitend, Wind −y').gruppe === 'laengs');
   // Leiter am Masten (15. November): x = 0, z = 0; Träger und Aufbauten unverändert.
   const rolle = (id) => ({ L1: 'drahtwerk', T1: 'traeger' }[id]);

@@ -14,6 +14,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Handbuch: neues Kapitel 22 (Bedienung, Vorlagen, leichte Fassungen); Handbuch zum Kurs mit dem Ablauf Schritt für Schritt.' },
+      { text: 'Reaktionsblatt: Druckstützen und Seilanker stehen in der Skizze als eine Strebe (nicht mehr als abgezeichnete Profile).' },
+      { text: 'Lastfallliste mit «quer zum Gleis» / «längs zum Gleis»; die einfache Liste jetzt auch in der Vollversion, die ganze Tabelle im Fenster.' },
       { text: 'Ausleger-Vorlagen am Joch (mit Hängestütze) und am Masten je nach rechts und nach links.' },
       { text: 'Schulungsfassung: Schalter «Mehr zeigen» für weitere Eingaben und Auswertungen; Spiegeln des Auslegers und Stelle des Längsankers; Koordinaten aus der Gesamtlänge sind als solche bezeichnet.' },
       { text: 'Schulungsfassung: alle Vorlagen (ausser dem freien Bauteil), Angriffspunkte in der Bauteilkarte, Schnittkräfte M, V, N, T als Plot, Betriebswind-Fälle der Verformung anwählbar.' },

@@ -305,19 +305,21 @@ export function lastfallEinfach(bez) {
   // Betriebswind (ψ 0.70) der Gebrauchstauglichkeit (16. November).
   if (/Betriebswind/i.test(b)) {
     const quer = /Wind\s*[+−-]?\s*x|quer zum Gleis/i.test(b);
-    return { gruppe: 'gzg', text: `Betriebswind ${quer ? (seite >= 0 ? 'von links' : 'von rechts')
-      : (seite >= 0 ? 'vorwärts' : 'rückwärts')}` };
+    return { gruppe: 'gzg', text: `Betriebswind ${quer ? `quer zum Gleis, ${seite >= 0 ? 'von links' : 'von rechts'}`
+      : `längs zum Gleis, ${seite >= 0 ? 'vorwärts' : 'rückwärts'}`}` };
   }
   // «leitend» = die volle Einwirkung, die andere steht abgemindert dabei.
   // «Wind +x leitend» = starker Wind, «Schnee leitend, Wind +x» = viel Schnee
   // mit Wind (gemessen an den Fällen des Startjochs, 15. November).
   const schneeLeitend = /Schnee leitend/i.test(b);
-  const vorn = (t) => (schneeLeitend ? `Viel Schnee, dazu Wind ${t}` : `Starker Wind ${t}`);
+  // Richtung mit «quer / längs zum Gleis» (16. November, «bennen noch die
+  // richtungen korrekt mit quer und längs zum gleis», Lastfallliste).
+  const vorn = (t) => (schneeLeitend ? `Viel Schnee, dazu Wind ${t}` : `Wind ${t}`);
   if (/Wind\s*[+−-]?\s*x|quer zum Gleis/i.test(b)) {
-    return { gruppe: 'quer', text: vorn(`von ${seite >= 0 ? 'links' : 'rechts'}`) };
+    return { gruppe: 'quer', text: vorn(`quer zum Gleis, von ${seite >= 0 ? 'links' : 'rechts'}`) };
   }
   if (/Wind\s*[+−-]?\s*y|längs zum Gleis/i.test(b)) {
-    return { gruppe: 'laengs', text: vorn(seite >= 0 ? 'vorwärts' : 'rückwärts') };
+    return { gruppe: 'laengs', text: vorn(`längs zum Gleis, ${seite >= 0 ? 'vorwärts' : 'rückwärts'}`) };
   }
   if (/Schnee/i.test(b)) return { gruppe: 'weitere', text: 'Eigengewicht + Schnee' };
   if (/Ständig|Eigengewicht/i.test(b)) return { gruppe: 'weitere', text: 'Eigengewicht allein' };
