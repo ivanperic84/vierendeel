@@ -2150,6 +2150,7 @@ function zeichneAuswertung() {
       if (EINFACH) einfachesErgebnis(knoten, { traeger: 'Ausleger',
         teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
           : (stabwerkAnsicht()?.h?.teile ?? null),
+        gzgFall: letzte?.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.stufe === 'betrieb',
         fall: anzeigeKombi === 'umhuellend' ? null
           : lastfallEinfach(letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
     }
@@ -2249,6 +2250,7 @@ function zeichneAuswertung() {
         // Ein gewählter Fall: dessen Spannungen und sein Name im Satz.
         teile: anzeigeKombi === 'umhuellend' ? (stabwerkGilt()?.h?.teile ?? null)
           : (stabwerkAnsicht()?.h?.teile ?? null),
+        gzgFall: letzte?.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.stufe === 'betrieb',
         fall: anzeigeKombi === 'umhuellend' ? null
           : lastfallEinfach(kombi.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
     }
@@ -7364,7 +7366,15 @@ function gzgEinfach() {
       : `${mg.verdrehung ? 'Verdrehung' : mg.spitze ? 'Spitze' : 'Weg'} Mast ${namen[ende] || ende}`;
     if (gesehen.has(name)) return null;
     gesehen.add(name);
-    return { name, was: mg.was, eta: mg.eta, bez: mg.bez };
+    // Der Betriebswind derselben Richtung: Fall mit gleicher Leiteinwirkung
+    // und gleichem Vorzeichen (der Nachweis rechnet den charakteristischen
+    // Windfall × 0.70, die Betriebswindfälle tragen genau das).
+    const lf = letzte?.kombi?.lastfaelle ?? [];
+    const quelle = lf.find((l) => l.key === mg.lastfall);
+    const betrieb = quelle ? lf.find((l) => l.stufe === 'betrieb' && l.leit === quelle.leit
+      && l.vorzeichen === (quelle.vorzeichen ?? Math.sign(quelle.beiwerte?.[quelle.leit] ?? 1))) : null;
+    return { name, was: mg.was, eta: mg.eta, bez: mg.bez, key: betrieb?.key ?? null,
+             fallBez: betrieb?.bez, fallText: betrieb ? lastfallEinfach(betrieb.bez).text : null };
   }).filter(Boolean);
 }
 

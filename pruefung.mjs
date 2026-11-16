@@ -42104,7 +42104,7 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   wahr('Plots: Viewer η und w; Schulung dazu die Spannung; Auflager in der Schulung',
        S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
        && S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('sig_v', 'schulung') && !S.plotErlaubt('sig', 'schulung')
-       && !S.plotErlaubt('M', 'schulung') && S.auswertungErlaubt('auflager', 'schulung')
+       && ['M', 'V', 'N', 'T'].every((p) => S.plotErlaubt(p, 'schulung')) && S.auswertungErlaubt('auflager', 'schulung')
        && S.feldRecht('mastVorhanden', 'schulung') === 'aus');
   // Das einfache Ergebnisfeld liest die Kacheln: Satz, Balken je Gruppe, Prozent.
   const E = await import(J('ui.einfach.js'));
@@ -42151,9 +42151,9 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   // Paket 2 (15. November): gebräuchliche Vorlagen, Begriffe, Schritte, Karte.
   const katalogIds = new Set(A.vorlagen().map((v) => v.id));
   const fehlen = [...S.SCHULUNG_VORLAGEN].filter((id) => !katalogIds.has(id));
-  wahr('Schulung: die gebräuchlichen Vorlagen stehen alle im Katalog, die übrigen fallen weg',
+  wahr('Schulung: alle Vorlagen ausser dem freien Bauteil (die gebräuchlichen stehen im Katalog)',
        !fehlen.length && S.vorlageErlaubt('hs-fahrdraht', true) && !S.vorlageErlaubt('frei', true)
-       && !S.vorlageErlaubt('signal', true) && S.vorlageErlaubt('frei', false), fehlen.join(', '));
+       && S.vorlageErlaubt('signal', true) && S.vorlageErlaubt('mast-trafo-50', true) && S.vorlageErlaubt('frei', false), fehlen.join(', '));
   // Seit 16. November ohne «?» («solche fragezeichen texte auch weglassen»);
   // die Texte bleiben für den Schalter BEGRIFFE_ZEIGEN.
   wahr('Begriffe: Texte vorhanden, aber kein «?» in Ergebnis und Maske',

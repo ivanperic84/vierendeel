@@ -121,7 +121,9 @@ export function einfachAusKacheln(kacheln, opt = {}) {
    * Fundament, Anker und Verformung stehen auf eigenen Lastniveaus und
    * gehören nicht in seine Zahl - dieselbe Regel wie `etaImFall` in ui.js.
    */
-  const imFall = (g) => !opt.fall || !['fundament', 'anker', 'verformung'].includes(g.key);
+  // Ein Fall des Betriebswinds (16. November) zeigt die Verformung dazu.
+  const ohne = opt.gzgFall ? ['fundament', 'anker'] : ['fundament', 'anker', 'verformung'];
+  const imFall = (g) => !opt.fall || !ohne.includes(g.key);
   const gruppen = GRUPPEN.filter((g) => je.has(g.key) && imFall(g)).map((g) => ({
     ...g, titel: g.key === 'traeger' ? (opt.traeger ?? g.titel) : g.titel, ...je.get(g.key),
   }));
@@ -300,6 +302,12 @@ export function lastfallEinfach(bez) {
   const b = String(bez ?? '');
   const seite = /\+/.test(b) ? 1 : (/[−-]\s*[xy]/.test(b) ? -1 : 0);
   if (/Havarie|bruch|reisst/i.test(b)) return { gruppe: 'weitere', text: 'Leiterbruch (ein Leiter reisst)' };
+  // Betriebswind (ψ 0.70) der Gebrauchstauglichkeit (16. November).
+  if (/Betriebswind/i.test(b)) {
+    const quer = /Wind\s*[+−-]?\s*x|quer zum Gleis/i.test(b);
+    return { gruppe: 'gzg', text: `Betriebswind ${quer ? (seite >= 0 ? 'von links' : 'von rechts')
+      : (seite >= 0 ? 'vorwärts' : 'rückwärts')}` };
+  }
   // «leitend» = die volle Einwirkung, die andere steht abgemindert dabei.
   // «Wind +x leitend» = starker Wind, «Schnee leitend, Wind +x» = viel Schnee
   // mit Wind (gemessen an den Fällen des Startjochs, 15. November).
@@ -329,13 +337,18 @@ export function lastfallEinfach(bez) {
  * unter den Bemessungsfällen, je Nachweis mit seinem Fall; anwählen lässt er
  * sich nicht (das 3D zeigt die Bemessungsfälle).
  */
-function gzgEinfachHtml(gzg = []) {
+function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend') {
   if (!gzg?.length) return '';
   const zeilen = gzg.map((g) => {
     const f = Number.isFinite(g.eta) ? farbe(g.eta) : '';
-    const fall = lastfallEinfach(g.bez ?? '').text;
-    return `<div class="lf-einfach lf-gzg" title="${esc(`${g.was ?? ''} · ${g.bez ?? ''} × 0.70`)}">
-      <span>${esc(g.name)}${fall ? ` <span class="ab-leise">· ${esc(fall)}</span>` : ''}</span>
+    const fall = g.key ? 'Betriebswind' : lastfallEinfach(g.bez ?? '').text;
+    // Anwählbar wie die übrigen Fälle (16. November: «wenn bei der kombination
+    // gebrauchstauglichkeit angewählt wird sollte dieser gleich wie die anderen
+    // dargestellt werden im modell und in der übersicht»): der Betriebswind
+    // derselben Richtung (ψ 0.70).
+    const wahl = g.key ? ` role="button" tabindex="0" data-lf-wahl="${esc(g.key)}"` : '';
+    return `<div class="lf-einfach lf-gzg${g.key && gewaehlt === g.key ? ' gewaehlt' : ''}"${wahl} title="${esc(`${g.was ?? ''} · ${g.fallBez ?? g.bez ?? ''}`)}">
+      <span>${esc(g.name)}${g.fallText || fall ? ` <span class="ab-leise">· ${esc(g.fallText ?? fall)}</span>` : ''}</span>
       <span class="ef-wert ${f}">${Number.isFinite(g.eta) ? prozent(g.eta) : '–'}</span></div>`;
   }).join('');
   return `<div class="sec-klein">Verformung (nur Wind × 0.70)</div>${zeilen}`;
@@ -367,7 +380,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
     ${block('Quer zum Gleis', je.quer)}
     ${block('Längs zum Gleis', je.laengs)}
     ${block('Weitere', je.weitere)}
-    ${gzgEinfachHtml(gzg)}
+    ${gzgEinfachHtml(gzg, gewaehlt)}
     <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster
       title="Die Tabelle aller Kombinationen mit den Beiwerten je Einwirkung">Alle Kombinationen mit Lastbeiwerten …</button></div>`;
 }

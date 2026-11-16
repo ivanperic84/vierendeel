@@ -181,8 +181,15 @@ export const SCHULUNG_VORLAGEN = new Set([
   'leiter-nfl', 'leiter-rfl', 'leiter-rl',
   'mast-nt-ausleger', 'leiter-traverse', 'mast-lampe-alt-rohr',
 ]);
+/*
+ * >>> SEIT 16. NOVEMBER ALLE VORLAGEN. <<< Weisung: «bei der schulungs app ist
+ * die auswahl sehr begrenzt bei den anbauteilen.» Die Liste oben bleibt als
+ * Auskunft; ausgenommen ist nur das freie Bauteil - seine Lasten gibt man in
+ * Lastblöcken ein, die die Schulungskarte nicht zeigt.
+ */
+export const SCHULUNG_OHNE_VORLAGEN = new Set(['frei']);
 export function vorlageErlaubt(id, einfach = EINFACH) {
-  return !einfach || SCHULUNG_VORLAGEN.has(id);
+  return !einfach || !SCHULUNG_OHNE_VORLAGEN.has(id);
 }
 
 /** Feld in der einfachen Sprache - oder unverändert. */
@@ -233,7 +240,9 @@ const PLOTS = {
   // Die Normalspannung σ (nur N/A) weg: am Masten rund 1 N/mm² und in jedem
   // Fall fast gleich - «warum wird hier immer die gleiche spannung angezeigt»
   // (16. November). σ_v zeigt die Biegung mit.
-  schulung: new Set(['eta', 'sig_v', 'w', 'positionen', 'neutral']),
+  // 16. November: «zudem noch die inneren schnittkräfte als auswahl beim
+  // plott ergänzen» - M, V, N, T.
+  schulung: new Set(['eta', 'sig_v', 'M', 'V', 'N', 'T', 'w', 'positionen', 'neutral']),
 };
 export function plotErlaubt(key, stufe = STUFE) {
   if (stufe === 'voll' || !PLOTS[stufe]) return true;
