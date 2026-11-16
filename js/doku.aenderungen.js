@@ -14,6 +14,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-16',
     punkte: [
+      { text: 'Schulungsfassung: zweites Übungsbeispiel Einzelmast DP22 / 11.5 m mit Ausleger, Rückleiter, Traverse und Signal.' },
+      { text: 'Eine hinterlegte Zeichnung ohne gespeicherte Bildmasse erscheint wieder.' },
       { text: 'Schulungsfassung ohne «?»-Erklärungen an Feldern und im Ergebnis.' },
       { text: 'Schulungsfassung: Anschluss Joch am Masten wählbar (wie gebaut / eingespannt), um die Wirkung auf Ausnutzung und Verformung zu sehen.' },
       { text: 'Schulungsfassung: Übungsbeispiel Tragjoch (Kursaufgabe 1) mit hinterlegter Planzeichnung, im Schritt 1 zu laden; Nutzungsbedingungen im Handbuch zum Kurs.' },

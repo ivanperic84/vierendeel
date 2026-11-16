@@ -171,7 +171,9 @@ export async function zeichnungHolen(app, id) {
   const bild = await createImageBitmap(new Blob([s.daten], { type: s.art }))
     .catch(() => null);
   if (!bild) { app.ansicht.zeichnung = null; return; }
-  app.ansicht.zeichnung = { bild, breite: s.breite, hoehe: s.hoehe, daten: s.daten,
+  // Ein Paket ohne Bildmasse (breite/hoehe null, 16. November am
+  // Übungsbeispiel gesehen) zeichnete nichts: die Masse kommen dann aus dem Bild.
+  app.ansicht.zeichnung = { bild, breite: s.breite || bild.width, hoehe: s.hoehe || bild.height, daten: s.daten,
                         art: s.art, name: s.name, kalibrierung: s.kalibrierung,
                         vorlaeufig: !s.kalibrierung };
 }
