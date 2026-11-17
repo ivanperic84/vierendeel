@@ -742,6 +742,11 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
    * zuklappen (Vorgabe offen, der Zustand bleibt im Browser gemerkt).
    */
   const bloecke = [];
+  const grpHtml = (gid, titel, inhalt, knopf = '', offen = true) =>
+    `<details class="grp" data-klapp="grp-${esc(gid)}"${offen ? ' open' : ''}>
+      <summary class="sec grp-kopf" title="Gruppe auf- oder zuklappen"><span class="grp-t">${esc(titel)}</span>${
+        knopf ? `<span class="sec-r">${knopf}</span>` : ''}</summary>
+      <div class="grp-koerper">${inhalt}</div></details>`;
   const block = (gid, titel, html) => {
     if (!html) return '';
     bloecke.push({ gid, titel });
@@ -761,7 +766,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     // Stückliste standen offen, während «Profile» zugeklappt war).
     if (!felder.length) {
       return block(gid, gTitel, zusatz && g.zugeklappt && !EINFACH
-        ? klapp(`gruppe-${gid}`, gTitel, zusatz, '', false) : zusatz);
+        ? grpHtml(gid, gTitel, zusatz, '', false) : zusatz);
     }
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
                 : felder.some((f) => f.ausLast) && !lastKnopfDa
@@ -825,13 +830,10 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       .join('') + feinBlock + (feinExtra ? '' : zusatz);
     // Der Titel kann je Tragwerksart ein anderer sein (28. September).
     const titel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
-    if (g.zugeklappt && !EINFACH) {
-      return block(gid, titel, klapp(`gruppe-${gid}`, titel, inhalt, `${felder.length}`, false));
-    }
-    return block(gid, titel, `<details class="grp" data-klapp="grp-${esc(gid)}" open>
-      <summary class="sec grp-kopf" title="Gruppe auf- oder zuklappen"><span class="grp-t">${esc(titel)}</span>${
-        knopf ? `<span class="sec-r">${knopf}</span>` : ''}</summary>
-      <div class="grp-koerper">${inhalt}</div></details>`);
+    // Zugeklappte Gruppen sehen aus wie die übrigen (17. November: «warum
+    // sieht das unterschiedlich aus?» - sie standen als gerahmter
+    // Klappabschnitt da); sie beginnen nur zu.
+    return block(gid, titel, grpHtml(gid, titel, inhalt, knopf, !(g.zugeklappt && !EINFACH)));
   }).join('');
   /*
    * >>> PROFILE, BLECHE, STÜCKLISTE: EIN KNOPF (17. November). <<< Mit Bild

@@ -1643,8 +1643,8 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const uq2 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     wahr('Die Maske kennt das Merkmal',
          // Seit dem 15. November ausser in der Schulung (dort offen).
-         uq2.includes('if (g.zugeklappt && !EINFACH)')
-         && uq2.includes('klapp(`gruppe-${gid}`'));
+         // Seit dem 17. November als Gruppen-Klappe, die zu beginnt (gleicher Stil).
+         uq2.includes('!(g.zugeklappt && !EINFACH)'));
   }
 
   /*
@@ -41968,7 +41968,7 @@ titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fens
   wahr('Maske: jede Gruppe als Block, Sprungleiste ab drei Blöcken',
        UQ.includes('class="grp-block" data-grp=') && /bloecke\.length >= 3/.test(UQ) && UQ.includes('data-sprung-alle'));
   wahr('Maske: gewöhnliche Gruppen einklappbar, Vorgabe offen, Zustand im Browser gemerkt',
-       UQ.includes('<details class="grp" data-klapp="grp-${esc(gid)}" open>')
+       UQ.includes(`<details class="grp" data-klapp="grp-\${esc(gid)}"\${offen ? ' open' : ''}>`)
        && UQ.includes("const GRUPPEN_MERKER = 'tragjoch-gruppen'") && UQ.includes("if (k.startsWith('grp-')) gruppenMerken();"));
   wahr('Sprung auf ein Feld öffnet eine zugeklappte Gruppe',
        /for \(let d = el\.closest\('details'\); d; d = d\.parentElement\?\.closest\('details'\)\)/.test(LQ));
