@@ -32,7 +32,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          LASTARTEN, mastTeileSzene } from './render.3d.js';
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
-         stabwerkBerichtDaten, setzeDruckStamm } from './app.bericht.js';
+         stabwerkBerichtDaten, setzeDruckStamm, kurzBericht } from './app.bericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml, anschlussBlattHtml } from './export.reaktionen.js';
 import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
 import { axisVergleich, istAxisErgebnis } from './core.axisvergleich.js';
@@ -5789,6 +5789,7 @@ function exportMenueLeicht() {
     { id: 'anschluss', text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
     { id: 'bestand', text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
     { id: 'excel', text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
+    { id: 'kurz', text: 'Kurzzusammenfassung (PDF)', tun: () => handlung('Kurzzusammenfassung', () => kurzBericht(app)) },
     { id: 'drucken', text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
   ].filter((e) => !e.id || exportErlaubt(e.id));
 }

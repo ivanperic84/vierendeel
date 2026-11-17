@@ -14,6 +14,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-17',
     punkte: [
+      { text: 'Schulungsfassung: im Export statt «Drucken» eine Kurzzusammenfassung der Berechnung (Eingaben, Lastbilder, Resultate) als PDF; graues Wasserzeichen «Vordimensionierung - kein statischer Nachweis» auf den Blättern.' },
       { text: 'Schulungsfassung: Anschluss Joch am Masten «eingespannt bis zur Grenze der Hakenschrauben» - der Untergurt gibt höchstens 24 kN je Anschluss weiter; Übungsbeispiel Tragjoch auf dieser Stufe.', rechnung: true },
       { text: 'Schulungsfassung: roter Vermerk «Vordimensionierung - kein geprüfter statischer Nachweis»; Sprachwahl ganz rechts; Übungsbeispiel Tragjoch mit eingespanntem Anschluss, Schnee und Masten HEB 260.' },
     ],

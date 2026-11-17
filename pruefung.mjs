@@ -42391,6 +42391,44 @@ titel('281  Einspannung des Jochs bis zur Grenze der Hakenschrauben');
        && f.wertAus({ auflagerLinks: voll }) === 'eingespannt' && f.wertAus({}) === 'gebaut');
 }
 
+// ===========================================================================
+titel('282  Schulung: Kurzzusammenfassung statt Drucken, Wasserzeichen');
+/* 17. November: «mach beim export die funktion druck weg und dafür eine
+ * kurzzusammenfassung der berechnung mit diagramm darstellung der
+ * einwirkungen und modelleingaben und resultate als pdf output.» und
+ * «Wasserzeichen auf den outputblättern hinterlegen in grau ->
+ * vordimensionierung, kein statischer nachweis.» */
+{
+  const S = await import(J('stufe.js'));
+  const K = await import(J('export.kurz.js'));
+  const BQ = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+  wahr('Schulung: Export ohne «Drucken», mit «Kurzzusammenfassung»; Vollversion unverändert',
+       !S.exportErlaubt('drucken', 'schulung') && S.exportErlaubt('kurz', 'schulung')
+       && S.exportErlaubt('reaktionen', 'schulung') && S.exportErlaubt('drucken', 'voll'));
+  const d = {
+    blatt: { name: 'Kurs', ort: 'Beispiel', werte: { flSpannweite: 40, trasseRadius: -1600, windKlasse: '0.9', schneeAktiv: true } },
+    tragwerke: [{ pos: 'T1', label: 'J100 · 21.50 m', art: 'joch', satz: { L: 21.5, mastH: 7.26,
+      auflagerLinks: { schraubenGrenze: true }, anbauteile: [{ name: 'Jochaufsatz', x: 6.15, ort: 'joch' }] } }],
+    masten: [{ anzeige: '24A', profil: 'HEB 260', laenge: 8.5, steg: 'quer', fundamentTyp: 'DP2a / 2.0' }],
+    datum: '17.11.2026', fassung: 'Vierendeel v2.0',
+  };
+  const h = K.kurzBerichtHtml(d, { gruppen: [{ titel: 'Masten', eta: 1.01, name: 'Mast 24A' },
+    { titel: 'Verformung', eta: 1.10, name: 'Verformung 24A' }], windText: 'EK1',
+    bilder: { lasten: [{ titel: 'Wind quer', svg: '<svg></svg>' }] } });
+  wahr('Kurzzusammenfassung: Eingaben, Einwirkungen, Resultate, Hinweise; Urteil am grössten Wert',
+       ['1 Modelleingaben', '2 Einwirkungen', '3 Resultate', '4 Hinweise'].every((t) => h.includes(t))
+       && h.includes('eingespannt bis zur Grenze der Hakenschrauben') && h.includes('HEB 260') && h.includes('Jochaufsatz')
+       && h.includes('überlastet') && h.includes('Verformung 24A erreicht 110 %') && h.includes('size: A4 portrait')
+       && h.includes('Vordimensionierung - kein geprüfter statischer Nachweis'));
+  wahr('Wasserzeichen: in jedes Blatt der Schulung (auch nach dem Neuaufbau), grau und blass',
+       BQ.includes("rahmen.srcdoc = mitWasserzeichen(html);")
+       && BQ.includes('rahmen.srcdoc = mitWasserzeichen(wahl.bauen(wahl.zustand));')
+       && BQ.includes("'VORDIMENSIONIERUNG · KEIN STATISCHER NACHWEIS'") && BQ.includes('opacity:.10')
+       && BQ.includes('if (!EINFACH ||'));
+  wahr('Wind in Worten: 0.9 → EK1, 1.0 → Einheitswind', BQ.includes("'0.9': 'EK1 (Staudruck 0.90 kN/m²)'")
+       && BQ.includes("'1.0': 'Einheitswind 1.0 kN/m² (alte Norm)'"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

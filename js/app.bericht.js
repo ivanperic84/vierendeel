@@ -35,6 +35,9 @@ import { nurWindFaelle } from './core.verformung.js';
 import { BETRIEBSWIND } from './core.lasten.js';
 import { bauteilDiagramm, fundamentDiagramm,
          fussKraftDiagramm } from './render.charts.js';
+import { kurzBerichtHtml } from './export.kurz.js';
+import { EINFACH } from './stufe.js';
+import { tr } from './sprache.js';
 
 /* ===========================================================================
  * >>> DER NACHWEISBERICHT (Weisung vom 18. September). <<<
@@ -497,6 +500,79 @@ function berichtStabwerk(app, wahl) {
   berichtZeigen(stabwerkBericht(d, wahl));
 }
 
+/**
+ * >>> KURZZUSAMMENFASSUNG (17. November, export.kurz.js). <<<
+ * «mach beim export die funktion druck weg und dafür eine
+ * kurzzusammenfassung der berechnung mit diagramm darstellung der
+ * einwirkungen und modelleingaben und resultate als pdf output.»
+ * Dieselben Daten und Bilder wie der Nachweisbericht des Stabwerks.
+ */
+export function kurzBericht(app) {
+  const d = stabwerkBerichtDaten(app);
+  const farbeVon = (eta) => (eta > 1 ? 'var(--fail)' : (eta > 0.9 ? 'var(--warn)' : 'var(--ok)'));
+  const aufnahme = () => {
+    if (!app.ansicht) return null;
+    const vorher = app.thema;
+    if (vorher !== 'hell') uebertrageTokens('hell');
+    try { return app.ansicht.momentaufnahme('iso'); }
+    catch { return null; }
+    finally { if (vorher !== 'hell') { uebertrageTokens(vorher); app.ansicht.zeichneJetzt(); } }
+  };
+  const urteil = blattUrteil(d);
+  // Je Gruppe das massgebende Bauteil - wie das Ergebnis der Schulung.
+  const GR = [['tragwerk', 'Träger'], ['mast', 'Masten'], ['anker', 'Anker'], ['fundament', 'Fundamente']];
+  const gruppen = GR.map(([k, titel]) => {
+    const l = urteil.liste.filter((x) => x.gruppe === k && Number.isFinite(x.eta));
+    if (!l.length) return null;
+    const m = l.reduce((a, b) => (b.eta > a.eta ? b : a));
+    return { titel, eta: m.eta, name: m.name };
+  }).filter(Boolean);
+  let vf = null;
+  (d.tragwerke ?? []).forEach((tw) => Object.entries(tw.verformung ?? {}).forEach(([ende, q]) => {
+    const e = q?.massgebend?.eta;
+    if (!Number.isFinite(e) || (vf && vf.eta >= e)) return;
+    const name = ende === 'fahrdraht' ? 'Fahrdraht' : ende === 'ausleger' ? 'Tragausleger'
+      : `Verformung ${d.anzeige?.(tw.namen?.[ende] ?? ende) ?? ende}`;
+    vf = { titel: 'Verformung', eta: e, name };
+  }));
+  if (vf) gruppen.push(vf);
+  const w = d.blatt?.werte ?? {};
+  const html = kurzBerichtHtml(d, {
+    gruppen,
+    // windKlasse trägt den Staudruck (0.9 / 1.1 / 1.3 = EK1-3, 1.0 = Einheitswind).
+    windText: ({ '0.9': 'EK1 (Staudruck 0.90 kN/m²)', '1.1': 'EK2 (Staudruck 1.10 kN/m²)',
+                 '1.3': 'EK3 (Staudruck 1.30 kN/m²)', '1.0': 'Einheitswind 1.0 kN/m² (alte Norm)' })[String(w.windKlasse)]
+      ?? String(w.windKlasse ?? ''),
+    bilder: {
+      skizze: d.sw?.roh?.dat ? systemSvg(d.sw.roh.dat, { breite: 860 }) : null,
+      modell3d: aufnahme(),
+      lasten: lastBilder(d.sw),
+      bauteile: bauteilDiagramm(urteil, { breite: 860, farbeVon }),
+      verformung: verformungBild(d.sw,
+        (d.tragwerke ?? []).map((tw) => tw.verformung?.fahrdraht?.massgebend?.grenz).find(Number.isFinite) ?? 0.04),
+    },
+    stil: diagrammStil(),
+  });
+  berichtZeigen(html, 'Kurzzusammenfassung');
+}
+
+/*
+ * >>> WASSERZEICHEN AUF DEN BLÄTTERN DER SCHULUNG (17. November). <<<
+ * «Wasserzeichen auf den outputblättern hinterlegen in grau ->
+ * vordimensionierung, kein statischer nachweis.» Über dem Inhalt, blass,
+ * schräg, auf jeder gedruckten Seite (position: fixed); die Maus geht
+ * hindurch. In der Sprache der Oberfläche.
+ */
+export const WASSERZEICHEN = 'VORDIMENSIONIERUNG · KEIN STATISCHER NACHWEIS';
+export function mitWasserzeichen(html) {
+  if (!EINFACH || typeof html !== 'string' || html.includes('class="wz-blatt"')) return html;
+  const text = esc(tr(WASSERZEICHEN));
+  const el = `<div class="wz-blatt" style="position:fixed;top:45%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);`
+    + `font:700 30px system-ui,sans-serif;color:#000;opacity:.10;white-space:nowrap;pointer-events:none;`
+    + `z-index:9999;letter-spacing:.04em;-webkit-print-color-adjust:exact;print-color-adjust:exact">${text}</div>`;
+  return html.includes('</body>') ? html.replace('</body>', `${el}</body>`) : html + el;
+}
+
 // Auch das Blatt der Reaktionskräfte geht diesen Weg (30. September).
 /*
  * `wahl` (30. September, Blatt der Reaktionskräfte): Kästchen in der
@@ -538,7 +614,7 @@ export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
     <iframe title="${titel}"></iframe>`;
   document.body.appendChild(ebene);
   const rahmen = ebene.querySelector('iframe');
-  rahmen.srcdoc = html;
+  rahmen.srcdoc = mitWasserzeichen(html);
   ebene.querySelector('#bericht-drucken').onclick = () => {
     const name = druckName(titel);
     // Der Titel des Blatts UND des Fensters: welcher gilt, hält der Browser.
@@ -555,12 +631,12 @@ export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
       // Was auf dem Blatt bearbeitet wurde, übersteht den Neuaufbau.
       wahl.merken?.(rahmen);
       wahl.zustand = { ...(wahl.zustand ?? {}), [k.dataset.berichtWahl]: k.checked };
-      rahmen.srcdoc = wahl.bauen(wahl.zustand);
+      rahmen.srcdoc = mitWasserzeichen(wahl.bauen(wahl.zustand));
     };
   });
   ebene.querySelectorAll('[data-bericht-aktion]').forEach((b) => {
     const a = (wahl?.aktionen ?? []).find((x) => x.key === b.dataset.berichtAktion);
-    b.onclick = () => a?.tun(rahmen, () => { rahmen.srcdoc = wahl.bauen(wahl.zustand); });
+    b.onclick = () => a?.tun(rahmen, () => { rahmen.srcdoc = mitWasserzeichen(wahl.bauen(wahl.zustand)); });
   });
   ebene.querySelector('#bericht-zu').onclick = () => ebene.remove();
 }

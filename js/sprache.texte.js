@@ -9,6 +9,18 @@
  * sonst bleibt er in FR/IT deutsch.
  */
 export const TEXTE = {
+ "VORDIMENSIONIERUNG · KEIN STATISCHER NACHWEIS": {
+  "fr": "PRÉDIMENSIONNEMENT · PAS DE JUSTIFICATION STATIQUE",
+  "it": "PREDIMENSIONAMENTO · NESSUNA VERIFICA STATICA"
+ },
+ "Kurzzusammenfassung (PDF)": {
+  "fr": "Résumé du calcul (PDF)",
+  "it": "Riassunto del calcolo (PDF)"
+ },
+ "Kurzzusammenfassung": {
+  "fr": "Résumé du calcul",
+  "it": "Riassunto del calcolo"
+ },
  "eingespannt bis zur Grenze der Hakenschrauben": {
   "fr": "encastré jusqu'à la limite des boulons à crochet",
   "it": "incastrato fino al limite dei bulloni a gancio"
