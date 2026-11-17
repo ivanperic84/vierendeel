@@ -12409,9 +12409,10 @@ titel('42  Der lange Mast mit Zusatzleitern');
     {
       const uq = readFileSync(
         new URL('./js/ui.js', import.meta.url), 'utf8');
-      wahr('Der Mastfuss steht oben',
-           // Seit dem 6. Oktober mit dem Rechenverfahren im Titel.
-           uq.includes("'Mastfuss aus dem Ersatzbalken' : 'Reaktionskräfte am Mastfuss'"));
+      // 17. November: mit Stabwerk kein Mastfuss der Kontrollrechnung mehr.
+      wahr('Der Mastfuss steht oben (nur ohne Stabwerk)',
+           uq.includes("${abschnitt('Reaktionskräfte am Mastfuss',")
+           && uq.includes('if (stabwerk) { node.innerHTML = hinweise; verdrahteKlapp(node); return; }'));
       wahr('… mit den Bemessungswerten angeschrieben',
            /Bemessungswerte des gewählten Lastfalls/.test(uq));
       /*
@@ -33387,7 +33388,8 @@ titel('151  Verläufe im Stabwerksweg: Stabwerk oben, Ersatzbalken eingeklappt')
   const u = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Bühne kennt dieselben Kennungen (Vergrössern)',
        ['sw-gurt', 'sw-blech', 'sw-kraft', 'sw-mast-eta-', 'sw-mast-schnitt-'].every((k) => q.includes(`'${k}`) || q.includes(`\`${k}`)));
-  wahr('Der Ersatzbalken steht eingeklappt darunter', /klapp\('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich'/.test(u));
+  // 17. November: kein Vergleich mit dem Ersatzbalken mehr in der Oberfläche.
+  wahr('Kein Vergleichsblock des Ersatzbalkens unter den Verläufen', !u.includes("klapp('verlauf-ersatzbalken'"));
 }
 
 titel('152  Der Reiter «Schnitt» steht nur beim Ersatzbalken');
@@ -41240,8 +41242,8 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     { key: 'c', bez: 'C', nachweis: true, beiwerte: {}, eta: 0.10 }] };
   const ohne = UIK.kombiMatrixHtml(kombi, null, { vorlaeufig: true });
   const mit = UIK.kombiMatrixHtml(kombi, null, { stabwerk: { a: { eta: 0.41, name: 'Joch' }, b: { eta: 0.69, name: 'Mast M1' } } });
-  wahr('Lastfalltabelle: ohne Stabwerk der Ersatzbalken, so angeschrieben',
-       ohne.includes('Ersatzbalken · vorläufig') && ohne.includes('>0.300'));
+  wahr('Lastfalltabelle: ohne Stabwerk die Kontrollrechnung, so angeschrieben',
+       ohne.includes('Kontrollrechnung · vorläufig') && ohne.includes('>0.300'));
   wahr('… mit Stabwerk dessen Zahl je Fall, «massgebend» folgt ihr, ein Fall ohne Stabwerk ist markiert',
        mit.includes('>0.690') && mit.includes('>0.410') && !mit.includes('>0.300')
        && /data-lf-wahl="b"[\s\S]{0,260}<b>massgebend<\/b>/.test(mit) && !/data-lf-wahl="a"[\s\S]{0,200}<b>massgebend/.test(mit)
@@ -42645,6 +42647,19 @@ titel('290  Modell-Ebenen: Rechtsklick zeigt nur diese, zweiter Rechtsklick alle
   const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
   wahr('Gruppe Modell mit Rechtsklick wie die Lasten (nur vorhandene Ebenen)',
        LQ.includes('ui.el(`wz-m-${s.key}`).oncontextmenu') && LQ.includes('const keys = WZ_MODELL(app).map((x) => x.key).filter((k) => !da || da.has(k));'));
+}
+
+// ===========================================================================
+titel('291  Einfeldträger aus der Oberfläche, Kern als Kontrollrechnung');
+/* 17. November: «einfeldträger aus der oberfläche nehmen . Kern als
+ * kontrollrechnung behalten.» */
+{
+  const DA = await import(J('data.anbauteile.js'));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Gespeicherter Stand «Ersatzbalken» rechnet mit dem Stabwerk',
+       DA.standAnheben({ rechenverfahren: 'ersatzbalken' }).rechenverfahren === 'stabwerk');
+  wahr('Optionen: keine Wahl des Rechenverfahrens mehr', !UQ.includes('name="rechenverfahren"')
+       && UQ.includes('vereinfachte <b>Kontrollrechnung</b>'));
 }
 
 console.log('\n' + '='.repeat(104));

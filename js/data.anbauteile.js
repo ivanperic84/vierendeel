@@ -1242,6 +1242,13 @@ export function standAnheben(w) {
    * entstehen schon nach oben - sie dürfen nicht ein zweites Mal kippen.
    */
   let erg = tragwerkAnheben(havarieAnheben(fzNachObenAnheben(w)));
+  /*
+   * >>> KEIN RECHENVERFAHREN «ERSATZBALKEN» MEHR (17. November). <<<
+   * Weisung: «einfeldträger aus der oberfläche nehmen. Kern als
+   * kontrollrechnung behalten.» Ein gespeicherter Stand mit diesem Verfahren
+   * rechnet mit dem Stabwerk; der Kern läuft nur noch als Kontrollrechnung.
+   */
+  if (erg.rechenverfahren === 'ersatzbalken') erg = { ...erg, rechenverfahren: 'stabwerk' };
   if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(tragwerkAnheben);
   // Bestandesschutz in jedem Tragwerk gleich (11. Oktober, core.bestand.js).
   erg = bestandAufsBlatt(erg);

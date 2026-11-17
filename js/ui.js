@@ -3287,8 +3287,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         <div class="at-gitter">
           ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte, ortVon(a)),
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
-                   + 'Was am Masten hängt, geht NICHT in den Ersatzbalken ein — '
-                   + 'es steht nur im Stabmodell mit Auflagermodell «Mast».')}
+                   + 'Was am Masten hängt, rechnet das Stabwerk am Masten.')}
           ${ortVon(a) === 'joch'
             // Am Tragausleger bis zum Kragarmende (28. September).
             ? atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.1, 0,
@@ -6603,8 +6602,8 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     // Seit dem 30. September kommt auch das Knicken des Einzelmasten aus
     // dem Stabwerk (`swH.knick`); der Kern nur noch, wo es dort fehlt.
     ? (Object.keys(knickJe(bem)).length && !Object.keys(swH?.knick ?? {}).length
-      ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
-    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
+      ? 'Stabwerk · Knicken Kontrollrechnung' : 'Stabwerk')
+    : (swH || vorlaeufig ? `Kontrollrechnung${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
     { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
     { titel: 'Anker', kacheln: nwJeM.anker,
@@ -6638,10 +6637,10 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const swG = stabwerkFuehrt(opt, false);
   const zeigV = swG?.verformung ? { ...zeig, verformung: swG.verformung } : zeig;
   const gzgQuelle = swG?.verformung ? 'Stabwerk'
-    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
+    : (swH || vorlaeufig ? `Kontrollrechnung${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
-                                  ? `${urteilText} · vorläufig (Ersatzbalken)`
+                                  ? `${urteilText} · vorläufig (Kontrollrechnung)`
                                   : urteilText },
                               zeigV, nwArt, einzelLastfall);
   node.innerHTML = `
@@ -7043,7 +7042,7 @@ export function stabwerkLeiste(opt = {}) {
    * --------------------------------------------------------------------- */
   if (stand === 'ohneModell') {
     return `<div class="stabwerk-leiste ohneModell">
-      <span class="sw-marke">Ersatzbalken</span>
+      <span class="sw-marke">Kontrollrechnung</span>
       <span class="notiz">${esc(e?.ohneModell ?? sw.grund
         ?? 'Für diese Tragwerksart gibt es kein Stabmodell.')}</span>
     </div>`;
@@ -7102,18 +7101,17 @@ export function stabwerkLeiste(opt = {}) {
     : '';
 
   const marke = {
-    fehlt: '<span class="sw-marke">Ersatzbalken</span>',
+    fehlt: '<span class="sw-marke">Kontrollrechnung</span>',
     veraltet: '<span class="sw-marke warn">Eingabe geändert</span>',
     gueltig: '<span class="sw-marke ok">Stabwerk</span>',
     fehler: '<span class="sw-marke warn">nicht gerechnet</span>',
   }[stand] ?? '';
 
   const text = {
-    fehlt: 'Angezeigt wird vorläufig der Ersatzbalken. Das Stabwerk sieht '
-         + 'auch die Biegung der Bleche aus ihrer Ebene heraus.',
-    veraltet: 'Die Eingabe hat sich geändert - angezeigt wird vorläufig der '
-            + (sw?.knopf ? 'Ersatzbalken. Gerechnet wird auf Knopfdruck (Optionen).'
-                         : 'Ersatzbalken, das Stabwerk rechnet gleich neu.'),
+    fehlt: 'Angezeigt wird vorläufig die Kontrollrechnung, bis das Stabwerk gerechnet ist.',
+    veraltet: 'Die Eingabe hat sich geändert - angezeigt wird vorläufig die '
+            + (sw?.knopf ? 'Kontrollrechnung. Gerechnet wird auf Knopfdruck (Optionen).'
+                         : 'Kontrollrechnung, das Stabwerk rechnet gleich neu.'),
     /*
      * Die Reihe zuerst: sie sagt, WAS gerechnet wurde. Die Kennzahlen
      * dahinter sagen, wie gross es war.
@@ -7457,7 +7455,7 @@ export function buegelBlockHtml(opt, urteil) {
           <td>${esc(kurz(z.bez))}</td></tr>`).join('')}</tbody></table></div>`, '', false);
   } else {
     k = kachel('Bügelschrauben (A1)', f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0),
-      `${f2(a1.vorhanden)} / ${f2(a1.erforderlich)} kN · Ersatzbalken`,
+      `${f2(a1.vorhanden)} / ${f2(a1.erforderlich)} kN · Kontrollrechnung`,
       a1.ok ? 'ok' : 'fail', { titel: a1.status ?? '' });
   }
   const ueber = b ? b.ueber : a1 && !a1.ok;
@@ -7474,7 +7472,7 @@ export function buegelBlockHtml(opt, urteil) {
       <button class="btn btn-mini btn-acc" data-buegel-uebernehmen type="button">übernehmen</button></p>`
     : vorschlag?.grund ? `<p class="notiz" style="margin:4px 0 0">${esc(vorschlag.grund)}</p>` : '';
   const aus = urteil?.nichtGefuehrt?.some?.((g) => g.key === 'auflagerJoch');
-  return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Ersatzbalken')}
+  return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Kontrollrechnung')}
     <div class="kennzahlen">${k}</div>
     ${ueber ? `<p class="notiz" style="margin:4px 0 0"><b>Grenzlast überschritten</b> mit
       der eingestellten Auflagerbedingung. ${knopf}</p>` : ''}
@@ -7831,12 +7829,11 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         } else if (!opt.swH?.ausleger && n.stabil && Number.isFinite(n.stabil.eta)) {
           const fK = fz(n.stabil.fall ?? n.fall);
           mast.push(kachel(`η Knicken ${name}`, f3(n.stabil.eta),
-            `${n.profil.name} · Ersatzbalken`, ampelU(n.stabil.eta), {
+            `${n.profil.name} · Kontrollrechnung`, ampelU(n.stabil.eta), {
               ...(fK ? { fall: fK.kurz } : {}),
-              titel: 'Knicken nach SIA 263 aus dem Ersatzbalken - der Löser '
-                   + 'rechnet keine Stabilität. ⚠ Mit den Schnittgrössen des '
-                   + 'Ersatzbalkens (Einzelfeld); am geteilten Masten einer '
-                   + 'Reihe sind sie kleiner als im Stabwerk.',
+              titel: 'Knicken nach SIA 263 aus der Kontrollrechnung (Einzelfeld); '
+                   + 'am geteilten Masten einer Reihe sind die Schnittgrössen '
+                   + 'kleiner als im Stabwerk.',
             }));
         }
         return;
@@ -8571,7 +8568,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
   // Am Tragausleger heisst der Kern, was er ist (28. September, 3b).
-  const kernName = taK ? 'Kragarm-Kern' : 'Ersatzbalken';
+  const kernName = 'Kontrollrechnung';
   const quelle = (ausSw) => (ausSw ? 'Stabwerk'
     : (swH || vorlaeufig ? `${kernName}${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
@@ -8584,7 +8581,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
       // Stabwerk kommen - die Anschrift liest es an der Zeile selbst ab.
       rechts: mastAusSw
         ? ((bt?.liste ?? []).some((x) => x.key === 'knicken' && x.quelle === 'ersatzbalken')
-            ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
+            ? 'Stabwerk · Knicken Kontrollrechnung' : 'Stabwerk')
         : quelle(false) },
     { titel: 'Anker', kacheln: nwJe.anker,
       rechts: quelle(Object.keys(swH?.ankerJe ?? {}).length > 0) },
@@ -8750,10 +8747,10 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
   const swG = stabwerkFuehrt(opt, false);
   const ergV = swG?.verformung ? { ...erg, verformung: swG.verformung } : erg;
   const gzgQuelle = swG?.verformung ? 'Stabwerk'
-    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
+    : (swH || vorlaeufig ? `Kontrollrechnung${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
-                                  ? `${urteilText} · vorläufig (Ersatzbalken)`
+                                  ? `${urteilText} · vorläufig (Kontrollrechnung)`
                                   : urteilText },
                               ergV, nwArt, einzelLastfall);
   node.innerHTML = `
@@ -9804,8 +9801,7 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null, sw = null) 
     ${sw.masten.map((m) => abschnitt(`Mast ${m.name} · Stabwerk`)
       + diagrammBlock(`sw-mast-eta-${m.name}`, 'Ausnutzung über die Höhe', m.eta)
       + diagrammBlock(`sw-mast-schnitt-${m.name}`, 'Schnittgrössen über die Höhe', m.schnitt)).join('')}
-    ${gitterBem}
-    ${klapp('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich', kern, 'Kern')}`
+    ${gitterBem}`
     : gitterBem + kern;
   verdrahteDiagramme(node);
   verdrahteKlapp(node);
@@ -9958,10 +9954,7 @@ export function zeichneAuflager(node, blatt, erg, { stabwerk = false } = {}) {
         Wind ohne Abminderung, je Auflager die Hülle der wirklichen
         Zustände, dazu der oben gewählte Fall. Eigengewicht und Wind der
         Masten sind darin enthalten.</p>
-      <p class="notiz"><b>Der Mastfuss</b> darunter trägt die
-        <b>Bemessungswerte</b> des gewählten Lastfalls aus dem
-        <b>Ersatzbalken</b> - eine Auskunft zum Vergleich; massgebend ist das
-        Stabwerk. Die beiden Zahlensätze sind nicht zu vermischen.</p>`
+`
       : `<p class="notiz"><b>Der Mastfuss trägt Bemessungswerte</b> des oben
         gewählten Lastfalls — mit Beiwerten, fertig zum Weitergeben. Das
         Jochauflager darunter ist <b>charakteristisch</b> und je
@@ -10066,8 +10059,11 @@ export function zeichneAuflager(node, blatt, erg, { stabwerk = false } = {}) {
       ${kachel('M_xx', f2(masten[0].fuss?.Mxx ?? 0), 'kNm · biegt längs')}
     </div>` : '';
 
+  // 17. November: mit gültigem Stabwerk kein Mastfuss der Kontrollrechnung
+  // mehr - die Reaktionstabelle oben kommt aus dem Stabwerk.
+  if (stabwerk) { node.innerHTML = hinweise; verdrahteKlapp(node); return; }
   node.innerHTML = `
-    ${abschnitt(stabwerk ? 'Mastfuss aus dem Ersatzbalken' : 'Reaktionskräfte am Mastfuss',
+    ${abschnitt('Reaktionskräfte am Mastfuss',
                 `Bemessungswerte des gewählten Lastfalls · ${
                   masten.length === 1 ? 'ein Mast' : `${masten.length} Masten`}`)}
     ${kacheln}
@@ -10756,7 +10752,7 @@ export function stuecklisteHtml(erg, opt = {}) {
            Blech und Mast wie AxisVM, dazu der Zuschlag g_Zusatz der Karte Lasten.
            Der Tabellenwert dient nur diesem Abgleich.`
         : m.char?.herkunft?.eigengewicht
-          ? `<br>In der Rechnung (Ersatzbalken) angesetzt: ${esc(m.char.herkunft.eigengewicht)}.` : ''}
+          ? `<br>In der Kontrollrechnung angesetzt: ${esc(m.char.herkunft.eigengewicht)}.` : ''}
     </div>`)}`;
 }
 
@@ -10773,12 +10769,9 @@ export function optionenHtml(werte, thema = null) {
   // Reiter traegt sie bereits, und zweimal dasselbe Wort untereinander liest
   // sich wie ein Fehler.
   const titelZeigen = teile.length > 1;
-  // Im Stabwerk fehlen die Felder des Ersatzbalkens (OPTIONEN_NUR_ERSATZBALKEN);
-  // ein Satz sagt, wo sie sind - sonst sähe der Reiter wie beschnitten aus.
-  const ohne = thema === 'modell' && werte?.rechenverfahren !== 'ersatzbalken'
-    ? '<p class="notiz">Torsion, Aufteilung auf die Gurte, Knoten und Bindebleche '
-      + 'steuern nur den Ersatzbalken; im Stabwerk wirken sie nicht und stehen '
-      + 'deshalb nicht da (Rechenverfahren unter <b>Nachweise</b>).</p>' : '';
+  // Die Felder der Kontrollrechnung (OPTIONEN_NUR_ERSATZBALKEN) stehen seit
+  // dem 17. November nicht mehr in der Oberfläche.
+  const ohne = '';
   return teile.map((a) =>
     (titelZeigen ? abschnitt(a.titel) : '')
     + a.felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
@@ -10842,20 +10835,12 @@ export function datenbasisHtml() {
  * Deshalb steht hier, was jeder Weg TUT, und nicht bloss ein Haken.
  * ========================================================================= */
 export function verfahrenHtml(werte) {
-  const jetzt = werte?.rechenverfahren === 'ersatzbalken'
-    ? 'ersatzbalken' : 'stabwerk';
-  return `${abschnitt('Rechenverfahren')}
-    <p class="notiz">Beide rechnen dasselbe Tragwerk. Der Unterschied ist,
-      <b>was sie sehen können</b> — nicht, wie genau sie rundet.</p>`
-    + RECHENVERFAHREN.map((v) => `
-    <div class="nw-wahl">
-      <label>
-        <input type="radio" name="rechenverfahren" data-verfahren="${esc(v.key)}"
-          ${jetzt === v.key ? 'checked' : ''}>
-        <span class="nw-titel">${esc(v.titel)}</span>
-      </label>
-      <p class="notiz">${esc(v.was)}</p>
-    </div>${v.key === 'stabwerk' ? auslosungHtml(werte, jetzt !== 'stabwerk') : ''}`).join('');
+  // 17. November: keine Wahl mehr - gerechnet wird mit dem Stabwerk, der
+  // Kern läuft als Kontrollrechnung (Sofortanzeige während der Rechnung).
+  return `${abschnitt('Rechnung')}
+    <p class="notiz">Gerechnet wird mit dem <b>räumlichen Stabwerk</b>. Eine
+      vereinfachte <b>Kontrollrechnung</b> zeigt vorläufige Werte, solange das
+      Stabwerk rechnet.</p>${auslosungHtml(werte, false)}`;
 }
 
 /*
@@ -11123,7 +11108,7 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
   const bestSw = sw ? kombi.lastfaelle.filter((k) => k.nachweis && sw[k.key])
     .reduce((a, b) => (!a || sw[b.key].eta > sw[a.key].eta ? b : a), null) : null;
   const massg = (k) => (bestSw ? k === bestSw : k.istMassgebend);
-  const quelle = sw ? 'Stabwerk' : (opt.vorlaeufig ? 'Ersatzbalken · vorläufig' : 'Ersatzbalken');
+  const quelle = sw ? 'Stabwerk' : (opt.vorlaeufig ? 'Kontrollrechnung · vorläufig' : 'Kontrollrechnung');
   const ein = kombi.einwirkungen;
   const satz = normensatz
     ? `Beiwerte nach ${esc(normensatz.label)}`
@@ -11145,7 +11130,7 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
       }).join('')}
       <td class="num stark ${k.nachweis ? ampel(etaVon(k)) : ''}" title="${esc(sw?.[k.key]
         ? `Aus dem Stabwerk, massgebend im Fall: ${sw[k.key].name}. Ohne Fundament, Anker und Gebrauchstauglichkeit (eigene Lastniveaus).`
-        : `Aus dem Ersatzbalken (Joch)${sw ? ' - dieser Fall steht nicht im Stabwerk' : ''}.`)}">${f3(etaVon(k))}${
+        : `Aus der Kontrollrechnung (Joch)${sw ? ' - dieser Fall steht nicht im Stabwerk' : ''}.`)}">${f3(etaVon(k))}${
         sw && !sw[k.key] ? '<span class="ablage-meta"> EB</span>' : ''}</td>
       <td class="lf-tasten">
         <button class="btn btn-mini" data-lf="${esc(k.key)}" type="button"
@@ -11216,7 +11201,7 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
       Die Zahlen nennen Joch und Anbauteile; <b>Eigengewicht und Wind der
       Masten</b> sind darin nicht enthalten, sie stehen am Masten. Das
       Stabwerk wiegt die Stäbe selbst (wie AxisVM), die Laufmeterlast der
-      Tabelle gilt dem Ersatzbalken. <b>Begleitend</b> wirkt ψ₀ · Q_k, ohne
+      Tabelle gilt der Kontrollrechnung. <b>Begleitend</b> wirkt ψ₀ · Q_k, ohne
       γ_Q (SIA 260 Gl. 16).
       ${normensatz ? '' : '<b>Die Beiwerte weichen von SIA 260 und RTE ab.</b>'}
     </div>`)}`;

@@ -1297,7 +1297,7 @@ export function zeichneSchienen(app) {
           if (knA && Number.isFinite(knA.eta)) {
             teile.push([`K${name}`, knA.eta, `Knicken ${name} (Stabwerk)`]);
           } else if (!swG.h.ausleger && Number.isFinite(n.stabil?.eta)) {
-            teile.push([`K${name}`, n.stabil.eta, `Knicken ${name} (Ersatzbalken)`]);
+            teile.push([`K${name}`, n.stabil.eta, `Knicken ${name} (Kontrollrechnung)`]);
           }
           return;
         }

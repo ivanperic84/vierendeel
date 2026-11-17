@@ -1420,7 +1420,7 @@ function rechneTragwerk(werte, joch) {
       + (verfahrenVon(werte) === 'stabwerk'
         ? 'Stütze bzw. Querbalken stehen im Stabwerk; am Übergang die Kräfte an den Unterbau '
           + '(Reaktionskräfte). Kein Standardfundament; der Unterbau selbst ist nicht nachgewiesen.'
-        : 'Der Ersatzbalken rechnet ihn als nachgiebigen Fuss (Drehfeder am Jochende und Verformung); '
+        : 'Die Kontrollrechnung rechnet ihn als nachgiebigen Fuss (Drehfeder am Jochende und Verformung); '
           + 'am Übergang die Kräfte an den Unterbau. Kein Standardfundament; der Unterbau selbst ist nicht nachgewiesen.')
       + (nachweiseAuswahl(werte.nachweise).knickenMast
         ? ' Das Knicken des Masten rechnet mit der Einspannung am Übergang; mit dem nachgiebigen '
@@ -1902,7 +1902,7 @@ function diagrammSatz(erg, breite) {
   if (haupt) {
     satz.schnittgroessen = { svg: haupt.schnittgroessen,
                              titel: abD ? 'Schnittgrössen'
-                                        : 'Schnittgrössen Ersatzbalken' };
+                                        : 'Schnittgrössen Kontrollrechnung' };
     satz.ebene = { svg: haupt.ebene, titel: 'Ebenenquerkräfte' };
     satz.ausnutzung = { svg: haupt.ausnutzung, titel: 'Ausnutzung' };
   }
@@ -6133,7 +6133,7 @@ function nachrechnen() {
       : stabwerk?.ohneModell ? `Stabwerk: ${stabwerk.ohneModell}` : 'Stabwerk neu gerechnet.');
   } else {
     neuRechnen();
-    meldeImBalken('Neu gerechnet (Ersatzbalken).');
+    meldeImBalken('Neu gerechnet (Kontrollrechnung).');
   }
 }
 
