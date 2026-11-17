@@ -3748,6 +3748,10 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
    separat aufführen, damit sichtbarer da wichtig.»). */
 .wz-gruppe { width: 84px; box-sizing: border-box; }
 .wz-gruppe .wz-knoepfe { justify-items: center; }
+/* Explosionsdarstellung (17. November): Schieber über die ganze Gruppe. */
+.wz-explo { display: flex; flex-direction: column; gap: 2px; margin-top: 4px;
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
+.wz-explo input { width: 100%; margin: 0; accent-color: var(--acc); }
 .wz-s.wz-linie { grid-column: 1 / -1; width: 100%; height: 22px; margin: 1px 0 4px;
   letter-spacing: .06em; font-size: 10px; }
 .wz-s.wz-linie:not(.on):not(.aus) { color: var(--on); border-color: var(--ol2); }

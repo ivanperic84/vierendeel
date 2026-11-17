@@ -36,7 +36,10 @@ import { FELDER } from './ui.schema.js';
  */
 const WZ_MODELL = (app) => [
   { key: 'profil', icon: 'profil', text: 'Gurtprofile' },
-  { key: 'blech', icon: 'blech', text: 'Bindebleche' },
+  // Stehende und liegende Bleche getrennt (17. November, «die bleche sollten
+  // auch separiert werden können»).
+  { key: 'blechSteh', icon: 'blechSteh', text: 'Stehende Bindebleche' },
+  { key: 'blechLieg', icon: 'blechLieg', text: 'Liegende Bindebleche' },
   // Anbauteile stehen bei den Bauteilen, nicht bei den Lasten: sie SIND
   // Tragwerk - der Weg, auf dem die Last ans Joch kommt. Wer die Lasten
   // global abstellt, um das Joch zu sehen, will diesen Weg behalten. Was zur
@@ -390,7 +393,12 @@ export function zeichneModellWerkzeuge(app) {
       return schalter(`wz-m-${s.key}`, s.icon,
                       leer ? `${s.text} – in diesem Tragwerk nicht vorhanden` : s.text,
                       app.ansicht.ebenen[s.key], !gM || leer);
-    }).join('')) +
+    }).join('')
+      // Explosionsdarstellung (17. November): Teile auseinanderziehen.
+      + `<label class="wz-explo" title="Explosionsdarstellung: Gurte, Bleche, Masten und Anbauteile auseinanderziehen (nur das Bild)">
+           <span>Explosion</span><input type="range" id="wz-explosion" min="0" max="100" step="5"
+             value="${Math.round((app.ansicht.explosion ?? 0) * 100)}"${gM ? '' : ' disabled'}
+             aria-label="Explosionsdarstellung"></label>`) +
     gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG(app).map((s) => {
       const weg = s.fehlt();
       return schalter(`wz-z-${s.key}`, s.icon,
@@ -476,6 +484,12 @@ export function zeichneModellWerkzeuge(app) {
       nach();
     };
   });
+  const ex = ui.el('wz-explosion');
+  if (ex) {
+    ex.oninput = () => { app.ansicht.explosion = Number(ex.value) / 100; app.ansicht.zeichne(); };
+    // Doppelklick setzt zurück.
+    ex.ondblclick = () => { ex.value = 0; app.ansicht.explosion = 0; app.ansicht.zeichne(); };
+  }
   WZ_ZEICHNUNG(app).forEach((s) => {
     ui.el(`wz-z-${s.key}`).onclick = () => {
       app.ansicht.ebenen[s.key] = !app.ansicht.ebenen[s.key]; nach();

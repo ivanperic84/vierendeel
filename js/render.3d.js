@@ -2425,6 +2425,13 @@ export const MODI = [
   { key: 'neutral',  label: 'Bauteile', kurz: 'Teil', art: 'bauteil' },
 ];
 
+/** Liegendes Blech (Ebene waagrecht)? Stehend sind V_…, BV_… und die Bleche der Masten.
+ *  (17. November, «die bleche sollten auch separiert werden können») */
+function blechLiegend(f) {
+  const t = String(f.teil ?? f.label ?? '');
+  return /^H_|(^|_)BH_|^BL_(O|U)|^DECK_/.test(t);
+}
+
 export class Modellansicht {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -2454,7 +2461,9 @@ export class Modellansicht {
     this.kamera = { az: -0.62, el: 0.42, dist: 1, ziel: [0, 0, 0], fov: 0.60,
                     pan: [0, 0, 0] };
     this.projektion = 'perspektive';   // oder 'orthogonal'
-    this.ebenen = { profil: true, blech: true, anbau: true, achse: true,
+    // blechSteh / blechLieg (17. November): stehende und liegende Bleche
+    // getrennt; `blech` bleibt der gemeinsame Schalter dahinter.
+    this.ebenen = { profil: true, blech: true, blechSteh: true, blechLieg: true, anbau: true, achse: true,
                     last: true, kraefte: false, masse: true, schnitt: true,
                     raster: true, marken: true, auflager: true,
                     // Der Mast ist ein Bauteil, kein Auflagerzeichen - er
@@ -4754,9 +4763,10 @@ export class Modellansicht {
      */
     const liste = [];
     if (!this.sparsam) this.szene.flaechen.forEach((f) => {
-      if (!this._ebeneAn(f.gruppe)) return;
+      if (!this._flaecheAn(f)) return;
       if (!this._imFokus(f.xMitte)) return;
-      const pts = f.punkte.map(proj);
+      const v = this._explosionsVersatz(f);
+      const pts = v ? f.punkte.map((p) => proj([p[0] + v[0], p[1] + v[1], p[2] + v[2]])) : f.punkte.map(proj);
       if (pts.some((p) => !p)) return;
       let tiefe = 0;
       for (const p of pts) tiefe += p[2];
@@ -4869,10 +4879,13 @@ export class Modellansicht {
     // der Fahrt - sie ist das, was man dabei ansehen will.
     // Seit dem 3. Oktober mit dem Plot «w» bzw. «η w», ohne eigenen Knopf.
     this._figurWerte = null;
-    if (this.gruppen.resultate && this.verformt && FIGUR_MODI.includes(this.modus)) {
+    // In der Explosion stehen nur die Körper: Achsen, Pfeile, Marken, Masse,
+    // Figur und Zustandslinie gehören zum zusammengesetzten Tragwerk.
+    const explodiert = (this.explosion ?? 0) > 0;
+    if (!explodiert && this.gruppen.resultate && this.verformt && FIGUR_MODI.includes(this.modus)) {
       this._verformtMalen(c, proj, t);
     }
-    if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
+    if (!explodiert && this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
@@ -4880,7 +4893,7 @@ export class Modellansicht {
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.
-    if (this.sparsam || this._ebeneAn('achse') || this._ebeneAn('auflager')) {
+    if (!explodiert && (this.sparsam || this._ebeneAn('achse') || this._ebeneAn('auflager'))) {
       this._linien(c, proj, t);
     }
     // ZUERST DIE PFEILE, DANN DIE MARKEN UND MASSE, ZULETZT DIE FREIEN TEXTE.
@@ -4888,12 +4901,14 @@ export class Modellansicht {
     // beiseite; Marken und Bemassung belegen unterdessen ihre Plaetze, und
     // _texte setzt zum Schluss, was noch frei geblieben ist. Die Rangfolge
     // steht dort.
-    this._vektoren(c, proj, t);
+    // Explodiert: auch die Pfeiltexte des letzten Bildes verwerfen.
+    if (!explodiert) this._vektoren(c, proj, t);
+    else this._pfeiltexte = [];
     // Beschriftungen sind während der Fahrt nicht lesbar und kosten Messungen
     // von Textbreiten - sie bleiben weg, bis das Bild wieder steht.
     if (!this.sparsam) {
-      if (this.ebenen.marken) this._marken(c, proj, t);
-      if (this._ebeneAn('masse')) this._masse(c, proj, t);
+      if (!explodiert && this.ebenen.marken) this._marken(c, proj, t);
+      if (!explodiert && this._ebeneAn('masse')) this._masse(c, proj, t);
       this._bauteiltitel(c, proj, t);
       this._texte(c, t);
       this._markierungMalen(c, t);
@@ -5228,7 +5243,7 @@ export class Modellansicht {
     }
     let max = 0;
     (this.szene?.flaechen ?? []).forEach((f) => {
-      if (f.gruppe && !this._ebeneAn(f.gruppe)) return;
+      if (!this._flaecheAn(f)) return;
       const v = f.werte?.[feld];
       if (Number.isFinite(v)) max = Math.max(max, Math.abs(v));
     });
@@ -5324,9 +5339,52 @@ export class Modellansicht {
     ['flaechen', 'linien', 'marken', 'vektoren'].forEach((k) =>
       (sz[k] ?? []).forEach((x) => { if (x.gruppe) da.add(x.gruppe); }));
     (sz.linien ?? []).forEach((l) => { if (l.schwerachse) da.add('achse'); });
+    (sz.flaechen ?? []).forEach((f) => {
+      if (f.gruppe === 'blech') da.add(blechLiegend(f) ? 'blechLieg' : 'blechSteh');
+    });
     if ((sz.masse ?? []).length) da.add('masse');
     da.add('raster');
     return da;
+  }
+
+  /** Ist diese Fläche eingeschaltet (Gruppe, bei Blechen stehend / liegend)? */
+  _flaecheAn(f) {
+    if (f.gruppe && !this._ebeneAn(f.gruppe)) return false;
+    if (f.gruppe === 'blech' && this.ebenen[blechLiegend(f) ? 'blechLieg' : 'blechSteh'] === false) return false;
+    return true;
+  }
+
+  /*
+   * >>> EXPLOSIONSDARSTELLUNG (17. November). <<< Weisung: «explosion so
+   * bauen» (Vorschlag: Schieber 0–100 %, die Teile entlang fester Richtungen
+   * auseinander). Nur das Bild: Obergurte nach oben, Untergurte nach unten,
+   * vordere und hintere Gurte in Gleisrichtung auseinander, liegende Bleche mit
+   * ihrer Ebene, stehende mit ihrer Seite, Masten nach aussen, Anbauteile mit
+   * ihrer Höhe. Passive Tragwerke bleiben stehen.
+   */
+  _explosionsVersatz(f) {
+    const e = this.explosion ?? 0;
+    if (!(e > 0) || f.passiv) return null;
+    const sz = this.szene;
+    if (sz._explMitte === undefined) {
+      const pts = (sz.flaechen ?? []).filter((g) => !g.passiv && g.gruppe === 'profil').flatMap((g) => g.punkte);
+      const quelle = pts.length ? pts : (sz.flaechen ?? []).filter((g) => !g.passiv).flatMap((g) => g.punkte);
+      sz._explMitte = quelle.length
+        ? [0, 1, 2].map((k) => quelle.reduce((s, p) => s + p[k], 0) / quelle.length) : [0, 0, 0];
+    }
+    if (!f._mitte) {
+      f._mitte = [0, 1, 2].map((k) => f.punkte.reduce((s, p) => s + p[k], 0) / f.punkte.length);
+    }
+    const m = sz._explMitte, c = f._mitte;
+    const sg = (v) => (v >= 0 ? 1 : -1);
+    const sy = sg(c[1] - m[1]), sz2 = sg(c[2] - m[2]), sx = sg(c[0] - m[0]);
+    switch (f.gruppe) {
+      case 'profil': return [0, sy * 0.6 * e, sz2 * 0.8 * e];
+      case 'blech': return blechLiegend(f) ? [0, 0, sz2 * 0.4 * e] : [0, sy * 0.3 * e, 0];
+      case 'mast': return [sx * 1.2 * e, 0, 0];
+      case 'anbau': return [0, 0, sz2 * 1.2 * e];
+      default: return null;
+    }
   }
 
   _ebeneAn(key) {

@@ -216,6 +216,9 @@ export const ICONS = {
   // --- Werkzeuge der Modellansicht -----------------------------------------
   wuerfel: 'M10 2l7 4v8l-7 4-7-4V6zM10 10l7-4M10 10v8M10 10L3 6',
   blech: 'M4 6h5v8H4zM11 6h5v8h-5z',
+  // Stehende und liegende Bleche getrennt (17. November).
+  blechSteh: 'M6 4h3v12H6zM11 4h3v12h-3z',
+  blechLieg: 'M4 6h12v3H4zM4 11h12v3H4z',
   achse: 'M3 10h14M10 3v14',
   stab: 'M4 5h12M4 15h12M4 5v10M16 5v10M10 5v10',
   mass: 'M3 7v6M17 7v6M3 10h14',

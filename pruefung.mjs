@@ -5923,7 +5923,7 @@ titel('31  Bewegung: nichts springt');
     wahr('... und die Beschriftungen auch',
          /if \(!this\.sparsam\) \{[\s\S]{0,220}this\._texte\(c, t\);/.test(rq));
     wahr('Die Achsen vertreten sie fuer die Dauer der Fahrt',
-         rq.includes("if (this.sparsam || this._ebeneAn('achse')"));
+         rq.includes("(this.sparsam || this._ebeneAn('achse')"));
     // Der HAUPTSCHALTER gilt aber weiter - sonst erschiene ein abgeschaltetes
     // Modell waehrend der Fahrt wieder.
     wahr('Der Hauptschalter gilt auch im sparsamen Bild',
@@ -15320,6 +15320,7 @@ titel('56  Die Farbskala folgt den sichtbaren Ebenen');
     ebenen: { profil: true, blech: true, mast: true, anbau: true },
     gruppen: {},
     _ebeneAn: R56.Modellansicht.prototype._ebeneAn,
+    _flaecheAn: R56.Modellansicht.prototype._flaecheAn,
     _bereichSichtbar: R56.Modellansicht.prototype._bereichSichtbar,
   };
   const bereich = (feld) => traeger._bereichSichtbar(feld);
@@ -15567,7 +15568,8 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
   wahr('Die Skala zaehlt nur eingeschaltete Ebenen',
        r61.includes('_bereichSichtbar(feld)')
-       && r61.includes('if (f.gruppe && !this._ebeneAn(f.gruppe)) return;'));
+       // Seit dem 17. November über _flaecheAn (dazu stehende / liegende Bleche).
+       && r61.includes('if (!this._flaecheAn(f)) return;'));
 
   // DER TITEL GEHOERT ZUM BAUTEIL. Ist der Mast aus, stand sein Profil
   // sonst ueber leerem Grund.
@@ -42577,6 +42579,34 @@ titel('291  Einfeldträger aus der Oberfläche, Kern als Kontrollrechnung');
        DA.standAnheben({ rechenverfahren: 'ersatzbalken' }).rechenverfahren === 'stabwerk');
   wahr('Optionen: keine Wahl des Rechenverfahrens mehr', !UQ.includes('name="rechenverfahren"')
        && UQ.includes('vereinfachte <b>Kontrollrechnung</b>'));
+}
+
+// ===========================================================================
+titel('292  Explosionsdarstellung; stehende und liegende Bleche getrennt');
+/* 17. November: «explosion so bauen» und «die bleche sollten auch separiert
+ * werden können». */
+{
+  const R = await import(J('render.3d.js'));
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Gruppe Modell: zwei Blechschalter und ein Schieber «Explosion»',
+       LQ.includes("key: 'blechSteh'") && LQ.includes("key: 'blechLieg'") && LQ.includes('id="wz-explosion"')
+       && !LQ.includes("{ key: 'blech', icon: 'blech'"));
+  const M = Object.create(R.Modellansicht.prototype);
+  M.ebenen = { blech: true, blechSteh: true, blechLieg: false, profil: true };
+  M.gruppen = {};
+  wahr('Liegende Bleche ausgeschaltet: H_O weg, V_L bleibt',
+       !M._flaecheAn({ gruppe: 'blech', teil: 'H_O' }) && M._flaecheAn({ gruppe: 'blech', teil: 'V_L' })
+       && !M._flaecheAn({ gruppe: 'blech', teil: 'BL_O3' }));
+  M.explosion = 1;
+  M.szene = { flaechen: [
+    { gruppe: 'profil', punkte: [[0, 0.2, 0.25], [1, 0.2, 0.25], [1, 0.2, 0.3]] },
+    { gruppe: 'profil', punkte: [[0, -0.2, -0.25], [1, -0.2, -0.25], [1, -0.2, -0.3]] }] };
+  const vOG = M._explosionsVersatz(M.szene.flaechen[0]), vUG = M._explosionsVersatz(M.szene.flaechen[1]);
+  wahr('Explosion: Obergurt hinten nach oben und hinten, Untergurt vorn nach unten und vorn',
+       vOG[2] > 0 && vOG[1] > 0 && vUG[2] < 0 && vUG[1] < 0);
+  wahr('… nur das Bild: in der Explosion keine Achsen, Pfeile, Marken',
+       RQ.includes('if (!explodiert) this._vektoren(c, proj, t);'));
 }
 
 console.log('\n' + '='.repeat(104));
