@@ -9,6 +9,7 @@
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
+import { herausgeberVorbereiten } from './herausgeber.js';
 import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
 import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, VERMERK_SCHULUNG, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
@@ -7405,7 +7406,7 @@ export async function start() {
    * Vermerk, dass hier kein geprüfter Nachweis entsteht.
    */
   document.documentElement.dataset.stufe = STUFE;
-  if (EINFACH) { begriffeVerdrahten(); await uebungenVorbereiten(); }
+  if (EINFACH) { begriffeVerdrahten(); await uebungenVorbereiten(); await herausgeberVorbereiten(); }
   if (LEICHT) {
     document.title = `${APP_NAME} · ${STUFEN_TITEL[STUFE]}`;
     const logo = document.querySelector('.tb-logo');

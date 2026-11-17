@@ -20,6 +20,7 @@
  */
 
 import { NUTZUNG_HTML } from './stufe.js';
+import { herausgeberHtml } from './herausgeber.js';
 import { KURS_FR, KURS_IT } from './doku.kurs.sprachen.js';
 import { skizze, pf, mass, knoten, winkel, raus, rein, txt }
   from './doku.skizze.js';
@@ -3040,8 +3041,10 @@ export function kursKapitel(sprache = 'de') {
 export function kursHandbuchHtml(sprache = 'de') {
   const kap = kursKapitel(sprache);
   const toc = kap.map((s) => `<a class="hb-toc-e" data-zu="${s.id}">${s.titel}</a>`).join('');
+  // Herausgeber und Rechte (17. November) unter «Nutzung und Weitergabe».
   const rumpf = kap.map((s) =>
-    `<section class="hb-abschnitt" id="hb-${s.id}"><h3>${s.titel}</h3>${s.html}</section>`).join('');
+    `<section class="hb-abschnitt" id="hb-${s.id}"><h3>${s.titel}</h3>${s.html}${
+      s.id === 'k-nutzung' ? herausgeberHtml(sprache) : ''}</section>`).join('');
   return `<div class="hb" data-kein-tr lang="${sprache}">
     <nav class="hb-toc"><div class="hb-toc-t">${INHALT_WORT[sprache] ?? 'Inhalt'}</div>${toc}</nav>
     <div class="hb-text">${rumpf}</div>

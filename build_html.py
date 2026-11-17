@@ -560,6 +560,22 @@ def main(ohne_daten=False, stufe=None):
         if ue:
             print(f"Übungsbeispiele eingebettet: {len(ue)}")
 
+    # ---------------------------------------------------------------------
+    # HERAUSGEBER UND RECHTE (17. November). Der Name steht nur in der
+    # verschickten Datei MIT Daten (data/herausgeber.json, oertlich), nie in
+    # einer Datei ohne Daten und nie in der Ablage.
+    # ---------------------------------------------------------------------
+    TAG_HG = '<script type="application/json" id="herausgeber-db"></script>'
+    if TAG_HG in html:
+        hg = {}
+        hg_pfad = DB_JSON.parent / "herausgeber.json"
+        if not ohne_daten and hg_pfad.exists():
+            hg = json.loads(hg_pfad.read_text(encoding="utf-8"))
+        html = html.replace(TAG_HG, '<script type="application/json" id="herausgeber-db">'
+                            + json.dumps(hg, ensure_ascii=True).replace("</", "<\\/") + "</script>")
+        if hg:
+            print("Herausgeber eingebettet.")
+
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein
     # fehlendes Manifest; js/pwa.js erkennt an ihrem Fehlen ausserdem, dass es

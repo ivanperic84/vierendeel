@@ -38,6 +38,7 @@ import { bauteilDiagramm, fundamentDiagramm,
 import { kurzBerichtHtml } from './export.kurz.js';
 import { EINFACH } from './stufe.js';
 import { tr } from './sprache.js';
+import { herausgeberZeile } from './herausgeber.js';
 
 /* ===========================================================================
  * >>> DER NACHWEISBERICHT (Weisung vom 18. September). <<<
@@ -570,7 +571,12 @@ export function mitWasserzeichen(html) {
   const el = `<div class="wz-blatt" style="position:fixed;top:45%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);`
     + `font:700 30px system-ui,sans-serif;color:#000;opacity:.10;white-space:nowrap;pointer-events:none;`
     + `z-index:9999;letter-spacing:.04em;-webkit-print-color-adjust:exact;print-color-adjust:exact">${text}</div>`;
-  return html.includes('</body>') ? html.replace('</body>', `${el}</body>`) : html + el;
+  // Herausgeber und Rechte als Fusszeile jeder Seite (17. November), nur mit
+  // der örtlichen Datei.
+  const hz = herausgeberZeile();
+  const fuss = hz ? `<div class="hg-fuss" style="position:fixed;left:0;right:0;bottom:2mm;text-align:center;`
+    + `font:9px system-ui,sans-serif;color:#777;pointer-events:none">${hz}</div>` : '';
+  return html.includes('</body>') ? html.replace('</body>', `${el}${fuss}</body>`) : html + el + fuss;
 }
 
 // Auch das Blatt der Reaktionskräfte geht diesen Weg (30. September).

@@ -25,6 +25,8 @@
  * dem Wert weiter, den der Stand traegt (gesetzt von der Fachperson).
  */
 
+import { herausgeberHtml } from './herausgeber.js';
+
 // Wird von build_html.py ersetzt; null = Modulversion, Stufe aus der Adresse.
 const STUFE_FEST = null;
 
@@ -137,7 +139,8 @@ export const NUTZUNG_HTML_IT = `
   </ul>`;
 /** Die Nutzungsbedingungen in einer Sprache ('de' | 'fr' | 'it'). */
 export function nutzungHtml(s = 'de') {
-  return s === 'fr' ? NUTZUNG_HTML_FR : s === 'it' ? NUTZUNG_HTML_IT : NUTZUNG_HTML;
+  // Herausgeber und Rechte (17. November) - nur wo die örtliche Datei dabei ist.
+  return (s === 'fr' ? NUTZUNG_HTML_FR : s === 'it' ? NUTZUNG_HTML_IT : NUTZUNG_HTML) + herausgeberHtml(s);
 }
 
 /* ------------------------------------------------------------------------

@@ -42429,6 +42429,39 @@ titel('282  Schulung: Kurzzusammenfassung statt Drucken, Wasserzeichen');
        && BQ.includes("'1.0': 'Einheitswind 1.0 kN/m² (alte Norm)'"));
 }
 
+// ===========================================================================
+titel('283  Herausgeber und Rechte (nur mit der oertlichen Datei)');
+/* 17. November: «bringt es was einen hinweistext zum herausgeber der app und
+ * der rechte aufzuführen. die app wird per datei versendet» - Angaben aus
+ * data/herausgeber.json, nie im Quelltext. */
+{
+  const H = await import(J('herausgeber.js'));
+  const S = await import(J('stufe.js'));
+  const B = await import(J('doku.handbuch.js'));
+  H.herausgeberSetzen(null);
+  wahr('ohne Datei: kein Herausgeber in Nutzungsbedingungen und Handbuch',
+       H.herausgeberHtml('de') === '' && !S.nutzungHtml('de').includes('herausgeber')
+       && !B.kursHandbuchHtml('de').includes('class="herausgeber"'));
+  H.herausgeberSetzen({ herausgeber: 'X. Muster', stelle: 'Stelle Y', firma: 'Firma Z', jahr: '2026' });
+  wahr('mit Angaben: Nutzungsbedingungen DE/FR/IT, Handbuch, Fusszeile',
+       S.nutzungHtml('de').includes('X. Muster, Stelle Y, Firma Z') && S.nutzungHtml('de').includes('© 2026')
+       && S.nutzungHtml('fr').includes('Tous droits réservés') && S.nutzungHtml('it').includes('Editore')
+       && B.kursHandbuchHtml('de').includes('class="herausgeber"')
+       && H.herausgeberZeile().includes('X. Muster, Stelle Y') && H.herausgeberZeile().includes('Alle Rechte vorbehalten'));
+  H.herausgeberSetzen(null);
+  const quellen = ['herausgeber.js', 'stufe.js', 'doku.handbuch.js', 'app.bericht.js', 'app.js']
+    .map((f) => readFileSync(join(HIER, 'js', f), 'utf8')).join('\n') + readFileSync(join(HIER, 'index.html'), 'utf8');
+  // Die Werte der oertlichen Datei duerfen in keiner verfolgten Datei stehen
+  // (auch nicht in dieser Kontrolle).
+  let hgWerte = [];
+  try {
+    hgWerte = Object.values(JSON.parse(readFileSync(join(HIER, 'data', 'herausgeber.json'), 'utf8')))
+      .map((v) => String(v).trim()).filter((v) => v.length >= 3 && !/^\d+$/.test(v));
+  } catch { hgWerte = []; }
+  wahr('kein Name im Quelltext (nur in data/herausgeber.json, ausgeschlossen)',
+       hgWerte.every((v) => !quellen.includes(v)) && readFileSync(join(HIER, '.gitignore'), 'utf8').includes('data/*.json'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
