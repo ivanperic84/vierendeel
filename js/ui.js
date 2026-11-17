@@ -7614,7 +7614,7 @@ export function fundamentNachweisText(q, name, fF = null) {
   const code = rest.split(' ')[0];
   const gegen = / gegen (.+)$/.exec(rest)?.[1];
   const was = (FUND_GROESSE[code] ?? rest.replace(/ gegen .+$/, ''))
-    + (gegen ? ` (gegen ${gegen})` : '');
+    + (gegen ? ` (gegen ${gegen === 'Grenze' ? 'die Grenze M_ver,max' : gegen})` : '');
   const r = Object.values(q.ablauf ?? {}).find((x) => x.richtung === richt);
   const weg = q.stufe === 'nicht'
     ? `Nicht zulässig - grösseres Fundament nötig${r ? ` (Schritt ${r.schritt})` : ''}.`

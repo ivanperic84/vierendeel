@@ -1342,6 +1342,29 @@ export function zeichneSchienen(app) {
       });
       if (teile.length) gruppen.push({ titel: 'Anker · char.', teile });
     }
+    /*
+     * >>> DIE FUNDAMENTE (17. November). <<< «die ausnutzung fundament
+     * aufführen im zusammengeklappten sidebar». Je Mast eine Pille, dieselbe
+     * Zahl wie die Kachel: aus dem Stabwerk, wenn es gilt, sonst aus dem
+     * Kern. Charakteristisch gegen zulässige Lasten - eigene Gruppe wie der
+     * Anker.
+     */
+    if (app.werte?.nachweise?.fundament !== false) {
+      const namen = e.modell?.federn?.namen ?? {};
+      const gesehen = new Set();
+      const teile = [];
+      const taRoh = swG?.h?.ausleger?.fundament;
+      const ta = taRoh?.A ?? (Number.isFinite(taRoh?.eta) ? taRoh : null);
+      ['A', 'B'].forEach((ende) => {
+        const name = namen[ende] || `Ende ${ende}`;
+        const q = swG?.h?.fundamentJe?.[namen[ende]] ?? (ende === 'A' && ta) ?? e.fundament?.[ende];
+        if (!q || q.fehlt || !Number.isFinite(q.eta) || gesehen.has(name)) return;
+        gesehen.add(name);
+        teile.push([`Fu ${name}`, q.eta, `Fundament ${name} · ${q.typ?.typ ?? ''}`
+          + `${q.massgebend?.kurz ? ` · ${q.massgebend.kurz}` : ''} · charakteristisch`]);
+      });
+      if (teile.length) gruppen.push({ titel: 'Fundament · char.', teile });
+    }
   }
 
   // Die Reiter stehen oben, die Nachweise darunter: oben sucht man den Weg

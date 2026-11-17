@@ -29093,8 +29093,13 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
      * Interaktionsformel.
      */
     // Seit dem 17. November ohne die H-Anteile (nur H_tot zählt).
-    pruef('Das Urteil ist das Maximum, keine Interaktion (H nur als Resultierende)',
-          r.A.eta, Math.max(...r.A.nachweise.filter((x) => !x.hAnteil).map((x) => x.eta)), 1e-12, '–');
+    // Seit dem 17. November auch ohne die M-Anteile, wo der Ablauf gilt:
+    // η liegt zwischen dem Grössten ohne Anteile und dem Grössten mit.
+    const ohneAnt = Math.max(...r.A.nachweise.filter((x) => !x.hAnteil && !x.mAnteil).map((x) => x.eta));
+    const mitAnt = Math.max(...r.A.nachweise.filter((x) => !x.hAnteil).map((x) => x.eta));
+    wahr('Das Urteil ist ein Maximum, keine Interaktion (H und M nur als Resultierende)',
+         r.A.eta >= ohneAnt - 1e-12 && r.A.eta <= Math.max(mitAnt, 1) + 1e-12,
+         `${ohneAnt.toFixed(3)} ≤ ${r.A.eta.toFixed(3)} ≤ ${mitAnt.toFixed(3)}`);
     wahr('… und das massgebende ist genau dieser Nachweis',
          r.A.massgebend.eta === r.A.eta);
 
@@ -32486,7 +32491,8 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
   pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 1.0552, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.8498
   pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
   // 7. Oktober: neu der staendige Anteil quer allein (M_q,st 51.4 von 67.5 kNm); vorher 0.6765 (H_q veraenderlich).
-  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.7613, 1e-3, '');
+  // 17. November: M_st zaehlt nicht mehr einzeln («Ja so umsetzen»); vorher 0.7613.
+  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.6590, 1e-3, '');
   wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
        mit.ausleger.fundament.A.massgebend.key);
   pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.2254, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.1723; Wind auf den Ausleger (30. Sept.): vorher 1.029
@@ -41422,7 +41428,8 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        === (a.h.roh.dat.lasten.punkt ?? []).filter((l) => /^Havarie/.test(l.lastfall)).length);
   const mast = (h) => h.bauteile['mast:M1'].eta, fu = (h) => h.fundamentJe.M1.eta, bl = (h) => h.teile['tragwerk|blech'].eta;
   wahr('Gemessen J90/20 m, HEB 260, 3 × R-FL direkt: Mast und Fundament sinken, das Bindeblech steigt',
-       mast(b.h) < mast(a.h) - 0.2 && fu(b.h) < fu(a.h) - 0.2 && bl(b.h) > bl(a.h),
+       // Fundament seit dem 17. November (H und M als Resultierende) 0.418 → 0.237, vorher 0.836 → 0.471.
+       mast(b.h) < mast(a.h) - 0.2 && fu(b.h) < fu(a.h) - 0.15 && bl(b.h) > bl(a.h),
        `Mast ${mast(a.h).toFixed(3)} → ${mast(b.h).toFixed(3)} · Fundament ${fu(a.h).toFixed(3)} → ${fu(b.h).toFixed(3)} · Blech ${bl(a.h).toFixed(3)} → ${bl(b.h).toFixed(3)}`);
   wahr('… der Kern folgt (Mast des Ersatzbalkens sinkt), und ein Hinweis nennt die Annahme',
        V.vergleichKombinationen(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true, rueckhaltMax: 0 }), ...N.kernArgumente(N.rechensatzMitNachbarn({ ...basis, rueckhaltAn: true, rueckhaltMax: 0 }))).huellkurve.mast.A.eta
@@ -42525,6 +42532,26 @@ titel('285  Schulung: Linie, keine Hinweise auf die Vollversion, Verformung aufk
     { titel: 'Verformung M1', eta: 0.7, nachweis: 'V1' }, { titel: 'Seitenlage Fahrdraht', eta: 0.3, nachweis: 'V2' }]);
   wahr('… im einfachen Ergebnis aufklappbar, massgebendes zuerst',
        r.html.includes('data-ef-gruppe="verformung"') && r.html.indexOf('<li>V1</li>') < r.html.indexOf('<li>V2</li>'));
+}
+
+// ===========================================================================
+titel('286  Fundament: Moment als Resultierende; Fundament in der Schiene');
+/* 17. November: «Wie ist die beurteilung wenn das veränderliche moment nahe
+ * der grenze aber das ständige praktisch gar nicht ausgenutzt?», dann «Ja so
+ * umsetzen und die ausnutzung fundament aufführen im zusammengeklappten
+ * sidebar». */
+{
+  const F = await import(J('core.fundament.js'));
+  const z = { Mst: 67.5, Mver: 67.5, Mtot: 135, Hst: 8.5, Hver: 8.5, Htot: 17, V: 150, T: 10, Mvermax: 100, redM: 1, redH: 4 };
+  const eta = (Mst, Mver) => F.fundamentAblauf({ Mst, Mver, Mtot: Mst + Mver, Hst: 0, Hver: 2, Htot: 2, V: 20, T: 0 }, z).eta;
+  const reihe = [60, 66, 67.5, 68, 70, 90, 100].map((m) => eta(5, m));
+  wahr('M_ver nahe der Grenze, M_st klein: η stetig steigend, kein Sprung an M_ver,zul (gegen M_ver,max)',
+       reihe.every((v, k) => k === 0 || v >= reihe[k - 1] - 1e-12) && Math.abs(eta(5, 66) - 0.66) < 1e-9
+       && Math.abs(eta(5, 100) - 1) < 1e-9 && eta(5, 101) > 1, reihe.map((v) => v.toFixed(3)).join(' '));
+  wahr('M_st hoch, M_ver klein: M_tot massgebend', Math.abs(eta(66, 60) - 126 / 135) < 1e-9, eta(66, 60).toFixed(3));
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Schiene: Gruppe «Fundament · char.» je Mast (Stabwerk, sonst Kern)',
+       LQ.includes("gruppen.push({ titel: 'Fundament · char.', teile })") && LQ.includes('swG?.h?.fundamentJe?.[namen[ende]]'));
 }
 
 console.log('\n' + '='.repeat(104));

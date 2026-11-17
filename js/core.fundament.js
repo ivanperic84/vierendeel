@@ -89,7 +89,7 @@ export const FUNDAMENT_NACHWEISE = [
   { key: 'Mq',    feld: 'Myy', zul: 'Mq',     was: 'Moment quer zum Gleis M_q', kurz: 'M_q',
     einheit: 'kNm' },
   { key: 'Mqver', feld: 'Myy', zul: 'Mq_ver', was: 'Moment quer, veränderlicher Anteil', kurz: 'M_q veränderlich',
-    einheit: 'kNm', nurVer: true },
+    einheit: 'kNm', nurVer: true, mAnteil: true },
   { key: 'Ml',    feld: 'Mxx', zul: 'Ml',     was: 'Moment längs zum Gleis M_l', kurz: 'M_l',
     einheit: 'kNm' },
   { key: 'Hq',    feld: 'Fx',  zul: 'Hq',     was: 'Horizontalkraft quer H_q', kurz: 'H_q',
@@ -103,13 +103,13 @@ export const FUNDAMENT_NACHWEISE = [
   // Seit dem Ablauf (7. Oktober): die ständigen Anteile allein und die
   // veränderlichen längs - nur wo die Tabelle sie führt.
   { key: 'Mqst',  feld: 'Myy', zul: 'Mq_st',  was: 'Moment quer, ständiger Anteil', kurz: 'M_q ständig',
-    einheit: 'kNm', nurSt: true },
+    einheit: 'kNm', nurSt: true, mAnteil: true },
   { key: 'Hqst',  feld: 'Fx',  zul: 'Hq_st',  was: 'Horizontalkraft quer, ständiger Anteil', kurz: 'H_q ständig',
     einheit: 'kN', nurSt: true, hAnteil: true },
   { key: 'Mlst',  feld: 'Mxx', zul: 'Ml_st',  was: 'Moment längs, ständiger Anteil', kurz: 'M_l ständig',
-    einheit: 'kNm', nurSt: true },
+    einheit: 'kNm', nurSt: true, mAnteil: true },
   { key: 'Mlver', feld: 'Mxx', zul: 'Ml_ver', was: 'Moment längs, veränderlicher Anteil', kurz: 'M_l veränderlich',
-    einheit: 'kNm', nurVer: true },
+    einheit: 'kNm', nurVer: true, mAnteil: true },
   { key: 'Hlst',  feld: 'Fy',  zul: 'Hl_st',  was: 'Horizontalkraft längs, ständiger Anteil', kurz: 'H_l ständig',
     einheit: 'kN', nurSt: true, hAnteil: true },
   { key: 'Hlver', feld: 'Fy',  zul: 'Hl_ver', was: 'Horizontalkraft längs, veränderlicher Anteil', kurz: 'H_l veränderlich',
@@ -124,6 +124,16 @@ export const FUNDAMENT_NACHWEISE = [
  * Die Anteile H_st und H_ver (`hAnteil`) stehen als Auskunft da und lenken
  * den Ablauf, zählen aber in kein η und kein Urteil - auch nicht im
  * Basiswert des Bestandesschutzes. Für H zählt H_tot.
+ *
+ * >>> UND DAS MOMENT EBENSO (17. November). <<< Auf die Frage «Wie ist die
+ * beurteilung wenn das veränderliche moment nahe der grenze aber das
+ * ständige praktisch gar nicht ausgenutzt?» und den Vorschlag, das Moment
+ * wie H zu behandeln: «Ja so umsetzen». Wo die Tabelle den Ablauf führt
+ * (Abminderungswerte, Grenze M_ver,max), zählen M_st und M_ver (`mAnteil`)
+ * nicht einzeln; massgebend sind M_tot gegen M_tot,zul, M_ver gegen die
+ * Grenze M_ver,max und auf dem abgeminderten Weg M_st gegen den
+ * abgeminderten Wert. Ohne Ablauf (ältere Tabelle) bleiben die Anteile
+ * Nachweise - sonst prüfte niemand den veränderlichen Anteil.
  */
 
 /**
@@ -225,7 +235,9 @@ export function fundamentAblauf(e, z) {
     ['M_ver', e.Mver, z.Mver], ['H_ver', e.Hver, z.Hver], ['M_tot', e.Mtot, z.Mtot],
     ['H_tot', e.Htot, z.Htot], ['T', e.T, z.T]];
   if (basis.every(([, w, zz]) => !ueber(w, zz))) {
-    basis.filter(([was]) => was !== 'H_st' && was !== 'H_ver').forEach(([was, w, zz]) => muss(was, w, zz));
+    basis.filter(([was]) => !['H_st', 'H_ver', 'M_st', 'M_ver'].includes(was))
+      .forEach(([was, w, zz]) => muss(was, w, zz));
+    muss('M_ver gegen Grenze', e.Mver, z.Mvermax);
     notiere(1, 'alle Basiswerte eingehalten');
     return ende('basis', 1);
   }
@@ -250,7 +262,6 @@ export function fundamentAblauf(e, z) {
   // 6 - 8: veränderliches Moment, ausgeglichen über das ständige
   const schritt6 = () => {
     if (!ueber(e.Mver, z.Mver)) {
-      muss('M_ver', e.Mver, z.Mver);
       notiere(6, 'M_ver eingehalten', { vgl: [['M_ver', e.Mver, z.Mver]] });
       return ende('angepasst', 6);
     }
@@ -279,7 +290,6 @@ export function fundamentAblauf(e, z) {
     notiere(16, 'Anteile ständig / veränderlich am abgeminderten M_tot', { wert: MverNeu,
       formel: `M_ver,zul,neu = ${f(MtotNeu)} · ${f(z.Mver)} / ${f(z.Mtot)} = ${f(MverNeu)} ; M_st,zul,neu1 = ${f(MtotNeu)} · ${f(z.Mst)} / ${f(z.Mtot)} = ${f(MstNeu1)}` });
     if (!ueber(e.Mver, MverNeu)) {
-      muss('M_ver gegen M_ver,zul,neu', e.Mver, MverNeu);
       notiere(17, 'M_ver eingehalten', { vgl: [['M_ver gegen M_ver,zul,neu', e.Mver, MverNeu]] });
       return ende('angepasst', 17);
     }
@@ -510,9 +520,12 @@ export function fundamentNachweis(kombi, satz) {
        * (core.bestand.js). `ausgeglichen`: eine Basisgrösse ist
        * überschritten und der Ablauf gleicht sie aus.
        */
-      ausgeglichen = ok && schlimmste.eta > 1 + 1e-9;
-      etaBasis = schlimmste.eta;
-      massgebendBasis = { ...schlimmste, fall: schlimmste.fall ?? schlimmste.lastfall };
+      // Mit Ablauf auch ohne die M-Anteile (17. November).
+      const ohneM = zaehlt.filter((q) => !q.mAnteil);
+      const basisM = ohneM.length ? ohneM.reduce((a, b) => (b.eta > a.eta ? b : a)) : schlimmste;
+      ausgeglichen = ok && basisM.eta > 1 + 1e-9;
+      etaBasis = basisM.eta;
+      massgebendBasis = { ...basisM, fall: basisM.fall ?? basisM.lastfall };
       const m = r.massgebend;
       // Sagt der Ablauf «nicht zulässig», steht die Zahl über 1.00 - auch
       // falls die Prüfung, an der er scheitert, selbst knapp darunter läge.
