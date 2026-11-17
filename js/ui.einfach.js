@@ -105,6 +105,9 @@ export function spannungenHtml(teile, kacheln = []) {
     <div class="ef-balkenfeld">${zeilen}</div>`;
 }
 
+// Offene Nachweise je Gruppe, über das Neuzeichnen hinweg.
+const detOffen = new Set();
+
 /**
  * @param {Array<{titel:string, eta:number, kopf?:string}>} kacheln
  * @param {{traeger?:string, vorlaeufig?:boolean}} opt  Name des Trägers (Joch, Abfangjoch, Tragausleger)
@@ -116,7 +119,9 @@ export function einfachAusKacheln(kacheln, opt = {}) {
     if (!Number.isFinite(k.eta)) return;
     const g = gruppeVon(k.titel, k.kopf);
     const alt = je.get(g);
-    if (!alt || k.eta > alt.eta) je.set(g, { eta: k.eta, name: bauteilName(k.titel, g) });
+    const nw = [...(alt?.nachweise ?? []), ...(k.nachweis ? [{ eta: k.eta, text: k.nachweis }] : [])];
+    if (!alt || k.eta > alt.eta) je.set(g, { eta: k.eta, name: bauteilName(k.titel, g), nachweise: nw });
+    else alt.nachweise = nw;
   });
   /*
    * Ein gewählter Fall (15. November) zeigt nur, was dieser Fall beansprucht:
@@ -140,13 +145,26 @@ export function einfachAusKacheln(kacheln, opt = {}) {
     : `Das Tragwerk ist zu <b>${prozent(max.eta)}</b> ausgelastet. Am stärksten beansprucht: ${esc(max.name)}.`);
   const balken = gruppen.map((g) => {
     const b = Math.min(g.eta, 1) * 100;
-    return `<div class="ef-zeile" title="${esc(g.name)}: ${prozent(g.eta)} (η ${g.eta.toFixed(2)})">
+    /*
+     * >>> MIT DEM MASSGEBENDEN NACHWEIS (17. November). <<< «die ausnutzung
+     * des fundaments ist etwas intransparent, kann man den relevanten
+     * nachweiswert aufführen beim anklicken.» Trägt eine Gruppe Nachweise
+     * in Worten (heute das Fundament), klappt ein Klick sie auf - das
+     * massgebende Fundament zuerst.
+     */
+    const nw = (g.nachweise ?? []).slice().sort((a, c) => c.eta - a.eta);
+    const zeile = `<div class="ef-zeile" title="${esc(g.name)}: ${prozent(g.eta)} (η ${g.eta.toFixed(2)})${nw.length ? ' - anklicken für den massgebenden Nachweis' : ''}">
       <span class="ef-name">${esc(g.titel)} ${begriffKnopf(GRUPPE_BEGRIFF[g.key])}</span>
       <span class="ef-bahn"><span class="ef-balken ${farbe(g.eta)}" style="width:${b.toFixed(1)}%"></span
         ></span>
       <span class="ef-wert ${farbe(g.eta)}">${prozent(g.eta)}</span>
-      <span class="ef-wer">${esc(g.name)}</span>
+      <span class="ef-wer">${esc(g.name)}${nw.length ? ' · Nachweis ›' : ''}</span>
     </div>`;
+    if (!nw.length) return zeile;
+    return `<details class="ef-det" data-ef-gruppe="${g.key}"${detOffen.has(g.key) ? ' open' : ''}>
+      <summary>${zeile}</summary>
+      <ul class="ef-nachweis">${nw.map((x) => `<li>${esc(x.text)}</li>`).join('')}</ul>
+    </details>`;
   }).join('');
   // In der Designsprache der App: Hauptkachel `.urteil` (ok / warn / nok)
   // und Überschrift `.sec` wie die übrigen Blöcke der Übersicht.
@@ -182,7 +200,7 @@ export function einfachesErgebnis(node, opt = {}) {
     const vor = feld?.previousElementSibling;
     const kopf = vor?.classList?.contains('sec-klein') ? (vor.childNodes[0]?.textContent ?? '') : '';
     const einheit = k.querySelector('.kz-e')?.textContent?.trim() ?? '';
-    return { titel, eta, kopf, einheit };
+    return { titel, eta, kopf, einheit, nachweis: k.dataset.nachweis ?? '' };
   });
   const vorlaeufig = /vorläufig/i.test(node.querySelector('.sw-leiste, .stabwerk-leiste')?.textContent ?? '');
   const erg = einfachAusKacheln(kacheln, { ...opt, vorlaeufig });
@@ -194,6 +212,9 @@ export function einfachesErgebnis(node, opt = {}) {
   while (node.firstChild) rest.appendChild(node.firstChild);
   rest.addEventListener('toggle', () => { offen = rest.open; });
   node.insertAdjacentHTML('afterbegin', html);
+  node.querySelectorAll('.ef-det').forEach((d) => d.addEventListener('toggle', () => {
+    if (d.open) detOffen.add(d.dataset.efGruppe); else detOffen.delete(d.dataset.efGruppe);
+  }));
   node.appendChild(rest);
   fusszeileEinfach(erg, opt);
 }

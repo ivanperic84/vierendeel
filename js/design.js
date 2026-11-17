@@ -319,7 +319,10 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
   // η als Attribut (15. November): das einfache Ergebnisfeld der Schulung
   // liest die Kacheln - eine Quelle für beide Darstellungen.
   const etaAttr = Number.isFinite(ziel?.eta) ? ` data-eta="${ziel.eta}"` : '';
-  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}"${etaAttr}>
+  // Der massgebende Nachweis in Worten (17. November, Fundament): das
+  // einfache Ergebnisfeld zeigt ihn beim Anklicken.
+  const nwAttr = ziel?.nachweis ? ` data-nachweis="${esc(ziel.nachweis)}"` : '';
+  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}"${etaAttr}${nwAttr}>
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>
     ${einheit ? `<div class="kz-e">${esc(einheit)}</div>` : ''}

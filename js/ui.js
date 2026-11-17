@@ -7574,6 +7574,43 @@ function fallZeile(erg, opt, key, bez = null) {
   return voll ? { kurz: fallKurz(voll), voll } : null;
 }
 
+/** Die Grössen des Fundamentablaufs in Worten. */
+const FUND_GROESSE = {
+  V: 'Vertikalkraft V', T: 'Torsionsmoment T',
+  M_st: 'Moment, ständiger Anteil M_st', M_ver: 'Moment, veränderlicher Anteil M_ver',
+  M_tot: 'Moment gesamt M_tot', H_st: 'Horizontalkraft, ständiger Anteil H_st',
+  H_ver: 'Horizontalkraft, veränderlicher Anteil H_ver', H_tot: 'Horizontalkraft gesamt H_tot',
+};
+
+/**
+ * Der massgebende Nachweis eines Fundaments als Satz (17. November):
+ * «Fundament M2 (DP2a / 2.0): längs zum Gleis - Moment, veränderlicher
+ * Anteil M_ver 52.80 von 67.50 kNm (78 %). Zulässig mit abgeminderten Werten
+ * (Schritt 6 des Ablaufs). Lastfall: Ständig + Wind -y.»
+ */
+export function fundamentNachweisText(q, name, fF = null) {
+  const m = q?.massgebend;
+  if (!m || !Number.isFinite(m.wert) || !Number.isFinite(m.zul)) return '';
+  const tr = /^(quer|längs): (.*)$/.exec(String(m.was ?? ''));
+  const richt = tr ? tr[1] : null;
+  const rest = tr ? tr[2] : String(m.was ?? '');
+  const code = rest.split(' ')[0];
+  const gegen = / gegen (.+)$/.exec(rest)?.[1];
+  const was = (FUND_GROESSE[code] ?? rest.replace(/ gegen .+$/, ''))
+    + (gegen ? ` (gegen ${gegen})` : '');
+  const r = Object.values(q.ablauf ?? {}).find((x) => x.richtung === richt);
+  const weg = q.stufe === 'nicht'
+    ? `Nicht zulässig - grösseres Fundament nötig${r ? ` (Schritt ${r.schritt})` : ''}.`
+    : q.stufe === 'angepasst'
+      ? `Zulässig mit abgeminderten Werten${r ? ` (Schritt ${r.schritt} des Ablaufs)` : ''}.`
+      : 'Alle Basiswerte eingehalten.';
+  const pz = Math.round((m.zul > 0 ? m.wert / m.zul : 0) * 100);
+  const fall = fF?.voll ?? m.bez ?? '';
+  return `Fundament ${name} (${q.typ?.typ ?? ''}): ${richt ? `${richt} zum Gleis - ` : ''}${was} `
+    + `${m.wert.toFixed(2)} von ${m.zul.toFixed(2)} ${m.einheit ?? ''} (${pz} %). ${weg}`
+    + `${fall ? ` Lastfall: ${fall}.` : ''}`;
+}
+
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   /*
    * DAS FUNDAMENT AUS DEM STABWERK (30. September): gilt das Stabwerk,
@@ -7973,6 +8010,14 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
           : `nicht zulässig, grösseres Fundament (Schritt ${r.schritt})`}\n   `
         + r.schritte.map((s) => `${s.nr} ${s.text}${s.wert != null ? ` ${s.wert.toFixed(2)}` : ''}`).join(' → '))
         .join('\n');
+      /*
+       * >>> DER MASSGEBENDE NACHWEIS IN WORTEN (17. November). <<< Weisung:
+       * «die ausnutzung des fundaments ist etwas intransparent, kann man den
+       * relevanten nachweiswert aufführen beim anklicken.» Welche Grösse,
+       * Einwirkung gegen zulässig, Weg des Ablaufs und Lastfall - dieselben
+       * Zahlen wie η, nichts neu gerechnet.
+       */
+      const nwText = fundamentNachweisText(q, name, fF);
       fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
           ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · mit abgeminderten Werten ZULÄSSIG' : ''}`
@@ -7981,6 +8026,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         // das Fundament nicht zulässig ist - die Ampel folgt der Zahl.
         ampelU(q.eta), {
           ...(fF ? { fall: fF.kurz } : {}),
+          nachweis: nwText,
           titel: `${fF ? `Massgebende Kombination: ${fF.voll}
 
 ` : ''}`

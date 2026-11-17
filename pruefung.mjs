@@ -29091,8 +29091,9 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
      * MAXIMUM ueber die Einzelnachweise, nicht eine Summe oder eine
      * Interaktionsformel.
      */
-    pruef('Das Urteil ist das Maximum, keine Interaktion',
-          r.A.eta, Math.max(...r.A.nachweise.map((x) => x.eta)), 1e-12, '–');
+    // Seit dem 17. November ohne die H-Anteile (nur H_tot zählt).
+    pruef('Das Urteil ist das Maximum, keine Interaktion (H nur als Resultierende)',
+          r.A.eta, Math.max(...r.A.nachweise.filter((x) => !x.hAnteil).map((x) => x.eta)), 1e-12, '–');
     wahr('… und das massgebende ist genau dieser Nachweis',
          r.A.massgebend.eta === r.A.eta);
 
@@ -40080,7 +40081,7 @@ titel('254  Einheitswind mit hinterer Ebene 25 %; Bemessungsvorschlag mit Reserv
   const AE254 = await import(J('doku.aenderungen.js'));
   const app254 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Änderungsprotokoll: Einträge neueste zuerst, Klick auf die Fassung öffnet es',
-       AE254.AENDERUNGEN.length > 0 && AE254.AENDERUNGEN[0].datum >= AE254.AENDERUNGEN[1].datum
+       AE254.AENDERUNGEN.every((t, i, l) => i === 0 || l[i - 1].datum >= t.datum)
        && /Was sich geändert hat/.test(AE254.aenderungenHtml()) && app254.includes("vEl.addEventListener('click', protokoll)")
        && readFileSync(join(HIER, 'sw.js'), 'utf8').includes('doku.aenderungen.js'));
 }
@@ -41259,8 +41260,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   const z = { Mst: 67.5, Mver: 67.5, Mtot: 135, Hst: 8.5, Hver: 8.5, Htot: 17, V: 150, T: 10, Mvermax: 100, redM: 1, redH: 4 };
   const e = (Hver, Mver) => ({ Mst: 0, Mver, Mtot: Mver, Hst: 0, Hver, Htot: Hver, V: 20, T: 0 });
   const a1 = F.fundamentAblauf(e(7.93, 49.0), z), a2 = F.fundamentAblauf(e(8.62, 52.8), z);
-  wahr('Ablauf: unter dem Basiswert «basis», knapp darüber «angepasst» - die Prüfung auf dem Weg fällt (0.933 → 0.782)',
-       a1.ergebnis === 'basis' && a2.ergebnis === 'angepasst' && a2.eta < a1.eta, `${a1.eta.toFixed(3)} → ${a2.eta.toFixed(3)}`);
+  // 17. November «H … immer auf die resultierende beziehen»: H_ver zählt
+  // nicht mehr einzeln - η springt beim Wechsel in den Ablauf nicht mehr
+  // nach unten (vorher 0.933 → 0.782), es steigt mit der Last.
+  wahr('Ablauf: unter dem Basiswert «basis», knapp darüber «angepasst» - η steigt mit der Last (H nur als Resultierende)',
+       a1.ergebnis === 'basis' && a2.ergebnis === 'angepasst' && a2.eta > a1.eta, `${a1.eta.toFixed(3)} → ${a2.eta.toFixed(3)}`);
   const N = await import(J('core.nachbarn.js'));
   const AS = await import(J('app.stabwerk.js'));
   const DA = await import(J('data.anbauteile.js'));
@@ -41284,9 +41288,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
    * Rückfrage «Prüfung auf dem Weg» / «Ja, Basiswert»: η = das des Ablaufs,
    * der Basiswert (`etaBasis`) gilt nur dem Bestandesschutz.
    */
-  wahr('… Fundament M1: η des Ablaufs unter 1.00 (Schritt 6), Basiswert H_ver über 1.00, ausgeglichen und zulässig',
-       Boolean(f1) && f1.eta < 1 && f1.etaBasis > 1 && f1.ok === true && f1.ausgeglichen === true
-       && f1.stufe === 'angepasst' && /Schritt 6/.test(f1.massgebend?.kurz ?? ''),
+  // H_ver über 1.00 zählt seit dem 17. November nicht mehr (Resultierende).
+  wahr('… Fundament M1: η des Ablaufs unter 1.00 (Schritt 6), zulässig; H_ver nicht im Basiswert',
+       Boolean(f1) && f1.eta < 1 && f1.etaBasis <= 1 && f1.ok === true
+       && f1.stufe === 'angepasst' && /Schritt 6/.test(f1.massgebend?.kurz ?? '')
+       && !f1.massgebendBasis?.hAnteil,
        f1 ? `η ${f1.eta.toFixed(3)} · ${f1.massgebend?.kurz} · Basis ${f1.etaBasis?.toFixed(3)}` : '–');
   const zM1 = zf.find((q) => /M1/.test(q.name));
   pruef('… der Bestandesschutz vergleicht den Basiswert', zM1?.neu, f1?.etaBasis, 1e-12);
@@ -42460,6 +42466,30 @@ titel('283  Herausgeber und Rechte (nur mit der oertlichen Datei)');
   } catch { hgWerte = []; }
   wahr('kein Name im Quelltext (nur in data/herausgeber.json, ausgeschlossen)',
        hgWerte.every((v) => !quellen.includes(v)) && readFileSync(join(HIER, '.gitignore'), 'utf8').includes('data/*.json'));
+}
+
+// ===========================================================================
+titel('284  Fundament: massgebender Nachweis beim Anklicken; Protokoll geleert');
+/* 17. November: «die ausnutzung des fundaments ist etwas intransparent, kann
+ * man den relevanten nachweiswert aufführen beim anklicken.» und «das
+ * änderungsprotokoll leeren». */
+{
+  const U = await import(J('ui.js'));
+  const E = await import(J('ui.einfach.js'));
+  const AE = await import(J('doku.aenderungen.js'));
+  const q = { typ: { typ: 'DP2a / 2.0' }, stufe: 'angepasst', ablauf: { l: { richtung: 'längs', schritt: 6 } },
+    massgebend: { was: 'längs: M_ver', wert: 52.8, zul: 67.5, einheit: 'kNm', bez: 'Ständig + Wind -y' } };
+  const t = U.fundamentNachweisText(q, 'M2', null);
+  wahr('Satz nennt Grösse, Einwirkung gegen zulässig, Weg und Lastfall', t.includes('Fundament M2 (DP2a / 2.0)')
+       && t.includes('längs zum Gleis') && t.includes('veränderlicher Anteil M_ver') && t.includes('52.80 von 67.50 kNm (78 %)')
+       && t.includes('Schritt 6') && t.includes('Lastfall: Ständig + Wind -y'), t);
+  const r = E.einfachAusKacheln([
+    { titel: 'η Fundament M1', eta: 0.6, nachweis: 'A' },
+    { titel: 'η Fundament M2', eta: 0.78, nachweis: 'B' },
+    { titel: 'η M1', eta: 0.5, kopf: 'Mast' }]);
+  wahr('Fundamente-Zeile klappt auf, massgebendes zuerst; Masten ohne', r.html.includes('class="ef-det" data-ef-gruppe="fundament"')
+       && r.html.indexOf('<li>B</li>') < r.html.indexOf('<li>A</li>') && !r.html.includes('data-ef-gruppe="mast"'));
+  wahr('Änderungsprotokoll leer, Dialog sagt es', AE.AENDERUNGEN.length === 0 && AE.aenderungenHtml().includes('Noch keine Einträge'));
 }
 
 console.log('\n' + '='.repeat(104));

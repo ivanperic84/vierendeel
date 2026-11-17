@@ -95,7 +95,7 @@ export const FUNDAMENT_NACHWEISE = [
   { key: 'Hq',    feld: 'Fx',  zul: 'Hq',     was: 'Horizontalkraft quer H_q', kurz: 'H_q',
     einheit: 'kN' },
   { key: 'Hqver', feld: 'Fx',  zul: 'Hq_ver', was: 'Horizontalkraft quer, veränderlicher Anteil', kurz: 'H_q veränderlich',
-    einheit: 'kN', nurVer: true },
+    einheit: 'kN', nurVer: true, hAnteil: true },
   { key: 'Hl',    feld: 'Fy',  zul: 'Hl',     was: 'Horizontalkraft längs H_l', kurz: 'H_l',
     einheit: 'kN' },
   { key: 'T',     feld: 'Mzz', zul: 'T',      was: 'Torsionsmoment T', kurz: 'T',
@@ -105,16 +105,26 @@ export const FUNDAMENT_NACHWEISE = [
   { key: 'Mqst',  feld: 'Myy', zul: 'Mq_st',  was: 'Moment quer, ständiger Anteil', kurz: 'M_q ständig',
     einheit: 'kNm', nurSt: true },
   { key: 'Hqst',  feld: 'Fx',  zul: 'Hq_st',  was: 'Horizontalkraft quer, ständiger Anteil', kurz: 'H_q ständig',
-    einheit: 'kN', nurSt: true },
+    einheit: 'kN', nurSt: true, hAnteil: true },
   { key: 'Mlst',  feld: 'Mxx', zul: 'Ml_st',  was: 'Moment längs, ständiger Anteil', kurz: 'M_l ständig',
     einheit: 'kNm', nurSt: true },
   { key: 'Mlver', feld: 'Mxx', zul: 'Ml_ver', was: 'Moment längs, veränderlicher Anteil', kurz: 'M_l veränderlich',
     einheit: 'kNm', nurVer: true },
   { key: 'Hlst',  feld: 'Fy',  zul: 'Hl_st',  was: 'Horizontalkraft längs, ständiger Anteil', kurz: 'H_l ständig',
-    einheit: 'kN', nurSt: true },
+    einheit: 'kN', nurSt: true, hAnteil: true },
   { key: 'Hlver', feld: 'Fy',  zul: 'Hl_ver', was: 'Horizontalkraft längs, veränderlicher Anteil', kurz: 'H_l veränderlich',
-    einheit: 'kN', nurVer: true },
+    einheit: 'kN', nurVer: true, hAnteil: true },
 ];
+/*
+ * >>> H AUF DIE RESULTIERENDE (17. November). <<< Weisung, im Wortlaut:
+ * «hier die ausnutzung bei den H werten immer auf die resultierende
+ * beziehen ständige + veränderliche und nicht einzeln, da es eine falsche
+ * ausnutzung wiederspiegelt. man kann ja die werte erhähen falls es zu
+ * überschreitungen kommt mit dem fundamentflow der hinterlegt ist.»
+ * Die Anteile H_st und H_ver (`hAnteil`) stehen als Auskunft da und lenken
+ * den Ablauf, zählen aber in kein η und kein Urteil - auch nicht im
+ * Basiswert des Bestandesschutzes. Für H zählt H_tot.
+ */
 
 /**
  * Trägt dieser Lastfall ständige Last?
@@ -215,7 +225,7 @@ export function fundamentAblauf(e, z) {
     ['M_ver', e.Mver, z.Mver], ['H_ver', e.Hver, z.Hver], ['M_tot', e.Mtot, z.Mtot],
     ['H_tot', e.Htot, z.Htot], ['T', e.T, z.T]];
   if (basis.every(([, w, zz]) => !ueber(w, zz))) {
-    basis.forEach(([was, w, zz]) => muss(was, w, zz));
+    basis.filter(([was]) => was !== 'H_st' && was !== 'H_ver').forEach(([was, w, zz]) => muss(was, w, zz));
     notiere(1, 'alle Basiswerte eingehalten');
     return ende('basis', 1);
   }
@@ -297,7 +307,6 @@ export function fundamentAblauf(e, z) {
     const v9 = [['H_ver', e.Hver, z.Hver]];
     if (ueber(e.Hver, z.Hver)) { notiere(9, 'H_ver über dem zulässigen Wert', { vgl: v9 }); return fiktiv(e.Hst - z.Hst); }
     notiere(9, 'H_ver eingehalten', { vgl: v9 });
-    muss('H_ver', e.Hver, z.Hver);
     return schritt15(e.Htot, 13);
   }
   notiere(4, 'H_tot eingehalten', { vgl: [['H_tot', e.Htot, z.Htot]] });
@@ -305,7 +314,6 @@ export function fundamentAblauf(e, z) {
   // 5
   if (!ueber(e.Hver, z.Hver)) {
     notiere(5, 'H_ver eingehalten', { vgl: [['H_ver', e.Hver, z.Hver]] });
-    muss('H_ver', e.Hver, z.Hver);
     return schritt6();
   }
   notiere(5, 'H_ver über dem zulässigen Wert', { vgl: [['H_ver', e.Hver, z.Hver]] });
@@ -316,7 +324,6 @@ export function fundamentAblauf(e, z) {
   const v11 = [['H_st gegen H_st,zul,neu', e.Hst, HstNeu]];
   if (ueber(e.Hst, HstNeu)) { notiere(11, 'H_st über dem abgeminderten Wert', { vgl: v11 }); return fiktiv(e.Hst - HstNeu); }
   notiere(11, 'H_st unter dem abgeminderten Wert', { vgl: v11 });
-  muss('H_st gegen H_st,zul,neu', e.Hst, HstNeu);
   return schritt6();
 }
 
@@ -446,7 +453,9 @@ export function fundamentNachweis(kombi, satz) {
                 vorzeichen: mess.vorzeichen });
     });
     if (!nw.length) return;
-    let schlimmste = nw.reduce((a, b) => (b.eta > a.eta ? b : a));
+    // H-Anteile zählen nicht (17. November): nur die Resultierende H_tot.
+    const zaehlt = nw.filter((q) => !q.hAnteil);
+    let schlimmste = zaehlt.reduce((a, b) => (b.eta > a.eta ? b : a));
 
     /*
      * >>> DER ABLAUF JE RICHTUNG (7. Oktober). <<< Nur wo die Tabelle die
@@ -476,7 +485,7 @@ export function fundamentNachweis(kombi, satz) {
                       einheit: /^[MT]/.test(groesse ?? '') ? 'kNm' : 'kN' } };
     });
     const richt = Object.values(ablauf);
-    let eta = schlimmste.eta, ok = nw.every((q) => q.ok), stufe = ok ? 'basis' : 'nicht';
+    let eta = schlimmste.eta, ok = zaehlt.every((q) => q.ok), stufe = ok ? 'basis' : 'nicht';
     let ausgeglichen = false, etaBasis = schlimmste.eta;
     let massgebendBasis = { ...schlimmste, fall: schlimmste.fall ?? schlimmste.lastfall };
     if (richt.length === 2) {

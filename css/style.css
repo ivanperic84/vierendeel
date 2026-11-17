@@ -3843,6 +3843,14 @@ html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !
 .ef-wert.warn { color: var(--warn); } .ef-wert.fail { color: var(--fail); }
 .ef-wer { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
 .ef-leg { font-size: 10.5px; color: var(--dim); margin: 8px 0 0; }
+/* Gruppe mit Nachweis in Worten (17. November): Klick klappt ihn auf. */
+.ef-det > summary { list-style: none; cursor: pointer; }
+.ef-det > summary::-webkit-details-marker { display: none; }
+.ef-det > summary:hover .ef-name { color: var(--on); }
+.ef-det[open] .ef-wer { color: var(--on2); }
+.ef-nachweis { margin: 4px 0 2px; padding: 6px 8px 6px 20px; font-size: 11px; line-height: 1.45;
+  color: var(--on); background: var(--s2); border: 1px solid var(--ol); border-radius: 4px; }
+.ef-nachweis li + li { margin-top: 4px; }
 .ef-mehr > summary { cursor: pointer; font-family: var(--f-mono); font-size: 10px;
   font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
   padding: 8px 0 4px; }
