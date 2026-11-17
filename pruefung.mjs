@@ -2288,122 +2288,38 @@ titel('29  Handbuch');
 
 {
   const HB = await import(J('doku.handbuch.js'));
-
   /*
-   * Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (Weisung vom 28. August:
-   * "da sollte ein kapitel aufgenommen werden der den export zu axisvm
-   * beschreibt"), FUENFZEHN seit dem 11. September.
-   *
-   * Weisung: "diese und alle anderen berechnungen fuer das abfangjoch masten
-   * sind im handbuch zu hinterlegen fuer die nachvollziehbarkeit, aehnlich
-   * wie beim tragjoch." Die Abschnitte 1 bis 12 gelten dem Tragjoch; das
-   * Abfangjoch, sein Mast und der Zuganker haben seither eigene.
-   *
-   * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
+   * 17. November: «das handbuch liest sich wie ein tagebuch, bitte den stil
+   * technisch halten. historie im handbuch nicht aufführen.», dazu «im
+   * handbuch den einfeldträger so weit wie möglich entnehmen» und
+   * «umschreiben nur für die vollversion». Neu geschrieben, 20 Abschnitte.
    */
-  // 21 seit dem 7. Oktober (Fundamentbestimmung: der Ablauf).
-  // 22 seit dem 16. November (Bedienung, Vorlagen und leichte Fassungen).
-  wahr('Handbuch hat alle zweiundzwanzig Abschnitte', HB.HANDBUCH.length === 22,
-       `${HB.HANDBUCH.length} Abschnitte`);
-  /*
-   * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
-   * nicht auf, wenn ein Kapitel gegen ein anderes getauscht wird.
-   */
-  ['abfangjoch', 'mast-abfang', 'anker'].forEach((id) => {
-    wahr(`Handbuch fuehrt den Abschnitt «${id}»`,
-         HB.HANDBUCH.some((s) => s.id === id));
-  });
-  /*
-   * DIE HERLEITUNGEN, DIE DORT STEHEN MUESSEN. Sie sind der Grund, warum es
-   * die Kapitel gibt - ein Abschnitt ohne sie waere eine Ueberschrift.
-   */
-  const hbText = HB.HANDBUCH.map((s) => s.html).join(' ');
-  [['Kraeftepaar N = M/e', /N = M_Rahmen \/ e/],
-   ['Woelbkrafttorsion T/e', /± T \/ e/],
-   ['Variante 3 des Ankers', /δ₁₀ \+ X · δ₁₁ = 0/],
-   ['Knicken: N_cr und chi', /N_cr = π²·E·I \/ L²/],
-   ['die Konsole mit 0.15 m', /Starrelement von[\s\S]{0,12}0\.15 m/]]
-    .forEach(([was, r]) => wahr(`Das Handbuch fuehrt ${was}`, r.test(hbText)));
+  const IDS = ['zweck', 'achsen', 'modell', 'einwirkungen', 'lastfaelle', 'anbauteile', 'nachweise',
+    'fundament', 'anker', 'gzg', 'abfangjoch', 'tragausleger', 'masten', 'bestand', 'ergebnis',
+    'ausleitung', 'ablage', 'bedienung', 'kontrolle', 'grenzen'];
+  wahr('Handbuch: zwanzig Abschnitte in dieser Reihenfolge', HB.HANDBUCH.map((s) => s.id).join() === IDS.join(),
+       HB.HANDBUCH.map((s) => s.id).join(' '));
   wahr('Jeder Abschnitt hat Kennung, Titel und Rumpf',
        HB.HANDBUCH.every((s) => s.id && s.titel && s.html?.length > 200));
-  wahr('Kennungen sind eindeutig',
-       new Set(HB.HANDBUCH.map((s) => s.id)).size === HB.HANDBUCH.length);
-
+  const text = HB.HANDBUCH.map((s) => s.html).join(' ');
+  wahr('Keine Historie: keine Weisungen, keine Monatsnamen, kein «seit dem»',
+       !/Weisung|Januar|Februar|März|April|Mai |Juni|Juli|August|September|Oktober|November|Dezember|seit dem/.test(text));
+  wahr('Der Einfeldträger steht nur im Abschnitt Kontrollrechnung',
+       HB.HANDBUCH.filter((s) => /Einfeldträger|Drehfeder/.test(s.html)).map((s) => s.id).join() === 'kontrolle');
   const html = HB.handbuchHtml();
-  wahr('Jeder Abschnitt steht im ausgegebenen Blatt',
-       HB.HANDBUCH.every((s) => html.includes(`id="hb-${s.id}"`)));
-  wahr('Jeder Abschnitt hat seinen Eintrag im Verzeichnis',
-       HB.HANDBUCH.every((s) => html.includes(`data-zu="${s.id}"`)));
-
-  // Der Abschnitt Modellgrenzen ist der Grund, warum es das Handbuch gibt.
-  // Er muss die Ausschlüsse benennen, sonst ist er wertlos.
+  wahr('Jeder Abschnitt steht im Blatt und im Verzeichnis',
+       HB.HANDBUCH.every((s) => html.includes(`id="hb-${s.id}"`) && html.includes(`data-zu="${s.id}"`)));
+  wahr('Keine unberechneten Werte', !/NaN|undefined/.test(html));
   const g = HB.HANDBUCH.find((s) => s.id === 'grenzen').html;
-  ['Knicken', 'Beulen', 'Verformung', 'Schweissnähte', 'Ermüdung',
-   'Wölbkrafttorsion', 'Querschnittsklasse 4'].forEach((wort) => {
-    wahr(`Modellgrenzen nennen: ${wort}`, g.includes(wort));
-  });
-
-  // Skizzen: sie sollen die Formeln zeigen, nicht bloss dekorieren
-  /*
-   * SIEBZEHN seit dem 11. September (Weisung: «ergaenze zudem die diagramme
-   * im handbuch wo sinnvoll») - fuenf in den Kapiteln 13 bis 15: der
-   * Hebelarm mit seinen drei ineinanderliegenden Massen, die
-   * Woelbkrafttorsion, der Mast mit Ausladung, das Zweifeldsystem des
-   * Ankers und sein Spreizmass.
-   */
-  wahr('Handbuch enthält siebzehn Skizzen',
-       (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 17);
-  /* =========================================================================
-   * DER DREHSINN DES EINSEITIGEN ANSCHLUSSES
-   * =========================================================================
-   *
-   * Weisung vom 11. September: «hier sollten die verikalen richtungen
-   * vertauscht werden. sonst stimmt es nicht mit dem drehsinn infolge der
-   * karft f.»
-   *
-   * Die Skizze zeigte F_y nach rechts, unter der Gurtebene angreifend - und
-   * dazu ein Kraeftepaar, das in den GEGENdrehsinn zeigte. Das Gleichgewicht
-   * um die Jochachse verlangt
-   *
-   *     M_x = −z·F_y = +a·F   und   M_x = Σ(y·F_z)
-   *
-   * also RECHTS nach oben und LINKS nach unten. Gepruef wird am gezeichneten
-   * SVG: der linke Pfeil laeuft abwaerts (y waechst), der rechte aufwaerts.
-   */
-  {
-    // Der Abschnitt heisst `einleitung` - Lasteinleitung der Anbauteile.
-    const s5 = HB.HANDBUCH.find((x) => x.id === 'einleitung')?.html ?? '';
-    const paar = [...s5.matchAll(
-      /<line class="k" x1="(296|392)" y1="(\d+)" x2="\d+" y2="(\d+)"/g)];
-    wahr('Das Kraeftepaar des einseitigen Anschlusses steht da',
-         paar.length === 2, `${paar.length} Pfeile`);
-    if (paar.length === 2) {
-      const links = paar.find((m2) => m2[1] === '296');
-      const rechts = paar.find((m2) => m2[1] === '392');
-      wahr('… links zeigt nach unten', +links[3] > +links[2],
-           `y ${links[2]} → ${links[3]}`);
-      wahr('… rechts zeigt nach oben', +rechts[3] < +rechts[2],
-           `y ${rechts[2]} → ${rechts[3]}`);
-    }
-  }
-  wahr('Keine Skizze hat unberechnete Koordinaten',
-       !/NaN|undefined/.test(html));
-  ['achsen', 'einwirkungen', 'system', 'querschnitt', 'vierendeel',
-   'einleitung', 'raster', 'axisvm'].forEach((id) => {
-    const s = HB.HANDBUCH.find((x) => x.id === id).html;
-    wahr(`Abschnitt ${id} hat eine Skizze`, s.includes('hb-skizze'));
-  });
-
-  // Die tragenden Formeln stehen im Text und stimmen mit dem Kern überein
-  const alles = HB.HANDBUCH.map((s) => s.html).join('');
+  ['Knicken', 'Beulen', 'Verformung', 'Schweissnähte', 'Ermüdung', 'Wölbkrafttorsion', 'Querschnittsklasse 4']
+    .forEach((wort) => wahr(`Modellgrenzen nennen: ${wort}`, g.includes(wort)));
   [['Umlenkkraft', 'U = 2 · Z · sin(α/2) = Z · L / R'],
-   ['Hebelarm zur Jochachse', 'e_v = −( z_A + z )'],
-   ['Bredt-Schubfluss', 'q_T = T / (2 · A_m)'],
-   ['Gurtmoment am Anschnitt', 'M_Anschnitt = M_Knoten · ( a₁ − b_Bl ) / a₁'],
-   ['Blech am Anschnitt', 'M_R = M_K · L_c / h₀'],
-   ['Drehfeder aus dem Mast', 'c_φ = E · I_Mast / H']].forEach(([was, formel]) => {
-    wahr(`Handbuch führt die Formel: ${was}`, alles.includes(formel));
-  });
+   ['Knicken', 'N_cr = π²·E·I / L²'],
+   ['Vergleichsspannung Blech', 'σ_v = √( σ² + 3τ² )'],
+   ['Drehfeder der Kontrollrechnung', 'c_φ = 4 · E · I_Mast / H']].forEach(([was, formel]) =>
+    wahr(`Handbuch führt die Formel: ${was}`, text.includes(formel)));
+  wahr('Umlenkskizze und Ablauf der Fundamentbestimmung übernommen',
+       (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 1 && html.includes('Ablauf der Fundamentbestimmung, 19 Schritte'));
 }
 
 // ===========================================================================
@@ -2792,8 +2708,9 @@ titel('18g  Handbuch als eigenständige Datei');
        HB.HANDBUCH.every((a) => datei.includes(`href="#hb-${a.id}"`)));
   // Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (28. August): der Anschluss
   // in Draufsicht und in Ansicht. Vorher zehn.
-  pruef('Alle siebzehn Skizzen mitgenommen',
-        (datei.match(/<figure class="skizze hb-skizze">/g) ?? []).length, 17, 1e-12, 'Stk');
+  // Seit der Neufassung (17. November) eine Skizze (Umlenkung) und das Ablaufdiagramm.
+  pruef('Die Skizze mitgenommen',
+        (datei.match(/<figure class="skizze hb-skizze">/g) ?? []).length, 1, 1e-12, 'Stk');
   wahr('Keine unberechneten Werte', !/NaN|undefined|Infinity/.test(datei));
   wahr('Fussnote und Stand stehen drin',
        datei.includes('Prüfstand') && /Stand /.test(datei));

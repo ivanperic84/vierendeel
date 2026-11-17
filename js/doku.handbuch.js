@@ -49,155 +49,187 @@ export const HANDBUCH = [
   id: 'zweck',
   titel: '1 · Zweck und Geltungsbereich',
   html: `
-<p>Dieses Werkzeug bemisst <b>Tragjoche für Fahrleitungsanlagen</b>: gegliederte
-Träger aus vier Winkelprofilen, die über Bindebleche zu einem geschlossenen
-Kasten verbunden sind. Ober- und Untergurt bestehen aus je zwei Winkeln; die Bindebleche stehen
-in vier Ebenen (zwei senkrecht, zwei liegend) und machen aus den vier
-Einzelstäben einen <b>Vierendeelträger</b> - einen Rahmen ohne Diagonalen.</p>
+<p>Das Werkzeug bemisst <b>Tragwerke von Fahrleitungsanlagen</b>: Tragjoche,
+Abfangjoche, Masten mit Tragausleger und Einzelmasten, jeweils mit ihren
+Masten, Fundamenten, Ankern und Anbauteilen. Gerechnet wird ein
+<b>räumliches Stabwerk</b> nach Theorie erster Ordnung, linear-elastisch.</p>
 
-<p>Gerechnet wird der Nachweis der <b>Tragsicherheit</b> im Feld: Normalkraft und
-örtliche Biegung der vier Gurtwinkel, Biegung und Schub der Bindebleche, dazu
-wahlweise der Mast am Fuss.</p>
+<table class="dt">
+<tr><th>Tragwerksart</th><th>Aufbau</th></tr>
+<tr><td>Tragjoch</td><td>Vierendeelträger aus vier Winkeln (Ober- und Untergurt
+  je zwei), verbunden durch Bindebleche in vier Ebenen; auf zwei Masten</td></tr>
+<tr><td>Abfangjoch</td><td>zwei liegende Walzprofile (UPE bzw. Altbau UAP / IPE)
+  mit Bindeblechen, am Mast als Gabel; nimmt den Leiterzug abgefangener Leiter auf</td></tr>
+<tr><td>Mast mit Tragausleger</td><td>Kragarm aus zwei UPE 140 mit Bindeblechen,
+  am Mast angeschlossen und über eine Aufhängung abgespannt</td></tr>
+<tr><td>Einzelmast</td><td>Mast ohne Träger, mit Anbauteilen am Mast</td></tr>
+</table>
 
-${q(`Das Werkzeug ist eine <b>Vorbemessung und Kontrollrechnung</b>. Es ersetzt
-weder eine geprüfte Statik noch die Beurteilung durch den verantwortlichen
-Ingenieur. Was es nicht rechnet, steht vollständig in Abschnitt 10.`)}
+<p>Mehrere Tragwerke eines Querprofils (Jochreihe, Abfangjoche übereinander,
+Ausleger am Jochmasten) bilden ein gemeinsames Stabwerk; ein Mast, der zwei
+Tragwerke trägt, ist ein Stab.</p>
 
 <h4>Grundlagen</h4>
 <table class="dt">
-<tr><td>Sortimentstabelle</td><td>Laufmeterlasten Eigengewicht, Wind und Schnee
-  je Jochtyp – aus der geladenen Typendatenbank</td></tr>
-<tr><td>Blecheinteilung</td><td>Konstruktionszeichnung und Schemablatt mit
-  Mass-Tabelle – aus der geladenen Typendatenbank</td></tr>
-<tr><td>Einwirkungen FL</td><td>Leiterzugkräfte und Angriffsflächen der
-  Anbauteile – aus der geladenen Lasttabelle</td></tr>
-<tr><td>Regelwerk</td><td>SIA 260 / 261 bzw. RTE der Bahnen (wählbar),
-  Querschnittsklassen nach EN 1993-1-1</td></tr>
+<tr><td>Sortimente</td><td>Tragjoche (Geometrie, Blecheinteilung, Laufmeterlasten),
+  Abfangjoche, Tragausleger, Masten, Fundamentlasten, Anker – aus der geladenen
+  Datenbasis</td></tr>
+<tr><td>Lasttabelle</td><td>Gewicht, Windlast und Leiterzug der Bauteile und
+  Leiter; Reglagetabelle der Leiterzugkräfte je Temperatur</td></tr>
+<tr><td>Normen</td><td>SIA 260 / 261 bzw. Bahnsatz (Beiwerte), EN 1993-1-1
+  (Material, Querschnitte), SIA 263 (Knicken)</td></tr>
 </table>
 
-<p class="notiz">Die Blecheinteilung der Zeichnung wird unverändert übernommen.
-Sie ist Bauteilgeometrie und wird vom Werkzeug nie angepasst – auch dann nicht,
-wenn eine andere Teilung rechnerisch günstiger wäre.</p>
+<p>Die Geometrie der Jochträger wird aus dem Sortiment unverändert übernommen;
+die Blecheinteilung wird nie angepasst.</p>
+
+${q(`Das Werkzeug ist ein Hilfsmittel der Bemessung. Der Rechenkern ist nicht
+als Statikprogramm geprüft oder zertifiziert; Ergebnisse sind durch eine
+Fachperson zu beurteilen. Was nicht gerechnet wird, steht in Abschnitt 20.`)}
 `,
 },
 
 // ===========================================================================
 {
   id: 'achsen',
-  titel: '2 · Achsen, Vorzeichen und Masse',
+  titel: '2 · Achsen, Vorzeichen und Einheiten',
   html: `
 <table class="dt">
-<tr><th>Achse</th><th>Richtung</th><th>Nullpunkt</th></tr>
-<tr><td>x</td><td>entlang der Jochachse</td><td>linkes Auflager</td></tr>
-<tr><td>y</td><td>Gleisrichtung (quer zum Joch)</td><td>Jochmitte im Grundriss</td></tr>
-<tr><td>z</td><td>vertikal, <b>positiv nach oben</b></td><td>Anschlussebene des Teils</td></tr>
+<tr><th>Achse</th><th>Richtung</th></tr>
+<tr><td>x</td><td>quer zum Gleis, in der Jochachse</td></tr>
+<tr><td>y</td><td>längs zum Gleis</td></tr>
+<tr><td>z</td><td>lotrecht, positiv nach oben</td></tr>
 </table>
 
-<p>Kräfte und Momente tragen dieselben Indizes und folgen den Achsen nach
-der <b>rechten Hand</b>: <code>F_z</code> ist positiv nach oben, ein Gewicht
-also negativ (seit dem 1. Oktober 2026; ältere Stände werden beim Laden einmal
-umgerechnet). Im 3D zeigt der Pfeil die Richtung, die Zahl daneben den Betrag.
-Ausnahme ist die <b>Tabelle der Reaktionskräfte</b>: sie zählt wie die
-Zusammenfassung der Einwirkungen Z nach unten, Druck positiv.</p>
+<p>Kräfte und Momente folgen den globalen Achsen nach der <b>rechten
+Hand</b>. Eingaben von Lasten zählen F_z nach oben: ein Gewicht ist negativ.
+Im 3D zeigt der Pfeil die Richtung, die Zahl den Betrag.</p>
 
-<h4>Der Nullpunkt von z</h4>
-<p>Das Mass <code>z</code> eines Anbauteils zählt <b>ab der Schwerachse des
-Gurtes, an dem es angeschlagen ist</b>, nicht ab einer gedachten Jochmitte. Eine
-Hängestütze von 1.35 m ist damit genau so lang, wie sie in der Zeichnung
-angeschrieben steht.</p>
+<h4>Bezugspunkte</h4>
+<table class="dt">
+<tr><th>Grösse</th><th>Bezug</th></tr>
+<tr><td>Lage x eines Tragwerks, eines Masten</td><td>Nullpunkt des Querprofils</td></tr>
+<tr><td>x eines Anbauteils am Joch</td><td>Anfang des Jochs</td></tr>
+<tr><td>z eines Anbauteils am Joch</td><td>Schwerachse des Gurtes, an dem es
+  befestigt ist; bei Befestigung an beiden Gurten ohne Träger die Jochachse</td></tr>
+<tr><td>Höhe eines Anbauteils am Masten</td><td>Mastfuss; x, y ab der Mastachse</td></tr>
+<tr><td>Anschlusshöhe H</td><td>Mastfuss bis Jochachse</td></tr>
+</table>
 
-<p>Das Torsionsmoment des Ersatzbalkens bezieht sich dagegen auf die
-<b>Jochachse</b>. Zwischen beiden liegt die halbe Jochhöhe, und genau die trennt
-Zeichnungsmass und Hebelarm:</p>
+<h4>Kräfte an Auflager und Fundament</h4>
+<p>Auflagerkräfte im Reiter <b>Auflager</b> und auf dem Blatt der
+Reaktionskräfte stehen als <b>Wirkung auf das Fundament</b>, charakteristisch,
+mit <b>Druck positiv</b> (Z nach unten) und als ± Betrag für die horizontalen
+Grössen und Momente. Kräfte am Jochanschluss stehen als Kraft des Jochs auf den
+Masten, global, F_z nach oben.</p>
 
-${f(`z_A = +h/2 (Anschluss Obergurt) &nbsp;·&nbsp; z_A = −h/2 (Untergurt)<br>
-<b>e_v = −( z_A + z )</b> &nbsp;&nbsp; Hebelarm zur Jochachse, positiv nach unten`)}
+<p>Einheiten: kN, kNm, m; Spannungen in N/mm²; Wege in mm.</p>
+`,
+},
 
-${skizze('Querschnitt: z zählt ab der Anschlussebene, e_v ab der Jochachse. ' +
-         'z ist hier negativ (nach unten), e_v positiv — das Vorzeichen kehrt sich um.',
-  '0 0 430 250', [
-    // Gurtachsen und Winkel
-    `<line class="b" x1="140" y1="58" x2="286" y2="58"/>`,
-    `<line class="b" x1="140" y1="178" x2="286" y2="178"/>`,
-    winkel(148, 58), winkel(278, 58), winkel(148, 178), winkel(278, 178),
-    txt(213, 48, 'Obergurt', 'dim'),
-    txt(213, 170, 'Untergurt = Anschlussebene', 'dim'),
-    // Jochachse
-    `<line class="d" x1="140" y1="118" x2="360" y2="118"/>`,
-    txt(356, 112, 'Jochachse', 'dim', 'end'),
-    // Hängestütze mit Knoten
-    `<line class="b" x1="213" y1="178" x2="213" y2="232"/>`,
-    knoten(213, 232),
-    pf(213, 232, 288, 232), txt(296, 236, 'F_y', 'acc', 'start'),
-    // Masse
-    mass(122, 58, 122, 178, 'h'),
-    mass(330, 118, 330, 178, 'z_A = &minus;h/2'),
-    mass(248, 178, 248, 232, 'z'),
-    mass(374, 118, 374, 232, 'e_v'),
-    // Hilfslinien
-    `<line class="hl" x1="292" y1="232" x2="384" y2="232"/>`,
-    `<line class="hl" x1="213" y1="178" x2="340" y2="178"/>`,
+// ===========================================================================
+{
+  id: 'modell',
+  titel: '3 · Das Rechenmodell',
+  html: `
+<h4>3.1 Stäbe</h4>
+<table class="dt">
+<tr><th>Bauteil</th><th>im Modell</th></tr>
+<tr><td>Gurtwinkel</td><td>Stab auf der Schwerachse; Querschnitt mit I_y, I_z
+  und Deviationsmoment I_yz (schiefe Biegung), Lage nach dem Detailschnitt der
+  Werkstattzeichnung</td></tr>
+<tr><td>Bindebleche</td><td>Stab zwischen den Gurtachsen; stehende Bleche in der
+  Flucht der Schenkel, liegende um 10 mm nach innen versetzt; die Enden vom
+  Blechrand zur Gurtachse sind starr. Am verjüngten Joch liegt das
+  Untergurtblech in der Neigung des Gurts.</td></tr>
+<tr><td>Knotenbereich</td><td>Gurt über die Blechbreite als steifer Abschnitt</td></tr>
+<tr><td>Riegel</td><td>an den Knicken der verjüngten Joche, wo kein stehendes
+  Blech steht</td></tr>
+<tr><td>Masten</td><td>Stab vom Fuss bis zum Kopf, geteilt an jeder Anschluss-
+  und Anbauhöhe; Fuss voll eingespannt</td></tr>
+<tr><td>Anbauteile</td><td>starre Kette vom Anschluss zu den Lastpunkten</td></tr>
+<tr><td>Seile (Anker, Aufhängung)</td><td>Stab, der nur Zug trägt</td></tr>
+</table>
 
-  ].join(''))}
+<p>Gerechnet wird jeder Stab mit sechs Freiheitsgraden je Knoten, mit
+Schubverformung. Starrelemente sind Stäbe mit einem Ersatzquerschnitt hoher
+Steifigkeit. Das Eigengewicht der Stäbe folgt aus A · ρ; Starrelemente und
+Links wiegen nichts.</p>
 
-<p>Bei durchgehender Befestigung – ein Teil, das an beiden Gurten angeschlagen
-ist – entscheidet das Vorzeichen von <code>z</code> je Modul: was nach oben ragt,
-wird am Obergurt abgegriffen, was hängt, am Untergurt.</p>
+<h4>3.2 Anschluss Joch – Mast</h4>
+<p>Je Gurt ein <b>Linkelement</b> von 50 mm Länge zwischen Gurt und Mast; die
+Kopplung liegt in der Mitte des Links. Die Freiheitsgrade sind global
+festgelegt:</p>
+<table class="dt">
+<tr><th>Stufe</th><th>Obergurt</th><th>Untergurt</th></tr>
+<tr><td>wie gebaut (Vorgabe)</td><td>x, y gehalten, K_XX</td><td>y, z gehalten, K_XX</td></tr>
+<tr><td>eingespannt bis zur Grenze der Hakenschrauben</td><td>x, y, z, K_XX</td>
+  <td>x, y, z, K_XX; Kraft in x höchstens F_Grenz</td></tr>
+<tr><td>voll eingespannt</td><td>x, y, z, K_XX</td><td>x, y, z, K_XX</td></tr>
+</table>
 
-${q(`Diese Unterscheidung ist nicht nebensächlich. Beim J90 sind es 225 mm, und
-für eine Hängestütze mit z = −1.35 m wächst der Hebelarm damit von 1.35 auf
-1.60 m – <b>rund 17 % mehr Torsion</b>.`)}
+<p>Nur ein Gurt hält wie gebaut in der Jochachse; der Anschluss wirkt in der
+Jochebene gelenkig. Eingespannt halten beide Gurte, und das Kräftepaar der
+Gurtkräfte überträgt das Einspannmoment. Bei der Stufe <i>bis zur Grenze der
+Hakenschrauben</i> gibt der Untergurt in der Jochachse höchstens F_Grenz
+weiter (Vorgabe 24 kN je Anschluss); darüber gleitet er. Die Lagerung lässt
+sich in der Auflagerskizze je Gurt und Freiheitsgrad frei setzen.</p>
 
-<p class="hb-quelle">core.anbauteile.js · <code>hebelarmZuAchse</code>,
-<code>anschlussGurt</code></p>
+<p>Ein Joch ohne Masten ist an seinen Enden über die Gurte gelagert; welche
+Gurte in x, y, z halten, wird in derselben Skizze gewählt.</p>
+
+<h4>3.3 Begrenzter Halt</h4>
+<p>Zwei Haltekräfte sind in ihrer Grösse begrenzt: die Rückhaltekraft der Leiter
+(Abschnitt 4.6) und die Grenze der Hakenschrauben. Beide werden linear gerechnet:
+je Halt ein Hilfslastfall (Einheitskraft am Haltepunkt), je Kombination ein
+kleines Gleichungssystem. Ist der Halt nicht ausgeschöpft, ist der Punkt
+gehalten; sonst wirkt die Grenzkraft gegen die Bewegung. Das Ergebnis steht als
+Faktor des Hilfslastfalls in der Kombination und gilt für alle Nachweise.</p>
+
+<h4>3.4 Seile nur auf Zug</h4>
+<p>Seilanker und Aufhängungen tragen keinen Druck. Müsste ein Seil in einer
+Kombination drücken, wird es über einen Hilfslastfall ausgeschaltet; das
+Tragwerk trägt dann ohne dieses Seil.</p>
+
+<h4>3.5 Blatt und Reihe</h4>
+<p>Alle sichtbaren Tragwerke eines Querprofils stehen in einem Stabwerk. Stossen
+zwei Tragjoche auf gleicher Höhe am selben Masten, endet jedes 5 cm vor der
+Mastachse; das Endfeld am Stoss wird entsprechend kürzer.</p>
+
+<p class="hb-quelle">export.axisvm.js · core.stabwerk.js · core.stabrueckhalt.js ·
+core.stabschraube.js · core.stabseil.js</p>
 `,
 },
 
 // ===========================================================================
 {
   id: 'einwirkungen',
-  titel: '3 · Einwirkungen',
+  titel: '4 · Einwirkungen',
   html: `
-<h4>3.1 Vier Einwirkungsgruppen</h4>
-<p>Jede Last gehört genau einer Gruppe an. Ein Lastfall ist nichts weiter als ein
-Satz von vier Beiwerten dazu.</p>
-
+<h4>4.1 Einwirkungsgruppen</h4>
 <table class="dt">
-<tr><th>Gruppe</th><th>Art</th><th>Was darin läuft</th></tr>
-<tr><td>G</td><td>ständig</td><td>Eigengewicht Joch und Anbauteile,
-  Umlenkkraft aus dem Leiterzug</td></tr>
-<tr><td>Wind x</td><td>veränderlich</td><td>Windkraft <b>in Jochachse</b> – nur
-  aus den Anbauteilen (Q_x)</td></tr>
-<tr><td>Wind y</td><td>veränderlich</td><td>Windkraft <b>in Gleisrichtung</b> –
-  Laufmeterlast w_k auf das Joch und Q_y der Anbauteile</td></tr>
-<tr><td>Schnee</td><td>veränderlich</td><td>Laufmeterlast auf das Joch,
-  veränderliche Vertikallasten der Anbauteile (Q_z)</td></tr>
+<tr><th>Gruppe</th><th>Art</th><th>Inhalt</th></tr>
+<tr><td>G</td><td>ständig</td><td>Eigengewicht von Tragwerk, Masten und
+  Anbauteilen; Umlenkkraft und Leiterzug</td></tr>
+<tr><td>Wind x</td><td>veränderlich</td><td>Wind quer zum Gleis</td></tr>
+<tr><td>Wind y</td><td>veränderlich</td><td>Wind längs zum Gleis</td></tr>
+<tr><td>Schnee</td><td>veränderlich</td><td>Schneelast auf Träger und Anbauteile</td></tr>
 </table>
 
-<p><b>Warum der Wind in zwei Gruppen läuft.</b> Wind hat keine feste Richtung.
-Die Lasttabelle führt für jedes Bauteil eine Angriffsfläche quer und eine längs
-zum Gleis – das sind zwei Windrichtungen, die nicht gleichzeitig auftreten.
-Getrennt geführt kann jede Richtung mit + und − in die Kombination gehen; damit
-steht der Wind, wie er in Wirklichkeit steht: von beiden Seiten.</p>
+<p>Wind wirkt in beiden Vorzeichen und je in einer Richtung, nie quer und längs
+zugleich.</p>
 
-<p>Die <b>ständigen</b> Einwirkungen behalten ihre feste Wirkrichtung und werden
-nicht gespiegelt. Wohin die Umlenkkraft zeigt, entscheidet die Geometrie über das
-Vorzeichen des Radius.</p>
+<h4>4.2 Laufmeterlasten und Mastwind</h4>
+<p>Eigengewicht, Wind und Schnee des Trägers sind charakteristische
+Laufmeterlasten aus dem Sortiment, je Einwirkungsklasse EK1 – EK3 (Staudruck
+0.90 / 1.10 / 1.30 kN/m²). Der Mastwind kommt je Profil, Stegrichtung und
+Einwirkungsklasse aus der Tabelle und lässt sich je Mast und Richtung von Hand
+überschreiben. Für dicht überbautes Gebiet wird der Wind mit 0.74 abgemindert;
+der Faktor wirkt in den Kombinationen.</p>
 
-<h4>3.2 Verteilte Lasten</h4>
-<p>Die Werte der Sortimentstabelle sind bereits fertig gerechnete
-<b>Laufmeterlasten</b> [kN/m] und charakteristisch. Sie werden unverändert
-übernommen – es wird nichts mehr mit einer Fläche multipliziert. Die
-Referenzwerte in kN/m² (Staudruck 0.90 / 1.10 / 1.30, Schnee 0.90 / 1.25) dienen
-nur der Einordnung: an ihnen liest man ab, für welchen Standort die gewählte
-Klasse gilt. Der massgebende Staudruck ist nach SIA 261 zu bestimmen und mit der
-gewählten Einwirkungsklasse zu vergleichen.</p>
-
-<h4>3.3 Umlenkkraft aus dem Bogen</h4>
-<p>Liegt das Gleis im Bogen, knickt die Fahrleitung an jeder Aufhängung um den
-Ablenkwinkel α. Die beiden Leiterzugkräfte der angrenzenden Spannweiten haben
-deshalb eine Resultierende quer zum Gleis – am Tragjoch also in Richtung der
-Jochachse:</p>
+<h4>4.3 Umlenkkraft</h4>
+<p>Im Bogen knickt die Fahrleitung an jeder Aufhängung um den Ablenkwinkel α;
+die Resultierende der Leiterzüge wirkt quer zum Gleis:</p>
 
 ${f(`α = 2 · arcsin( L / 2R )<br>
 <b>U = 2 · Z · sin(α/2) = Z · L / R</b>`)}
@@ -225,2371 +257,195 @@ ${skizze('Grundriss: die Fahrleitung knickt an jeder Aufhängung um α',
     mass(40, 200, 215, 200, 'L (Spannweite der Fahrleitung)'),
   ].join(''))}
 
-<p>Die zweite Gleichheit ist <b>exakt</b> und keine Näherung: aus
-α/2 = arcsin(L/2R) folgt unmittelbar sin(α/2) = L/2R. Das Vorzeichen von R (oder
-ein am Modul gesetzter Winkel) bestimmt die Bogenseite und damit die Richtung
-der Umlenkung.</p>
+<p>Die Gleichung ist exakt. Das Vorzeichen von R oder ein am Leiter gesetzter
+Winkel bestimmt die Bogenseite. Die Umlenkkraft ist ständig.</p>
 
-${q(`Die Umlenkkraft ist eine <b>ständige</b> Einwirkung: der Leiterzug steht
-immer an, unabhängig von Wind und Schnee. Sie mit einem Windbeiwert zu belegen
-wäre falsch, und sie kehrt sich auch nicht mit dem Wind um.`)}
-
-<h4>3.4 Lastfälle</h4>
-<p><b>Zuoberst stehen die einzelnen Lastarten, jede für sich und
-charakteristisch</b> – Ständig, Ablenkkräfte, Schnee, Wind y, Wind x, dazu alles
-zusammen. Alle Beiwerte 1.00. Sie sind der Massstab: nur an einer einzelnen
-Lastart lässt sich ablesen, ob der Lastweg stimmt, und nur so ist die Rechnung
-gegen ein FEM-Modell zu halten, das seine Lastfälle ebenfalls einzeln ausweist.
-Zugleich sind sie die Grundlage der Nachweise gegen <b>zulässige Kräfte</b>:
-Anker, Fundament und Aufhängung des Tragauslegers.</p>
-
-<table><tr><th>Lastfall</th><th>zeigt</th></tr>
-<tr><td>Ständig (Tragwerk)</td><td>alle Gewichte: Joch, Masten und Anbauteile, ohne Ablenkkräfte</td></tr>
-<tr><td>Ablenkkräfte ständig</td><td>nur die Ablenkkräfte aus dem Kurvenzug, in der Jochachse</td></tr>
-<tr><td>Schnee · Wind y · Wind x</td><td>je eine Einwirkung allein</td></tr>
-<tr><td>Ständig + Wind ±y · Ständig + Wind ±x</td><td>ständige Last mit dem Wind in EINER Richtung, ohne Beiwerte — die Grundlage des Ankernachweises</td></tr></table>
-
-<p>Die ersten beiden ergänzen sich zur vollen ständigen Last. Getrennt geführt
-ist die Ablenkkraft, weil sie als einzige ständige Last in der Jochachse zieht
-und ihre Richtung zählt: gegen den Wind in Jochachse kann sie entlasten oder
-belasten. In der AxisVM-Ausleitung sind es die Lastfälle «Ständig · Joch» und
-«Ständig · Anbauteile» gegen «Ständig · Ablenkkräfte».</p>
-
-<p>Darauf folgen die <b>Nachweislastfälle</b>: je Windrichtung ein leitender
-Fall mit beiden Vorzeichen, und Schnee leitend mit begleitendem Wind in ±y
-und in ±x.</p>
-
-${q(`Weisung vom 17. September: «der wind in y und x sollte immer auf beide
-seiten angesetzt werden … es können überlagerungen mit den ständigen
-(abfangungen) resultieren.» Seither stehen auch die charakteristischen Fälle
-(Wind ±y, Wind ±x, Ständig + Wind je Richtung) und die
-Gebrauchsfälle mit beiden Richtungen da. Am <b>Abfangjoch</b> läuft jeder Fall
-mit Wind in vier Richtungen (±y, ±x, je für sich — seit 18. September nicht mehr diagonal); Mast und Anker werden über alle gerechnet, mit
-dem Mastwind in derselben Richtung.`)}
-
-${q(`Weisung vom 18. September: «die lastfälle l7 bis l10 weglassen, da wind
-sich nicht in x und y überlagern kann.» Dort stand «Ständig + Wind ±x ±y» mit
-beiden Richtungen zugleich. Seither je eine Richtung: «Ständig + Wind ±y» und
-«Ständig + Wind ±x». Ersatzlos gestrichen hätte der Ankernachweis ständige
-Last und Wind nie zusammen gesehen.`)}
-
-${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
-γ_G · G &nbsp;±&nbsp; ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}
-
-<p>SIA 260: γ_G = 1.35, γ_Q = 1.50. <b>RTE: einheitlich 1.30 – das ist die
-Vorgabe.</b> Begleiteinwirkung ψ₀ = 0.65, angesetzt <b>ohne</b> γ_Q
-(SIA 260 Gl. 16: entweder γ_Q als Leit- oder ψ₀ als Begleiteinwirkung); SIA 260 ψ₀ = 0.60. Eigene Lastfälle mit freien Beiwerten – auch negativen –
-sind jederzeit möglich; das Werkzeug weist abweichende Beiwerte als solche aus.</p>
-
-${q(`Die Vorgabe ist nicht SIA 260, sondern der Bahnsatz. Aus dem geprüften
-Referenzprojekt sind alle 46 Kombinationen ausgezählt: auf ständige Lastfälle
-kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 (leitend) und 0.65 (begleitend).
-Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
-Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
-
-<p><b>Havariefall</b> – sobald ein Leiter am Tragwerk hängt, zwei weitere
-Nachweisfälle als aussergewöhnliche Bemessungssituation:</p>
-
-${f(`1.0 · G &nbsp;+&nbsp; ΔA_x(−20 °C) &nbsp;±&nbsp; A_y(Bruch) &nbsp;&nbsp;(keine veränderlichen)`)}
-
-${q(`Weisung vom 17. September: «der Ablenkwinkel kann zur hälfte angewendet
-werden, da der weiterführende leiter abgelenkt ist. die volle leiterzugkraft
-wird beim abfangjoch angesezt. bei den übrigen tragwerken tragjoch mast, wird
-bei den leitern direkt an joch oder am masten nur ein anteil von 10% der
-leiterzugkraft angesetzt, da man ausgehen kann das die kraft durch die
-benachbarten tragwerke kompensiert wird.»`)}
-
+<h4>4.4 Leiterzug und Regliertemperatur</h4>
+<p>Beweglich abgespannte Leiter (Nachspannung) haben einen konstanten Zug; fix
+abgespannte folgen der Temperatur nach der Reglagetabelle (belastete Zeile).</p>
 <table class="dt">
-<tr><th>Leiter</th><th>Ablenkkraft</th><th>Längszug (Gleisrichtung)</th></tr>
-<tr><td>unversehrt</td><td>mit Z bei −20 °C</td><td>–</td></tr>
-<tr><td>gebrochen (Schalter an der Karte)</td><td>zur Hälfte, mit Z bei −20 °C</td>
-    <td>10 % von Z(−20 °C), beide Richtungen</td></tr>
+<tr><th>Kombination</th><th>Temperatur</th></tr>
+<tr><td>Wind leitend</td><td>+5 °C</td></tr>
+<tr><td>Schnee leitend</td><td>−5 °C mit Zusatzlast 0.007 kN/m (bis 1000 m ü. M.)</td></tr>
+<tr><td>Havarie</td><td>−20 °C</td></tr>
 </table>
-<p>Z bei −20 °C kommt aus der Reglagetabelle; fehlt sie für einen fix
-abgespannten Leiter, steht der Wert von +5 °C, und die Hinweisliste sagt es.
-Das <b>Abfangjoch</b> rechnet seinen Havariefall selbst (Abschnitt 13.6), mit
-der vollen Leiterzugkraft. In der AxisVM-Ausleitung erscheinen die beiden
-Anteile als Lastfälle «Havarie Ablenkung» und «Havarie Längszug», die
-Kombination als aussergewöhnliche.</p>
+<p>Fehlt die Reglagezeile eines fix abgespannten Leiters, gilt der Wert bei
++5 °C, und ein Hinweis nennt den Leiter.</p>
 
-<h4>3.5 Regliertemperatur und Leiterzug</h4>
-<p>Die Zugkraft eines Leiters hängt davon ab, <b>wie er abgefangen</b> ist.
-Über eine Nachspannung – <i>beweglich</i> – hält ein Gewicht die Kraft
-konstant, gleich wie kalt es ist. Starr verankert – <i>fix</i> – folgt sie der
-Temperatur: der Draht zieht sich zusammen und kann nirgends nachgeben, die Kraft
-wächst.</p>
-
+<h4>4.5 Abfangung der Leiter</h4>
 <table class="dt">
-<tr><th>Leiter</th><th>Abfangung</th><th>Folge</th></tr>
-<tr><td>N-FL Tragseil</td><td>fix</td><td>temperaturabhängig</td></tr>
-<tr><td>N-FL Fahrdraht</td><td>beweglich</td><td>konstant (8.5 kN)</td></tr>
-<tr><td>R-FL Trag­seil und Fahr­draht</td><td>beweglich</td>
-  <td>konstant (12 + 10 kN)</td></tr>
-<tr><td>Einzelleiter – Rückleiter, Speise­leitung, Feeder</td><td>fix</td>
-  <td>temperaturabhängig</td></tr>
+<tr><th>Abfangung</th><th>ständig</th><th>Leiterriss</th></tr>
+<tr><td>durchgehend</td><td>kein Längszug</td><td>10 % von Z(−20 °C)</td></tr>
+<tr><td>beidseitig abgefangen</td><td>kein Längszug (die Züge heben sich auf)</td>
+  <td>voller Zug einseitig</td></tr>
+<tr><td>einseitig abgefangen</td><td>voller Zug Z in Zugrichtung</td>
+  <td>Zug fällt weg</td></tr>
 </table>
+<p>Ein einseitig abgefangener Leiter trägt Gewicht, Wind und Umlenkung über die
+halbe Spannweite. Am Abfangjoch ist «einseitig» die Vorgabe, die Zugrichtung
+folgt der Anbindung. Ein Leiter, dessen Gewicht abgewählt ist (nur abgezogen),
+ist kein Kandidat für den Leiterriss.</p>
 
-<p>Ein Kettenwerk ist damit <b>gemischt</b>: beim N-FL folgt das Tragseil der
-Temperatur, der Fahrdraht nicht. Der Katalogeintrag führt beide zusammen –
-N-FL StCu 50 / Cu 107 mit 14.9 = 6.4 (Ts) + 8.5 (Fd) kN –, und die
-Reglagetabelle tut dasselbe.</p>
+<h4>4.6 Havariefall</h4>
+<p>Je Leiter, der reissen kann, ein aussergewöhnlicher Fall in ±y: der
+gerissene Leiter verliert seinen Zug (Abfangart nach 4.5), die übrigen ziehen
+mit Z(−20 °C), die Umlenkung des gerissenen Leiters zur Hälfte. Keine
+veränderlichen Einwirkungen. Ein Kettenwerk (Tragseil und Fahrdraht an derselben
+Stelle) ist ein Leiter. Der Havariefall lässt sich für das Blatt abschalten.</p>
 
-<p>Welche Temperatur im Nachweis gilt, ist keine Ableitung, sondern eine
-<b>Festlegung</b> – und sie hängt an der Kombination:</p>
+<h4>4.7 Rückhaltekraft</h4>
+<p>Leiter, die direkt an einem Tragjoch oder Tragausleger hängen, halten den
+Leiterpunkt in Gleisrichtung fest, höchstens mit R = min(p · Z(+5 °C), R_max)
+(Vorgabe p = 10 %, R_max = 0.5 kN je Leiter), skaliert mit dem Beiwert des
+Winds längs. Gerechnet als begrenzter Halt (Abschnitt 3.3); nur unter Wind
+längs, nie im Havariefall.</p>
 
-<table class="dt">
-<tr><th>Kombination</th><th>Regliertemperatur</th><th>Warum</th></tr>
-<tr><td>Wind leitend</td><td>+5 °C</td><td>Regelfall der Bemessung</td></tr>
-<tr><td>Schnee leitend</td><td>−5 °C <b>+Z</b></td><td>Schnee fällt bei
-  Frost – er trifft auf einen straffer gezogenen Leiter und hängt sich
-  obendrein an ihn</td></tr>
-<tr><td>Havarie</td><td>−20 °C</td><td>grösste Zugkraft; ausser­gewöhnliche
-  Einwirkung ohne veränderliche Lasten, ständige charakteristisch</td></tr>
-</table>
-
-<p><b>Der Havariefall sucht nicht die grösste Last, sondern die grösste
-Ungleichheit.</b> Ohne Wind und Schnee steht er unter allen dreien am
-niedrigsten – massgebend wird er, wenn ein Leiter als <b>gebrochen</b>
-bezeichnet ist: seine Kraft fällt weg, der gegenüberliegende zieht weiter,
-und das Joch trägt die Differenz.</p>
-
-<p>Die Zugkraft je Temperatur steht in der <b>Reglagetabelle</b>. Sie führt
-je Kettenwerk zwei Zeilen, <i>Ts belastet</i> und <i>Ts unbelastet</i>; die
-unbelastete gehört zur Reglage auf der Baustelle, in den Nachweis geht
-ausschliesslich die <b>belastete</b>. Der Bauteilkatalog führt den Wert bei
-+5 °C – er ist die Spalte +5 derselben Zeile, und daran hängt die
-Zuordnung:</p>
-
-<table class="dt">
-<tr><th>Drahtwerk</th><th>Havarie<br>−20 °C</th>
-  <th>Schnee<br>−5 °C +Z</th><th>Wind<br>+5 °C</th></tr>
-<tr><td>Cu 95, Rückleiter (6 kN)</td><td>6.0</td><td>6.5</td>
-  <td><b>3.9</b></td></tr>
-<tr><td>N-FL Ts StCu 50 (sh 1.90 m, 8 kN)</td><td>8.0</td><td>8.0</td>
-  <td><b>6.4</b></td></tr>
-<tr><td>N-FL StCu 50 / Cu 107, ganz</td><td>16.5</td><td>16.5</td>
-  <td><b>14.9</b></td></tr>
-<tr><td>R-FL StCu 92 / Cu 107, ganz</td><td>22.0</td><td>22.0</td>
-  <td><b>22.0</b></td></tr>
-</table>
-
-<h4>3.6 Die Zusatzlast im Schneefall</h4>
-<p>Neben der Spalte −5 °C führt die Reglagetabelle die Spalte
-<b>−5 °C +Z</b>: die erhöhte Zugkraft durch <b>Zusatzlast</b>. Der Schnee
-hängt sich an den Leiter, und ein fix abgespannter kann nicht nachgeben –
-die Kraft steigt über den Wert der blossen Temperatur hinaus. Beim
-Rückleiter Cu 95 sind das <b>6.5 statt 4.6 kN</b>.</p>
-
-<p>Gerechnet wird mit der Zusatzlast <b>0.007 kN/m</b>. Sie gilt für
-Tragwerke <b>unterhalb 1000 m ü. M.</b> und deckt damit den grössten Teil
-ab. Die Tabelle führt daneben 0.015 kN/m.</p>
-
-${q(`Liegt das Tragwerk <b>höher als 1000 m</b>, gilt 0.015 kN/m – beim
-Cu 95 8.4 statt 6.5 kN. Das Werkzeug rechnet diesen Fall <b>nicht</b>; die
-Zugkraft ist dort von Hand einzusetzen.`)}
-
-<p>Interpoliert wird in dieser Spalte nicht: sie gilt bei −5 °C und für
-genau die beiden Lasten, die dastehen. In der gewöhnlichen Zeile dagegen wird
-zwischen den Stützstellen linear interpoliert – im Nachweis kommt das nicht
-vor, weil −20 und +5 °C selbst Stützstellen sind. Ausserhalb der Tabelle
-gilt der Randwert; sie zu verlängern hiesse, über ihren Geltungsbereich
-hinaus zu rechnen.</p>
-
-${q(`Führt die Tabelle für ein Drahtwerk <b>keine Zeile</b>, rechnet das
-Werkzeug mit dem Wert von +5 °C und <b>sagt es</b> – der Hinweis in der
-Übersicht nennt die betroffenen Leiter beim Namen. Das ist die unsichere
-Richtung: ein fix abgefangener Leiter zieht kalt stärker, der Schnee- und der
-Havariefall stünden zu günstig da. Ihre Zugkraft ist dann von Hand
-einzusetzen.`)}
-
-<h4>3.7 Gebrauchstauglichkeit</h4>
-<p>Geführt wird der <b>Betriebswind</b>: Ständig mit 1.00, Wind mit
-ψ = 0.70 (Wiederkehrperiode 5 Jahre), je Richtung und Vorzeichen – vier Fälle.
-Auf ihnen steht der Nachweis der <b>Mastverformung</b>: die Seitenlage quer zum
-Gleis an der Referenzhöhe (Fahrdraht, sonst Ausleger, sonst Jochauflager) gegen
-40 mm, für «nur Wind» (die charakteristischen Windfälle mal 0.70). Die
-Verschiebung der Mastspitze steht als Auskunft daneben.</p>
-
-${q(`Die <b>seltene</b> Stufe (leitend 1.00, begleitend 0.50) ist seit dem
-29. September entfallen: kein Nachweis las sie. Die charakteristischen Fälle
-sind dagegen Nachweisgrundlage – für Anker, Fundament und die Aufhängung des
-Tragauslegers, die gegen zulässige Kräfte ohne Teilsicherheitsbeiwerte
-nachgewiesen werden.`)}
-
-<p class="hb-quelle">core.lasten.js · core.trasse.js · data.fl.js · core.abfangjoch.js</p>
+<p class="hb-quelle">core.lasten.js · core.trasse.js · data.fl.js · data.anbauteile.js</p>
 `,
 },
 
 // ===========================================================================
 {
-  id: 'system',
-  titel: '4 · Statisches System',
+  id: 'lastfaelle',
+  titel: '5 · Lastfälle und Kombinationen',
   html: `
-<p>Das Joch wird als <b>Einfeldträger der Spannweite L mit Drehfedern an beiden
-Enden</b> gerechnet. Damit lassen sich gelenkig, teilweise und voll eingespannt
-mit einem einzigen Formelsatz abbilden.</p>
+<h4>5.1 Charakteristische Fälle</h4>
+<p>Jede Einwirkung allein und mit der ständigen Last, alle Beiwerte 1.0:
+Ständig (Tragwerk), Ablenkkräfte ständig, Schnee, Wind ±x, Wind ±y,
+Ständig + Wind je Richtung. Sie sind Grundlage der Nachweise gegen zulässige
+Kräfte (Anker, Fundament, Aufhängung) und der Reaktionskräfte.</p>
 
-${skizze('Ersatzbalken mit Drehfedern; der Momentenverlauf hängt an ihrer Steifigkeit',
-  '0 0 430 236', [
-    // Gleichlast
-    `<line class="hl" x1="60" y1="38" x2="370" y2="38"/>`,
-    [0, 1, 2, 3, 4, 5, 6].map((i) => pf(60 + i * 51.7, 38, 60 + i * 51.7, 66, 'm')).join(''),
-    txt(378, 44, 'q_d', 'acc', 'start'),
-    // Balken
-    `<line class="b" x1="60" y1="72" x2="370" y2="72"/>`,
-    // Auflager mit Drehfeder
-    ...[60, 370].map((x) => `<path class="st2" d="M${x} 72 L${x - 9} 90 L${x + 9} 90 z"/>` +
-      `<path class="m" d="M${x - 15} 72 a15 15 0 1 1 9 13.8"/>`),
-    txt(60, 108, 'c_&phi;,A', 'dim'), txt(370, 108, 'c_&phi;,B', 'dim'),
-    // Momentenverlauf
-    `<line class="hl" x1="60" y1="158" x2="370" y2="158"/>`,
-    `<line class="m" x1="60" y1="136" x2="370" y2="136"/>`,
-    `<path class="k" d="M60 136 Q215 232 370 136"/>`,
-    mass(60, 158, 60, 136, 'M_A', 8),
-    txt(215, 130, 'Anteil der St&uuml;tzmomente', 'dim'),
-    txt(215, 200, 'M_y(x)', 'acc'),
-    txt(215, 226, 'gelenkig: c_&phi; = 0, die gerade Linie liegt auf der Nulllinie', 'dim'),
-    mass(60, 92, 370, 92, 'L', 14),
-  ].join(''))}
-
-<h4>4.1 Drehfeder aus dem Mast</h4>
-<p>Ein am Fuss eingespannter Kragmast der Höhe H hat am Kopf gegenüber einem
-Moment die Drehsteifigkeit</p>
-
-${f(`c_φ = E · I_Mast / H`)}
-
-<p>Massgebend ist die Biegung des Mastes <b>in der Jochachse</b> – der Mast muss
-sich quer zu den Gleisen verformen. Je nach Stegrichtung ist das I_y oder I_z.</p>
-
-<h4>4.1.1 Verschieblich oder nicht – der grösste Einzelfehler dieser Feder</h4>
-<p>Die Formel oben gilt für einen Kragmast, dessen Kopf sich frei
-<b>verschieben</b> kann. Ein Joch steht aber auf <b>zwei</b> Masten und bindet
-ihre Köpfe zusammen. Unter symmetrischer Vertikallast entstehen an beiden Enden
-gleichsinnige Stützmomente, die Querkräfte der beiden Maste heben sich auf –
-der Rahmen verschiebt sich <b>nicht</b>. Dann gilt nicht der Kragmast, sondern
-der unverschiebliche Stab:</p>
-
-${f(`verschieblich&nbsp;&nbsp;&nbsp;&nbsp; c = 1.0 · E·I/H<br>
-unverschieblich&nbsp;&nbsp; c = 4.0 · E·I/H&nbsp;&nbsp; (Drehwinkelverfahren)`)}
-
-<p>Nachgemessen an zwei ganz verschiedenen Rahmen – beide Maste ausmodelliert,
-Füsse eingespannt, Joch an beiden Ebenen angeschlossen:</p>
-
-${f(`Signaljoch 18.935 m, HEB 260/7.8 m gegen HEM 240/12.0 m&nbsp;&nbsp;
-c = 12 030 = <b>3.11</b> · E·I/H<br>
-J90 15.5 m, zwei gleiche HEB 260/7.5 m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-c = 12 906 = <b>3.09</b> · E·I/H`)}
-
-<p>Zwei Spannweiten, zwei Mastpaare, gleiche und ungleiche Enden – und derselbe
-Faktor. Er liegt unter dem Lehrbuchwert 4.00.</p>
-
-<p>Eine zweite Messung an einem <b>anderen Programm</b> sagt etwas anderes: aus
-dem Feldmoment eines AxisVM-Modells mit ausmodelliertem Mast zurückgerechnet
-ergeben sich <b>3.98 · E·I/H</b> – der Lehrbuchwert auf ein halbes Prozent. Es
-sind nicht dieselben Messgrössen: die eine liest die Drehung am Knoten ab, die
-andere schliesst aus dem Feldmoment zurück. Warum sie auseinanderlaufen, ist
-nicht geklärt.</p>
-
-${q(`Gerechnet wird seit dem 31. August mit <b>4.00</b>. Entscheid des
-Auftraggebers: AxisVM ist das geprüfte Programm, und dass sein Wert den
-Lehrbuchwert des unverschieblichen Rahmens trifft, wiegt für die
-Nachvollziehbarkeit schwerer als eine Zahl aus einem einzelnen Modell.
-Voraussetzung ist die volle Einspannung des Fundaments – die hier Weisung ist.
-Die Anwendung rechnet damit 27.57 kNm im Feld gegen die gemessenen 27.60.`)}
-
-<table><tr><th>Einwirkung</th><th>Rahmen</th><th>Feder</th></tr>
-<tr><td>Eigengewicht, Schnee, Wind in Gleisrichtung</td>
-    <td>gleichsinnige Stützmomente, kein Verschieben</td>
-    <td><b>4.00 · E·I/H</b></td></tr>
-<tr><td>Wind in Jochachse</td>
-    <td>beide Köpfe in dieselbe Richtung, der Rahmen verschiebt sich</td>
-    <td>Kragmast, Anschlussfaktor 1.00 / 1.45</td></tr></table>
-
-${q(`Bis hierher galt für beides der Kragmast. Für die Vertikallastfälle war die
-Feder damit rund dreimal zu weich: das vergrösserte das Feldmoment (sichere
-Seite) und <b>verkleinerte das Stützmoment</b> – am verjüngten Jochende die
-unsichere. Über den Katalog gerechnet steigt die Ausnutzung nur um 1 bis 5 %,
-das <b>Stützmoment aber um 25 bis 65 %</b>. Damit greift auch die Begrenzung
-durch die Gurtverbindung deutlich früher.`)}
-
-<p>Die frühere Kalibrierung des Anschlussfaktors (1.37 bzw. 1.45) ist damit für
-Vertikallasten <b>überholt</b>: sie stammt aus einem Modell, dessen Jochende
-sich verschieben konnte, und nannte für das J90 ein Feldmoment von 10.27 kNm –
-der Rahmen mit beiden Masten liefert 8.22 kNm. Im verschieblichen Fall gilt sie
-weiter.</p>
-
-<h4>4.2 Nur die vertikale Biegung wird eingespannt</h4>
-${q(`Die Einspannung wirkt ausschliesslich auf M_y. Eine Einspannung gegen M_z
-würde die <b>Torsionssteifigkeit</b> des Mastes beanspruchen; bei offenen
-H-Profilen ist diese so gering, dass das Joch für Wind sinnvollerweise gelenkig
-gelagert bleibt.`)}
-
-<h4>4.3 Wind auf den Mast verdreht das Jochende</h4>
-<p>Der Wind in der Jochachse drückt nicht nur gegen das Joch, sondern auch
-gegen den <b>Mast</b>. Der Mast biegt sich, sein Kopf verdreht sich – und weil
-das Jochende dort angeschlossen ist, wird ihm diese Verdrehung
-<b>aufgezwungen</b>. Das ist keine Last auf dem Joch, sondern eine
-Auflagerverdrehung:</p>
-
-${f(`θ₀ = w_Mast · H³ / (6 · E · I_Mast)`)}
-
-<p>Das Federgesetz am Jochende lautet damit nicht mehr M = −c·θ, sondern</p>
-
-${f(`M = −c · (θ − θ₀)`)}
-
-<p>Hält das Joch den Mastkopf vollständig fest (θ = 0), leitet der Mast
-M₀ = c·θ₀ = w·H²/6 ein – genau das Moment, das ein am Fuss eingespannter und am
-Kopf drehfest gehaltener Mast unter Gleichlast abgibt. Beide Enden verdrehen
-sich <b>gleichsinnig</b>; das Joch wird dadurch in Gegenkrümmung gebogen, das
-eine Stützmoment wächst, das andere fällt.</p>
-
-${q(`Ohne diesen Anteil fehlt dem Lastfall Wind in Jochachse die grössere
-Hälfte der Einwirkung. Im nachgerechneten Signaljoch trägt der Wind auf die
-beiden Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen. Das Werkzeug lag in
-diesem Lastfall rund 80 % zu tief; mit dem Anteil trifft das Bindeblech den
-Vergleichswert auf 2 %, die Gurte bleiben 30 bis 45 % darunter.`)}
-
-<h4>4.4 Wind auf den Mast in Gleisrichtung – nicht angesetzt</h4>
-<p>Dieser Wind biegt den Mast quer zur Jochachse. Am Jochende kommt zweierlei
-an, und <b>keines von beiden wird gerechnet</b>.</p>
-
-<p><b>Die Verschiebung des Auflagerpunktes richtet nichts an.</b> Im Grundriss
-ist das Joch an beiden Enden gelenkig gelagert und ohne Drehfeder – eine
-Einspannung dort würde die Torsionssteifigkeit des offenen Mastprofils
-beanspruchen, die zu gering ist (Abschnitt 4.2). Ein statisch bestimmt
-gelagerter Träger bekommt aus Auflagerverschiebungen keine Schnittgrössen, auch
-aus ungleichen nicht: das Joch dreht sich im Grundriss als Ganzes.</p>
-
-<p><b>Die Verdrehung des Mastkopfes um die Jochachse wäre eine Torsion</b> –
-aber nur, wenn die beiden Enden sich <b>ungleich</b> verdrehen, also nur bei
-zwei verschiedenen Masten:</p>
-
-${f(`φ₀ = w_quer · H³ / (6 · E · I_quer)<br>
-T₀ = (φ₀B − φ₀A) / (1/c_T,A + 1/c_T,B)`)}
-
-${q(`<b>Dieser Term ist herausgenommen.</b> Er war hergeleitet, nicht geeicht,
-und gegen das eine verfügbare FEM-Modell hat er die Übereinstimmung deutlich
-verschlechtert: die Gurte unter Wind quer liefen von +52 auf +89 % hoch, ohne
-dass das Modell dort mehr Beanspruchung zeigt. Die Herleitung nimmt das Joch
-als torsionsstarr an – die obere Schranke – und legt die volle
-Differenzverdrehung auf die beiden Mastfedern. Das ist zu viel. Wer den Anteil
-führen will, setzt ihn als eigenes Torsionsmoment an einem Anbauteil an und
-hält das im Bericht fest.`)}
-
-<p><b>Beide Windrichtungen.</b> Der verbleibende Mastwind in Jochachse hängt am
-vorzeichenbehafteten Beiwert des Lastfalls und kehrt mit ihm um, genau wie die
-Einwirkungen auf das Joch selbst. Er wirkt <b>antimetrisch</b>: was das eine
-Ende im Lastfall Wind +x bekommt, bekommt das andere bei Wind −x. Die Hüllkurve
-über die Lastfälle deckt damit beide Enden und beide Drehsinne ab.</p>
-
-<h4>4.5 Auflagermomente</h4>
-<p>Aus dem Drehwinkelverfahren mit K = EI/L und den Volleinspannmomenten FEM;
-θ₀ ist die aufgezwungene Verdrehung des Auflagerpunktes (Abschnitt 4.3, ohne
-Mastwind null):</p>
-
-${f(`(4K + c_A) θ_A + 2K θ_B = −FEM_AB + c_A · θ₀A<br>
-2K θ_A + (4K + c_B) θ_B = −FEM_BA + c_B · θ₀B<br>
-M_AB = 2K (2θ_A + θ_B) + FEM_AB`)}
-
-<p>Die Biegesteifigkeit des gegliederten Jochs folgt der Zwei-Gurt-Idealisierung
-(Eigenträgheitsmomente der Winkel vernachlässigt, bei gegliederten Trägern
-wenige Prozent):</p>
-
-${f(`I = h² · A_o · A_u / ( A_o + A_u )`)}
-
-<h4>4.6 Kragarme – das Auflager steht nicht immer am Gurtende</h4>
-<p>L ist die Länge der <b>Gurte</b>, von Ende zu Ende: das Mass der Zeichnung,
-an dem auch die Blecheinteilung hängt. Die Auflager stehen dort, wo die Maste
-stehen, und das ist oft weiter innen:</p>
-
-${f(`0 &nbsp;├── Kragarm c_A ──┤────── Stützweite L − c_A − c_B ──────┤── c_B ──┤&nbsp; L`)}
-
-<p>Der Kragarm ist statisch bestimmt. Seine Lasten geben am Auflager ein festes
-Moment M_k ab, das im Drehwinkelverfahren unmittelbar auf den Knoten wirkt –
-auch bei gelenkigem Auflager. Bei c = 0 bleibt genau M_A = M_k übrig, der
-Gelenkträger mit Kragarm. Innerhalb des Kragarms werden die Schnittgrössen vom
-freien Ende her gerechnet; Torsion und Normalkraft, die dort eingeleitet
-werden, laufen unmittelbar ins Auflager.</p>
-
-${q(`Der Unterschied ist nicht klein. Am nachgerechneten Signaljoch liegen die
-Mastachsen 0.33 und 0.735 m innerhalb der Gurtenden – 5.3 % Stützweite und rund
-<b>11 % auf jedes globale Moment</b>. Wer L als Stützweite einsetzt, rechnet
-still zu ungünstig; wer die Stützweite als Gurtlänge einsetzt, still zu
-günstig. Die Blecheinteilung bleibt davon unberührt: sie hängt an der
-Gurtlänge, nicht an der Stützweite.`)}
-
-<p><b>Gegenprobe.</b> Wird die Drehfeder am Signaljoch so geeicht, dass das
-<i>Feldmoment</i> des AxisVM-Modells getroffen wird (21.18 kNm), ergibt sich
-c_φ = 9215 kNm/rad – und das <i>Stützmoment</i> stellt sich mit 9.97 kNm gegen
-gemessene 10.05 kNm von selbst ein, obwohl es nicht mitgeeicht wurde. Ohne
-Kragarme lag dieselbe Rechnung beim Stützmoment 36 % daneben.</p>
-
-<h4>4.7 Schnittgrössen</h4>
-${f(`M_y(x) = M_Gelenkträger(x) − [ M_A·(1−x/L) + M_B·(x/L) ]<br>
-M_z(x) = w_d·x·(L−x)/2 + M_Einzellasten + eingeprägte M_zz<br>
-T(x), N(x) &nbsp;&nbsp; wahlweise Hüllkurve oder Auflagerverteilung`)}
-
-<p>An den Laststellen springt die Querkraft; sie wird deshalb beidseitig
-ausgewertet und der betragsmässig grössere Wert als Bemessungswert genommen.
-Extremwerte werden nicht am Knotenraster abgelesen, sondern über eine eigene
-Kandidatenliste (Auflager, Lastangriffe, Nullstellen von V) gesucht – sie sind
-damit unabhängig von der Blechteilung.</p>
-
-<h4>4.8 Torsionsmodell</h4>
+<h4>5.2 Tragsicherheit</h4>
+${f(`E_d = γ_G · G &nbsp;+&nbsp; γ_Q · Q_leitend &nbsp;+&nbsp; ψ₀ · Q_begleitend`)}
 <table class="dt">
-<tr><td>Hüllkurve</td><td>konstante Summe aller Torsionsmomente über die ganze
-  Länge – konservativ, kein Abbau zu den Auflagern</td></tr>
-<tr><td>Auflagerverteilung</td><td>Aufteilung auf die Gabellager, genauer</td></tr>
+<tr><th>Satz</th><th>γ_G</th><th>γ_Q</th><th>ψ₀</th></tr>
+<tr><td>Bahnsatz (Vorgabe)</td><td>1.30</td><td>1.30</td><td>0.65</td></tr>
+<tr><td>SIA 260</td><td>1.35</td><td>1.50</td><td>0.60</td></tr>
 </table>
+<p>Die Begleiteinwirkung steht ohne γ_Q (SIA 260 Gl. 16). Wind leitend in ±x
+und ±y; Schnee leitend mit begleitendem Wind in einer Richtung. Eigene Fälle mit
+freien Beiwerten sind möglich und werden als abweichend gekennzeichnet.</p>
 
-<h4>4.9 Geometrie des Mastes</h4>
-<table class="dt">
-<tr><td>Masthöhe H</td><td>Fuss bis Jochachse. Nur diese Länge geht in die
-  Drehfeder ein: über sie verbiegt sich der Mast unter dem Jochanschluss.</td></tr>
-<tr><td>Mastlänge L_M</td><td>Fuss bis Kopf, wie auf dem Querprofil
-  angeschrieben («DP26 / 12.5 m»). Der Überstand über die Jochachse ist
-  L_M − H.</td></tr>
-<tr><td>Stegrichtung</td><td>entscheidet, welche Achse quer zum Gleis
-  trägt: Steg in Jochachse I_y, Steg gedreht I_z.</td></tr>
-</table>
+<h4>5.3 Aussergewöhnlich</h4>
+${f(`1.0 · G &nbsp;+&nbsp; A (Leiterriss, −20 °C)`)}
 
-<p><b>Der Mast steht immer über den Obergurt hinaus.</b> Das ist Vorgabe des
-Auftraggebers und auf jedem Querprofil so gezeichnet.</p>
+<h4>5.4 Gebrauchstauglichkeit</h4>
+<p>Betriebswind: nur Wind, × ψ = 0.70 (Wiederkehrperiode 5 Jahre), je Richtung
+und Vorzeichen.</p>
 
-<p><b>Die Länge hängt an der Anschlusshöhe.</b> Weisung vom 5. September:
-der Überstand zählt <b>ab Oberkante Obergurt</b>, und die Masten liegen im
-<b>Halbmeterraster</b> des Sortiments. Voreingestellt ist deshalb
+<h4>5.5 Hülle</h4>
+<p>Jeder Nachweis nimmt das Maximum über seine Fälle; die Kachel nennt die
+massgebende Kombination.</p>
 
-<br><br><code>L_M = H + jd/2 + 0.50 m</code>, aufgerundet auf den halben
-Meter<br><br>
-
-bei H = 7.50 m und jd = 500 mm also 8.50 m. Aufgerundet, nie ab: ein Mast,
-den es nicht gibt, wäre eine Zeichnung ohne Bauteil, und abgerundet fiele der
-Mindestüberstand unter das Mass.</p>
-
-<p>Wer die Länge zieht, löst die Kopplung für dieses Tragwerk; wer sie wieder
-auf den Vorgabewert stellt, schliesst sie. Der Schieber rastet auf den halben
-Meter, das Zahlenfeld daneben bleibt fein — eine Länge vom Blatt lässt sich
-eintippen, auch wenn sie zwischen zwei Rasterschritten liegt.</p>
-
-<p>Gefragt wird nach der <b>Länge</b>, nicht nach dem Überstand, weil das
-Querprofil beides führt: die Gesamtlänge und die Anschlusshöhe. Der Überstand
-ergibt sich daraus und muss nicht abgelesen werden.</p>
-
-<p>Auf einem langen Mast sitzen oben Traversen mit Zusatzleitern. Damit sie
-sich ansetzen lassen, reicht der Anbaubereich bis zum Mastkopf, nicht nur bis
-zur Jochachse. Ohne Längenangabe endet er bei H: dort ragt der Mast nur den
-Mindestüberstand hinaus, und darauf sitzt nichts.</p>
-
-<p><b>Der Überstand trägt keine Einspannung.</b> Er ist ein Kragarm mit
-eigenen Lasten und macht die Drehfeder des Jochendes nicht weicher; in c_φ
-steht deshalb H und nicht L_M.</p>
-
-<p class="hb-quelle">core.auflager.js · data.masten.js · render.3d.js</p>
-
-<p class="hb-quelle">core.statics.js · core.auflager.js</p>
+<p class="hb-quelle">core.lasten.js · <code>lastfaelle</code></p>
 `,
 },
 
 // ===========================================================================
 {
-  id: 'querschnitt',
-  titel: '5 · Vom Ersatzbalken zum Querschnitt',
+  id: 'anbauteile',
+  titel: '6 · Anbauteile',
   html: `
-<p>Der Ersatzbalken liefert M_y, V_z, M_z, V_y, T und N. Diese sechs Grössen
-werden auf die vier Eckwinkel und die vier Blechebenen verteilt.</p>
-
-<h4>5.1 Normalkräfte der Gurtwinkel</h4>
-<p>Die Hauptbiegung wird als reines <b>Kräftepaar</b> zwischen Ober- und
-Untergurt abgetragen. Die Gurtkraft ist M_y/h – unabhängig vom Flächenverhältnis
-–, je Winkel also die Hälfte davon:</p>
-
-${f(`N_My = M_y / (2h)&nbsp;&nbsp;&nbsp; positives Feldmoment → Obergurt Druck<br>
-N_Mz = (M_z / b) · A_Gurt/ΣA&nbsp;&nbsp;&nbsp; Kräftepaar der beiden Vertikalebenen<br>
-N_ax = N · A_Winkel / ΣA&nbsp;&nbsp;&nbsp; Normalkraft in Jochachse, flächenproportional`)}
-
-${skizze('Zwei Kräftepaare: M_y zwischen den Gurten, M_z zwischen den Seiten',
-  '0 0 430 232', [
-    // Querschnitt
-    `<rect class="kasten" x="150" y="62" width="150" height="106"/>`,
-    winkel(150, 62), winkel(300, 62), winkel(150, 168), winkel(300, 168),
-    // M_y: Kräftepaar oben/unten, senkrecht zur Zeichenebene
-    rein(150, 42), rein(300, 42),
-    txt(225, 32, 'N = M_y / 2h &nbsp; Druck', 'acc'),
-    raus(150, 190), raus(300, 190),
-    txt(225, 212, 'N = M_y / 2h &nbsp; Zug', 'acc'),
-    // M_z: Kräftepaar links/rechts
-    txt(96, 100, 'N = M_z / b', 'acc', 'middle'),
-    rein(96, 115), raus(354, 115),
-    txt(354, 100, 'N = M_z / b', 'acc', 'middle'),
-    // Masse
-    mass(150, 180, 300, 180, 'b', 16),
-    mass(324, 62, 324, 168, 'h'),
-    txt(225, 118, 'reines Kr&auml;ftepaar &mdash;', 'dim'),
-    txt(225, 134, 'die Fl&auml;chen k&uuml;rzen sich heraus', 'dim'),
-  ].join(''))}
-
-<h4>5.2 Torsion als Schubfluss (Bredt)</h4>
-<p>Das Joch ist ein <b>geschlossener Kasten</b>: vier Ebenen, jede über
-Bindebleche zu einem Rahmen geschlossen. Ein Torsionsmoment läuft deshalb als
-umlaufender Schubfluss:</p>
-
-${f(`q_T = T / (2 · A_m)&nbsp;&nbsp; mit A_m = b · h<br>
-Vertikalebene:&nbsp;&nbsp; V_T = q_T · h = T / 2b<br>
-Horizontalebene: V_T = q_T · b = T / 2h`)}
-
-<p>Die Kontrolle geht auf: die beiden Wände einer Richtung bilden ein Kräftepaar,
-sein Moment ist Kraft mal Hebelarm (nicht zweimal):</p>
-
-${f(`V_vert · b + V_horiz · h = T/2 + T/2 = T`)}
-
-${skizze('Der Schubfluss läuft um den geschlossenen Kasten und trägt sich je zur ' +
-         'Hälfte über die senkrechten und die liegenden Ebenen ab',
-  '0 0 430 228', [
-    `<rect class="am" x="150" y="58" width="152" height="108"/>`,
-    `<rect class="kasten" x="150" y="58" width="152" height="108"/>`,
-    winkel(150, 58), winkel(302, 58), winkel(150, 166), winkel(302, 166),
-    // Umlaufender Schubfluss
-    pf(178, 58, 274, 58), pf(302, 86, 302, 138),
-    pf(274, 166, 178, 166), pf(150, 138, 150, 86),
-    txt(226, 108, 'A_m = b · h', 'dim'),
-    txt(226, 46, 'q_T = T / 2A_m', 'acc'),
-    // Ebenenkräfte
-    txt(318, 100, 'V_T = q_T·h', 'acc', 'start'),
-    txt(318, 114, '= T / 2b', 'acc', 'start'),
-    txt(226, 212, 'V_T = q_T·b = T / 2h', 'acc'),
-    // Masse
-    mass(150, 178, 302, 178, 'b', 16),
-    mass(128, 58, 128, 166, 'h'),
-
-  ].join(''))}
-
-${q(`Der Schubfluss trägt sich damit <b>je zur Hälfte</b> über die vertikalen und
-die horizontalen Ebenen ab. Wahlweise lässt sich die konservative Annahme
-rechnen, die ganze Torsion allein den Vertikalebenen zuzuweisen (V_T = T/b) –
-doppelt so gross, und die Mitwirkung der liegenden Ebenen bleibt ungenutzt.`)}
-
-<h4>5.3 Querkraft je Ebene</h4>
-<p>Die beiden Ebenen einer Richtung teilen sich die Balkenquerkraft hälftig; der
-Torsionsanteil addiert sich auf der einen Seite und zieht auf der anderen ab.
-Dazu kommt der örtliche Anteil aus der Lasteinleitung (Abschnitt 7). Wie die
-drei überlagert werden, ist <b>wählbar</b>:</p>
-
-${f(`Hüllkurve &nbsp;&nbsp; V_Ebene = |V| / 2 &nbsp;+&nbsp; V_T &nbsp;+&nbsp; V_lokal`)}
-
-<p>Diese Form gibt <b>beiden</b> Ebenen einer Richtung denselben Wert – den der
-ungünstigeren. Sie ist nie unsicher, aber Ober- und Unterblech bekommen
-zwangsläufig dasselbe η, und das widerspricht dem, was ein Stab- oder
-FEM-Modell zeigt.</p>
-
-${f(`vorzeichenrichtig &nbsp;&nbsp; V_Ebene = | V / 2 &nbsp;±&nbsp; V_T | &nbsp;+&nbsp; V_lokal`)}
-
-<p>Der Schubfluss <b>läuft um</b>: er addiert sich auf der Ebene, zu der die Last
-exzentrisch sitzt, und zieht auf der gegenüberliegenden ab. Eine Kraft in y
-unterhalb der Jochachse – eine Hängestütze – beansprucht damit das
-<b>untere</b> Blech stärker; ein Aufsatz über dem Joch das obere.</p>
-
-${q(`Beide Anteile gehen mit Vorzeichen ein, nicht nur die Torsion. Querkraft und
-Torsion wechseln am Lastangriff <b>gemeinsam</b> das Vorzeichen – beide laufen
-von dort zu den Auflagern –, ihr Verhältnis bleibt also über die ganze Länge
-gleich. Nimmt man nur eines vorzeichenbehaftet, springt die massgebende Ebene
-am Anbauteil fälschlich auf die andere Seite.`)}
-
-<p>Das <b>höchste</b> η ändert sich dabei nicht: auf der Ebene, wo beides
-gleichsinnig läuft, ist |V + V_T| = |V| + V_T – genau die Hüllkurve.
-Vorzeichenrichtig zu rechnen entlastet nur die andere Ebene. Der örtliche
-Anteil bleibt in beiden Formen additiv auf beiden Ebenen.</p>
-
-${q(`Weisung vom 17. September: den örtlichen Anteil im Weg «vorzeichenrichtig»
-mit Vorzeichen führen, den Drehsinn am Stabmodell bestimmen – und danach:
-«abminderung soweit wie sinnvoll um so nahe wie möglich an die fem berechnung
-zu kommen».`)}
-
-<p><b>Vorzeichenrichtig gemessen, nicht übernommen.</b> An 72 Stellen neben
-einer Einleitung (J90 bis J130) lag die vorzeichenrichtige Form an 10 bzw. 20
-Stellen unter dem Stabmodell, bis auf 47 %. Der örtliche Anteil bleibt
-additiv – aber <b>abgemindert</b>:</p>
-
-${f(`V_lokal = k_L · ΔF &nbsp;&nbsp; k_L = 0.45 (einseitig befestigt) · 0.25 (über alle vier Gurte)`)}
-
-<table class="dt">
-<tr><th>Befestigung</th><th>k_L</th><th>Messung</th></tr>
-<tr><td>nur oben oder unten</td><td>0.45</td><td>die Grenze: darunter liegt eine Stelle
-    unter dem Stabmodell</td></tr>
-<tr><td>über alle vier Gurte</td><td>0.25</td><td>auch 0 bliebe überall sicher; ein Rest
-    bleibt, weil die Messung auf einer Laststellung steht</td></tr>
-</table>
-<p>Im Stabmodell tragen die Bleche neben der Klemme weit weniger, als das volle
-Kräftepaar sagt – es geht über die Gurte. An den Vorlagen (J90, 20 m) sinkt
-das Gesamt-η um bis zu 3 %. Die verbleibende Überschätzung sitzt dicht an der
-Klemme, wo die Aufteilung nach Hebelarm (7.3) mehr auf ein Blech legt, als das
-Stabmodell zeigt; sie ist Sache der Verteilung, nicht des Faktors
-(kalibrieren.mjs --nur oertlich).</p>
-
-${q(`Die Drehsinne sind an einem Stabmodell kalibriert, nicht hergeleitet. Ohne
-Drehsinn kein Vorzeichen: rechnet man die Torsion selbst als Hüllkurve
-(Abschnitt 4), fällt die Einstellung auf die Hüllkurve zurück.`)}
-
-<p class="hb-quelle">core.querschnitt.js · <code>torsionsSchubfluss</code>,
-<code>ebenenQuerkraefte</code>, <code>eckNormalkraefte</code>, <code>EBENEN</code></p>
-`,
-},
-
-// ===========================================================================
-{
-  id: 'vierendeel',
-  titel: '6 · Vierendeel-Wirkung: Gurte und Bleche',
-  html: `
-<p>Zwischen zwei Blechen wirkt jede Ebene als Rahmen ohne Diagonale. Die
-Ebenenquerkraft erzeugt deshalb im Gurt eine <b>örtliche Biegung</b> mit
-Momentennullpunkt in Feldmitte.</p>
-
-<h4>6.1 Örtliches Gurtmoment</h4>
-${f(`M_Knoten = V_Ebene · α_Gurt · (a₁ / 2)`)}
-
-<p>Die Ebenenquerkraft teilt sich auf die zwei Gurte der Ebene, der Hebelarm bis
-zum Nullpunkt ist die halbe Feldweite. In den <b>Horizontalebenen</b> stehen
-zwei gleiche Gurte nebeneinander, dort ist α = ½ und die Sache erledigt. In den
-<b>Vertikalebenen</b> stehen Ober- und Untergurt nebeneinander, bei den meisten
-Typen mit verschiedenen Profilen – und dort zieht der steifere Gurt Moment an
-sich.</p>
-
-<h4>6.1.1 Wie sich die Ebenenquerkraft auf die beiden Gurte teilt</h4>
-<p>Gemessen wurde es zweimal, unabhängig voneinander. Erstens direkt: in einem
-PyNite-Stabmodell des Signaljochs (I_OG/I_UG = 2.45) wurden die
-<b>Gurtendmomente</b> an jeder Station und je Lastfall abgelesen. Zweitens
-indirekt, über den stellenweisen Spannungsvergleich gegen ein AxisVM-Modell.</p>
-
-${f(`hälftig&nbsp;&nbsp; 50.0 %&nbsp;&nbsp;&nbsp;
-GEMESSEN&nbsp;&nbsp; 57.5 … 61.2 %, Mittel 59.4 %&nbsp;&nbsp;&nbsp;
-nach I&nbsp;&nbsp; 71.1 %`)}
-
-<p>Der Rahmen gleicht also aus: Bleche und Knotennachgiebigkeit ziehen die
-Aufteilung zur Hälfte zurück. Die reine I-Aufteilung schiesst über das Ziel
-hinaus. Gerechnet wird deshalb mit einer <b>gedämpften</b> Aufteilung</p>
-
-${f(`α_Gurt = 0.5 + k · ( I_Gurt / ΣI − 0.5 ),&nbsp;&nbsp; k = 0.45`)}
-
-${q(`Die Messmethode ist belegt: dasselbe Stabmodell mit <b>gleichen</b> Gurten
-liefert an jeder Station exakt 50.0 %. Aber es ist EIN Modell und EIN
-Steifigkeitsverhältnis – k ist gefittet, nicht hergeleitet. Und der Mittelwert
-verdeckt eine Spanne von 51 bis 71 %: an einzelnen Stationen liegt diese
-Aufteilung für den einen oder anderen Gurt zu tief.`)}
-
-<p><b>Die Bleche werden dabei schubweich gerechnet.</b> Sie sind kurz und
-gedrungen und arbeiten in doppelter Krümmung; ihr Schubanteil
-φ = 12EI/(GA_sL²) beträgt 16 bis 45 %. Der PyNite-Export setzt dafür ein
-Ersatzträgheitsmoment I/(1+φ) ein, das die Steifigkeit in genau dieser
-Verformungsform trifft – PyNite selbst kennt nur Bernoulli-Stäbe. Ohne diese
-Korrektur wären die Bleche zu steif und die gemessene Aufteilung zu scharf:
-59.4 statt 58.8 %. Der Unterschied ist kleiner, als die Grössenordnung von φ
-befürchten lässt.</p>
-
-<p><b>Vorgabe ist «gemessen».</b> Das ist eine Entscheidung des Auftraggebers,
-und sie <b>senkt</b> die Bemessungswerte: bei Typen mit ungleichen Gurten um 4
-bis 17 % gegenüber der Alternative «einhüllend». Dafür trifft sie im
-stellenweisen Vergleich die Vertikallastfälle auf −3 bis +6 %, wo «einhüllend»
-bei +10 bis +21 % liegt. Wer beide Gurte gleichzeitig auf der sicheren Seite
-haben will, wählt «einhüllend» – dessen Anteile ergänzen sich dann aber zu mehr
-als eins, das Blech bekommt also mehr als die Summe der Gurtmomente.</p>
-
-<h4>6.1.2 Eigenanteil der Gurte am globalen Moment</h4>
-<p>Der Rechenkern idealisiert das Joch als <b>Kräftepaar</b>: das globale
-Moment wird allein über die Normalkräfte der vier Winkel abgetragen. Das
-unterschlägt einen Term. Nach der Ebenbleibenshypothese trägt jeder Winkel das
-globale Moment auch über sein <b>eigenes</b> Trägheitsmoment mit:</p>
-
-${f(`I_ges = Σ ( A_i · e_i² ) + Σ I_i &nbsp;&nbsp;&nbsp;
-M_eigen,i = M_global · I_i / I_ges`)}
-
-<p>Der Anteil ist klein – beim nachgerechneten Signaljoch 1.0 % um die
-waagrechte und 1.5 % um die lotrechte Achse. Aber er läuft mit dem
-<b>globalen Moment</b> und nicht mit der Querkraft. In Feldmitte, wo die
-Querkraft und damit das örtliche Rahmenmoment gegen null gehen, ist er
-deshalb das <b>einzige</b> Moment im Gurt.</p>
-
-<p><b>Gemessen</b> am eingespannten Beispieljoch unter reiner Querlast,
-Grundrissmoment im Obergurtwinkel [kNm]:</p>
-
-<table class="dt">
-<tr><th>Station</th><th>4</th><th>8</th><th>12 (Feld)</th><th>20</th><th>24</th></tr>
-<tr><td>Stabwerk</td><td>0.328</td><td>0.288</td><td>0.197</td><td>0.285</td><td>0.386</td></tr>
-<tr><td>ohne den Term</td><td>0.291</td><td>0.167</td><td><b>0.056</b></td><td>0.167</td><td>0.291</td></tr>
-<tr><td>mit dem Term</td><td>0.364</td><td>0.283</td><td><b>0.195</b></td><td>0.283</td><td>0.364</td></tr>
-</table>
-
-<p>Über alle Stationen von <b>−43 %</b> auf <b>−4 %</b>, in Feldmitte von
-−72 % auf −1 %.</p>
-
-${q(`<b>Keine Abminderung auf den Anschnitt.</b> Der Eigenanteil folgt dem
-globalen Momentenverlauf und ist über eine Feldweite praktisch konstant –
-anders als das Rahmenmoment mit seinem Nulldurchgang in Feldmitte.
-<b>Die Normalkraft bleibt voll:</b> streng genommen trüge das Kräftepaar nur
-M·(1 − ΣI/I_ges), also 1 bis 1.5 % weniger. Das wird nicht abgezogen; die
-Summe liegt damit um diesen Betrag auf der sicheren Seite.`)}
-
-<h4>6.2 Steifer Knotenbereich – Abminderung am Anschnitt</h4>
-<p>Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit ihm
-verschweisst; über die Blechbreite b_Bl wirkt die Verbindung biegesteif.
-Massgebend ist deshalb nicht das Moment auf der Knotenachse, sondern das am
-<b>Anschnitt</b> des Blechs. Der Momentenverlauf ist linear mit Nullpunkt in
-Feldmitte, also</p>
-
-${f(`<b>M_Anschnitt = M_Knoten · ( a₁ − b_Bl ) / a₁</b>`)}
-
-${skizze('Ein Vierendeel-Feld: das Gurtmoment wird am Rand des Blechs abgelesen. ' +
-         'Grau hinterlegt der steife Knotenbereich, in dem Blech und Gurt verschweisst sind.',
-  '0 0 440 262', [
-    // Gurte
-    `<line class="b" x1="40" y1="56" x2="400" y2="56"/>`,
-    `<line class="b" x1="40" y1="152" x2="400" y2="152"/>`,
-    // Bindebleche
-    `<rect class="blech" x="100" y="56" width="24" height="96"/>`,
-    `<rect class="blech" x="316" y="56" width="24" height="96"/>`,
-    `<line class="d" x1="112" y1="40" x2="112" y2="250"/>`,
-    `<line class="d" x1="328" y1="40" x2="328" y2="250"/>`,
-    `<line class="d" x1="220" y1="152" x2="220" y2="250"/>`,
-    // Querkraft der Ebene
-    pf(60, 104, 60, 76, 'm'), txt(60, 120, 'V_Ebene / 2', 'dim'),
-    // Masse
-    mass(112, 172, 328, 172, 'a&#8321; (Feldweite)', 14),
-    mass(100, 34, 124, 34, 'b_Bl', -6),
-    // Momentenverlauf im Gurt
-    `<line class="hl" x1="60" y1="216" x2="400" y2="216"/>`,
-    `<line class="k" x1="112" y1="186" x2="328" y2="246"/>`,
-    `<rect class="steif" x="100" y="186" width="24" height="60"/>`,
-    `<rect class="steif" x="316" y="186" width="24" height="60"/>`,
-    knoten(112, 186, 3.2), knoten(124, 189.3, 3.2),
-    txt(108, 178, 'M_Knoten', 'acc', 'end'),
-    txt(140, 210, 'M_Anschnitt', 'acc', 'start'),
-    txt(236, 202, 'Nullpunkt in Feldmitte', 'dim', 'start'),
-
-  ].join(''))}
-
-<p>Jede Richtung bekommt ihre eigene Blechbreite: M_y aus den Vertikalebenen,
-M_z aus den Horizontalebenen.</p>
-
-<h4>6.2.1 Der Knotenbereich ist steif – so ist der Nachweis festgelegt</h4>
-<p>Ob der Überlappungsbereich als steif gilt, ist keine Rechenfrage, sondern
-eine <b>Festlegung des Nachweises</b>. Sie lautet: <b>steif</b>, nachgewiesen
-wird am Anschnitt. Das entspricht dem Stand der Technik für gegliederte Stäbe
-(EN 1993-1-1, Bild 6.11) und ist die Grundlage aller Nachweise dieses
-Werkzeugs.</p>
-
-<p>Ein Prüfmodell, das Stäbe von Schwerachse zu Schwerachse laufen lässt (so
-rechnet ein Stabwerksprogramm ohne Zutun), findet im Gurt das Knotenmoment und
-im Blech das volle Moment. Das <b>Knotenmoment selbst ist in beiden Fällen
-dasselbe</b> – nur die Stelle des Nachweises ändert sich. Diese zweite
-Einstellung steht in den Optionen zur Verfügung, damit ein solcher Vergleich
-ohne Umbau möglich ist; sie ist keine Nachweisgrundlage, und ein damit gerechneter Bericht vermerkt
-das unter den Hinweisen.</p>
-
-<table><tr><th>Typ</th><th>η steif</th><th>η Achse zu Achse</th></tr>
-<tr><td>J60 · 12 m</td><td>0.361</td><td>0.417 <b>+15 %</b></td></tr>
-<tr><td>J90 · 15.5 m</td><td>0.244</td><td>0.274 <b>+13 %</b></td></tr>
-<tr><td>J100 · 18 m</td><td>0.423</td><td>0.472 <b>+11 %</b></td></tr>
-<tr><td>J120 · 22 m</td><td>0.345</td><td>0.388 <b>+12 %</b></td></tr>
-<tr><td>J130 · 27 m</td><td>0.449</td><td>0.501 <b>+11 %</b></td></tr></table>
-
-${q(`Der Unterschied von 11 bis 15 % auf die Ausnutzung hängt an dieser
-Festlegung, nicht an einer Rechnung – deshalb steht er hier und nicht im
-Kleingedruckten. Am nachgerechneten Signaljoch trug allein diese Frage
-Faktor 1.3 bis 1.6 auf die Blechmomente.`)}
-
-<h4>6.2.2 Endfeldfaktor – die örtliche Einleitung der Torsion</h4>
-<p>In den beiden Endfeldern geht die Torsion des Jochs über die Anschlussebenen
-in den Mast. Das ist eine <b>örtliche Krafteinleitung</b>, und ein Ersatzbalken
-kann sie nicht abbilden – er kennt nur den Rahmenanteil. Angesetzt wird</p>
-
-${f(`M = M_Rahmen · ( 1 + (k_E − 1) · Anteil_Torsion / V_Ebene )&nbsp;&nbsp;&nbsp; k_E = 0.48`)}
-
-<p>auf die Bleche der beiden äussersten Stationen je Ende. <b>Nur auf den
-Torsionsanteil</b>, denn nur dort sitzt der Unterschied. Ein Joch ohne
-exzentrische Anbaulasten hat kaum Torsion und bleibt unberührt; nur das Moment
-wird verändert, die Querkraft folgt dem Rahmen.</p>
-
-<p>Der Wert stand bis zum 31. August auf 2.0 und stammte aus einem Vergleich
-gegen ein Modell, das <b>Achse zu Achse</b> rechnet, während dieses Werkzeug am
-Anschnitt nachweist. In den damals gemessenen 2.71 steckten deshalb zwei Dinge
-nebeneinander: die Einleitung und der Unterschied der Knotenmodelle.</p>
-
-<p>Nachgemessen wurde gegen ein Rahmenmodell mit <b>demselben</b> Knotenmodell,
-das der Nachweis benutzt – damit fällt die Vermischung weg. 24 Fälle über vier
-Jochtypen, zwei Bauarten und drei Lastanordnungen:</p>
-
-${f(`Querwind, Torsionsanteil 100 %&nbsp;&nbsp;&nbsp; k_E = 0.48&nbsp;&nbsp; (0.41 … 0.64)<br>
-Vertikallast, alle Anordnungen&nbsp;&nbsp;&nbsp; Verhältnis 0.90&nbsp; (0.76 … 1.04)`)}
-
-<p>Das Ergebnis kehrt die frühere Annahme um: der Ersatzbalken
-<b>überschätzt</b> das Endfeld, statt es zu unterschätzen. Der Grund steht in
-Abschnitt 6.1 – die Bredt-Torsion wird als Hüllkurve auf <b>alle vier</b>
-Ebenen gelegt, jede bekommt die ungünstigste. Wo Torsion das Bild bestimmt, ist
-das rund Faktor zwei; ein Zuschlag von 2.0 darüber ergab in der Summe das
-Vierfache.</p>
-
-${q(`Gemessen wird nur dort, wo der Torsionsanteil über 50 % liegt: k_E folgt
-aus k_E = 1 + (Verhältnis − 1)/Anteil und hat den Anteil im Nenner. Darunter
-verstärkt der Quotient jede Abweichung ins Masslose – mit einer Schwelle von
-5 % streuten dieselben Messungen von +1.18 bis −1.03. Angesetzt ist der
-Mittelwert 0.48; wer die Messung nirgends unterschreiten will, nimmt 0.65.
-In Feldmitte stimmen Werkzeug, Rahmenmodell und Vergleichsmodell ohnehin
-überein (0.26 / 0.23 / 0.10 kNm). Über den Optionswert 1.0 abschaltbar.`)}
-
-<h4>6.2.3 Schiefe Biegung der Gurtwinkel – der zweite Speiser der Bleche</h4>
-<p>Unter reiner Vertikallast rechnet der Rahmen für die <b>Horizontalbleche
-exakt null</b>: durch ihre Ebenen läuft keine vertikale Querkraft. Das geprüfte
-FEM-Modell zeigt dort aber Spannung, und zwar mit dem Verlauf der
-<b>Querkraftlinie</b> – am Auflager am grössten, in Feldmitte fast null.</p>
-
-<p>Die Ursache ist der Winkel selbst. Seine Hauptachsen liegen unter rund 45°
-zu den Schenkeln, also I_yz ≠ 0, und ein Moment um die schenkelparallele Achse
-krümmt ihn in <b>beide</b> Richtungen:</p>
-
-${f(`κ_z = ( M_z · I_y + M_y · I_yz ) / ( E · (I_y I_z − I_yz²) )`)}
-
-<p>Der Gurt will unter dem vertikalen Rahmenmoment seitlich ausweichen. Die
-beiden Gurte einer Horizontalebene sind Spiegelbilder, weichen also
-<b>gegeneinander</b> aus – und die Horizontalbleche halten dagegen. Umgekehrt
-genauso: unter Wind treibt M_z die Gurte vertikal, und die Vertikalbleche
-halten.</p>
-
-<p>Nach κ umgestellt verhält sich der Gurt quer zur Lastebene wie ein Balken
-mit der wirksamen Steifigkeit EI* und einem <i>eingeprägten</i> Moment:</p>
-
-${f(`EI* = E · (I_y I_z − I_yz²) / I_treib &nbsp;&nbsp;&nbsp;
-M_imp = − M_treib · I_yz / I_treib`)}
-
-<p>Das treibende Moment ist im Feld ein Sägezahn (null in Feldmitte, ±M_K am
-Knoten), die Krümmung daraus auch. Über ein Feld integriert, mit der Bedingung
-dass der Gurt im Mittel gerade bleibt, und mit dem Blech als Drehfeder zwischen
-zwei spiegelbildlich verdrehten Gurtenden:</p>
-
-${f(`β = I_p · a / ( 6 · L_c · I* )<br>
-M_Blech = 2 · |I_yz / I_treib| · M_treib,K · β / (1 + β)`)}
-
-<p>I_p ist das Trägheitsmoment des Blechs in seiner eigenen Ebene, L_c die
-lichte Länge, a die Feldweite. Beim L 100x100x10 mit einem 160 × 10er Blech
-sind das β = 0.82 und ein Faktor 0.53 auf das Gurtmoment.</p>
-
-<h5>Die Abminderung k_S = 0.70 – gemessen, nicht geschätzt</h5>
-
-<p>Die Herleitung setzt die <b>volle</b> Behinderung an: sie nimmt an, der Gurt
-bleibe im Mittel gerade. Das ist ihr einziger freier Punkt, und er fällt
-zugunsten der Sicherheit aus. Wieviel, lässt sich messen.</p>
-
-<p>Ein Stabmodell mit I_y und I_z in den <i>Schenkelachsen</i> kann den Vorgang
-gar nicht zeigen – die beiden Richtungen sind darin entkoppelt, I_yz kommt
-nicht vor. Mit den <b>Hauptachsen</b> und 45° Drehung zeigt PyNite ihn exakt.
-Am Kragarm nachgerechnet:</p>
-
-<table><tr><th>Drehung</th><th>quer / vertikal</th><th>erwartet</th></tr>
-<tr><td>0°</td><td>0.0000</td><td>entkoppelt</td></tr>
-<tr><td>+45°</td><td><b>0.5885</b></td><td>|I_yz| / I_z = 0.5885</td></tr>
-<tr><td>−45°</td><td>0.5885 (Vorzeichen gekehrt)</td><td>gespiegelt</td></tr></table>
-
-<p>Die Vertikalverschiebung traf dabei auf alle Stellen den Wert mit I*. Damit
-lässt sich je Fall <b>zweimal</b> rechnen – Gurte schenkelparallel und Gurte
-gedreht –, und die Differenz ist der reine Effekt: alles, was in beiden Läufen
-gleich wirkt, fällt heraus. Dieselbe Differenz bildet das Werkzeug, indem der
-Term an- und abgeschaltet wird.</p>
-
-${q(`<b>509 Messstellen</b>, vier Typen, je zwei Blecheinteilungen, drei
-Lastanordnungen:<br><br>
-k_S = <b>0.705</b> im Mittel, 0.52 bis 0.96 zwischen dem 5- und dem
-95-Prozent-Punkt.<br>
-Nach Typ: 0.56 (J90) · 0.65 (J120) · 0.73 (J100) · 0.82 (J130).<br><br>
-Angesetzt ist <b>0.70</b>. Ein Faktor auf β statt auf das Moment wurde
-mitgerechnet und verworfen – die Streuung bleibt damit grösser (24 statt
-22 %), die Systematik lässt sich so also nicht erklären.`)}
-
-<p><b>Gemessen wird nur unter Vertikallast.</b> Dort trägt das Horizontalblech
-ohne den Zusatz fast nichts – der Ausgangswert liegt im Mittel bei 11 % der
-Differenz –, und die Differenz <i>ist</i> der Zusatz. Unter Wind ist es
-umgekehrt: die Vertikalbleche tragen Torsion, der Zusatz ist ein Aufschlag
-darauf, und die Differenz misst vor allem, wie die gedrehten Gurte die Torsion
-anders verteilen. Dort streute k_S von −0.28 bis 1.29 statt eng um 0.70. Solche
-Stellen fallen heraus: der Ansatz gilt für beide Richtungen, <i>messbar</i> ist
-er nur dort, wo er das Bild bestimmt.</p>
-
-${q(`<b>Offen.</b> Der Vergleich am Signaljoch weiter unten fand das Werkzeug
-<i>mit</i> dem Term nur 9 bis 20 % über AxisVM. Diese Messung sagt, der Term
-allein sei 30 % zu gross. Beides zusammen geht nicht auf. Der Unterschied liegt
-vermutlich darin, dass das Stabmodell die Gurte auf ihren Schwerachsen führt,
-während der Winkel wirklich mit <b>einem</b> Schenkel am Blech hängt. Wer es
-genau wissen will, misst denselben Fall in AxisVM nach.`)}
-
-${q(`<b>Dieses Moment kommt ohne Querkraft.</b> Die beiden Blechenden tragen es
-mit gleichem Betrag – konstantes Moment über die Länge. Deshalb erhöht es σ,
-aber nicht τ, und es wird weder auf den Anschnitt abgemindert (bei konstantem
-Moment ist der Anschnittwert der Knotenwert) noch vom Endfeldzuschlag erfasst
-(der gilt der Torsionseinleitung).`)}
-
-<p><b>Was es bringt</b>, gemessen am Signaljoch gegen AxisVM – noch
-<i>ohne</i> die Abminderung k_S, also mit dem vollen hergeleiteten Term:</p>
-
-<table><tr><th>Lastfall</th><th>Blech</th><th>ohne</th><th>mit</th></tr>
-<tr><td>Eigengewicht</td><td>horizontal</td><td>−100 %</td><td><b>+12 %</b></td></tr>
-<tr><td>Anbaulast</td><td>horizontal</td><td>−100 %</td><td><b>+9 %</b></td></tr>
-<tr><td>Schnee</td><td>horizontal</td><td>−100 %</td><td><b>+20 %</b></td></tr>
-<tr><td>Wind quer</td><td>vertikal</td><td>−44 %</td><td><b>−25 %</b></td></tr>
-<tr><td>Wind quer</td><td>horizontal</td><td>+11 %</td><td>+19 %</td></tr></table>
-
-<p>Stelle für Stelle folgt der Verlauf jetzt der Querkraftlinie: über 25 der
-27 Stationen liegt das Horizontalblech unter Eigengewicht innerhalb ±25 %,
-in Feldmitte gehen beide Modelle gegen null.</p>
-
-<p>Mit k_S = 0.70 fällt der Zusatz um ein Drittel; an einem J90 über 15 m
-sinkt die Ausnutzung des Bindeblechs von 0.432 auf 0.415 (ohne den Term wären
-es 0.380). Ob die Zeilen der Tabelle damit auf null oder darunter rutschen,
-ist <b>nicht nachgemessen</b> – dazu müsste derselbe Fall erneut in AxisVM
-gerechnet werden.</p>
-
-${q(`<b>Voraussetzung</b> ist die spiegelsymmetrische Anordnung der vier
-Winkel – so ist jedes Tragjoch des Sortiments gebaut. Stünden sie parallel,
-wichen die Gurte gleichsinnig aus und die Bleche bekämen deutlich weniger.
-<b>Nicht angesetzt</b> ist das Rückstellmoment im Gurt selbst (rund 13 % seines
-örtlichen Rahmenmoments beim L 100x100x10): der Gurt wird von der Normalkraft
-bemessen, und der Term ginge in die beiden Spannungsmodelle verschieden ein.
-Hergeleitet, nicht gefittet – der einzige freie Punkt ist die Annahme, dass der
-Gurt im Mittel gerade bleibt. Abschaltbar unter Optionen.`)}
-
-<h4>6.3 Nachweis des Bindeblechs</h4>
-<p>Am Rahmenknoten treffen die Gurtmomente der angrenzenden Felder zusammen; das
-Blech muss ihre Summe aufnehmen. Aus seinem eigenen Gleichgewicht – doppelte
-Krümmung, Wendepunkt in Blechmitte – folgt die Blechquerkraft:</p>
-
-${f(`M_Blech,K = V_Ebene · ( a_links + a_rechts ) / 4<br>
-V_Blech = 2 · M_Blech,K / h₀`)}
-
-<p>Bei zwei gleich breiten Feldern ist das V·a₁/2, am Jochrand – wo nur ein Feld
-angrenzt – die Hälfte. Das entspricht der Regel für gegliederte Stäbe nach
-EN 1993-1-1 Bild 6.11 – dort mit T = V·a/(2h₀) bei <b>zwei</b> Blechen je Knoten;
-hier liegt je Ebene nur <b>eines</b>, also der doppelte Wert.</p>
-
-<p>Gerechnet wird mit den <b>örtlichen</b> Feldweiten, nicht mit ihrem Mittel: die
-Mass-Tabelle der Zeichnung teilt ungleich – beim J70 über 10 m sind die äusseren
-Felder 0.75 m breit, die inneren 0.66–0.67 m. Das Blech nimmt die Gurtmomente
-beider Nachbarfelder auf, also zählt ihre <b>Summe</b>; für das Moment im
-<b>Gurt</b> ist dagegen das <b>breitere</b> der beiden Felder massgebend, denn
-dort wird sein Endmoment am grössten. Mit der mittleren Feldweite gerechnet fiele
-das Blechmoment an den breiten Feldern rund 6 % zu klein aus.</p>
-
-<p>Auch das Blech wird am Anschnitt nachgewiesen. Zwischen den beiden steifen
-Enden liegt die lichte Länge L_c aus der Stückliste:</p>
-
-${f(`M_K = M_R + V·(h₀ − L_c)/2 &nbsp;&nbsp;und&nbsp;&nbsp; V = 2·M_R/L_c<br>
-⟹ &nbsp; <b>M_R = M_K · L_c / h₀</b> &nbsp;&nbsp; (V bleibt unverändert)`)}
-
-${skizze('Das Blech in doppelter Krümmung. M_K ist das Moment auf der Gurtachse, ' +
-         'M_R das am Rand des steifen Bereichs — nachgewiesen wird M_R.',
-  '0 0 430 232', [
-    // Gurte
-    `<line class="b" x1="60" y1="48" x2="300" y2="48"/>`,
-    `<line class="b" x1="60" y1="196" x2="300" y2="196"/>`,
-    txt(66, 40, 'Obergurt', 'dim', 'start'),
-    txt(66, 214, 'Untergurt', 'dim', 'start'),
-    // Blech mit steifen Enden
-    `<rect class="blech" x="168" y="48" width="34" height="148"/>`,
-    `<rect class="steif" x="168" y="48" width="34" height="22"/>`,
-    `<rect class="steif" x="168" y="174" width="34" height="22"/>`,
-    // Querkraft aus dem Gleichgewicht des Blechs
-    pf(140, 60, 166, 60), txt(134, 64, 'V', 'acc', 'end'),
-    pf(230, 184, 204, 184), txt(236, 188, 'V', 'acc', 'start'),
-    // Masse
-    mass(244, 70, 244, 174, 'L_c'),
-    mass(290, 48, 290, 196, 'h&#8320;'),
-    // Momentenverlauf des Blechs, doppelte Krümmung
-    `<line class="hl" x1="356" y1="48" x2="356" y2="196"/>`,
-    `<line class="k" x1="392" y1="48" x2="320" y2="196"/>`,
-    knoten(392, 48, 3.2), knoten(381.3, 70, 3.2),
-    txt(400, 44, 'M_K', 'acc', 'start'),
-    txt(400, 76, 'M_R', 'acc', 'start'),
-    txt(330, 140, 'Wendepunkt', 'dim', 'end'),
-
-  ].join(''))}
-
-${q(`Beide Stäbe werden damit am <b>Rand des starren Bereichs</b> nachgewiesen und
-nicht auf ihrer Schwerachse. Das ist die Antwort auf die Frage, was in der
-Überlappung von Blech und Gurt geschieht: der Bereich wird als starr behandelt,
-und die Schnittgrössen werden an seine Ränder gerechnet – dasselbe, was man in
-einem Stabwerksprogramm mit Starrelementen oder Endgelenk-Exzentrizitäten
-abbilden würde. Beim J90 mindert das die Gurtbeanspruchung um rund 14 %.`)}
-
-<p class="hb-quelle">core.querschnitt.js · <code>schnittAuswertung</code>,
-<code>blechNachweis</code></p>
-`,
-},
-
-// ===========================================================================
-{
-  id: 'einleitung',
-  titel: '7 · Lasteinleitung der Anbauteile',
-  html: `
-<p>Ein Anbauteil hängt nicht an einem Punkt am Joch, sondern ist an <b>vier
-Punkten</b> angeschlagen: je zwei am Ober- und am Untergurt, an den Stellen
-x ± Raster/2, auf der Schwerachse des jeweiligen Gurtes.</p>
-
-<h4>7.1 Globale Wirkung</h4>
-${f(`T_d = F_y · e_v &nbsp;+&nbsp; F_z · e_x &nbsp;+&nbsp; M_xx<br>
-M_yd = F_x · e_v + M_yy &nbsp;&nbsp;(eingeprägtes Moment)<br>
-N = F_x, &nbsp; P = F_z, &nbsp; H = F_y &nbsp;&nbsp;(je hälftig auf x₁ und x₂)`)}
-
-<p>An den globalen Schnittgrössen ändert die Aufteilung nichts – eine
-Resultierende bleibt eine Resultierende. Verteilt wird nur, <b>wo</b> die Last
-ins Joch eintritt.</p>
-
-<h4>7.2 Örtliche Wirkung: das Kräftepaar</h4>
-<p>Örtlich muss das Moment über die Anschlusspunkte in den Querschnitt eintreten,
-und <b>das</b> hängt davon ab, an wie vielen Gurten das Teil hängt:</p>
-
-<table class="dt">
-<tr><th>Befestigung</th><th>Kräftepaar</th><th>getragen von</th></tr>
-<tr><td>durchgehend (4 Punkte)</td><td>ΔF_y = T_d / h</td><td>Horizontalebenen</td></tr>
-<tr><td>oben oder unten (2 Punkte)</td><td>ΔF_z = T_d / b</td><td>Vertikalebenen</td></tr>
-</table>
-
-${skizze('Links durchgehend: Hebelarm h. Rechts einseitig: nur noch der Gurtabstand b',
-  '0 0 440 268', [
-    // --- links: durchgehend, Längsansicht ---
-    `<line class="b" x1="24" y1="56" x2="204" y2="56"/>`,
-    `<line class="b" x1="24" y1="146" x2="204" y2="146"/>`,
-    `<line class="d" x1="24" y1="101" x2="204" y2="101"/>`,
-    `<line class="b" x1="114" y1="56" x2="114" y2="212"/>`,
-    knoten(84, 56, 3.4), knoten(144, 56, 3.4),
-    knoten(84, 146, 3.4), knoten(144, 146, 3.4),
-    knoten(114, 212, 4.4),
-    pf(114, 212, 182, 212), txt(186, 216, 'F_y', 'acc', 'start'),
-    raus(84, 40), rein(144, 40),
-    raus(144, 162), rein(84, 162),
-    txt(114, 26, '&Delta;F_y = T_d / h', 'acc'),
-    mass(216, 56, 216, 146, 'h'),
-    pf(114, 186, 84, 186, 'm'), pf(114, 186, 144, 186, 'm'),
-    txt(152, 190, 'Raster', 'dim', 'start'),
-    txt(114, 244, 'durchgehend &mdash; vier Punkte', 'dim'),
-    txt(114, 258, 'L&auml;ngsansicht, y aus der Ebene', 'dim'),
-    // Trennlinie
-    `<line class="hl" x1="248" y1="20" x2="248" y2="252"/>`,
-    // --- rechts: einseitig, Querschnitt ---
-    `<line class="b" x1="296" y1="146" x2="392" y2="146"/>`,
-    winkel(296, 146), winkel(392, 146),
-    `<line class="d" x1="284" y1="101" x2="404" y2="101"/>`,
-    `<line class="b" x1="344" y1="146" x2="344" y2="212"/>`,
-    knoten(344, 212, 4.4),
-    pf(344, 212, 404, 212), txt(408, 216, 'F_y', 'acc', 'start'),
-    /*
-     * >>> DER DREHSINN FOLGT DER KRAFT. <<<
-     *
-     * Weisung vom 11. September: «hier sollten die verikalen richtungen
-     * vertauscht werden. sonst stimmt es nicht mit dem drehsinn infolge der
-     * karft f.»
-     *
-     * F_y greift UNTER der Gurtebene an und zeigt nach rechts. Das
-     * Torsionsmoment um die Jochachse ist damit
-     *
-     *     M_x = − z · F_y = −(−a)·F = +a·F     (z nach oben, a > 0)
-     *
-     * Das Kraeftepaar der beiden Gurtpunkte muss dasselbe liefern:
-     *
-     *     M_x = Σ (y · F_z) = (−b/2)·F_z,links + (+b/2)·F_z,rechts
-     *
-     * Fuer M_x > 0 heisst das: RECHTS nach oben, LINKS nach unten. Hier
-     * stand es umgekehrt - die Skizze zeigte den Gegendrehsinn.
-     */
-    pf(296, 142, 296, 190), pf(392, 150, 392, 106),
-    txt(344, 62, '&Delta;F_z = T_d / b', 'acc'),
-    txt(344, 80, 'gr&ouml;sser, weil b &lt; h', 'dim'),
-    pf(344, 176, 296, 176, 'm'), pf(344, 176, 392, 176, 'm'),
-    txt(292, 180, 'b', 'dim', 'end'),
-    txt(344, 244, 'nur am Untergurt &mdash; zwei Punkte', 'dim'),
-    txt(344, 258, 'Querschnitt, Blick in Jochachse', 'dim'),
-  ].join(''))}
-
-${q(`Der schmalere Hebelarm ist der ungünstigere. Da b (Gurtabstand quer)
-kleiner ist als h (Jochhöhe), ist die <b>einseitige</b> Befestigung die härtere
-Beanspruchung – und sie konzentriert sich zudem auf einen einzigen Gurt.`)}
-
-<p><b>Welches b.</b> Der Hebelarm ist der Abstand der beiden <i>Gurtkräfte</i>,
-also dasselbe Mass, das die Massvariante überall sonst wählt – nicht das
-Aussenmass jbb der Zeichnung. Früher stand hier jbb; über den Katalog gerechnet
-ist das 29 bis 42 % mehr:</p>
-
-<table class="dt"><tr><th>Typ</th><th>J70</th><th>J90</th><th>J100</th><th>J120</th><th>J130</th></tr>
-<tr><td>jbb / b</td><td>1.34</td><td>1.42</td><td>1.29</td><td>1.34</td><td>1.36</td></tr></table>
-
-<p>Das Kräftepaar fiel damit um denselben Betrag zu klein aus – auf der
-<b>unsicheren</b> Seite, und ausgerechnet beim einseitigen Anschluss, der
-ohnehin der härtere ist. Mit einer Hängestütze in Feldmitte steigt die Spannung
-im Vertikalblech an der Anbaustelle um 26 bis 41 %; ob die Ausnutzung des Jochs
-mitgeht, hängt davon ab, ob die Anbaustelle die massgebende Station ist – beim
-J70 und J90 ja (η 0.77 → 0.99 bzw. 0.61 → 0.67), bei den grösseren Typen bleibt
-das Auflager massgebend.</p>
-
-${q(`Die Korrektur steht auf <b>mechanischer Begründung, nicht auf einer
-Messung</b>. Das geprüfte FEM-Modell enthält nur durchgehend befestigte Teile;
-am verwandten Entscheid dort (h gegen jd) macht der Hebelarm rund
-5 Prozentpunkte aus gegen 80 bis 230 % aus der Einleitung auf eine einzelne
-Station – er ist darunter nicht auflösbar. Gegen AxisVM verbessert die
-Korrektur die Übereinstimmung also nicht; sie stellt die Systematik her.`)}
-
-<h4>7.3 Verteilung auf die Blechstationen</h4>
-<p>Eine Kraft, die zwischen zwei Blechen eintritt, verteilt sich auf beide – nach
-dem Hebelarm, wie jede Lasteinleitung zwischen zwei Knoten:</p>
-
-${f(`Anteil links = ( x_r − p ) / ( x_r − x_l )<br>
-Anteil rechts = ( p − x_l ) / ( x_r − x_l )`)}
-
-${skizze('Die Kraft teilt sich nach dem Hebelarm auf die zwei Nachbarbleche — ' +
-         'stetig über den ganzen Raster, ohne Sprung am Feldrand',
-  '0 0 430 196', [
-    `<line class="b" x1="40" y1="104" x2="392" y2="104"/>`,
-    // Bleche
-    `<rect class="blech" x="106" y="82" width="12" height="44"/>`,
-    `<rect class="blech" x="298" y="82" width="12" height="44"/>`,
-    txt(112, 74, 'x_l', 'dim'), txt(304, 74, 'x_r', 'dim'),
-    // Eingeleitete Kraft
-    pf(250, 34, 250, 96), txt(242, 40, 'F bei p', 'acc', 'end'),
-    `<line class="d" x1="250" y1="34" x2="250" y2="150"/>`,
-    // Anteile
-    pf(112, 116, 112, 137), txt(112, 152, '0.30 F', 'acc'),
-    pf(304, 116, 304, 165), txt(304, 180, '0.70 F', 'acc'),
-    // Masse
-    mass(112, 62, 250, 62, 'p &minus; x_l'),
-    mass(250, 62, 304, 62, 'x_r &minus; p'),
-
-  ].join(''))}
-
-<p>Ausserhalb des Rasters fällt alles auf die Randstation; dort gibt es kein
-Nachbarblech, das mittragen könnte.</p>
-
-${q(`Diese Aufteilung ist der Grund, warum η nicht mehr sprunghaft vom
-Anschlussraster abhängt. Zuvor wurde alles im Fenster ±a₁/2 <b>einem</b> Blech
-zugeschlagen; 5 cm mehr Raster liessen die Einleitung ins Nachbarfeld kippen und
-η um über 25 % fallen. Heute ist der grösste Schritt über den Bereich
-0.60 – 0.80 m rund <b>5 %</b>.`)}
-
-<h4>7.4 Überlagerung</h4>
-<p>Das Kräftepaar wird zur Ebenenquerkraft <b>addiert</b>, nicht gemittelt und
-nicht gegen den globalen Schubfluss abgeglichen. Liegen beide Einleitungsstellen
-am selben Blech, muss dieses Blech das ganze Paar übertragen. Das ist bewusst
-konservativ – und es gilt auch dann, wenn die Ebenen vorzeichenrichtig
-überlagert werden (Abschnitt 5.3): der örtliche Anteil kommt auf beiden Ebenen
-mit vollem Betrag dazu.</p>
-
-<h4>7.5 Ausleger: die Fahrleitung als Auflager</h4>
-<p>Ein Ausleger ist kein Kragarm. Sein äusseres Ende hält die Fahrleitung, und
-die ist durch den <b>Leiterzug</b> seitlich gespannt – sie wirkt dort als
-Auflager. Der Wind auf den Ausleger verteilt sich damit auf zwei Auflager:</p>
-
-${f(`F_Fahrleitung = (1 &minus; α) · F_Wind &nbsp;&nbsp;&nbsp;
-     F_Träger = α · F_Wind &nbsp;&nbsp;&nbsp; α = 0.5 als Vorgabe`)}
-
-<p>Nur der Anteil α kommt an diesem Joch an; den Rest trägt die Fahrleitung
-längs zu den Nachbaraufhängungen ab. Und er kommt dort an, wo der Ausleger
-angeschlagen ist: auf der <b>Achse des Trägers</b>. Verändert wird deshalb der
-Abstand in y – die <b>Höhe z bleibt</b>, der Hebelarm e_v zur Jochachse
-ändert sich nicht, die Kraft wird kleiner.</p>
-
-<p>Unangetastet bleiben Eigengewicht, Schnee, Wind in x – und die
-<b>Drahtwerke</b>: deren Windlast ist über die Spannweite L_FL bereits der
-Anteil, der an dieser Aufhängung ankommt; sie ein zweites Mal zu teilen wäre
-doppelt gezählt.</p>
-
-${q(`Diese Aufteilung ist eine <b>Modellannahme</b>, kein gerechneter Wert. Sie
-setzt voraus, dass die Fahrleitung am betrachteten Ausleger tatsächlich
-seitlich gehalten ist. Sie ist deshalb je Anbauteil einzeln zu setzen und
-standardmässig ausgeschaltet.`)}
-
-<p class="hb-quelle">core.anbauteile.js · <code>anbauteilLasten</code>,
-<code>stationsAnteil</code>, <code>lokaleQuerkraft</code> ·
-data.anbauteile.js · <code>windAufTraeger</code></p>
+<p>Ein Anbauteil besteht aus Bausteinen der Lasttabelle (Träger, Aufbau,
+Drahtwerk, Fläche) mit ihren Angriffspunkten. Vorlagen fassen typische
+Zusammenstellungen; eigene Vorlagen lassen sich speichern.</p>
+
+<h4>6.1 Lage und Kette</h4>
+<p>Vom Anschluss führt eine starre Kette zu jedem Lastpunkt. Sie fährt die
+Achsen in der Reihenfolge ab, in der sie eingegeben wurden, ohne Angabe z, y,
+x. Ein Träger mit Gesamtlänge (Hängestütze, Jochaufsatz, Ausleger, Konsole)
+hat seinen Lastpunkt in der Mitte der Länge; was am Ende hängt, wandert mit
+der Länge. Lasten über der Mastspitze hängen an einem starren Rohr; Lasten
+unter der Fundamentkote sind nicht zulässig.</p>
+
+<h4>6.2 Befestigung am Joch</h4>
+<p>Am Untergurt, am Obergurt oder an beiden, an zwei bzw. vier Punkten im
+Abstand des Rasters (meist 400 mm). Ein Leiter direkt am Joch hängt an zwei
+Punkten einer Gurtebene.</p>
+
+<h4>6.3 Teile am Masten</h4>
+<p>Höhe ab Mastfuss, x und y ab der Mastachse. Leiter direkt am Masten stehen
+auf der Mastachse.</p>
+
+<h4>6.4 Wind auf Ausleger und Hängestütze</h4>
+<p>Der Wind auf einen Ausleger wirkt wahlweise zur Hälfte auf die Achse des
+Trägers (Hängestütze oder Mast): den Rest trägt die gespannte Fahrleitung.
+Drahtwerke tragen ihren Wind über die Spannweite der Fahrleitung.</p>
+
+<h4>6.5 Gruppen und Bestand</h4>
+<p>Teile lassen sich zu Gruppen zusammenfassen (Name, Farbe, Verschieben).
+Mit dem Nachweis Bestandesschutz trägt jedes Teil das Kennzeichen «neu»
+(Abschnitt 14).</p>
+
+<p class="hb-quelle">core.anbauteile.js · data.anbauteile.js</p>
 `,
 },
 
 // ===========================================================================
 {
   id: 'nachweise',
-  titel: '8 · Nachweise',
+  titel: '7 · Nachweise der Bauteile',
   html: `
-<h4>8.1 Gurtwinkel</h4>
-<p>Elastisch, mit dem Bruttoquerschnitt, als <b>Summe der Beträge</b>:</p>
+<p>Material und Querschnitt nach EN 1993-1-1, f_yd = f_y / γ_M0 mit
+γ_M0 = 1.05. Die Schnittgrössen kommen aus dem Stabwerk, ausgewertet an den
+Stabenden und am Masten alle 0.5 m.</p>
 
-${f(`σ_v = |N| / A &nbsp;+&nbsp; M_y,lokal / W_y &nbsp;+&nbsp; M_z,lokal / W_z<br>
-η = σ_v / f_yd &nbsp;&nbsp; mit f_yd = f_y / γ_M0`)}
+<h4>7.1 Gurtwinkel</h4>
+${f(`σ = N / A &nbsp;+&nbsp; Biegung über die Hauptachsen (mit I_yz), an der ungünstigen Ecke<br>
+η = |σ| / f_yd`)}
+<p>Die Vorzeichen von N, M_y und M_z werden mitgeführt. Im Knotenbereich
+(steifer Abschnitt über die Blechbreite) wird am Anschnitt zum freien Gurt
+ausgewertet.</p>
 
-${q(`Die Betragssumme ist konservativ: sie unterstellt, dass Normalkraft und
-beide örtlichen Momente an <b>derselben</b> Querschnittsfaser ihr Maximum haben.
-Eine Interaktionsformel nach EN 1993-1-1 Abschnitt 6.2.9 würde günstiger
-ausfallen; sie ist bewusst nicht gerechnet.`)}
+<h4>7.2 Bindebleche</h4>
+${f(`σ = |N| / A + |M_y| / W_y + |M_z| / W_z &nbsp;&nbsp; τ = 1.5 · V / A<br>
+σ_v = √( σ² + 3τ² ) &nbsp;&nbsp; η = σ_v / f_yd`)}
+<p>Stehende Bleche, durchgeschweisst an den Gurt (EXC 2), lassen sich plastisch
+nachweisen:</p>
+${f(`η = N / N_pl + |M_y| / M_pl,y + |M_z| / M_pl,z &nbsp;&nbsp;
+t = min( Blech, dünnster Gurtschenkel )`)}
+<p>Liegende Bleche bleiben elastisch; Kehlnähte werden nicht nachgewiesen.</p>
 
-<h4>8.2 Bindebleche</h4>
-${f(`σ = M_R / W &nbsp;&nbsp; mit W = t·b²/6<br>
-τ = 1.5 · V / A &nbsp;&nbsp; (parabolische Schubverteilung im Rechteck)<br>
-σ_v = √( σ² + 3τ² ) &nbsp;&nbsp; (von Mises)`)}
+<h4>7.3 Masten</h4>
+<p>Querschnitt elastisch oder plastisch (Schalter), Querschnittsklasse nach
+EN 1993-1-1 Tab. 5.2. Torsion mit Wölbspannung σ_ω des offenen Profils.</p>
 
-<h4>8.3 Mast – nicht nachgewiesen</h4>
-<p><b>Dieses Werkzeug bemisst das Joch.</b> Der Mast steht darin als
-<i>Auflager</i>: sein Profil und seine Höhe bestimmen die Drehfeder des
-Jochendes (Abschnitt 4.1), und der Wind auf ihn zwingt dem Jochende eine
-Verdrehung auf (Abschnitt 4.3). Eine Ausnutzung des Mastes wird
-<b>nicht</b> ausgewiesen und geht nicht in η ein.</p>
+<h4>7.4 Knicken der Masten (SIA 263)</h4>
+${f(`N_cr = π²·E·I / L²&nbsp;&nbsp;&nbsp; λ̄ = √( N_pl / N_cr )&nbsp;&nbsp;&nbsp; χ nach Knickspannungslinie<br>
+η = N / N_b,Rd + k_y · M_y / M_y,Rd + k_z · M_z / M_z,Rd`)}
+<p>Knicklänge über den Knicklängenbeiwert β (Kragmast β = 2); die Lasten stehen
+auf ihrer Höhe. Der Nachweis ist abschaltbar.</p>
 
-${q(`Früher stand hier eine Nebenrechnung am Kragmast,
-σ_v = N/A + (|M_Joch| + w·H²/2)/W. Sie ist entfernt. Ein Mast trägt zwei
-Joche, hat eine Gründung, eine wirkliche Höhe über seinem eigenen Fusspunkt
-und meist einen anderen Nachbarn am zweiten Ende – all das steht in keiner
-Eingabe dieses Werkzeugs. Eine Zahl, die so tut, als wäre der Mast geprüft,
-ist schlechter als keine.`)}
+<h4>7.5 Gurtverbindung (Bügelschrauben)</h4>
+<p>Grösste Kraft in der Jochachse je Gurtanschluss gegen F_Grenz. Bei der
+Stufe «bis zur Grenze der Hakenschrauben» ist der Untergurt auf F_Grenz
+begrenzt.</p>
 
-<p>Der Nachweis der Maste gehört in ein <b>Rahmenmodell</b> mit beiden Masten.
-Das ist als Ausbaustufe vorgesehen; bis dahin sind die Mastkenngrössen im
-Bericht als Auflagerangaben geführt, ohne Ampel.</p>
+<h4>7.6 Gesamturteil</h4>
+<p>Maximum aller geführten Nachweise mit dem massgebenden Bauteil. Mit der
+Nachweisart «beide» zählt die Gebrauchstauglichkeit dazu. Abgeschaltete
+Nachweise stehen unter «nicht geführt» und zählen nie als erfüllt.</p>
 
-<h4>8.4 Querschnittsklassen</h4>
-<p>Jedes Bauteil wird einzeln nach EN 1993-1-1 klassifiziert, damit erkennbar
-bleibt, welches Teil die Klasse bestimmt. Klasse 3 wird als Warnung geführt;
-bei Klasse 4 wird deutlich ausgewiesen, dass elastisch mit dem Bruttoquerschnitt
-gerechnet wird und die Ausnutzung damit <b>auf der unsicheren Seite</b> liegt.</p>
-
-<h4>8.5 Massgebender Lastfall</h4>
-<p>Welcher Lastfall massgebend wird, lässt sich nicht ansehen – er wird
-gerechnet. Alle Nachweislastfälle laufen durch; ausgewiesen werden der
-ungünstigste und eine Umhüllende, die je Station den ungünstigsten Knoten
-übernimmt. Die beiden charakteristischen Lastfälle laufen mit, gehen aber weder
-in die Umhüllende noch in die Wahl des massgebenden Falls ein.</p>
-
-<h4>8.6 Das Gesamturteil</h4>
-${q(`Entscheid vom 17. September: «Maximum, mit Bauteil».`)}
-<p>Das Urteil in der Fussleiste, in der Übersicht und im Bericht nimmt das
-<b>grösste η aller geführten Bauteile</b> – Joch bzw. Abfangjoch, jeder Mast
-(mit Knicken, wenn geführt), Zuganker und Druckstützen – und nennt das
-massgebende: «η = 0.890 (Mast M1)». Ein abgeschalteter Nachweis zählt nicht
-mit; eine Druckstütze über der lieferbaren Länge gilt als nicht erfüllt. Die
-Kacheln darunter zeigen jedes Bauteil einzeln, und die Farbskala im Modell
-bleibt die des Jochs.</p>
-
-<p class="hb-quelle">core.querschnitt.js · core.klassen.js · core.vierendeel.js ·
-core.checks.js <code>bauteilUrteil</code></p>
+<p class="hb-quelle">core.stabnachweis.js · core.winkel.js · core.mast.js · core.stabmast.js</p>
 `,
 },
 
 // ===========================================================================
 {
-  id: 'raster',
-  titel: '9 · Knotenraster und Nachweisschnitt',
+  id: 'fundament',
+  titel: '8 · Fundament',
   html: `
-<p>Die Blechstationen folgen der Mass-Tabelle der Zeichnung: vom Jochende nach
-innen 750 mm, dann A_n … A_1, wobei A_1 das Feld in Jochmitte ist. Es gilt</p>
-
-${f(`L = 2 · 750 + 2 · ΣA`)}
-
-${skizze('Blecheinteilung nach der Mass-Tabelle: A₁ liegt in Jochmitte',
-  '0 0 440 190', [
-    `<line class="b" x1="40" y1="52" x2="400" y2="52"/>`,
-    `<line class="b" x1="40" y1="112" x2="400" y2="112"/>`,
-    // Bindebleche der Vertikalebene
-    ...[40, 85, 130, 175, 220, 265, 310, 355, 400].map((x) =>
-      `<rect class="blech" x="${x - 5}" y="52" width="10" height="60"/>`),
-    // Gabel: an den Enden fehlt das liegende Blech
-    txt(40, 40, 'Gabel', 'dim'), txt(400, 40, 'Gabel', 'dim'),
-    pf(40, 30, 40, 48, 'm'), pf(400, 30, 400, 48, 'm'),
-    // Felder anschreiben
-    ...[[62, '750'], [107, 'A&#8323;'], [152, 'A&#8322;'], [197, 'A&#8321;'],
-        [242, 'A&#8321;'], [287, 'A&#8322;'], [332, 'A&#8323;'], [377, '750']]
-      .map(([x, s]) => txt(x, 134, s, 'dim')),
-    `<line class="d" x1="220" y1="44" x2="220" y2="140"/>`,
-    txt(220, 156, 'Jochmitte', 'dim'),
-    mass(40, 174, 400, 174, 'jt'),
-  ].join(''))}
-
-<p>und diese Bedingung wird für jede Tabellenzeile geprüft. Braucht die Zeichnung
-eine gerade Feldzahl, schreibt sie das mittlere Feld als zwei halbe A_1 an; dann
-steht in Jochmitte kein Blech.</p>
-
-<h4>Die Gabel am Jochende</h4>
-<p>An beiden Jochenden steht nur ein <b>vertikales</b> Bindeblech; ein liegendes
-gibt es dort nicht. Das Jochende ist oben und unten offen – eine Gabel, mit der
-das Joch am Mast montiert wird. Die Stückzahlen der Zeichnung belegen das: die
-Vertikalebene hat je Ebene genau zwei Bleche mehr als die Horizontalebene.</p>
-
-<h4>Lage des Nachweisschnitts</h4>
-${q(`Der Nachweisschnitt liegt <b>immer mittig zwischen zwei Blechen</b>. Nur
-dort schneidet man einen Gurt in seinem Feld und nicht durch einen Rahmenknoten;
-ein Schnitt genau durch ein Blech wäre mehrdeutig, weil dort das örtliche
-Gurtmoment springt.`)}
-
-<p>An den Schnitt grenzen zwei Bleche. Beide werden gerechnet und ausgewiesen;
-massgebend ist das ungünstigere.</p>
-
-<p class="hb-quelle">core.statics.js · <code>knotenraster</code> ·
-core.vierendeel.js · <code>schnittstellen</code></p>
-`,
-},
-
-// ===========================================================================
-{
-  id: 'grenzen',
-  titel: '10 · Modellgrenzen',
-  html: `
-${q(`Dieser Abschnitt ist der wichtigste des Handbuchs. Er sagt, was das Werkzeug
-<b>nicht</b> rechnet – und damit, wofür der Anwender selbst geradesteht.`)}
-
-<h4>10.1 Was gar nicht gerechnet wird</h4>
-<table class="dt">
-<tr><th>Nicht enthalten</th><th>Folge für den Anwender</th></tr>
-<tr><td><b>Stabilität</b>: Knicken, Biegedrillknicken, Beulen</td>
-    <td>Der Druckgurt wird nur auf Spannung nachgewiesen. Bei langen Jochen und
-    schlanken Winkeln ist der Knicknachweis <b>separat</b> zu führen.</td></tr>
-<tr><td><b>Verformungen</b>, Gebrauchstauglichkeit</td>
-    <td>Es wird keine Durchbiegung ausgewiesen. Ob das Joch die Anforderungen
-    an die Fahrdrahtlage einhält, prüft das Werkzeug nicht.</td></tr>
-<tr><td><b>Schweissnähte und Anschlüsse</b></td>
-    <td>Die Naht Blech–Gurt, die Gabel am Jochende und die Verbindung zum Mast
-    sind nicht bemessen.</td></tr>
-<tr><td><b>Ermüdung</b></td>
-    <td>Nicht betrachtet. Bei Jochen mit bewegten Lasten oder winderregten
-    Schwingungen eigens zu prüfen.</td></tr>
-<tr><td><b>Fundament, Fussplatte, Baugrund</b></td>
-    <td>Das Auflagerblatt liefert die Kräfte; die Bemessung endet dort.</td></tr>
-<tr><td><b>Wölbkrafttorsion</b></td>
-    <td>Torsion wird als reiner Schubfluss im geschlossenen Kasten geführt
-    (St-Venant). Behinderte Verwölbung am Gabellager bleibt unberücksichtigt.</td></tr>
-<tr><td><b>Querschnittsklasse 4</b></td>
-    <td>Es wird elastisch mit dem Bruttoquerschnitt gerechnet – der wirksame
-    Querschnitt nach EN 1993-1-5 fehlt. Das liegt auf der
-    <b>unsicheren Seite</b> und wird als Hinweis ausgewiesen.</td></tr>
-</table>
-
-<h4>10.2 Wo das Modell vereinfacht</h4>
-<table class="dt">
-<tr><th>Annahme</th><th>Richtung</th></tr>
-<tr><td>Ersatzbalken statt Rahmenberechnung: die Vierendeel-Wirkung wird über
-    Ersatzformeln erfasst, nicht über ein Stabwerk. Momentenumlagerung durch
-    unterschiedliche Steifigkeiten der Felder wird nicht abgebildet.</td>
-    <td class="hb-neutral">neutral bis leicht unsicher</td></tr>
-<tr><td>Spannungen als Betragssumme statt Interaktionsformel</td>
-    <td class="hb-sicher">sicher</td></tr>
-<tr><td>Örtliches Kräftepaar der Anbauteile wird zum globalen Schubfluss addiert,
-    nicht überlagert abgeglichen</td>
-    <td class="hb-sicher">sicher</td></tr>
-<tr><td>Anbauteile gelten als starr; ihre Eigensteifigkeit trägt nicht mit</td>
-    <td class="hb-sicher">sicher</td></tr>
-<tr><td>Eigenträgheitsmomente der Winkel bleiben bei der Jochsteifigkeit
-    unberücksichtigt (Zwei-Gurt-Idealisierung)</td>
-    <td class="hb-sicher">sicher, wenige Prozent</td></tr>
-<tr><td>Einspannung wirkt nur auf M_y, nicht auf M_z</td>
-    <td class="hb-sicher">sicher für das Joch</td></tr>
-<tr><td>Torsion wahlweise als konstante Hüllkurve</td>
-    <td class="hb-sicher">sicher</td></tr>
-<tr><td>Hebelarm am verjüngten Jochende nach unten begrenzt – dort wirkt das Ende
-    nicht mehr als Vierendeelträger, sondern als voller Querschnitt</td>
-    <td class="hb-neutral">Näherung, wird ausgewiesen</td></tr>
-<tr><td>Wind x und Wind y wirken nie gleichzeitig</td>
-    <td class="hb-neutral">Festlegung; schräge Anströmung ist nicht abgedeckt</td></tr>
-</table>
-
-<h4>10.3 Grenzen der Eingangsdaten</h4>
-<p>Die Rechnung ist nur so gut wie die Typendatenbank. Blecheinteilung,
-Profilmasse und Laufmeterlasten stammen aus den Zeichnungen und werden nicht
-angepasst. Wer eine Spannweite ausserhalb des Sortiments eingibt, bekommt eine
-Warnung – aber trotzdem ein Ergebnis; ob der Typ dort noch sinnvoll ist,
-entscheidet der Anwender.</p>
-
-${q(`Kurz: Das Werkzeug rechnet den <b>Feldnachweis eines regelkonformen
-Tragjochs</b>. Alles, was mit Stabilität, Anschlüssen, Verformung oder Ermüdung
-zu tun hat, gehört in eine eigene Betrachtung.`)}
-`,
-},
-
-// ===========================================================================
-{
-  id: 'pruefung',
-  titel: '11 · Prüfung und Nachvollzug',
-  html: `
-<p>Der Rechenkern trägt einen eigenen Prüfstand mit rund 400 Einzelkontrollen:
-Einheiten, Grenzfälle, Gleichgewichtskontrollen (etwa V_vert·b + V_horiz·h = T),
-Stetigkeit über den Anschlussraster und Vergleichswerte aus der Excel-Rechnung.
-Er läuft bei jeder Änderung.</p>
-
-<h4>Wie man einen Wert von Hand nachrechnet</h4>
-<ol class="hb-liste">
-<li>Im Reiter <b>Lastfälle</b> die Beiwerte des massgebenden Falls ablesen.</li>
-<li>Im Reiter <b>Schnitt</b> stehen zu jedem Nachweisschnitt die
-Schnittgrössen des Ersatzbalkens, die Ebenenquerkräfte mit ihren drei Anteilen
-(Balken, Torsion, örtlich) und das Gurtmoment am Knoten <b>und</b> am
-Anschnitt.</li>
-<li>Damit lässt sich jede Zeile mit den Formeln der Abschnitte 5 bis 7
-nachrechnen – die Zwischenwerte stehen alle da, nichts ist verborgen.</li>
-<li>Der Excel-Export enthält dieselben Zwischenwerte je Station.</li>
-</ol>
-
-${q(`Wenn eine Zahl nicht nachvollziehbar ist, ist das ein Fehler des Werkzeugs
-und kein Anlass, ihr zu glauben.`)}
-`,
-},
-// ===========================================================================
-{
-  id: 'axisvm',
-  titel: '12 · Ausleitung nach AxisVM',
-  html: `
-<p>Die Anwendung rechnet den Ersatzbalken selbst. Für den Nachweis am
-Stabwerk – und für alles, was über den Ersatzbalken hinausgeht – leitet sie
-ein <b>Stabmodell</b> aus: Knoten, Stäbe, Querschnitte, Lasten und Auflager.
-Vier Wege führen hinaus, alle aus derselben Quelle
-(<code>js/export.axisvm.js</code>):</p>
-
-<ol class="hb-liste">
-<li><b>COM-Brücke</b> – ein Skript baut das Modell in einer laufenden
-AxisVM-Sitzung auf und speichert es. Der genaueste Weg, weil er die
-Schnittstelle selbst bedient.</li>
-<li><b>JSON</b> – dieselbe Beschreibung als Datei, lesbar und ablegbar.</li>
-<li><b>SAF</b> – gebaut, aber vom COM-Weg überholt; der Import ist nie
-gelaufen.</li>
-<li><b>DXF</b> und <b>PyNite</b> – für die Zeichnung und für eine
-unabhängige Nachrechnung.</li>
-</ol>
-
-${q(`Gerechnet wird nicht. Lastkombinationen und Berechnung bleiben die
-Entscheidung des Benutzers im Programm – die Brücke baut auf und hört auf.`)}
-
-<h4>Vier Auflagermodelle</h4>
-<p>Wie das Joch gelagert wird, ist die Frage, die beim Nachbau eines
-geprüften Modells am teuersten war. Sie steht deshalb als eigene Wahl da:</p>
-<ol class="hb-liste">
-<li><b>punkt</b> – ein Knoten je Ende auf der Jochachse, mit der Drehfeder
-c_φ. Das ist der Ersatzbalken, eins zu eins.</li>
-<li><b>mitte</b> – wie punkt, aber über starre Arme an die Gurte gehängt.</li>
-<li><b>gurte</b> – die vier Gurtknoten je Ende einzeln gehalten.</li>
-<li><b>mast</b> – der Mast steht im Modell, bis zum Fundament. Keine Feder:
-die Nachgiebigkeit ergibt sich aus seiner Biegung.</li>
-</ol>
-
-<h4>Der Anschluss Joch → Mast</h4>
-<p>Er wird <b>je Gurtebene einzeln</b> gebaut, oben und unten gleich. Die
-beiden Gurtknoten einer Ebene liegen bei y = ±b/2; sie laufen über zwei
-<b>Starrstäbe</b> auf einen Sammelknoten zusammen, der auf der Jochachse
-liegt und 0.10 m nach innen versetzt ist. Von dort führt <b>ein
-Linkelement</b> zum Mastknoten.</p>
-
-${skizze('Draufsicht auf eine Gurtebene: zwei Gurtknoten, ein Sammelknoten, ein Link.',
-  '0 0 700 200', `
-  <line class="d" x1="60" y1="100" x2="660" y2="100"/>
-  <text class="dim" x="640" y="94">Jochachse (y = 0)</text>
-  <!-- Gurte -->
-  <line class="b" x1="180" y1="45" x2="660" y2="45"/>
-  <line class="b" x1="180" y1="155" x2="660" y2="155"/>
-  <text class="dim" x="600" y="38">Gurt links</text>
-  <text class="dim" x="600" y="172">Gurt rechts</text>
-  <!-- Starrstaebe -->
-  <line class="hl" x1="180" y1="45" x2="260" y2="100" stroke-width="2.4"/>
-  <line class="hl" x1="180" y1="155" x2="260" y2="100" stroke-width="2.4"/>
-  <text class="dim" x="196" y="72">starr</text>
-  <text class="dim" x="196" y="140">starr</text>
-  <!-- Link -->
-  ${pf(260, 100, 130, 100, 'k')}
-  <text class="acc" x="150" y="122">Link</text>
-  <!-- Knoten -->
-  <circle class="kn" cx="180" cy="45" r="4.5"/>
-  <circle class="kn" cx="180" cy="155" r="4.5"/>
-  <circle class="kn" cx="260" cy="100" r="5.5"/>
-  <circle class="kn" cx="130" cy="100" r="5.5"/>
-  <text x="150" y="36">Mast</text>
-  <text class="dim" x="272" y="96">Sammelknoten</text>
-  ${mass(130, 178, 260, 178, '0.10 m')}
-  ${mass(168, 45, 168, 155, 'b')}
-`)}
-
-<p>Das Linkelement überträgt <b>Kräfte starr, Momente frei</b>. Der Anschluss
-gibt also kein Moment weiter – und trotzdem ist das Joch teilweise
-eingespannt. Das Einspannmoment entsteht <b>geometrisch</b>: verdreht sich
-das Jochende, zieht der eine Gurt und drückt der andere. Die beiden Kräfte
-stehen im Abstand h und bilden ein Kräftepaar.</p>
-
-${skizze('Ansicht: zwei Gurtebenen, zwei Links, ein Mast. Das Stützmoment ist das Kräftepaar M = F · h.',
-  '0 0 700 300', `
-  <!-- Mast -->
-  <line class="b" x1="150" y1="30" x2="150" y2="250" stroke-width="7"/>
-  <text class="dim" x="112" y="26">Mastkopf</text>
-  <!-- Fundament -->
-  <line class="hl" x1="105" y1="250" x2="195" y2="250" stroke-width="2"/>
-  ${[0, 1, 2, 3, 4].map((i) => `<line class="hl" x1="${110 + i * 20}" y1="250"
-     x2="${102 + i * 20}" y2="266"/>`).join('')}
-  <text class="dim" x="200" y="264">voll eingespannt</text>
-  <!-- Joch -->
-  <line class="b" x1="230" y1="90" x2="660" y2="90"/>
-  <line class="b" x1="230" y1="150" x2="660" y2="150"/>
-  ${[0, 1, 2, 3, 4, 5].map((i) => `<line class="hl" x1="${250 + i * 70}" y1="90"
-     x2="${250 + i * 70}" y2="150" stroke-width="1.6"/>`).join('')}
-  <text class="dim" x="600" y="82">Obergurt</text>
-  <text class="dim" x="600" y="168">Untergurt</text>
-  <!-- Links -->
-  ${pf(230, 90, 155, 90, 'k')}
-  ${pf(230, 150, 155, 150, 'k')}
-  <circle class="kn" cx="150" cy="90" r="4.5"/>
-  <circle class="kn" cx="150" cy="150" r="4.5"/>
-  <circle class="kn" cx="230" cy="90" r="4.5"/>
-  <circle class="kn" cx="230" cy="150" r="4.5"/>
-  <text class="acc" x="166" y="82">Link OG</text>
-  <text class="acc" x="166" y="168">Link UG</text>
-  <!-- Kraeftepaar -->
-  ${pf(300, 70, 380, 70, 'k')}
-  ${pf(380, 170, 300, 170, 'k')}
-  <text class="acc" x="390" y="74">F</text>
-  <text class="acc" x="276" y="174">F</text>
-  ${mass(268, 90, 268, 150, 'h')}
-  <!-- Masthoehe -->
-  ${mass(120, 150, 120, 250, 'H')}
-  <text class="dim" x="60" y="196">Fuss bis</text>
-  <text class="dim" x="60" y="208">Jochachse</text>
-`)}
-
-<p>Der Mast selbst ist ein Stab mit dem wirklichen I-Querschnitt. Seine
-Drehlage folgt der <b>Stegrichtung</b>: liegt der Steg in der Jochachse, steht
-die Profilhöhe quer zum Gleis und damit die starke Achse dort, wo der Wind auf
-das Joch drückt. Gedreht ist es umgekehrt. Am Fuss ist er in allen sechs
-Freiheitsgraden gehalten.</p>
-
-<p>Der Stab wird dort <b>geteilt</b>, wo etwas an ihm hängt: jede Anbauhöhe
-bekommt einen Knoten, ebenso die beiden Gurtebenen und – bei angegebener
-Gesamtlänge – der Mastkopf über dem Joch. Eine Anbauhöhe ausserhalb des
-Mastes wird nicht gebaut; sie steht im Bericht, statt still zu fehlen.</p>
-
-<h4>Warum dieser Aufbau belegt ist</h4>
-<p>Am nachgerechneten Modell (J90 über 20 m, HEB 260, H = 7.5 m) ergibt das
-Feldmoment, auf die Drehfeder zurückgerechnet, <b>3.98 · E·I/H</b>. Der
-Lehrbuchwert des unverschieblichen Rahmens ist <b>4.00</b> – eine Abweichung
-von einem halben Prozent. Geometrie, Querschnitt, Anschluss und Einspannung
-stimmen also zusammen.</p>
-
-${q(`Der Rechenkern setzt seit dem 31. August ebenfalls 4.00 · E·I/H an; die
-Anwendung rechnet damit 27.57 kNm im Feld gegen die gemessenen 27.60 – eine
-Übereinstimmung auf ein Promille. Voraussetzung bleibt die volle Einspannung
-des Fundaments.`)}
-
-<h4>Was die Brücke nicht tut</h4>
-<ol class="hb-liste">
-<li>Sie <b>rechnet nicht</b>. Lastkombinationen und Berechnung bleiben im
-Programm.</li>
-<li>Sie <b>liest keine Ergebnisse zurück</b>. Die Schnittstelle dafür ist
-vermessen, aber nicht gebaut.</li>
-<li>Sie meldet jeden Schritt, den sie nicht ausführen konnte – lieber eine
-laute Warnung im Bericht als ein Modell, das klaglos Unsinn rechnet.</li>
-</ol>
-`,
-},
-// ===========================================================================
-{
-  id: 'abfangjoch',
-  titel: '13 · Das Abfangjoch',
-  html: `
-${q(`Die Abschnitte 1 bis 12 gelten dem <b>Tragjoch</b> – dem stehenden
-Vierendeelträger aus vier Winkelprofilen. Das Abfangjoch ist ein anderes
-Bauteil, und fast nichts davon gilt für es. Es hat einen eigenen Rechenkern
-(<code>core.abfangjoch.js</code>), und dieser Abschnitt ist seine Herleitung.`)}
-
-<h4>13.1 Was es ist</h4>
-<p>Das Abfangjoch nimmt die <b>Leiterzugkräfte</b> auf, nicht das Gewicht der
-Fahrleitung. Nach den Werkstattzeichnungen ist es ein <b>zweigurtiger,
-LIEGENDER Träger</b>: zwei UPE- oder IPE-Profile nebeneinander, durch
-Bindebleche und Quersteifen zu einem Rahmen verbunden.</p>
-
-<table class="dt">
-<tr><th></th><th>Tragjoch</th><th>Abfangjoch</th></tr>
-<tr><td>Gurte</td><td>vier Winkel</td><td>zwei UPE / IPE</td></tr>
-<tr><td>Blechebenen</td><td>vier (2 senkrecht, 2 liegend)</td><td>eine</td></tr>
-<tr><td>Rahmenebene</td><td>senkrecht</td><td><b>waagrecht</b></td></tr>
-<tr><td>grosse Kraft</td><td>Eigengewicht, Schnee, Wind</td>
-    <td><b>Leiterzug in Gleisrichtung</b></td></tr>
-</table>
-
-<p>Weil die Rahmenebene <b>waagrecht</b> liegt, wirkt der Leiterzug DARIN –
-genau dort, wo der Träger seine Vierendeel-Wirkung hat. Das Eigengewicht wirkt
-quer dazu, und dafür trägt jeder Gurt für sich.</p>
-
-<h4>13.2 Der Hebelarm des Kräftepaars</h4>
-<p>Das Moment der waagrechten Rahmenebene wird zum <b>Kräftepaar</b>: der eine
-Gurt zieht, der andere drückt.</p>
-
-${f(`N = M_Rahmen / e`)}
-
-<p><b>e ist der Abstand der SCHWERACHSEN</b>, nicht das Aussenmass k und nicht
-die lichte Weite. Die Zeichnung bemasst dreifach ineinander – bei A270 etwa
-735 | 600 | 465 mm: aussen über die Flanschspitzen, über die Stege, licht.
-Das MITTLERE ist <code>d</code>.</p>
-
-<table class="dt">
-<tr><th>Reihe</th><th>Lage des Stegs</th><th>Achsabstand e</th></tr>
-<tr><td>IPE</td><td>in der Profilmitte</td><td>e = d</td></tr>
-<tr><td>UPE</td><td>innen, Flansche nach aussen</td><td>e = d + 2·e_y</td></tr>
-</table>
-
-${skizze('Querschnitt des Abfangjochs: drei Masse ineinander, und nur eines '
-  + 'ist der Hebelarm', '0 0 430 190', [
-    // Zwei UPE nebeneinander, Stege innen, Flansche nach aussen.
-    `<rect class="kasten" x="96" y="70" width="26" height="72"/>`,
-    `<rect class="kasten" x="308" y="70" width="26" height="72"/>`,
-    `<line class="sysline-dash" x1="60" y1="106" x2="370" y2="106"/>`,
-    // Die Schwerachsen - sie liegen um e_y weiter aussen als die Stege.
-    `<line class="sp" x1="109" y1="56" x2="109" y2="156"/>`,
-    `<line class="sp" x1="321" y1="56" x2="321" y2="156"/>`,
-    txt(109, 50, 'Schwerachse', 'acc'),
-    txt(321, 50, 'Schwerachse', 'acc'),
-    mass(109, 168, 321, 168, 'e &mdash; der HEBELARM', 16),
-    mass(122, 148, 308, 148, 'd &mdash; Stege', 14),
-    mass(96, 186, 334, 186, 'k &mdash; aussen', 14),
-    txt(215, 100, 'N = M_Rahmen / e', 'acc'),
-    txt(215, 122, 'nicht / k und nicht / d', 'dim'),
-  ].join(''))}
-
-${q(`Beide Lesarten sind teuer erkauft. <b>UPE:</b> hier stand einmal
-k − 2·e_y, also Steg aussen – der Hebelarm lag bei A160 auf 38.3 statt
-31.7 cm, siebzehn Prozent zu gross und die Gurtkraft entsprechend zu klein.
-<b>IPE:</b> hier stand k − b, was d als lichte Weite las – bei A270 735 statt
-600 mm, zweiundzwanzig Prozent. Beide Fehler lagen auf der
-<b>unsicheren</b> Seite. Der Schnitt A-A der Werkstattzeichnung entscheidet,
-nicht die Anschauung.`)}
-
-<h4>13.3 Die drei Anteile der Gurtspannung</h4>
-<p>Im Gurt treffen drei Beanspruchungen zusammen. Sie werden als
-<b>Beträge</b> addiert – das ist der ungünstigste Punkt des Querschnitts und
-braucht keine Annahme darüber, wo er liegt.</p>
-
-${f(`σ = |σ_N| + |σ_vert| + |σ_örtl|`)}
-
-<table class="dt">
-<tr><th>Anteil</th><th>Formel</th><th>woraus</th></tr>
-<tr><td>σ_N</td><td>N / A_Gurt</td>
-    <td>Kräftepaar aus M_Rahmen, auf EINEN Gurt</td></tr>
-<tr><td>σ_vert</td><td>M_Gurt / W_y</td>
-    <td>halbe Querlast + Torsion, starke Achse</td></tr>
-<tr><td>σ_örtl</td><td>M_örtl / W_y</td>
-    <td>Biegung zwischen zwei Bindeblechen</td></tr>
-</table>
-
-<h4>13.3.1 Die lotrechte Biegung</h4>
-${f(`M_Gurt = |M_vert| / 2 + |M_Torsion|`)}
-
-<p>Jeder Gurt trägt die <b>halbe</b> Querlast über seine starke Achse. Dazu
-kommt die Torsion als gegenläufiges Kräftepaar: im einen Gurt addiert sie sich,
-im anderen zieht sie ab – massgebend ist der eine.</p>
-
-${q(`Hier stand einmal M_vert / W_Gurt: das Moment des GANZEN Trägers gegen
-das Widerstandsmoment EINES Gurtes, also das Doppelte. Die Weisung vom
-3. September («jeder Gurt für sich, halbe Last») war hingeschrieben, aber die
-Funktion wurde von niemandem aufgerufen. Aufgefallen erst beim Einbau der
-Torsion; die Ausnutzung fiel danach von 0.752 auf 0.624.`)}
-
-<h4>13.3.2 Die örtliche Biegung</h4>
-${f(`M_örtl = V_Rahmen · Dämpfung · Anschnitt`)}
-
-<p>Der Gurt biegt sich zwischen zwei Bindeblechen unter der Querkraft der
-Rahmenebene. Nachgewiesen wird am <b>Anschnitt</b> des Blechs, nicht auf der
-Knotenachse: über die Blechbreite ist die Verbindung biegesteif.</p>
-
-<p>Das <b>Randfeld</b> ist breiter als die Regelteilung, und die örtliche
-Biegung wächst quadratisch mit der Feldweite. Beide Werte stehen in der
-Mass-Tabelle und sind keine Eingabe; die Konstruktionsprüfung P4 nennt den
-Faktor.</p>
-
-<h4>13.4 Die Torsion als Wölbkrafttorsion</h4>
-${q(`Weisung vom 10. September: «die torsion des liegenden trägers noch
-rechnen.»`)}
-
-<p>Ein offener Träger aus zwei Gurten und Bindeblechen trägt Torsion nicht über
-St. Venant – dafür ist er viel zu weich –, sondern als
-<b>Wölbkrafttorsion</b>: die beiden Gurte biegen sich lotrecht
-<b>gegenläufig</b>.</p>
-
-${f(`T an der Stelle x&nbsp; ⇔ &nbsp;zwei Kräfte ± T / e an derselben Stelle`)}
-
-${skizze('Wölbkrafttorsion: das Torsionsmoment wird zum gegenläufigen '
-  + 'Kräftepaar ±T/e', '0 0 430 210', [
-    `<rect class="kasten" x="96" y="78" width="26" height="64"/>`,
-    `<rect class="kasten" x="308" y="78" width="26" height="64"/>`,
-    `<line class="sysline-dash" x1="60" y1="110" x2="370" y2="110"/>`,
-    pf(109, 78, 109, 34, 'acc'),
-    txt(109, 26, '+T/e', 'acc'),
-    pf(321, 142, 321, 186, 'acc'),
-    txt(321, 200, '&minus;T/e', 'acc'),
-    txt(215, 60, 'T', 'acc'),
-    mass(109, 158, 321, 158, 'e', 14),
-    txt(215, 110, 'die beiden Gurte biegen sich', 'dim'),
-    txt(215, 126, 'lotrecht GEGENEINANDER', 'dim'),
-  ].join(''))}
-
-<p>Damit folgt alles Weitere von selbst: der Balken mit diesen Kräften gibt das
-Zusatzmoment im einen Gurt, und seine Auflagerkräfte sind das Kräftepaar, das
-am Masten als Moment längs ankommt.</p>
-
-<p>Der <b>St.-Venant-Anteil ist weggelassen</b> – bei diesem Querschnitt der
-kleinere, und das liegt auf der sicheren Seite. Vorausgesetzt ist eine
-Gabellagerung an den Enden.</p>
-
-<h4>13.4.1 Woraus die Torsion entsteht – und woraus nicht</h4>
-${f(`T = Σ ( F_z · y )&nbsp;&nbsp;+&nbsp;&nbsp;Σ ( F_y · z )`)}
-
-<p>Alles, was NEBEN der Trägerachse angreift, verdreht ihn: eine lotrechte
-Kraft über ihren seitlichen Versatz y, eine Kraft in Gleisrichtung über ihre
-Höhe z.</p>
-
-<p><b>Der Leiterzug erzeugt KEINE Torsion.</b> Er wird an der Anbindung
-eingeleitet, nicht dort, wo der Draht hängt. «Mitte Träger» heisst genau das:
-die Kraft geht in der Trägerachse hinein. Ein Fahrdraht zwei Meter darunter
-zieht an der Hängestütze, und die trägt ihn zum Joch hinauf.</p>
-
-${q(`Wäre es anders, ergäbe sich ein Torsionsmoment in der Grösse des
-Rahmenmoments, und kein Abfangjoch wäre je nachweisbar.`)}
-
-<h4>13.4.2 Die Anteile heben sich auf – und das ist gerechnet</h4>
-<p>z zählt ab der Trägerachse. Ein Jochaufsatz sitzt <b>darüber</b> (z &gt; 0),
-eine Hängestütze <b>darunter</b> (z &lt; 0). Derselbe Wind verdreht den Träger
-über beide gegensinnig, und die vorzeichenrichtige Summe wird kleiner.</p>
-
-${q(`Gemessen am 11. September: ein zusätzlicher Jochaufsatz senkte die
-Ausnutzung des Gurtes von 0.540 auf 0.508. Rahmenmoment, Kräftepaar und
-örtliche Biegung stiegen alle – nur die lotrechte Gurtbiegung fiel um 14 %.
-<b>Folge für die Prüfung:</b> ein zusätzliches Bauteil kann die Ausnutzung
-SENKEN, und fällt ein Aufbau später weg, STEIGT sie. Der Nachweis gilt für die
-Bestückung, die im Blatt steht. Weisung auf Nachfrage: vorzeichenrichtig
-lassen, mit diesem Hinweis im Blatt.`)}
-
-<h4>13.5 Die Bindebleche als Riegel</h4>
-<p>Jedes Blech ist der Riegel des Rahmens: es überträgt die Ebenenquerkraft und
-biegt sich dabei.</p>
-
-${f(`M_Blech = V_Ebene · a / 4&nbsp;&nbsp;&nbsp;
-σ_v = √( σ² + 3·τ² )`)}
-
-<p>Die <b>Quersteifen</b> sind keine Bleche, sondern Profile – bei A240 führt
-die Zeichnung ein IPE 240 unter «Querversteifung». Sie tragen ihr eigenes
-Widerstandsmoment und werden getrennt ausgewiesen.</p>
-
-<p>An den beiden äussersten Stationen je Ende wird der Torsionsanteil mit
-<b>Faktor 0.50</b> angesetzt. Gegen ein Rahmenmodell mit demselben
-Knotenmodell gemessen (0.48, Spanne 0.41 bis 0.64) überschätzt der Ersatzbalken
-dort, weil er die Torsion als Hüllkurve auf alle Ebenen legt.</p>
-
-<h4>13.6 Die drei Fälle – jeder mit eigener Regliertemperatur</h4>
-${q(`Weisung vom 9. September: die Regliertemperatur hängt an der
-Kombination. Damit hängt auch die Leiterzugkraft daran.`)}
-
-<table class="dt">
-<tr><th>Fall</th><th>Beiwerte</th><th>Regliertemperatur</th></tr>
-<tr><td>Wind leitend</td><td>γ_G 1.30 · γ_W 1.30 · γ_S 0.65</td><td>Wind</td></tr>
-<tr><td>Schnee leitend</td><td>γ_G 1.30 · γ_W 0.65 · γ_S 1.30</td><td>Schnee</td></tr>
-<tr><td>Havarie</td><td>γ_G 1.00 · γ_W 0.00 · γ_S 0.00</td>
-    <td>Bruch – der gebrochene Leiter zieht nicht mehr</td></tr>
-</table>
-
-<p>Das Abfangjoch <b>kombiniert selbst</b>. Deshalb ist sein Auflagerblatt nach
-FÄLLEN aufgeschlüsselt und nicht nach Einwirkungsgruppen wie beim Tragjoch.</p>
-
-<h4>13.7 Was am Abfangjoch NICHT geführt wird</h4>
-<table class="dt">
-<tr><th>Nicht enthalten</th><th>Warum</th></tr>
-<tr><td><b>Knicken des Druckgurtes</b></td>
-    <td>Die Knicklänge steht aus. Der Bindeblechabstand wäre zu unkonservativ,
-    weil sich der ganze Träger in beiden Ebenen biegt; die massgebende Länge
-    wird mit AxisVM gemessen.</td></tr>
-<tr><td><b>Gurtanschluss am Masten</b></td>
-    <td>Kräftepaar M/h gegen die Schraubengrenze – separat zu führen.</td></tr>
-<tr><td><b>St.-Venant-Anteil der Torsion</b></td>
-    <td>Weggelassen, siehe 13.4 – auf der sicheren Seite.</td></tr>
-</table>
-`,
-},
-
-// ===========================================================================
-{
-  id: 'mast-abfang',
-  titel: '14 · Der Mast',
-  html: `
-${q(`Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
-machen.» Bis dahin las der Mastnachweis die Reaktionen des
-Tragjoch-Ersatzbalkens – am Abfangjoch gelten sie nicht.`)}
-
-<h4>14.1 Woher seine Kräfte kommen</h4>
-<p>Der Mast wird mit den <b>eigenen Auflagerkräften des Abfangjochs</b>
-gerechnet, nicht mit denen des Ersatzbalkens. Der Nachweis wird nicht ergänzt,
-sondern ERSETZT: zwei Mastnachweise nebeneinander wären einer zuviel.</p>
-
-<h4>14.2 Was der Anschluss überträgt</h4>
-<p>Der Anschluss leitet <b>kein Biegemoment</b> ein: alle Momentengrade der
-Links sind frei, und die Drehung um z ist gelöst – der vordere Gurt ist in der
-Jochachse frei. Was bleibt, ist die <b>Torsion aus der Exzentrizität</b>
-zwischen Mastachse und hinterem Gurt.</p>
-
-${f(`M_längs = P_Torsion · 2 · e_y`)}
-
-<h4>14.3 Schnittgrössen über die Höhe</h4>
-<p>Der Mast wird als Kragarm gerechnet, vom Fuss bis zum Kopf, mit allen
-Einzellasten an ihrer wirklichen Höhe und ihrer wirklichen Ausladung.</p>
-
-${f(`M(z) = Σ [ F · (z_i − z) ] + Σ M_i + q · (z_Kopf − z)² / 2`)}
-
-${skizze('Am Masten zählt jede Last mit ihrer wirklichen Höhe UND ihrer '
-  + 'Ausladung', '0 0 430 220', [
-    `<line class="stahl" x1="140" y1="26" x2="140" y2="186"
-       style="stroke-width:7"/>`,
-    /*
-     * >>> DER FUNDAMENTKOPF STEHT SENKRECHT. <<<
-     *
-     * Weisung vom 11. September: «die fundamentkoepfe vertikal machen und
-     * etwas doppel so dick wie den masten darstellen.»
-     *
-     * Hier stand ein flaches Trapez - das Zeichen fuer eine Einspannung, aber
-     * kein Fundament. Ein Mastfundament ist ein senkrechter Klotz, in den der
-     * Mast hineinreicht; seine Breite ist das Doppelte des Mastes (hier
-     * 7 px Stab, 14 px Kopf).
-     */
-    `<rect class="stahl" x="133" y="186" width="14" height="22"/>`,
-    `<line class="auflager-l" x1="110" y1="208" x2="170" y2="208"/>`,
-    // Eine Traverse mit Last am Ende
-    `<line class="stahl" x1="140" y1="60" x2="280" y2="60"
-       style="stroke-width:4"/>`,
-    pf(280, 34, 280, 54, 'acc'),
-    txt(280, 28, 'F_z', 'acc'),
-    mass(140, 78, 280, 78, 'e_x &mdash; Ausladung', 12),
-    // Wind auf den Mast
-    pf(76, 110, 132, 110, 'acc'),
-    txt(62, 114, 'w', 'acc'),
-    mass(320, 60, 320, 186, 'z'),
-    txt(215, 150, 'M = &Sigma; F&middot;(z_i &minus; z) + &Sigma; M_i'
-        + ' + q&middot;(z_K &minus; z)&sup2;/2', 'acc'),
-    txt(215, 172, 'F_z &middot; e_x gehört dazu &mdash;', 'dim'),
-    txt(215, 188, 'sonst fehlt das halbe Fussmoment', 'dim'),
-  ].join(''))}
-
-<p>Zwei Quellen für ein Moment, und beide gehören dazu: das eingeleitete
-Moment dieser Ebene und die Vertikallast über ihre <b>Ausladung</b>. Dieselben
-zwei, mit denen auch die Haltekraft des Ankers gerechnet wird – wären es
-verschiedene, stünden zwei Rechnungen nebeneinander.</p>
-
-<h4>14.4 Querschnitt und Stabilität</h4>
-${f(`η_Querschnitt = σ / f_yd&nbsp;&nbsp;&nbsp;
-η_Knicken = N / N_b,Rd + k · M / M_Rd`)}
-
-<p>Die <b>Querschnittsklasse</b> folgt EN 1993-1-1 Tab. 5.2, gerechnet ohne
-Ausrundungsradius: c wird damit zu gross und die Klasse ungünstiger als in der
-Profiltabelle. Auch das ist die sichere Seite. Die Normalkraft geht über den
-gedrückten Steganteil α ein – gewalzte I-Profile sind unter Biegung durchweg
-Klasse 1, erst hohe Normalkraft schiebt den Steg höher.</p>
-
-<p><b>Biegedrillknicken ist nicht enthalten</b> (χ_LT = 1.0).</p>
-
-<h4>14.5 Was der Mastnachweis nicht enthält</h4>
-<table class="dt">
-<tr><th>Nicht enthalten</th><th>Folge</th></tr>
-<tr><td>Biegedrillknicken</td><td>χ_LT = 1.0 gesetzt</td></tr>
-<tr><td>Fundament und Baugrund</td>
-    <td>Der Fuss ist starr eingespannt. Die Nachgiebigkeit der Gründung
-    verändert die Aufteilung zwischen Fuss und Anker.</td></tr>
-<tr><td>Anschlussdetails</td><td>Schrauben, Konsolen, Fussplatte</td></tr>
-</table>
-`,
-},
-
-// ===========================================================================
-{
-  id: 'anker',
-  titel: '15 · Zuganker und Druckstütze',
-  html: `
-${q(`Weisung vom 9. September: «bitte danach die möglichkeit Zuganker oder
-Drucksützen an den masten zu modelieren. diese sind gelenkig gelagert. … Die
-Druckstüzen und Zuganker können anhand des bemessungdiagramms nachgewiessen
-werden.»`)}
-
-<h4>15.1 Was sie sind</h4>
-<p>Ein schräger Stab vom Masten zu einem eigenen Fundament. Er nimmt dem
-Masten die waagrechte Kraft ab, die sonst allein sein Fuss halten müsste – und
-weil er an beiden Enden <b>gelenkig</b> angeschlossen ist, trägt er nichts als
-NORMALKRAFT. Ein Pendelstab: keine Biegung, kein Moment.</p>
-
-<table class="dt">
-<tr><th>Bauart</th><th>Aufbau</th><th>trägt</th></tr>
-<tr><td>Stütze U12, U14</td><td>zwei UNP, gespreizt</td>
-    <td>Zug UND Druck – der Druck begrenzt durch Knicken</td></tr>
-<tr><td>Seilanker SA20</td><td>Rundlitzenseil mit Spannschloss</td>
-    <td>nur Zug – auf Druck hängt es durch</td></tr>
-</table>
-
-<h4>15.2 Die Geometrie</h4>
-<p>Beschrieben wird der Stab durch zwei Masse, und beide stehen auf dem
-Querprofil: die Anschlusshöhe h_A am Masten und der waagrechte Abstand a_A des
-Fundaments.</p>
-
-${f(`L = √( h_A² + a_A² )&nbsp;&nbsp;&nbsp; tan α = h_A / a_A`)}
-
-<p><b>Der Neigungswinkel ist die wichtige Zahl.</b> Gegen eine waagrechte Kraft
-wirkt nur der waagrechte Anteil der Stabkraft, also N · cos α. Je STEILER der
-Stab steht, desto grösser muss N werden – ein steil angesetzter Anker arbeitet
-gegen sich selbst. Die Voreinstellung ist 4.50 m Abstand bei rund 60°.</p>
-
-<h4>15.3 Wie er den Masten entlastet</h4>
-${q(`Weisung vom 10. September auf Nachfrage: «nimm variante 3 und die
-charakteristische kraft.»`)}
-
-<p>Der Mast ist am Ankerpunkt <b>gehalten</b> und am Fuss eingespannt – ein
-Zweifeldsystem, einfach statisch unbestimmt. Die Haltekraft X folgt aus der
-Verträglichkeit am Ankerpunkt:</p>
-
-${f(`δ₁₀ + X · δ₁₁ = 0&nbsp;&nbsp;&nbsp;→&nbsp;&nbsp;&nbsp; X = − δ₁₀ / δ₁₁`)}
-
-${skizze('Der Mast mit Anker: am Fuss eingespannt, am Ankerpunkt gehalten',
-  '0 0 430 230', [
-    // Mast
-    `<line class="stahl" x1="150" y1="30" x2="150" y2="196"
-       style="stroke-width:7"/>`,
-    // Einspannung
-    // Senkrechter Kopf, doppelte Mastbreite - siehe Kapitel 14.
-    `<rect class="stahl" x="143" y="196" width="14" height="22"/>`,
-    `<line class="auflager-l" x1="120" y1="218" x2="180" y2="218"/>`,
-    // Anker
-    `<line class="stahl" x1="150" y1="76" x2="300" y2="196"
-       style="stroke-width:4"/>`,
-    `<circle class="heel" cx="150" cy="76" r="5"/>`,
-    `<circle class="heel" cx="300" cy="196" r="5"/>`,
-    /*
-     * DAS ANKERFUNDAMENT GENAUSO (Weisung: «beim ankerfundament gleich
-     * machen») - nur schmaler, weil der Stab schmaler ist: 4 px Stab,
-     * 8 px Kopf.
-     */
-    `<rect class="stahl" x="296" y="196" width="8" height="22"/>`,
-    // Last am Kopf
-    pf(104, 44, 146, 44, 'acc'),
-    txt(90, 48, 'F', 'acc'),
-    // Die Haltekraft X
-    pf(196, 76, 156, 76, 'acc'),
-    txt(212, 80, 'X', 'acc'),
-    mass(150, 214, 300, 214, 'a_A', 14),
-    mass(340, 76, 340, 196, 'h_A'),
-    txt(215, 150, '&delta;&#8321;&#8320; + X &middot; &delta;&#8321;&#8321; = 0',
-        'acc'),
-    txt(300, 120, 'nur Normalkraft', 'dim'),
-  ].join(''))}
-
-<p>δ₁₀ ist die Verschiebung des Kragarms unter der äusseren Last an der Stelle
-des Ankers, δ₁₁ = a³/3 die Verschiebung aus einer Einheitskraft dort. <b>EI
-kürzt sich heraus</b> – die Aufteilung hängt nur an der Geometrie.</p>
-
-<p>Aus X folgt die Stabkraft über die Neigung:</p>
-
-${f(`N = X / cos α&nbsp;&nbsp;&nbsp; F_z = N · sin α`)}
-
-<p>Die lotrechte Komponente wirkt zusätzlich auf den Masten: eine Druckstütze
-hebt ihn an und entlastet damit seine Normalkraft.</p>
-
-${q(`«Gehalten» heisst STARR gehalten. Die Dehnung des Stabes und die
-Nachgiebigkeit seines Fundaments sind NICHT enthalten – für den Anker ist das
-die ungünstigere Annahme, für den Mastfuss die günstigere.`)}
-
-<h4>15.4 Der Nachweis über das Bemessungsdiagramm</h4>
-<p>Das Sortimentsblatt führt die zulässige <b>Druckbelastung</b> über die
-Stützenlänge – eine fallende Kurve je Typ, oben gekappt bei der
-Querschnittsgrenze, und sie endet an der grössten lieferbaren Länge.
-Dazwischen wird linear interpoliert.</p>
-
-<p>Auf ZUG ist die Kurve gegenstandslos – ein Zugstab knickt nicht. Dort
-entscheidet die <b>Befestigung</b>: an Ankerplatte und Vorsetzkonsole gilt der
-grosse Wert, an Ankereisen oder Anschlussbügel der kleinere.</p>
-
-${q(`<b>Es sind ZULÄSSIGE KRÄFTE, keine Bemessungswiderstände.</b> Das Blatt
-sagt «zulässige Druck-Belastung». Solche Werte stammen aus dem Verfahren der
-zulässigen Spannungen und sind mit CHARAKTERISTISCHEN Kräften zu vergleichen.
-Das übrige Werkzeug rechnet mit Bemessungswerten; das η des Ankers ist deshalb
-mit dem des Gurts oder des Masten NICHT vergleichbar. Die Kachel sagt es
-(«char.»), und der Gültigkeitshinweis ebenso.`)}
-
-<p>Über der grössten lieferbaren Länge wird nicht extrapoliert – die Kurve
-fortzusetzen hiesse, ein Bauteil zu bemessen, das niemand liefert. Auf Zug
-wird der Nachweis geführt (die Befestigung trägt), aber die Überlänge wird
-gemeldet: das BAUTEIL ist damit nicht belegt.</p>
-
-<h4>15.5 Das Spreizmass</h4>
-${q(`Weisung vom 11. September: «die abstände der beiden enden sind vermasst.
-diese verlaufen zuerst parallel bis zur ersten vermassung … von da an verläuft
-der abstand variabel.»`)}
-
-<p>Die Stütze ist ein <b>Keil</b>: am Masten stehen die beiden Profile weit
-auseinander (225 mm), am Fundament eng (U12 104 mm, U14 124 mm). Von jedem
-Ende läuft der Abstand zuerst ein Stück parallel – 1610 mm am weiten Ende,
-990 mm am engen –, erst dazwischen verändert er sich.</p>
-
-<p>Das weite Ende sitzt am Masten, weil die beiden Profile dort den Flansch
-fassen – direkt angeschraubt oder über eine Vorsatzkonsole.</p>
-
-${skizze('Das Spreizmass: 1610 mm parallel am Masten, 990 mm am Fundament, '
-  + 'dazwischen der Keil', '0 0 430 150', [
-    // Die beiden Profile, von oben gesehen.
-    `<path class="stahl" fill="none" style="stroke-width:4"
-       d="M40 44 H150 L330 66 H390"/>`,
-    `<path class="stahl" fill="none" style="stroke-width:4"
-       d="M40 106 H150 L330 84 H390"/>`,
-    // Die Flachlaschen
-    `<line class="blech" x1="150" y1="44" x2="150" y2="106"
-       style="stroke-width:3"/>`,
-    `<line class="blech" x1="240" y1="55" x2="240" y2="95"
-       style="stroke-width:3"/>`,
-    `<line class="blech" x1="330" y1="66" x2="330" y2="84"
-       style="stroke-width:3"/>`,
-    mass(40, 128, 150, 128, '1610 &mdash; parallel', 12),
-    mass(330, 128, 390, 128, '990', 12),
-    txt(40, 30, 'am MASTEN', 'acc', 'start'),
-    txt(390, 30, 'am FUNDAMENT', 'acc', 'end'),
-    txt(60, 82, '225', 'dim'),
-    txt(370, 82, '104', 'dim'),
-  ].join(''))}
-
-<p>Damit ist der Stab ein Stab mit <b>veränderlichem Querschnitt</b>: A bleibt
-konstant, I_z wächst zum Masten hin. Das erklärt zugleich, warum der Nachweis
-über das Bemessungsdiagramm läuft und nicht aus A und I gerechnet wird – die
-Kurve des Blattes kennt diesen Verlauf bereits.</p>
-
-<p><b>Was das Blatt nicht sagt:</b> worauf sich die Masslinie bezieht – lichte
-Weite, Achsabstand oder Aussenmass. Zwischen lichtem Mass und Achsabstand
-liegen beim UNP 120 rund 120 mm, und I_z geht mit dem Quadrat des
-Achsabstands. Für den Nachweis über das Diagramm ist das unerheblich; für eine
-eigene Knickrechnung nicht. Der Katalog führt deshalb
-<code>bezug: null</code>.</p>
-
-<h4>15.6 Das Knicken – zwei Richtungen, eine gerechnet</h4>
-${q(`Weisung vom 11. September: «was wir noch ergänzen könnten ist ein
-knicknachweis der druckstüze, falls einfach umsetzbar.»`)}
-
-<table class="dt">
-<tr><th>Ausweichen</th><th>Was der Querschnitt tut</th><th>Nachweis</th></tr>
-<tr><td>SENKRECHT zur Spreizebene</td>
-    <td>beide Profile biegen sich um ihre eigene starke Achse; kein
-    Steiner-Anteil, I über die Länge konstant</td>
-    <td>gewöhnlicher Druckstab – <b>gerechnet</b></td></tr>
-<tr><td>IN der Spreizebene</td>
-    <td>der Steiner-Anteil trägt fast alles, die Bindelaschen machen den
-    Verbund schubweich, der Querschnitt ist veränderlich</td>
-    <td>mehrteiliger Druckstab nach EN 1993-1-1 6.4 – <b>steckt im
-    Bemessungsdiagramm</b></td></tr>
-</table>
-
-<p>Gerechnet wird die erste, mit Euler und der Knicklinie <b>c</b> (α = 0.49,
-die ungünstigste der gewalzten Profile). Die Knicklänge ist L – der Pendelstab
-ist an beiden Enden gelenkig.</p>
-
-${f(`N_cr = π²·E·I / L²&nbsp;&nbsp;&nbsp; λ̄ = √( A·f_y / N_cr )&nbsp;&nbsp;&nbsp;
-Φ = 0.5·[ 1 + 0.49·(λ̄ − 0.2) + λ̄² ]&nbsp;&nbsp;&nbsp;
-χ = 1 / ( Φ + √(Φ² − λ̄²) )&nbsp;&nbsp;&nbsp; N_b,Rd = χ·A·f_y / γ_M1`)}
-
-${q(`<b>Es ist eine Kontrollrechnung, kein zweiter Nachweis.</b> Gemessen am
-11. September: U12 über 10.00 m ergibt N_b,Rd = 123 kN, während das Blatt dort
-48.7 kN zulässt. Die Stütze knickt also nicht senkrecht zur Spreizebene – sie
-knickt IN ihr, und genau deshalb ist das Blatt strenger. Die Zahl sagt, dass
-die andere Richtung massgebend bleibt. Wäre sie einmal kleiner als der
-Diagrammwert, wäre das ein Befund. <b>Massgebend bleibt das Diagramm.</b>`)}
-
-<h4>15.7 Im ausgeleiteten Modell</h4>
-<p>In AxisVM wird der Anker ein Stab mit <b>gelösten Momenten an beiden
-Enden</b> (rtHinged) und am Boden ein Auflager, das die drei Verschiebungen
-hält und die drei Drehungen freigibt. Ein eingespanntes Ankerfundament wäre ein
-anderes Bauteil.</p>
-
-<p>Zwischen Mastachse und Anschlusspunkt liegt ein <b>Starrelement von
-0.15 m</b> – die Vorsatzkonsole, pauschal idealisiert. Damit greift die
-Stabkraft exzentrisch an, und der Mast trägt das zugehörige Moment. Bei 20 kN
-sind das 3 kNm.</p>
-
-<p>Der Querschnitt geht als <b>Rechteck gleicher Fläche</b> hinaus: zwei
-gespreizte U-Profile sind kein parametrischer Querschnitt. Für den Pendelstab
-genügt das – er trägt nur Normalkraft, und dafür zählt E·A. I_z des Verbunds
-ist damit nicht abgebildet; der Bericht sagt es.</p>
-
-<h4>15.8 Was am Anker NICHT enthalten ist</h4>
-<table class="dt">
-<tr><th>Nicht enthalten</th><th>Folge</th></tr>
-<tr><td>Dehnung des Stabes, Nachgiebigkeit des Ankerfundaments</td>
-    <td>Für den Anker ungünstiger, für den Mastfuss günstiger.</td></tr>
-<tr><td>Knicken in der Spreizebene</td>
-    <td>Steckt im Bemessungsdiagramm, wird nicht eigens gerechnet.</td></tr>
-<tr><td>Exzentrizität der Konsole im NACHWEIS</td>
-    <td>Nur im ausgeleiteten Modell; der Nachweis setzt am Mastpunkt an.</td></tr>
-<tr><td>Ankerfundament selbst</td>
-    <td>Kippen, Gleiten, Auftrieb – gehört zur Gründung.</td></tr>
-</table>
-`,
-},
-// ===========================================================================
-{
-  id: 'ablage',
-  titel: '16 · Projekte, Ablage und Datenaustausch',
-  html: `
-${q(`Weisung vom 17. September: «checke nochmals die projektmanagement
-funktionalität von der app block calc und übertrage diese in diese app …
-checke noch den import einzelner und ganzer projekte.»`)}
-
-<h4>16.1 Wo gespeichert wird</h4>
-<table class="dt">
-<tr><th>Stand</th><th>wann</th><th>wo</th></tr>
-<tr><td>Arbeitsstand</td><td>bei jeder Eingabe, ein Stand</td>
-    <td>Browser; kommt beim nächsten Start zurück und wird gemeldet</td></tr>
-<tr><td>Ablage</td><td>auf «Speichern»</td>
-    <td>Browser dieses Geräts, benannte Einträge je Projekt</td></tr>
-<tr><td>Paket / Sicherung</td><td>auf «Ausleiten» bzw. «Sicherung erstellen»</td>
-    <td>Datei (.zip) - der einzige Weg auf ein anderes Gerät</td></tr>
-</table>
-<p>Ist ein Eintrag geladen, <b>überschreibt «Speichern» ihn</b>. Sonst entsteht
-ein neuer Eintrag im gewählten Projekt. Der Punkt am Projektknopf zeigt, dass
-der Stand von der Ablage abweicht.</p>
-
-<h4>16.2 Die Ablage</h4>
-<p>Oben links stehen <b>Projekt</b> und <b>Eintrag im Projekt</b> als
-Auswahl; «+ Neues Projekt» legt ohne Dialog an; «+ Als neuen Eintrag speichern (Stand bleibt)» löst den Stand vom Eintrag, das nächste Speichern legt einen neuen an. Ein neues Blatt beginnt der Knopf «Neues Querprofil» (ein Dialog: Art, Typ, Länge, Grundwerte, mit oder ohne Beispielteile; Abbrechen stellt den bisherigen Stand wieder her). Darunter
-die Angaben zum Tragwerk: Linie, Ortschaft, KM, Projektnummer, Bearbeiter,
-Datum. Sie gehen in keine Rechnung ein, aber in Dateinamen, Bericht und
-Projektliste.</p>
-<p>Die Liste zeigt je Projekt eine Tabelle. <b>Bezeichnung, Linie, KM,
-Ortschaft und Bemerkung</b> lassen sich direkt in der Zeile ändern, der
-Projektname im Gruppenkopf (betrifft alle Einträge). Suchen und Sortieren
-stehen darüber. η ist der beim Speichern vermerkte Wert.</p>
-
-<h4>16.3 Ausleiten und Einlesen</h4>
-<table class="dt">
-<tr><th>Weg</th><th>was hinausgeht</th></tr>
-<tr><td>Knopf in der Zeile</td><td>dieses eine Tragwerk</td></tr>
-<tr><td>«Ausleiten» im Projektkopf</td><td>das Projekt, im Dialog anpassbar</td></tr>
-<tr><td>«Ausleiten …»</td><td>Auswahl je Tragwerk, dazu Vorlagen, Zeichnungen, Einstellungen</td></tr>
-<tr><td>«Sicherung erstellen»</td><td>alles, einschliesslich Optionen, Tastenbelegung und Datenbasis</td></tr>
-</table>
-<p>Eingelesen werden Pakete (.zip) und die JSON-Dateien früherer Fassungen -
-über den Knopf, durch Hineinziehen oder «Öffnen mit». Vorher zeigt ein Dialog
-jeden Eintrag. <b>Gibt es im selben Projekt schon einen gleichen Namen</b>,
-steht die Wahl daneben: als Kopie, ersetzen oder überspringen. Ein
-Zielprojekt legt alles gesammelt ab. Kommt genau ein Tragwerk herein, wird es
-gleich geladen. Einstellungen werden nur auf ausdrückliche Wahl übernommen;
-die Anwendung startet danach neu.</p>
-
-<h4>16.4 Projektliste</h4>
-<p>«Liste» im Projektkopf druckt alle Tragwerke des Projekts mit Typ, Länge,
-Masten und Ausnutzung. Jedes wird dafür <b>neu gerechnet</b>; lässt sich
-eines nicht rechnen, steht der vermerkte Wert mit einem Stern da.</p>
-`,
-},
-{
-  id: 'stabwerk',
-  titel: '17 · Das Stabwerk als Rechenverfahren',
-  html: `
-${q(`Weisung vom 25. September: «ersatzbalken als optionales rechenverfahren
-in den optionen auswählbar machen, primär den löser nutzen» - und vom
-28. September: «wollen wir nach der berechnung nur auf die stabwerk
-ausnutzung setzen?»`)}
-
-<p>Die Anwendung rechnet jedes Tragwerk auf zwei Wegen. Der
-<b>Ersatzbalken</b> (Kapitel 4-6) läuft bei jeder Eingabe mit und liefert
-die vorläufige Anzeige. Das <b>Stabwerk</b> rechnet das ganze Blatt als
-räumliches Stabmodell: jeder Gurt, jedes Bindeblech, jeder Mastabschnitt
-und jedes Anbauteil ein eigener Stab, geteilte Masten einmal. Es ist
-dieselbe Datei, die nach AxisVM hinausgeht - es gibt keinen zweiten
-Modellbauer.</p>
-
-<h4>17.1 Wann es rechnet und was es führt</h4>
-<p>Rund eine Sekunde nach der letzten Eingabe von selbst; der Knopf
-«Nochmals rechnen» löst sofort aus. Gilt das Stabwerk, führt es
-Hauptkachel, Nachweiskacheln, Fussleiste, 3D-Plot, Verläufe, Bericht und
-Excel. Ohne gültiges Stabwerk steht «Ersatzbalken · vorläufig» da. Welches
-Verfahren führt, stellt man unter <i>Optionen → Nachweise</i> ein.</p>
-
-<table class="dt">
-<tr><th>Nachweis</th><th>Quelle im Stabwerksweg</th></tr>
-<tr><td>Gurte, Bindebleche</td><td>Endkräfte je Stab, Hülle über alle Kombinationen; der Gurtwinkel vorzeichenrichtig mit Deviationsmoment, das Blech mit Schub (σ_v)</td></tr>
-<tr><td>Mast</td><td>alle 0.5 m aus Endkräften und Streckenlast des Stabes, mit Wölbspannung</td></tr>
-<tr><td>Knicken des Masts</td><td>Regel nach SIA 263 mit den Kräften des Stabwerks</td></tr>
-<tr><td>Fundament, Anker</td><td>charakteristische Auflager- und Stabkräfte gegen die zulässigen Werte</td></tr>
-<tr><td>Gebrauchstauglichkeit</td><td>Knotenwege unter Betriebswind (ψ 0.70)</td></tr>
-</table>
-
-<h4>17.2 Was das Modell festlegt</h4>
-<ul>
-<li>Starrelemente als steife Ersatzstäbe, gelenkige Anschlüsse als
-  Linkelemente, gekoppelt in der Linkmitte; die Freiheitsgrade des Links
-  gelten in globalen Achsen.</li>
-<li>Seile (Seilanker, Aufhängung des Tragauslegers) tragen nur Zug: ein
-  Seil, das drücken müsste, fällt in dieser Kombination aus.</li>
-<li>Ein Anker steht je Mast einmal im Modell - auch am geteilten Masten
-  einer Jochreihe oder zweier Abfangjoche übereinander.</li>
-<li>Der Löser rechnet mit Schubverformung; AxisVM in den gebauten Modellen
-  ohne. Am Tragjoch macht das Bruchteile eines Prozents aus.</li>
-</ul>
-
-<h4>17.3 Gegenproben</h4>
-<p>Gegen PyNite und gegen AxisVM, Stab für Stab
-(<code>vergleich_axisvm.mjs</code>): Masten und Gurte des Tragjochs auf
-Bruchteile eines Prozents bis wenige Prozent. Örtlich weichen die
-Klemmzonen der Anbauteile ab - dort trägt AxisVM mit echten Starrkörpern,
-der Löser mit steifen Stäben. Am Abfangjoch (zwei Träger übereinander mit
-Druckstützen) stimmen Gurte und Bleche auf 0.1 %, die Masten auf wenige
-Prozent bei kleinen Momenten.</p>
-`,
-},
-{
-  id: 'gittermast',
-  titel: '18 · Der Gittermast (kombinierter Mast)',
-  html: `
-${q(`Weisung vom 3. Oktober: «Es ist ein Gittermast, struktur wie die Joche,
-mit unterschied das Winkel nach innen und der untere teil konisch
-ausgebildet ist. … im oberen teil ist ein rohr der in den oberen teil des
-gittermasten eingespannt ist.»`)}
-
-<p>Vier Gurtwinkel in den Ecken (Schenkel nach innen), Bindebleche auf
-allen vier Seiten, unten konisch bis zum Knick, darüber gerade. Über dem
-Kopf steht ein Rohr bzw. ein Mastaufsatz. Der Typ ist unter <i>Profile</i>
-wählbar, wo sonst ein Walzprofil steht; die Länge ist je Typ fest.</p>
-
-<h4>18.1 Modell</h4>
-<p>Der Mast wird im Stabwerk zum Fachwerk: die vier Gurte auf ihren
-Schwerachsen, die Bleche über ihre lichte Länge mit starren Enden. An
-jedem Achsknoten sitzt ein <b>Schott</b> - starre Stäbe von der Mastachse
-zu den vier Gurten. An diesen Achsknoten hängt alles, was am Masten
-anschliesst: die Konsolen des Jochs, die Anbauteile, der Anker und das
-eine, voll eingespannte Auflager am Fuss. Das Rohr ist an Knick und Kopf
-gehalten und läuft frei darüber; Teile über dem Kopf hängen am Rohr.</p>
-
-<h4>18.2 Nachweise</h4>
-<table class="dt">
-<tr><th>Teil</th><th>Nachweis</th></tr>
-<tr><td>Gurt</td><td>Winkel, vorzeichenrichtig, je Stab</td></tr>
-<tr><td>Bindeblech</td><td>Rechteck mit Schub, je Stab</td></tr>
-<tr><td>Rohr / Aufsatz</td><td>Biegung und Normalkraft</td></tr>
-<tr><td>Diagramm</td><td>Kontrolle nach dem Bemessungsdiagramm des Typs:
-  η = M_a/zul_a + M_b/zul_b am Fuss, charakteristisch; zählt nicht zum Urteil</td></tr>
-</table>
-<p><b>Nicht geführt:</b> Knicken (Gurt zwischen den Blechen, Mast als
-Ganzes) und Fundament (kein Standardtyp zugeordnet). Die örtliche
-Einleitung eines Anbauteils in einen einzelnen Gurtwinkel ist nicht
-abgebildet. Am Abfangjoch und am Tragausleger ist der Gittermast nicht
-gebaut.</p>
-
-<h4>18.3 Wind</h4>
-<p>w(z) = Wert je m² Angriffsfläche × A_s(z). A_s ist die Ansichtsfläche
-der Stäbe der Seite quer zum Wind je Meter Höhe (zwei Gurtschenkel und
-Bindebleche). Der Wert ist die Windlast der Tragjoche bezogen auf ihre
-Angriffsfläche, gemittelt über die Typen. Das Rohr: w = 1.2 · q · d. Die
-Herleitung steht im Profilblatt des Typs.</p>
-
-<h4>Gespreizte Masten (DGP)</h4>
-<p>Der gespreizte Mast ist ein HEB, der im unteren Teil längs in der
-Stegmitte geteilt ist; die beiden Hälften sind am Fuss auseinandergezogen
-und laufen bis zur Höhe der Spreizung (5.50 bzw. 10.00 m) auf die
-Profilhöhe zusammen. Zwischen den Steghälften stehen Bindebleche. Im
-Mastwähler heisst er <b>DGP24/5.5</b>, <b>DGP26/5.5</b>, <b>DGP24/10</b>
-und <b>DGP26/10</b>; die Mastlänge ist frei (Sortiment 6.0 bis 16.5 bzw.
-18.0 m), muss aber über die Spreizung hinausreichen.</p>
-<p>Im Stabwerk ist der untere Teil ein Rahmen aus zwei Gurten (je ein
-halbes Profil, ein T) und den Bindeblechen in der Stegebene; darüber
-läuft das Walzprofil. Nachgewiesen wird je Stab: <b>Hälften</b>,
-<b>Blech</b> und <b>Profil</b>. Gespreizt ist in der Stegrichtung - quer
-zum Steg tragen die beiden Hälften zusammen wie das ungeteilte Profil.
-Wind, vorläufige Anzeige und Fundament (DG1a, DG2a, DG3a) laufen über das
-Walzprofil; ein Knicknachweis als Vollstab wird für ihn nicht geführt.</p>
-`,
-},
-{
-  id: 'einheitswind',
-  titel: '19 · Einheitswind der alten Norm, Bestandesschutz',
-  html: `
-${q(`Weisung vom 3. Oktober: «früher wurde nur der winddruck 1.0 kN/m2
-angewendet, ohne die 1.4 formbeiwerte und bei den jochen wurde der wind nur
-auf die jeweilige angriffsfläche angesetzt. sow wie auch bei den masten. …
-dieser sollte auch auf die anbauteile gelten.»`)}
-
-<p>Unter <i>Lasten → Windbelastung</i> steht neben EK1-EK3 die Stufe
-<b>Einheitswind 1.0 kN/m²</b>. Sie dient dem Vergleich mit der damaligen
-Bemessung: bleibt die Lastzunahme innerhalb der Regel des
-Bestandesschutzes, kann der vertiefte Nachweis entfallen.</p>
-
-<p><b>Seit dem 8. Oktober gelten die Werte der alten Mastberechnung</b>
-(Staudruck 1.0 kN/m², ohne Formbeiwert). Sie stehen in der Datenbasis in
-der Spalte des Einheitswinds (EK0 bzw. «1.0») und gelten vor jeder
-Herleitung, ohne weiteren Zuschlag:</p>
-
-<table class="dt">
-<tr><th>Teil</th><th>Einheitswind</th></tr>
-<tr><td>Tragjoch J60 … J130 (neu und alt)</td><td>0.25 / 0.28 / 0.29 / 0.35 / 0.39 / 0.43 / 0.48 kN/m, längs zum Gleis</td></tr>
-<tr><td>Abfangjoch A160 … A360 und alte Bauweise (UAP, IPE)</td><td>Profilhöhe × 1.0, ohne Zuschlag: 0.13 … 0.36 kN/m</td></tr>
-<tr><td>Tragausleger übergreifend</td><td>0.14 kN/m</td></tr>
-<tr><td>Mast HEB 200 … 260, HEM 240</td><td>0.20 … 0.26 kN/m; HEM 240 0.248 / 0.27 kN/m</td></tr>
-<tr><td>Fahrleitung; Leiter 1×95 / 2×95 / 1×150 / 2×150</td><td>0.020; 0.0083 / 0.0141 / 0.0105 / 0.0178 kN/m (Tragseil und Fahrdraht einzeln je 0.010)</td></tr>
-<tr><td>Hängestütze, Jochaufsatz alt</td><td>0.10 bzw. 0.20 kN/m</td></tr>
-<tr><td>Jochaufsatz einfach / doppelt</td><td>0.45 kN / 0.9 kN quer, 0.8 kN längs</td></tr>
-<tr><td>Ausleger Rohr / NT, Leiter-Traverse</td><td>0.3 / 0.5 kN, 0.08 kN/m (längs)</td></tr>
-<tr><td>Lampe alt / alt mit Befestigung</td><td>0.3 / 0.5 kN</td></tr>
-</table>
-
-<p>Wo die Mastberechnung keinen Wert führt, bleibt die Herleitung
-<b>Angriffsfläche × 1.0 kN/m²</b>:</p>
-
-<table class="dt">
-<tr><th>Teil</th><th>Angriffsfläche</th></tr>
-<tr><td>Tragjoch ohne Eintrag</td><td>stehende Gurtschenkel und Vertikalbleche einer Seite, aus der Geometrie, hintere Ebene mit 25 %</td></tr>
-<tr><td>Mast (Walzprofil)</td><td>Profilbreite (Tabellenwert / (q · 1.4))</td></tr>
-<tr><td>Gittermast</td><td>Stabfläche A_s(z) × 1.52 kN/m² - wie bei EK1-EK3 aus den Tragjochen umgerechnet (ihr Einheitswind je m² Windangriffsfläche, Mittel); Rohr und Aufsatz mit Durchmesser bzw. Kante × 1.0</td></tr>
-<tr><td>übrige Anbauteile der Lasttabelle (LED-Lampen, Trafo, Konsolen, Bündel × 3 / × 4, Aldrey 300)</td><td>Tabellenwert / (q · c), über EK1-EK3 gemittelt; c = 1.4, bei Drähten 1.0</td></tr>
-<tr><td>freie Fläche, Signal</td><td>eingegebene Fläche</td></tr>
-</table>
-<p>Von Hand eingegebene Windkräfte bleiben, wie sie sind. Lastbeiwerte,
-Kombinationen und Nachweise sind dieselben. Ist der Einheitswind gewählt,
-steht unter <i>Verläufe</i> je Gittermast das alte Bemessungsdiagramm mit
-dem massgebenden Zustand.</p>
-`,
-},
-{
-  id: 'abgefangen',
-  titel: '20 · Abgefangene Leiter und Anker am Abfangjoch',
-  html: `
-${q(`Weisung vom 24. September: «Die leiter könen als durchgehend / beidseiig
-abgefangen / einseitig abgefangen definiert werden.» - und vom 3. Oktober:
-«was noch fehlt bei den anbauteilen sind die tragseile / fahrdraht einseitig
-abgefangen für das abfangjoch.»`)}
-
-<table class="dt">
-<tr><th>Abfangung</th><th>ständig</th><th>beim Leiterriss (−20 °C)</th></tr>
-<tr><td>durchgehend</td><td>kein Längszug</td><td>10 % des Leiterzugs</td></tr>
-<tr><td>beidseitig abgefangen</td><td>die Züge heben sich auf</td><td>voller Zug einseitig</td></tr>
-<tr><td>einseitig abgefangen</td><td>voller Zug bei +5 °C in seine Richtung</td><td>der gerissene fällt weg, die übrigen mit dem Zug bei −20 °C</td></tr>
-</table>
-<p>Ein einseitig abgefangener Leiter hat nur ein Feld: Gewicht, Wind, Schnee
-und Ablenkung kommen aus der <b>halben Spannweite</b>.</p>
-<p>Die Abfangung steht in der Karte des Bauteils. Am Abfangjoch ist
-«einseitig» die Vorgabe, sonst «durchgehend». Die Vorlagen «Tragseil /
-Fahrdraht N-FL / R-FL abgefangen» setzen einseitig von selbst; eine Kopie
-und eine Tragwerk-Vorlage nehmen die Wahl mit. Der Leiterzug kommt aus der
-Lasttabelle; wo eine Reglagezeile hinterlegt ist, temperaturabhängig.</p>
-
-<h4>20.1 Anker</h4>
-<p>Zuganker und Druckstützen stehen auch am Masten eines Abfangjochs im
-Stabwerk: der Mast wird am Ankerpunkt geteilt, und liegt der Punkt über dem
-Trägeranschluss, läuft der Mast bis dorthin weiter. Für den Leiterzug
-gehört der Anker in die Gleisrichtung, auf die Seite, zu der er zieht.</p>
-
-<h4>20.2 Im Bild</h4>
-<p>Ein Anbauteil am Abfangjoch trägt eine Klemme quer über dem Träger. An
-ihr lässt es sich längs verschieben (Strg = Kopie); ein Klick in der Liste
-fährt das Bild heran.</p>
-`,
-},
-{
-  id: 'fundamentablauf',
-  titel: '21 · Fundamentbestimmung: der Ablauf',
-  html: `
-${q(`Weisung vom 7. Oktober: «bei den zulässigen standardlasten gibt es einen
-flow der bei einer überschreitung der einzelnen werte die kompensation infolge
-der abminderung der übrigen werte vornimmt» - «fundamentflow und gelände >14°
-einbauen» - «Bilde den fundamentflow im handbuch ab für die
-nachvollziehbarkeit.»`)}
-
-<p>Die zulässigen Standardlasten eines Mastfundaments stehen je Geländefall
-(bis 14°, 14°–33° horizontales Terrain, 14°–33° Richtung fallende Böschung)
-als <b>Basiswerte</b> für den ständigen Anteil (st), den veränderlichen (ver)
-und beide zusammen (tot), dazu V und T. Ist ein Basiswert überschritten, ist
-das Fundament nicht schon unzulässig: der Ablauf gleicht aus, indem er einen
-<b>anderen</b> zulässigen Wert abmindert. Er läuft <b>quer und längs zum
-Gleis getrennt</b>; beide müssen zulässig sein. Gerechnet in
-<code>core.fundament.js</code> (<code>fundamentAblauf</code>), die Werte in
-der Tabelle <i>Fundamentlasten je Gelände</i> des Masten-Sortiments.</p>
+<p>Standardfundamente nach Masttyp (Zuordnung über Profil und Stegrichtung)
+oder gewählt; Gelände bis 14°, 14°–33° horizontal oder 14°–33° Richtung
+fallende Böschung. Nachgewiesen werden die charakteristischen Kräfte am
+Fundamentkopf gegen die zulässigen Standardlasten, <b>quer und längs zum Gleis
+getrennt</b>, nicht überlagert.</p>
+
+<h4>8.1 Ablauf der Fundamentbestimmung</h4>
+<p>Je Richtung stehen Basiswerte für den ständigen (st), den veränderlichen
+(ver) und den gesamten Anteil (tot), dazu V und T. Ist ein Basiswert
+überschritten, gleicht der Ablauf aus, indem er einen anderen zulässigen Wert
+abmindert.</p>
 
 <svg viewBox="0 0 680 560" class="hb-bild" role="img"
      aria-label="Ablauf der Fundamentbestimmung, 19 Schritte"
@@ -2626,118 +482,368 @@ der Tabelle <i>Fundamentlasten je Gelände</i> des Masten-Sortiments.</p>
       <text x="8" y="30" fill="var(--dim)">${b}</text></g>`).join('')}
 </svg>
 
-<h4>21.1 Die beiden Abminderungen</h4>
 <table class="dt">
-<tr><th>Wert</th><th>Bedeutung</th><th>wirkt in Schritt</th></tr>
-<tr><td>red_M</td><td>kNm zulässiges <b>ständiges</b> Moment weniger je kNm
+<tr><th>Wert</th><th>Bedeutung</th><th>Schritt</th></tr>
+<tr><td>red_M</td><td>kNm zulässiges ständiges Moment weniger je kNm
   Überschreitung des veränderlichen</td><td>7, 10, 12, 18</td></tr>
-<tr><td>red_H</td><td>kNm zulässiges <b>Gesamtmoment</b> weniger je kN
-  Überschreitung der Horizontalkraft</td><td>13, 14</td></tr>
+<tr><td>red_H</td><td>kNm zulässiges Gesamtmoment weniger je kN Überschreitung
+  der Horizontalkraft</td><td>13, 14</td></tr>
 </table>
 <p>Hart bleiben V, T, das Gesamtmoment (Schritt 2) und die Grenze des
-veränderlichen Moments (Schritt 3) - sie werden nie ausgeglichen. Das
-ständige Moment allein muss nicht eingehalten sein, solange veränderliches
-und Gesamtmoment im Rahmen bleiben (Schritt 6).</p>
+veränderlichen Moments M_ver,max (Schritt 3).</p>
 
-<h4>21.2 Ergebnis und η</h4>
-<p>Drei Stufen: <i>alle Basiswerte eingehalten</i>, <i>zulässig mit
-abgeminderten Werten</i> (der Schritt steht dabei), <i>grösseres Fundament
-nötig</i>. Das η ist das grösste Verhältnis der Prüfungen, die auf dem
-gegangenen Weg eingehalten sein müssen; eine Überschreitung, die der Ablauf
-ausgleicht, zählt nicht - sie ist der Grund der Abminderung. Das η liegt damit
-genau dann über 1.00, wenn das Fundament nicht zulässig ist.</p>
-<p><b>Horizontalkraft und Moment als Resultierende</b> (17. November): die
-Anteile ständig und veränderlich (H_st, H_ver, M_st, M_ver) lenken den Ablauf,
-zählen aber nicht einzeln. Massgebend sind H_tot und M_tot gegen ihre
-zulässigen Werte, M_ver gegen die Grenze M_ver,max und auf dem abgeminderten
-Weg M_st gegen den abgeminderten Wert. So steigt η stetig mit der Last; vorher
-stand z. B. ein fast unbelastetes ständiges Moment neben einem veränderlichen
-knapp unter seinem Basiswert bei 0.98 und sprang knapp darüber auf 0.68.
-Bericht, Diagramm und Kachel führen die Anteile grau als «lenkt den Ablauf,
-kein Nachweis». Ohne Abminderungswerte in der Tabelle (ältere Typen) bleiben
-die Momentanteile Nachweise. Der Vergleich des <b>Bestandesschutzes</b> nimmt
-den grössten Basiswert ohne diese Anteile.</p>
+<h4>8.2 Ausnutzung</h4>
+<p>Horizontalkraft und Moment zählen als <b>Resultierende</b>: massgebend sind
+H_tot, M_tot und M_ver gegen M_ver,max, auf einem abgeminderten Weg zusätzlich
+M_st gegen den abgeminderten Wert. Die Anteile H_st, H_ver, M_st und M_ver
+lenken den Ablauf, sind aber kein eigener Nachweis; Bericht, Diagramm und Kachel
+führen sie grau. η liegt genau dann über 1.00, wenn das Fundament nicht
+zulässig ist. Ohne Abminderungswerte in der Tabelle bleiben die Momentanteile
+Nachweise.</p>
+
 <p>Die Kachel nennt Typ und Weg («Basiswerte eingehalten», «abgemindert
-(Schritt n)», «grösseres Fundament nötig»), darunter die massgebende Prüfung
-(«massgebend: H_tot längs 7.35 / 17.00 kN»).</p>
-<p>Beispiel (DP22 auf DP1a / 2.1, 14°–33° horizontal): M_st 41.1 kNm über
-seinem Basiswert, M_ver 27.4 und M_tot 68.5 kNm im Rahmen → <b>zulässig in
-Schritt 6</b>, wie die alte Maststatik-Mappe.</p>
+(Schritt n)», «grösseres Fundament nötig») und die massgebende Prüfung.</p>
 
-<h4>21.3 Zwei Stellen wie die Mappe rechnet</h4>
-<p>Die Formeltafel der Mappe und ihre Zellen weichen an zwei Stellen ab; der
-Ablauf rechnet wie die <b>Zellen</b>: Schritt 12 <b>addiert</b> den
-Überschuss des veränderlichen Anteils (sichere Seite), und Schritt 10 mindert
-mit red_M. So vom Auftraggeber bestätigt (7. Oktober).</p>
+<p class="hb-quelle">core.fundament.js · <code>fundamentAblauf</code>,
+<code>fundamentNachweis</code></p>
 `,
 },
+
+// ===========================================================================
 {
-  id: 'bedienung',
-  titel: '22 · Bedienung, Vorlagen und leichte Fassungen',
+  id: 'anker',
+  titel: '9 · Zuganker und Druckstütze',
   html: `
-${q(`Weisung vom 16. November: «das handbuch ist auch zu aktualisieren und bei
-der schulungsversion mit den notwendigen erkärungen zum workflow zu versehen.»`)}
+<p>Ein schräger Stab vom Masten zu einem eigenen Fundament, an beiden Enden
+gelenkig; er trägt nur Normalkraft. Lage über Höhe h_A am Masten und Abstand a
+am Boden, quer oder längs zum Gleis.</p>
 
-<h4>22.1 Die Lastfallliste im Reiter Lasten</h4>
-<p>Unter «Was gerechnet wird» stehen die Bemessungsfälle nach Richtung:
-<b>quer zum Gleis</b> (Wind von links / rechts, mit und ohne viel Schnee),
-<b>längs zum Gleis</b> (vorwärts / rückwärts), <b>Weitere</b> (Eigengewicht,
-Schnee, Leiterbruch), je mit der Ausnutzung des Falls. Darunter die
-<b>Verformung</b>: je Nachweis der massgebende Betriebswind (nur Wind × 0.70).
-Ein Klick wählt den Fall für 3D und Übersicht, «Alle Fälle» die Hülle. Die
-ganze Tabelle mit allen Beiwerten - auch zum Anpassen und Entfernen - öffnet
-«Alle Kombinationen mit Lastbeiwerten» als Fenster.</p>
-
-<h4>22.2 Vorlagen der Anbauteile</h4>
 <table class="dt">
-<tr><th>Vorlage</th><th>Geometrie</th></tr>
-<tr><td>Hängestützen (Fahrdrahtabzug, NT-, Rohrausleger, Fläche)</td>
-    <td>Stütze 2.0 m, Mitte z −1.0; Ausleger und Tragseil auf −2.0, Fahrdraht NT −3.6, Rohr −4.4</td></tr>
-<tr><td>Ausleger am Masten (NT, Rohr)</td>
-    <td>Gleis 3.50 m ab Mastachse: Ausleger 3.50 m (Mitte 1.75), Tragseil und Fahrdrähte bei 3.50</td></tr>
-<tr><td>Ausleger, je nach rechts und nach links</td>
-    <td>die linke Vorlage (<code>…-links</code>) ist die rechte mit gespiegeltem x</td></tr>
-<tr><td>Lampe mit Rohr (Joch, Mast)</td><td>Rohr 4 m, Lampe am Rohrkopf</td></tr>
-<tr><td>Trafo 50 kVA</td><td>Schwerpunkt 0.50 m neben der Mastachse in Gleisrichtung (y)</td></tr>
-<tr><td>Signal pauschal</td><td>1 m² quer und längs, 400 kg</td></tr>
-<tr><td>Leiter am Masten</td><td>auf der Mastachse und der gewählten Höhe (x = y = z = 0)</td></tr>
+<tr><th>Typ</th><th>Modell</th><th>Nachweis</th></tr>
+<tr><td>Seilanker</td><td>Seil, nur Zug; drückt es, fällt es aus</td>
+  <td>Zugkraft gegen die zulässige Kraft</td></tr>
+<tr><td>Doppelanker</td><td>zwei Seile von einem Bolzen zu zwei
+  Anschlüssen am Masten (Abstand d_A); der Winkel gilt der Resultierenden</td>
+  <td>Resultierende gegen 2 × 67 kN, jedes Seil gegen 67 kN</td></tr>
+<tr><td>Druckstütze</td><td>Verbundstab aus U-Profilen</td>
+  <td>Druck gegen Knicken (Knicklänge = Stablänge), Zug gegen die zulässige Kraft</td></tr>
 </table>
 
-<h4>22.3 Im 3D ziehen</h4>
-<p>Jede Vorlage lässt sich als Ganzes ziehen: am Joch längs (x), am Masten in
-der Höhe. Ein <b>Angriffspunkt</b> wandert auf der Achse des Glieds, das zu
-ihm führt (Stütze lotrecht, Ausleger waagrecht); ein Ausleger an einer
-Hängestütze geht in der Höhe, und was an ihm hängt, wandert mit. Der
-<b>Endgriff</b> eines Teils mit Länge (Stütze, Aufsatz, Ausleger, Konsole,
-Traverse am Masten, Lampenrohr) ändert die Gesamtlänge. Strg beim Ziehen
-legt eine Kopie ab. Keinen eigenen Punktgriff haben Punkte auf ihrem
-Anschluss (Leiter direkt am Masten, abgefangene Leiter, Signal am Masten)
-und Punkte quer zur Bildebene (Trafo, y); die Traverse auf einem
-Jochaufsatz ist symmetrisch und hat keinen Endgriff - ihre Länge steht in
-der Karte. Ein Feld «Mitte der Gesamtlänge» in der Karte folgt aus der
-Gesamtlänge darüber.</p>
+<p>Nachgewiesen wird charakteristisch über die charakteristischen und die
+aussergewöhnlichen Fälle (Havarie), gegen zulässige Kräfte. Reicht der Typ
+nicht, nennt die Kachel die nächste Stufe (Seilanker → Stütze → Doppelanker).</p>
 
-<h4>22.4 Blatt der Reaktionskräfte</h4>
-<p>Die Übersichtsskizze zeichnet die Stäbe aus dem Stabmodell ab - ausser
-der Abspannung. Zuganker und Druckstütze stehen als eine Strebe mit Gelenk am
-Ankerfundament; eine Abspannung längs zum Gleis seitlich umgeklappt und
-gestrichelt.</p>
+<p class="hb-quelle">core.anker.js · core.stabseil.js · data.anker.js</p>
+`,
+},
 
-<h4>22.5 Viewer und Schulung</h4>
-<p>Dieselbe Anwendung in zwei leichten Stufen (<code>js/stufe.js</code>):
-der <b>Viewer</b> für Auftraggeber (ansehen, Anbauteile und Masten
-anpassen) und die <b>Schulung</b> (aufbauen in drei Schritten, einfache
-Sprache, vereinfachtes Ergebnis). Gebündelt mit
-<code>python3 build_html.py --stufe viewer|schulung [--mit-daten]</code>; nur
-die Datei <i>mit Daten</i> trägt die Übungsbeispiele
-(<code>data/uebungen.json</code>, Ablage-Pakete in <code>data/uebungen/</code>).
-Die Schulung zeigt beim Öffnen die Nutzungsbedingungen (auch
-<code>LIZENZ.md</code>), hat ein eigenes Handbuch und lässt die Anbauteile
-mit ihren Bausteinen frei bearbeiten. Beide rechnen immer
-mit dem Stabwerk und tragen einen roten Vermerk (Viewer «Vorabprüfung - kein
-geprüfter statischer Nachweis», Schulung «Vordimensionierung - kein geprüfter
-statischer Nachweis»); ein dort veränderter Stand ist in der Vollversion als
-solcher gekennzeichnet.</p>
+// ===========================================================================
+{
+  id: 'gzg',
+  titel: '10 · Gebrauchstauglichkeit',
+  html: `
+<p>Unter Betriebswind (nur Wind × 0.70) aus den Knotenwegen des Stabwerks;
+zwischen Knoten nach der Biegelinie. Jede Prüfung ist abschaltbar, die
+Grenzwerte sind einstellbar.</p>
+
+<table class="dt">
+<tr><th>Prüfung</th><th>Grenzwert (Vorgabe)</th></tr>
+<tr><td>Seitenlage des Fahrdrahts quer zum Gleis, am Knoten jedes Fahrdrahts</td><td>40 mm</td></tr>
+<tr><td>Auslenkung der Mastspitze, quer und längs</td><td>L / 100</td></tr>
+<tr><td>Verdrehung des Masten um seine Achse</td><td>5°</td></tr>
+<tr><td>Verdrehung des Tragauslegers im Grundriss</td><td>5°</td></tr>
+</table>
+
+<p>Ohne Fahrdraht gilt die Referenzhöhe am Masten: automatisch (Ausleger, sonst
+Jochauflager), am Ausleger, am Jochauflager oder eine eigene Höhe.</p>
+
+<p class="hb-quelle">core.stabverformung.js · core.verformung.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'abfangjoch',
+  titel: '11 · Abfangjoch',
+  html: `
+<p>Zwei liegende Walzprofile, verbunden durch Bindebleche oben und unten; am
+Mastende eine Gabel, am Ende mit der längeren Gabel aufgedoppelt. Die Masten
+stehen innerhalb der Trägerlänge; je Länge gilt ein Bereich zulässiger
+Stützweiten, Vorgabe ist die grösste (Überstand 25 cm je Seite).</p>
+
+<p>Anschluss je Gurt über ein Linkelement; Vorgabe: hinterer Gurt hält x,
+beide halten y und z, K_XX gehalten. Jeder Leiter zieht nach seiner Abfangart
+(Abschnitt 4.5), zentrisch in der Trägermittelebene an seiner Stelle x. Die
+Kräfte der Anbauteile wirken mit ihrem Hebel zur Trägerachse.</p>
+
+<p>Nachgewiesen werden Gurt und Bindebleche wie die Bauteile des Tragjochs
+(Abschnitt 7), dazu Masten, Anker und Fundamente. Mehrere Abfangjoche an
+denselben Masten (übereinander) bilden ein Stabwerk.</p>
+
+<p class="hb-quelle">export.axisvm.abfang.js · data.abfangjoche.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'tragausleger',
+  titel: '12 · Mast mit Tragausleger',
+  html: `
+<p>Kragarm aus zwei UPE 140 (280 mm licht) mit Bindeblechen oben und unten, am
+Mast als Gabel angeschlossen: beide Gurte halten x, y, z und K_XX. Aufgehängt
+an zwei Seilen von einem Punkt am Mast in der Höhe b über dem Ausleger zu den
+Enden der Ankertraverse im Abstand c₁ (Spreizung ±0.40 m); b und c₁ aus dem
+Sortiment oder über den Winkel α = arctan(b / c₁). Die Mastlänge ist ohne
+Eintrag H + b, auf den halben Meter aufgerundet.</p>
+
+<p>Ein Längsanker am Kragarmende hält den Ausleger in Gleisrichtung
+(Regelfall, abschaltbar). Der Wind längs wirkt auf den Ausleger selbst
+(Laufmeterlast aus der Lasttabelle). Der Ausleger lässt sich nach links oder
+rechts setzen; gespiegelt wird die Geometrie, die Einwirkungen bleiben.</p>
+
+<table class="dt">
+<tr><th>Nachweis</th><th>Grundlage</th></tr>
+<tr><td>UPE und Bindebleche</td><td>wie Abschnitt 7</td></tr>
+<tr><td>Aufhängung</td><td>Summe der senkrechten Seilkräfte, charakteristisch,
+  gegen V_zul = 5 kN</td></tr>
+<tr><td>Mast, Knicken, Fundament</td><td>wie Abschnitte 7 und 8</td></tr>
+<tr><td>Verdrehung</td><td>Abschnitt 10</td></tr>
+</table>
+
+<p class="hb-quelle">export.axisvm.tragausleger.js · core.tragausleger.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'masten',
+  titel: '13 · Masttypen',
+  html: `
+<h4>13.1 Walzprofile</h4>
+<p>HEB und HEM; der Steg liegt quer zum Gleis oder in der Jochachse. Mastlänge
+und Fussversatz je Mast; ohne Eintrag gilt die Vorgabe des Tragwerks.</p>
+
+<h4>13.2 Gespreizte Masten (DGP)</h4>
+<p>Ein Walzprofil, im unteren Teil L1 in der Stegmitte geteilt und am Fuss
+gespreizt. Im Modell zwei T-Hälften mit Bindeblechen in der Stegebene, darüber
+das Walzprofil. Nachgewiesen werden die Hälften, die Bleche und das Profil; das
+Knicken als Vollstab entfällt.</p>
+
+<h4>13.3 Gittermast</h4>
+<p>Vier Gurtwinkel mit den Schenkeln nach innen, unten konisch, Bindebleche auf
+vier Seiten; darüber ein Rohr oder ein Mastaufsatz. Das Rohr ist am Kopf
+verschraubt und an den tieferen Halterippen nur seitlich gehalten. Wind je Höhe
+auf die Ansichtsfläche der Stäbe, das Rohr mit 1.2 · q · d. Nachgewiesen werden
+Gurte, Bleche und Rohr je Stab; das Bemessungsdiagramm des Typs steht als
+Kontrolle daneben. Kein Knicken als Vollstab, kein Standardfundament. Rohr oder
+Aufsatz lassen sich weglassen.</p>
+
+<h4>13.4 Mast auf Perrondach</h4>
+<p>Unter dem Mastfuss eine Stütze oder ein Querbalken auf zwei Stützen
+(Vorschlagswerte oder frei). Die Kräfte stehen am Übergang; ein Fundament wird
+dort nicht nachgewiesen, der Unterbau selbst nicht bemessen.</p>
+
+<p class="hb-quelle">data.masten.js · export.axisvm.gitter.js ·
+export.axisvm.gespreizt.js · export.axisvm.unterbau.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'bestand',
+  titel: '14 · Einheitswind und Bestandesschutz',
+  html: `
+<h4>14.1 Einheitswind</h4>
+<p>Windstufe der alten Norm: Staudruck 1.0 kN/m² ohne Formbeiwert. Die Werte je
+Bauteil stehen in der Datenbasis (EK0); fehlt ein Wert, wird er aus der
+Angriffsfläche hergeleitet. Gittermast: 1.52 kN je m² Ansichtsfläche.</p>
+
+<h4>14.2 Bestandesschutz</h4>
+<p>Mit eingeschaltetem Nachweis tragen Anbauteile das Kennzeichen «neu». Das
+Stabwerk rechnet ein zweites Mal ohne die neuen Teile und vergleicht je
+Bauteil die Ausnutzung mit und ohne sie. Liegt die Zunahme unter dem
+Grenzwert, ist kein vertiefter Nachweis nötig. Am Fundament wird der grösste
+Basiswert verglichen (ohne die Anteile st / ver von H und M). Das Blatt
+Bestandesschutz zeigt die neuen Teile rot.</p>
+
+<p class="hb-quelle">core.bestand.js · data.fl.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'ergebnis',
+  titel: '15 · Ergebnisse lesen',
+  html: `
+<h4>15.1 Übersicht</h4>
+<p>Die Hauptkachel nennt das grösste η mit dem massgebenden Bauteil; mit der
+Nachweisart «beide» einschliesslich der Gebrauchstauglichkeit. Die Fussleiste
+zeigt dieselbe Zahl. Darunter je Bauteil eine Kachel mit η, Profil, der
+massgebenden Prüfung und der massgebenden Kombination. Solange das Stabwerk
+rechnet, stehen vorläufige Werte der Kontrollrechnung (Abschnitt 19).</p>
+
+<h4>15.2 3D-Bild</h4>
+<table class="dt">
+<tr><th>Plot</th><th>zeigt</th></tr>
+<tr><td>η, η w</td><td>Ausnutzung Tragsicherheit bzw. Gebrauchstauglichkeit</td></tr>
+<tr><td>σ_v, σ</td><td>Vergleichsspannung, Normalspannung</td></tr>
+<tr><td>M, V, N, T</td><td>Schnittgrössen</td></tr>
+<tr><td>w</td><td>Weg; dazu die verformte Figur</td></tr>
+<tr><td>Pos</td><td>Bauteile nach Position</td></tr>
+</table>
+<p>Mit «Linie» erscheint die Grösse als Zustandslinie entlang der Stäbe: Ebene
+automatisch oder gewählt, Teile wählbar, positive Werte rot, negative blau.
+Diagramme von Ober- und Untergurt in einer lotrechten Ebene zeigen mit dem
+Betrag nach aussen. «Blick auf die Ebene» dreht die Ansicht einmal auf die
+Linie. Rechtsklick auf einen Schalter der Gruppen Lasten oder Modell zeigt nur
+diesen, ein zweiter Rechtsklick wieder alle.</p>
+
+<h4>15.3 Weitere Reiter</h4>
+<p>Verläufe (η und Schnittgrössen entlang der Gurte, Bleche und Masten),
+Auflager (Reaktionskräfte charakteristisch, Kräfte am Jochanschluss).</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'ausleitung',
+  titel: '16 · Berichte und Ausleitung',
+  html: `
+<table class="dt">
+<tr><th>Ausgabe</th><th>Inhalt</th></tr>
+<tr><td>Nachweisbericht (PDF)</td><td>Grundlagen, System, Einwirkungen mit
+  Lastbildern, Schnittgrössen mit Zustandslinien, Nachweise mit eingesetzten
+  Formeln, Fundament mit Ablauf, Gebrauchstauglichkeit mit verformter Figur;
+  über das ganze Blatt</td></tr>
+<tr><td>Reaktionskräfte (Blatt)</td><td>alle Auflager, charakteristisch, Druck
+  positiv, mit Skizze, Achsen und Hinweisen</td></tr>
+<tr><td>Kräfte am Jochanschluss (Blatt)</td><td>Resultierende je Jochende, auf
+  Wunsch je Gurt</td></tr>
+<tr><td>Bestandesschutz (Blatt)</td><td>Vergleich mit und ohne neue Teile</td></tr>
+<tr><td>Excel</td><td>Eingabe, Urteil, Zwischenwerte, alle Stäbe, Masten,
+  Reaktionen</td></tr>
+<tr><td>AxisVM (COM-Brücke, JSON)</td><td>dasselbe Stabmodell: Knoten, Stäbe,
+  Querschnitte, Links, Starrkörper, Lasten, Kombinationen; begrenzte Halte als
+  Faktoren der Hilfslastfälle</td></tr>
+<tr><td>SAF, DXF, PyNite</td><td>Austauschformate und unabhängige Nachrechnung</td></tr>
+</table>
+
+<p>Die COM-Brücke baut das Modell in AxisVM auf; rechnen und auslesen auf
+Wunsch. Die ausgelesenen Ergebnisse lassen sich einlesen und als
+<b>Gegenrechnung</b> neben die eigene Rechnung stellen (dieselbe Auswertung,
+nur die Schnittgrössen aus AxisVM).</p>
+
+<p class="hb-quelle">export.stabbericht.js · export.reaktionen.js ·
+export.axisvm.js · com/</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'ablage',
+  titel: '17 · Projekte und Datenbasis',
+  html: `
+<p>Der Arbeitsstand wird im Browser gehalten. Die Projektablage (IndexedDB)
+führt Projekte mit ihren Querprofilen, je mit Zeichnung; sie lässt sich als
+Paket ausleiten und einlesen. Eine hinterlegte Querprofilzeichnung wird an
+zwei Punkten bzw. einer bekannten Länge eingemessen.</p>
+
+<p>Die Datenbasis (Sortimente, Lasttabelle, Reglagetabelle, Fundamentlasten,
+Anker) kommt als Datenpaket. Eingelesene Tabellen werden gegen den Bestand
+abgeglichen; Änderungen an geprüften Sätzen werden gemeldet. Die Normwerte
+der Profile gehören zur Anwendung.</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'bedienung',
+  titel: '18 · Bedienung',
+  html: `
+<ul class="hb-liste">
+<li><b>Reiter</b> System, Anbauteile, Lasten; die Sprungleiste oben öffnet und
+  zeigt eine Gruppe.</li>
+<li><b>Neues Querprofil</b>: Art, Typ, Länge, Höhe und Grundwerte in einem
+  Dialog. Weitere Tragwerke über die Kacheln oder das Kontextmenü, zwischen
+  zwei Masten.</li>
+<li><b>Ziehen im 3D</b>: Anbauteile, Angriffspunkte auf der Achse ihres
+  Glieds, Länge am Ende eines Trägers, Masten an Kopf, Fuss oder Lage. Mit Strg
+  wird eine Kopie abgelegt. Raster 0.10 m.</li>
+<li><b>Kontextmenü</b> (Rechtsklick) an Tragwerk, Mast, Anker und Anbauteil.</li>
+<li><b>Lastfall</b>: «umhüllend» oder ein einzelner Fall; die Liste ordnet die
+  Fälle quer und längs zum Gleis.</li>
+<li><b>Rückgängig</b> Strg+Z, Wiederholen Strg+Umschalt+Z; die Tastenkürzel
+  stehen in der Übersicht der Anwendung.</li>
+<li><b>Leichte Fassungen</b>: Viewer und Schulung rechnen mit demselben Stabwerk
+  und zeigen nur einen Teil der Eingaben.</li>
+</ul>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'kontrolle',
+  titel: '19 · Kontrollrechnung',
+  html: `
+<p>Neben dem Stabwerk läuft eine vereinfachte Rechnung: das Joch als
+Einfeldträger mit Drehfedern an den Enden, die Masten als Kragarme, die
+Schnittgrössen auf Gurte und Bindebleche umgerechnet. Sie liefert sofort
+Werte und dient</p>
+<ul class="hb-liste">
+<li>der vorläufigen Anzeige, solange das Stabwerk rechnet («Kontrollrechnung ·
+  vorläufig»),</li>
+<li>dem Knicken an Masten, für die das Stabwerk keine Kräfte liefert,</li>
+<li>der Plausibilitätsprüfung im Prüfstand.</li>
+</ul>
+${f(`c_φ = 4 · E · I_Mast / H &nbsp;&nbsp; (Drehfeder des Jochendes aus dem Mast)`)}
+<p>Für den Nachweis massgebend ist das Stabwerk. Die Kontrollrechnung sieht die
+Biegung der Bleche aus ihrer Ebene nicht und kennt keine Rahmenwirkung über die
+Reihe.</p>
+
+<p class="hb-quelle">core.statics.js · core.vierendeel.js · core.querschnitt.js</p>
+`,
+},
+
+// ===========================================================================
+{
+  id: 'grenzen',
+  titel: '20 · Modellgrenzen',
+  html: `
+<h4>20.1 Nicht gerechnet</h4>
+<table class="dt">
+<tr><th>Nicht enthalten</th><th>Folge</th></tr>
+<tr><td><b>Knicken</b> von Gurtwinkeln, Bindeblechen und Gittermasten;
+  Biegedrillknicken (χ_LT = 1.0); <b>Beulen</b></td>
+  <td>separat zu führen</td></tr>
+<tr><td><b>Schweissnähte</b> und Anschlüsse (Kehlnähte, Schrauben ausser der
+  Grenzkraft der Gurtverbindung, Fussplatten)</td><td>separat zu führen</td></tr>
+<tr><td><b>Ermüdung</b></td><td>nicht betrachtet</td></tr>
+<tr><td><b>Querschnittsklasse 4</b></td><td>elastisch mit Bruttoquerschnitt –
+  unsichere Seite, ein Hinweis nennt es</td></tr>
+<tr><td><b>Wölbkrafttorsion</b> der Gurte und Bleche</td><td>nur St.-Venant;
+  am Masten mit σ_ω</td></tr>
+<tr><td>Theorie zweiter Ordnung, nichtlineares Material</td><td>linear-elastisch;
+  Stabilität über die Ersatzstabnachweise</td></tr>
+<tr><td>Baugrund, Sonderfundamente, Unterbau auf Perrondach</td><td>Kräfte
+  werden ausgegeben, nicht bemessen</td></tr>
+</table>
+
+<h4>20.2 Vereinfachungen</h4>
+<table class="dt">
+<tr><th>Annahme</th><th>Richtung</th></tr>
+<tr><td>Anbauteile starr</td><td class="hb-sicher">sicher</td></tr>
+<tr><td>Wind nie quer und längs zugleich</td>
+  <td class="hb-neutral">Festlegung; schräge Anströmung nicht abgedeckt</td></tr>
+<tr><td>Seile ohne Vorspannung, nur Zug</td><td class="hb-neutral">Näherung</td></tr>
+<tr><td><b>Verformung</b> unter Betriebswind aus dem linearen Stabwerk</td>
+  <td class="hb-neutral">Näherung</td></tr>
+<tr><td>Fundamentfuss starr eingespannt</td><td class="hb-neutral">Näherung</td></tr>
+</table>
+
+<h4>20.3 Eingangsdaten</h4>
+<p>Die Rechnung ist so gut wie die Datenbasis. Geometrie, Blecheinteilung und
+Lasten stammen aus den Sortimenten; eine Länge ausserhalb des Sortiments wird
+gemeldet und im Stabwerk nicht gerechnet.</p>
 `,
 },
 ];
@@ -2755,9 +861,9 @@ export function handbuchHtml() {
       <div class="hb-toc-t">Inhalt</div>${toc}
     </nav>
     <div class="hb-text">
-      <p class="notiz">Herleitung des Rechenwegs und Grenzen des Modells.
-        Jeder Abschnitt nennt die Datei des Rechenkerns, in der die Formel
-        steht – vom Satz zur Zeile.</p>
+      <p class="notiz">Rechenmodell, Einwirkungen, Nachweise und Grenzen des
+        Modells. Jeder Abschnitt nennt die Datei des Rechenkerns, in der die
+        Regel steht.</p>
       ${rumpf}
     </div>
   </div>`;
