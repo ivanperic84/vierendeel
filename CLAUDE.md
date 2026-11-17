@@ -3040,6 +3040,7 @@ node vergleich_starrheit.mjs com/AxisVM_<name>.json   # Starrfaktor-Reihe und Dr
 node vergleich_anschluss.mjs com/AxisVM_<name>.json [M1] [G]   # was die Konsolen in den Masten einleiten
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 build_html.py --stufe viewer|schulung [--mit-daten]   # leichte Fassung (js/stufe.js), ohne Daten
+# Mit --mit-daten heisst die Datei vierendeel_schulung_mit_daten.html - DIESE nach Versand/ (nur sie traegt Daten, Uebungsbeispiele, Herausgeber)
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
 
