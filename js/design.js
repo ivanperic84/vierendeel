@@ -326,6 +326,7 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>
     ${einheit ? `<div class="kz-e">${esc(einheit)}</div>` : ''}
+    ${ziel?.nachweisKurz ? `<div class="kz-n" title="${esc(ziel.nachweis ?? '')}">${esc(ziel.nachweisKurz)}</div>` : ''}
     ${ziel?.fall ? `<div class="kz-f">${esc(ziel.fall)}</div>` : ''}
   </div>`;
 }

@@ -6912,6 +6912,10 @@ export function gzgKacheln(erg) {
         // Für das einfache Ergebnisfeld der Schulung (15. November).
         eta: mg.eta,
         nachweis: nwText,
+        // Sichtbar in der Kachel (17. November): welche Prüfung massgebend ist.
+        nachweisKurz: `massgebend: ${mg.verdrehung || mg.ausleger ? 'Verdrehung'
+          : mg.spitze ? `Mastspitze L/${Math.round(q.L / mg.grenz)}`
+          : `${q.stelle?.was ?? 'Messstelle'} ${mm(mg.grenz)}`}`,
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
          * Tragsicherheit, und welche von ihnen massgebend wurde, steht
@@ -7628,6 +7632,17 @@ export function fundamentNachweisText(q, name, fF = null) {
     + `${fall ? ` Lastfall: ${fall}.` : ''}`;
 }
 
+/** «massgebend: H_tot längs 7.35 / 17.00 kN» (17. November, sichtbar in der Kachel). */
+export function fundamentNachweisKurz(q) {
+  const m = q?.massgebend;
+  if (!m || !Number.isFinite(m.wert) || !Number.isFinite(m.zul)) return '';
+  const tr = /^(quer|längs): (.*)$/.exec(String(m.was ?? ''));
+  const rest = tr ? tr[2] : String(m.kurz ?? m.was ?? '');
+  const code = rest.split(' ')[0];
+  const grenze = / gegen Grenze$/.test(rest) ? ',max' : '';
+  return `massgebend: ${code}${grenze}${tr ? ` ${tr[1]}` : ''} ${m.wert.toFixed(2)} / ${m.zul.toFixed(2)} ${m.einheit ?? ''}`.trim();
+}
+
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   /*
    * DAS FUNDAMENT AUS DEM STABWERK (30. September): gilt das Stabwerk,
@@ -8044,6 +8059,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         ampelU(q.eta), {
           ...(fF ? { fall: fF.kurz } : {}),
           nachweis: nwText,
+          nachweisKurz: fundamentNachweisKurz(q),
           titel: `${fF ? `Massgebende Kombination: ${fF.voll}
 
 ` : ''}`

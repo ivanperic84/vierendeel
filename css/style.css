@@ -1457,6 +1457,12 @@ button.wz-haupt:hover { color: var(--on); }
   color: var(--dim); line-height: 1.2; margin-top: 3px; padding-top: 2px;
   border-top: 1px solid var(--ol);
 }
+/* Der massgebende Nachweis kurz (17. November, Fundament und Verformung);
+   der ganze Satz im Titel und im einfachen Ergebnis. */
+.kz-n { font-family: var(--f-mono); font-size: 10px; color: var(--on2);
+  line-height: 1.25; margin-top: 2px; }
+/* In der Schulung gibt es keine Auflagerskizze - die vierte Stufe fällt weg. */
+html[data-stufe="schulung"] option[value="eigen"] { display: none; }
 
 /* Kurzes Aufleuchten, wenn ein Mass im Modell sein Eingabefeld aufruft */
 @keyframes blitz { 0%, 100% { box-shadow: 0 0 0 0 transparent; }

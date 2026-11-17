@@ -3434,6 +3434,7 @@ function aendern(key, wert) {
   // Einspannung des Jochs (Schulung, 16. November): schreibt die Lagerung am
   // Masten - eingespannt die beiden Gurte voll, sonst wieder die Vorgabe.
   if (key === 'jochEinspannung') {
+    if (wert === 'eigen') return;   // nur Anzeige einer eigenen Lagerung
     // «grenze» (17. November): eingespannt, die Hakenschrauben begrenzen.
     return aendern('auflagerLinks', wert === 'eingespannt' || wert === 'grenze'
       ? { ...JSON.parse(JSON.stringify(JOCH_EINGESPANNT)), ...(wert === 'grenze' ? { schraubenGrenze: true } : {}) }
@@ -5819,7 +5820,7 @@ function exportMenue() {
     { text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
     { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
-    { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
+    // «Drucken» weg (17. November, «den drucken button entfernen»).
   ];
 }
 

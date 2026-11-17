@@ -24554,10 +24554,11 @@ titel('68  Das Menueband und der Name der Anwendung');
                           app.indexOf('function exportMenueVerdrahten'));
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
   // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
-  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Drucken',
-       eintraege.length === 11 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+  // 17. November: «den drucken button entfernen» - zehn Eintraege, kein Drucken.
+  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel - kein Drucken',
+       eintraege.length === 10 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
-           'reaktionsBlatt', 'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
+           'reaktionsBlatt', 'exportKlick'].every((t) => menue.includes(t)) && !menue.includes('window.print()'),
        eintraege.join(' · '));
   wahr('… und der AxisVM-Dialog nimmt das Format vorgewaehlt entgegen',
        /export function dialogAxisvm\(app, format = 'json'\)/.test(
@@ -42400,10 +42401,14 @@ titel('281  Einspannung des Jochs bis zur Grenze der Hakenschrauben');
        && SG.schraubenGrenzeEinsetzen(dat, [{ auflagerLinks: { schraubenGrenze: true } }]) === 0);
   const SCH = await import(J('ui.schema.js'));
   const f = SCH.FELDER.find((x) => x.key === 'jochEinspannung');
-  wahr('Feld der Schulung: wie gebaut / bis zur Grenze der Hakenschrauben / voll eingespannt',
-       f.optionen.map((o) => o.wert).join() === 'gebaut,grenze,eingespannt'
+  // 17. November: auch in der Vollversion; eine eigene Lagerung der Skizze als vierte, nicht wählbare Stufe.
+  wahr('Feld: wie gebaut / bis zur Grenze der Hakenschrauben / voll eingespannt (+ eigene Lagerung)',
+       f.optionen.map((o) => o.wert).join() === 'gebaut,grenze,eingespannt,eigen'
+       && f.optionen.find((o) => o.wert === 'eigen').aus === true
        && f.wertAus({ auflagerLinks: { ...voll, schraubenGrenze: true } }) === 'grenze'
-       && f.wertAus({ auflagerLinks: voll }) === 'eingespannt' && f.wertAus({}) === 'gebaut');
+       && f.wertAus({ auflagerLinks: voll }) === 'eingespannt' && f.wertAus({}) === 'gebaut'
+       && f.wertAus({ auflagerLinks: { OG: { x: 'Free' }, UG: { x: 'Rigid' } } }) === 'eigen'
+       && f.sichtbar({ ...standardwerte(), mastVorhanden: true }));
 }
 
 // ===========================================================================
@@ -42552,6 +42557,25 @@ titel('286  Fundament: Moment als Resultierende; Fundament in der Schiene');
   const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
   wahr('Schiene: Gruppe «Fundament · char.» je Mast (Stabwerk, sonst Kern)',
        LQ.includes("gruppen.push({ titel: 'Fundament · char.', teile })") && LQ.includes('swG?.h?.fundamentJe?.[namen[ende]]'));
+}
+
+// ===========================================================================
+titel('287  Vollversion: Einspannstufe, massgebender Nachweis in der Kachel, kein Drucken');
+/* 17. November: «Ja so übernehmen und den drucken button entfernen». */
+{
+  const U = await import(J('ui.js'));
+  const S = await import(J('stufe.js'));
+  const q = { typ: { typ: 'DP2a / 2.0' }, massgebend: { was: 'längs: H_tot', wert: 7.35, zul: 17, einheit: 'kN' } };
+  wahr('Fundament: Zeile «massgebend: H_tot längs 7.35 / 17.00 kN»',
+       U.fundamentNachweisKurz(q) === 'massgebend: H_tot längs 7.35 / 17.00 kN', U.fundamentNachweisKurz(q));
+  const erg = { modell: { federn: { namen: { A: 'M1' } } }, verformung: { psi: 0.7,
+    A: { ok: true, L: 8.5, stelle: { was: 'Jochauflager' },
+         massgebend: { wert: 0.063, grenz: 0.085, eta: 0.74, z: 8.5, achse: 'y', spitze: true, bez: 'Wind +y' },
+         nachweise: [] } } };
+  const k = U.gzgKacheln(erg).join('');
+  wahr('Verformung: Zeile «massgebend: Mastspitze L/100» sichtbar in der Kachel', /class="kz-n"[^>]*>massgebend: Mastspitze L\/100</.test(k));
+  wahr('Kein «Drucken» in Vollversion, Viewer und Schulung',
+       !S.exportErlaubt('drucken', 'viewer') && !S.exportErlaubt('drucken', 'schulung'));
 }
 
 console.log('\n' + '='.repeat(104));

@@ -800,28 +800,6 @@ export const FELDER = [
    * eta 0.4567 -> 0.5086. Wer die alte Rechnung will, waehlt «teilweise.
    * Steifigkeit aus Mast» - die Wahl bleibt, nur die Vorgabe wechselt.
    */
-  /*
-   * >>> EINSPANNUNG DES JOCHS AM MASTEN, NUR IN DER SCHULUNG (16. November). <<<
-   * Wunsch vom 15. November: «die einspannung der Tragjoche steuern zu
-   * können um zu sehen wie sich das verändet mit der verformung und den
-   * ausnutzungen der joche masten»; am 16. November «einspannung fertig
-   * machen». Zwei Stufen, weil die heutige Lagerung (Obergurt x y, Untergurt
-   * y z, K_XX) in der Jochebene schon gelenkig wirkt - nur EIN Gurt hält in
-   * Jochachse, ein Kräftepaar entsteht nicht. «eingespannt» = beide Gurte
-   * halten x, y, z und K_XX (`JOCH_EINGESPANNT`). Geschrieben wird in
-   * `auflagerLinks`, dieselbe Stelle wie die Auflagerskizze der Vollversion.
-   */
-  { key: 'jochEinspannung', gruppe: 'mast', typ: 'auswahl', label: 'Anschluss Joch am Masten',
-    standard: 'gebaut',
-    // Dritte Stufe (17. November, «bis zur schraubengrenze»): eingespannt,
-    // die Kraft je Gurtanschluss in Jochachse höchstens F_Grenz
-    // (core.stabschraube.js).
-    optionen: [{ wert: 'gebaut', text: 'wie gebaut (in der Jochebene gelenkig)' },
-               { wert: 'grenze', text: 'eingespannt bis zur Grenze der Hakenschrauben' },
-               { wert: 'eingespannt', text: 'voll eingespannt (ohne Grenze)' }],
-    sichtbar: (w) => EINFACH && tragwerksart(w).key === 'joch' && w.mastVorhanden !== false,
-    wertAus: (w) => (w.auflagerLinks?.schraubenGrenze === true ? 'grenze'
-      : jochEingespannt(w.auflagerLinks) ? 'eingespannt' : 'gebaut') },
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'links', optionen: opt(ENDBEDINGUNGEN),
     sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w),
@@ -972,6 +950,36 @@ export const FELDER = [
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   // Die reale Mastnummer (30. September) - nur Anzeige, siehe MASTFELDER.
+  /*
+   * >>> EINSPANNUNG DES JOCHS AM MASTEN, (Schulung 16. November, Vollversion 17. November). <<<
+   * Wunsch vom 15. November: «die einspannung der Tragjoche steuern zu
+   * können um zu sehen wie sich das verändet mit der verformung und den
+   * ausnutzungen der joche masten»; am 16. November «einspannung fertig
+   * machen». Zwei Stufen, weil die heutige Lagerung (Obergurt x y, Untergurt
+   * y z, K_XX) in der Jochebene schon gelenkig wirkt - nur EIN Gurt hält in
+   * Jochachse, ein Kräftepaar entsteht nicht. «eingespannt» = beide Gurte
+   * halten x, y, z und K_XX (`JOCH_EINGESPANNT`). Geschrieben wird in
+   * `auflagerLinks`, dieselbe Stelle wie die Auflagerskizze der Vollversion.
+   */
+  { key: 'jochEinspannung', gruppe: 'mast', typ: 'auswahl', label: 'Anschluss Joch am Masten',
+    standard: 'gebaut',
+    // Dritte Stufe (17. November, «bis zur schraubengrenze»): eingespannt,
+    // die Kraft je Gurtanschluss in Jochachse höchstens F_Grenz
+    // (core.stabschraube.js).
+    optionen: [{ wert: 'gebaut', text: 'wie gebaut (in der Jochebene gelenkig)' },
+               { wert: 'grenze', text: 'eingespannt bis zur Grenze der Hakenschrauben' },
+               { wert: 'eingespannt', text: 'voll eingespannt (ohne Grenze)' },
+               // Vollversion (17. November, «Ja so übernehmen»): eine in der
+               // Auflagerskizze eigens gesetzte Lagerung steht als vierte,
+               // nicht wählbare Stufe da - sie bleibt, bis man eine der
+               // drei wählt.
+               { wert: 'eigen', text: 'eigene Lagerung (Auflagerskizze)', aus: true }],
+    // 17. November: auch in der Vollversion («die stufe bis zur grenze der
+    // hakenschrauben als wahl bei der lagerung» - «Ja so übernehmen»).
+    sichtbar: (w) => tragwerksart(w).key === 'joch' && w.mastVorhanden !== false,
+    wertAus: (w) => (w.auflagerLinks?.schraubenGrenze === true ? 'grenze'
+      : jochEingespannt(w.auflagerLinks) ? 'eingespannt'
+      : w.auflagerLinks ? 'eigen' : 'gebaut') },
   { key: 'mastNummer', gruppe: 'mast', typ: 'text',
     label: (w) => `Mastnummer ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: '', wertAus: amMast('nummer', 'mastNummer'),

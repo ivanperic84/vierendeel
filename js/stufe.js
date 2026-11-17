@@ -335,7 +335,8 @@ export function plotErlaubt(key, stufe = STUFE) {
  * in keiner leichten Stufe - sie gehören der Fachperson.
  */
 const EXPORT = {
-  viewer: new Set(['bericht', 'reaktionen', 'anschluss', 'bestand', 'drucken']),
+  // «Drucken» weg (17. November, «den drucken button entfernen»).
+  viewer: new Set(['bericht', 'reaktionen', 'anschluss', 'bestand']),
   // 17. November: «mach beim export die funktion druck weg und dafür eine
   // kurzzusammenfassung der berechnung …» - kein «Drucken», dafür «kurz».
   schulung: new Set(['reaktionen', 'kurz']),
