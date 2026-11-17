@@ -105,7 +105,10 @@ export function verdrahteAuflagerLinks(container, werte, onChange) {
                { ...alt, [art]: { ...je, [ebene]: { ...eb, [grad]: wert } } });
       return;
     }
-    const alt = werte.auflagerLinks ?? {};
+    // Ein Eingriff in der Skizze hebt die Stufe «bis zur Grenze der
+    // Hakenschrauben» auf (17. November): das Feld zeigt dann «eigene
+    // Lagerung», statt eine Grenze vorzugeben, die niemand mehr sieht.
+    const { schraubenGrenze: _weg, ...alt } = werte.auflagerLinks ?? {};
     const eb = { ...linkBedingung(werte, art, ebene), ...(alt[ebene] ?? {}) };
     onChange('auflagerLinks', { ...alt, [ebene]: { ...eb, [grad]: wert } });
   };

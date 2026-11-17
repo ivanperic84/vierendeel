@@ -6913,9 +6913,9 @@ export function gzgKacheln(erg) {
         eta: mg.eta,
         nachweis: nwText,
         // Sichtbar in der Kachel (17. November): welche Prüfung massgebend ist.
-        nachweisKurz: `massgebend: ${mg.verdrehung || mg.ausleger ? 'Verdrehung'
-          : mg.spitze ? `Mastspitze L/${Math.round(q.L / mg.grenz)}`
-          : `${q.stelle?.was ?? 'Messstelle'} ${mm(mg.grenz)}`}`,
+        // Nur wo sie etwas Neues sagt (17. November): bei der Mastspitze das
+        // Kriterium L/n; Ort, Grenze und Richtung stehen schon darüber.
+        nachweisKurz: mg.spitze ? `Grenze L/${Math.round(q.L / mg.grenz)} (Mastlänge ${f2(q.L)} m)` : '',
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
          * Tragsicherheit, und welche von ihnen massgebend wurde, steht
@@ -7409,17 +7409,24 @@ export function buegelBlockHtml(opt, urteil) {
   let k = '', tabelle = '';
   if (b) {
     const Fg = b.Fgrenz || 0;
+    // Lesbar statt «LINK_M2_OGL» (17. November): Mast und Gurt.
+    const gurtWort = (g) => (g === 'UG' ? 'Untergurt' : g === 'OG' ? 'Obergurt' : g ?? '');
+    const anschluss = (z) => (z?.ende ? `${z.ende} ${gurtWort(z.gurt)}` : (z?.name ?? ''));
     k = kachel('Bügelschrauben', b.eta === null ? '–' : f3(b.eta),
-      `${b.wer ?? ''} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
+      `${anschluss(b)} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
       b.eta === null ? '' : ampel(b.eta),
       { titel: 'Grösste Kraft in der Jochachse im Linkelement je Gurt am Mast, '
              + 'über die Bemessungskombinationen, gegen die Grenzlast der Gurtverbindung F_Grenz '
-             + '(Auflager → Grenzlast der Gurtverbindung).' });
+             + '(Auflager → Grenzlast der Gurtverbindung).'
+             + (b.begrenzt ? '\n\nStufe «eingespannt bis zur Grenze der Hakenschrauben»: der '
+               + 'Untergurt gibt höchstens F_Grenz weiter, darüber gleitet er - η 1.00 heisst hier '
+               + '«Grenze erreicht», nicht «überschritten».' : ''),
+        nachweisKurz: b.begrenzt ? `begrenzt auf ${f2(Fg)} kN (Untergurt gleitet darüber)` : '' });
     tabelle = klapp('buegel-tabelle', `Je Gurtanschluss · ${b.zeilen.length}`,
       `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Anschluss</th>
         <th class="num">F_x [kN]</th><th class="num">F_Grenz</th><th class="num">η</th>
         <th>massgebend</th></tr></thead><tbody>${b.zeilen.map((z) => `
-        <tr class="${z.eta > 1 ? 'nok' : ''}"><td>${esc(z.name)}</td>
+        <tr class="${z.eta > 1 ? 'nok' : ''}"><td>${esc(anschluss(z))}${z.begrenzt ? ' · begrenzt' : ''}</td>
           <td class="num">${f2(z.F)}</td><td class="num">${f2(z.Fgrenz)}</td>
           <td class="num ${z.eta === null ? '' : ampel(z.eta)}">${z.eta === null ? '–' : f3(z.eta)}</td>
           <td>${esc(kurz(z.bez))}</td></tr>`).join('')}</tbody></table></div>`, '', false);
@@ -7429,9 +7436,13 @@ export function buegelBlockHtml(opt, urteil) {
       a1.ok ? 'ok' : 'fail', { titel: a1.status ?? '' });
   }
   const ueber = b ? b.ueber : a1 && !a1.ok;
-  const knopf = b && ueber && typeof opt.beiBuegelGrenze === 'function'
-    ? `<button class="btn btn-mini btn-acc" data-buegel-grenze type="button"
-        title="Sucht die grösste Feder K_X, bei der die Schrauben die Grenzlast gerade einhalten (mehrere Stabwerksläufe)">Grenzfeder K_X suchen</button>` : '';
+  // Der Knopf «Grenzfeder K_X suchen» fällt weg (17. November): die Stufe
+  // «eingespannt bis zur Grenze der Hakenschrauben» rechnet die Grenze
+  // exakt. Bei Überschreitung steht der Weg dorthin als Satz da.
+  const knopf = b && ueber
+    ? `<p class="notiz" style="margin:4px 0 0">Abhilfe: unter Auflager «Anschluss Joch am Masten»
+        die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann gibt der
+        Untergurt höchstens F_Grenz weiter.</p>` : '';
   const vor = vorschlag?.K ? `<p class="notiz" style="margin:4px 0 0">Grenzfeder
       <b>K_X = ${Math.round(vorschlag.K).toLocaleString('de-CH')} kN/m</b>
       (${esc(vorschlag.gurte.join(' und '))}) - F = ${f2(vorschlag.F)} / ${f2(vorschlag.Fgrenz)} kN.
@@ -8024,7 +8035,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       if (!q.nachweise?.length) return;
       const alle = q.nachweise
         .map((x) => `${x.was}: ${x.wert.toFixed(2)} von ${x.zul} ${x.einheit}`
-                  + ` (η ${f3(x.eta)}) — ${x.bez}`)
+                  + ` (η ${f3(x.eta)}) — ${x.bez}${x.lenkt ? ' · lenkt den Ablauf, kein Nachweis' : ''}`)
         .join('\n');
       const hebt = q.abheben
         ? `\n\nABHEBEN: ${q.abheben.wert.toFixed(1)} kN in «${q.abheben.bez}». `
@@ -8052,8 +8063,13 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       const nwText = fundamentNachweisText(q, name, fF);
       fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
-          ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}${q.stufe === 'angepasst' ? ' · mit abgeminderten Werten ZULÄSSIG' : ''}`
-          + ` · ${q.massgebend.kurz ?? q.massgebend.key}`,
+          ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}`
+          // Die Prüfung steht seit dem 17. November in der Zeile «massgebend»;
+          // hier nur noch der Weg des Ablaufs in Worten (statt «Schritt 1»).
+          + (q.stufe === 'angepasst'
+            ? ` · abgemindert (Schritt ${Object.values(q.ablauf ?? {}).find((r) => r.ergebnis === 'angepasst')?.schritt ?? '?'})`
+            : q.stufe === 'nicht' ? ' · grösseres Fundament nötig'
+            : q.stufe === 'basis' ? ' · Basiswerte eingehalten' : ''),
         // η ist das des Ablaufs (11. Oktober): über 1.00 genau dann, wenn
         // das Fundament nicht zulässig ist - die Ampel folgt der Zahl.
         ampelU(q.eta), {

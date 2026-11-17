@@ -961,7 +961,10 @@ export const FELDER = [
    * halten x, y, z und K_XX (`JOCH_EINGESPANNT`). Geschrieben wird in
    * `auflagerLinks`, dieselbe Stelle wie die Auflagerskizze der Vollversion.
    */
-  { key: 'jochEinspannung', gruppe: 'mast', typ: 'auswahl', label: 'Anschluss Joch am Masten',
+  // Gruppe (17. November, Durchsicht der Vollversion): in der Vollversion
+  // unter «Auflager» neben der Auflagerskizze; die Schulung hat dort keine
+  // Gruppe und zeigt es bei den Masten.
+  { key: 'jochEinspannung', gruppe: EINFACH ? 'mast' : 'aufl', typ: 'auswahl', label: 'Anschluss Joch am Masten',
     standard: 'gebaut',
     // Dritte Stufe (17. November, «bis zur schraubengrenze»): eingespannt,
     // die Kraft je Gurtanschluss in Jochachse höchstens F_Grenz

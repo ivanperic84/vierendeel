@@ -655,10 +655,13 @@ export function fundamentHtml(q, name, schluessel, bildHtml = '') {
     // Eine Basisgrösse, die der Ablauf ausgleicht, steht als «ausgeglichen» da
     // (7. Oktober) - rot wäre sie ein Urteil, das nicht gilt.
     const ausgeglichen = q.ok && q.stufe === 'angepasst';
+    // Anteile, die nur den Ablauf lenken (17. November), stehen grau und
+    // ohne Urteil da - für H und M zählt die Resultierende.
     const zeilen = q.nachweise.map((n) => [
       esc(n.was), zahl(n.wert, 2), esc(n.einheit), zahl(n.zul, 2),
-      `<span data-pruef="fund-${esc(e)}-${esc(n.key)}">${zahl(n.eta, 3)}</span>`,
-      esc(n.bez ?? ''), ausgeglichen && n.eta > 1 ? 'ausgeglichen' : urteilMarke(n.eta)]);
+      `<span data-pruef="fund-${esc(e)}-${esc(n.key)}"${n.lenkt ? ' style="color:#888"' : ''}>${zahl(n.eta, 3)}</span>`,
+      esc(n.bez ?? ''), n.lenkt ? '<span style="color:#888">lenkt den Ablauf, kein Nachweis</span>'
+        : ausgeglichen && n.eta > 1 ? 'ausgeglichen' : urteilMarke(n.eta)]);
     const ablauf = Object.values(q.ablauf ?? {});
     const ablaufHtml = ablauf.length ? `<p class="klein"><b>Ablauf der Fundamentbestimmung</b>
       (je Richtung; eine Überschreitung beim veränderlichen Anteil mindert den zulässigen

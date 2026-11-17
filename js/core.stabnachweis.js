@@ -771,6 +771,7 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
     return m;
   };
   const je = new Map();
+  const begrenzt = new Set();   // Anschlüsse mit Hilfsfall der Hakenschrauben
   faelle.forEach((lf) => {
     const summe = new Map();
     anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
@@ -782,6 +783,7 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
        */
       if (String(lastfall).startsWith('Schraube|')) {
         const nm = String(lastfall).split('|')[1];
+        begrenzt.add(nm);
         summe.set(nm, (summe.get(nm) ?? 0) + faktor);
         return;
       }
@@ -796,10 +798,11 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
     const [, praefix, ende, gurt, seite] = BUEGEL_LINK.exec(name);
     const Fg = Number(grenze(praefix)) || 0;
     return { name, praefix, ende, gurt, seite, ...z, Fgrenz: Fg,
-             eta: Fg > 0 ? z.F / Fg : null };
+             eta: Fg > 0 ? z.F / Fg : null, begrenzt: begrenzt.has(name) };
   }).sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0) || b.F - a.F);
   const m = zeilen[0];
   return { zeilen, F: m?.F ?? 0, eta: m?.eta ?? null, wer: m?.name ?? null,
+           ende: m?.ende ?? null, gurt: m?.gurt ?? null, begrenzt: Boolean(m?.begrenzt),
            fall: m?.fall ?? null, bez: m?.bez ?? null, Fgrenz: m?.Fgrenz ?? 0,
            ueber: zeilen.some((z) => z.eta !== null && z.eta > 1 + 1e-9) };
 }

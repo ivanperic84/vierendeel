@@ -15,6 +15,14 @@
  * die frühere Liste steht im Git-Verlauf dieser Datei. Neue Einträge oben.
  */
 export const AENDERUNGEN = [
+  {
+    datum: '2026-11-17',
+    punkte: [
+      { text: 'Fundament: Horizontalkraft und Moment zählen als Resultierende (H_tot, M_tot, M_ver gegen die Grenze M_ver,max); die Anteile ständig / veränderlich lenken den Ablauf, sind aber kein eigener Nachweis mehr. Gespeicherte Stände können beim Fundament tiefer liegen.', rechnung: true },
+      { text: 'Anschluss Joch am Masten: Stufe «eingespannt bis zur Grenze der Hakenschrauben» unter Auflager wählbar; der Knopf «Grenzfeder K_X suchen» entfällt.', rechnung: true },
+      { text: 'Kacheln Fundament, Verformung und Bügelschrauben nennen die massgebende Prüfung; Fussleiste mit derselben Zahl wie die Hauptkachel; Export ohne «Drucken».' },
+    ],
+  },
 ];
 
 const datumText = (d) => d.split('-').reverse().join('.');

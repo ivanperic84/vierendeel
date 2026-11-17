@@ -537,6 +537,13 @@ export function fundamentNachweis(kombi, satz) {
     }
 
     /*
+     * Welche Zeilen lenken nur den Ablauf (17. November, Durchsicht der
+     * Vollversion): H-Anteile immer, M-Anteile wo der Ablauf gilt. Bericht,
+     * Diagramm und Tooltip zeigen sie grau, ohne Urteil.
+     */
+    nw.forEach((n) => { n.lenkt = Boolean(n.hAnteil || (n.mAnteil && richt.length === 2)); });
+
+    /*
      * >>> ABHEBEN IST KEIN NACHWEIS, SONDERN EIN BEFUND. <<<
      *
      * Die Tabelle gilt für V zwischen 0 und 150 kN. Eine abhebende

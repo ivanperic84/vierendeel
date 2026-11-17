@@ -1957,12 +1957,14 @@ export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
   return o;
 }
 
-export function urteilFusszeile({ gut, eta, wer = '', urteil = {} }) {
-  const kopf = urteil.nichtNachgewiesen
+export function urteilFusszeile({ gut, eta, wer = '', urteil = {}, gzg = null }) {
+  // `gzg` (17. November): mit der Gebrauchstauglichkeit wie die Hauptkachel.
+  const kopf = (urteil.nichtNachgewiesen
     ? `${urteil.nichtNachgewiesen} NICHT nachgewiesen`
     : urteil.tragwerkGefuehrt === false
     ? 'Jochtragwerk nicht geführt'
-    : (gut ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt');
+    : (gut ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'))
+    + (gzg === null ? '' : gzg ? ' · Gebrauchstauglichkeit erfüllt' : ' · Gebrauchstauglichkeit NICHT erfüllt');
   const n = urteil.anzahlVerletzt ?? 0;
   const offen = urteil.nichtGefuehrt?.length ?? 0;
   // Ohne Zahl (Ausleger ohne Modell, 30. September) steht ein Strich.

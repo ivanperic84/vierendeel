@@ -29328,8 +29328,10 @@ titel('117  Neue Diagramme: Zahlen, Vorzeichen und Richtung');
     wahr('… jeder mit dem η seines Nachweises',
          d.reihen.every((r, i) => Math.abs(r.wert - q.nachweise[i].eta) < 1e-6),
          d.reihen.map((r) => r.wert.toFixed(3)).join(' '));
+    // 17. November: Anteile, die nur den Ablauf lenken, tragen den Zusatz.
     wahr('… und unter dem Namen seines Nachweises',
-         d.reihen.every((r, i) => r.name === q.nachweise[i].was));
+         d.reihen.every((r, i) => r.name === (q.nachweise[i].lenkt
+           ? `${q.nachweise[i].was} (lenkt Ablauf)` : q.nachweise[i].was)));
   }
 
   // --- d) Die Fusskraft je Lastfall: DIE RICHTUNG -------------------------
@@ -39623,7 +39625,11 @@ titel('244  Buegelschrauben: Kraft x je Gurtanschluss aus dem Stabwerk; Grenzfed
   const c = lauf({ ...w2, auflagerLinks: { OG: { x: 'Rigid' }, UG: { x: r.K } } });
   wahr('Uebernommen: eingehalten', c.h.buegel.ueber === false, c.h.buegel.F.toFixed(2));
   const html = UI244.buegelBlockHtml({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig', ergebnis: b.h }, beiBuegelGrenze: () => {} }, { checks: [] });
-  wahr('Block mit Knopf «Grenzfeder K_X suchen»', html.includes('Bügelschrauben') && html.includes('data-buegel-grenze'));
+  // 17. November: der Knopf fällt weg, an seiner Stelle der Weg zur Stufe
+  // «eingespannt bis zur Grenze der Hakenschrauben».
+  wahr('Block ohne Knopf «Grenzfeder K_X suchen», mit Hinweis auf die Stufe',
+       html.includes('Bügelschrauben') && !html.includes('data-buegel-grenze')
+       && html.includes('eingespannt bis zur Grenze der Hakenschrauben'));
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('A1 steht nicht mehr in der Liste der Konstruktionspruefungen', uq.includes(".filter((c) => c.id !== 'A1')"));
 }
@@ -42503,7 +42509,9 @@ titel('284  Fundament: massgebender Nachweis beim Anklicken; Protokoll geleert')
     { titel: 'η M1', eta: 0.5, kopf: 'Mast' }]);
   wahr('Fundamente-Zeile klappt auf, massgebendes zuerst; Masten ohne', r.html.includes('class="ef-det" data-ef-gruppe="fundament"')
        && r.html.indexOf('<li>B</li>') < r.html.indexOf('<li>A</li>') && !r.html.includes('data-ef-gruppe="mast"'));
-  wahr('Änderungsprotokoll leer, Dialog sagt es', AE.AENDERUNGEN.length === 0 && AE.aenderungenHtml().includes('Noch keine Einträge'));
+  // Geleert am 17. November; seither neue Einträge (Durchsicht der Vollversion).
+  wahr('Änderungsprotokoll neu begonnen: nur der 17. November', AE.AENDERUNGEN.length === 1
+       && AE.AENDERUNGEN[0].datum === '2026-11-17' && !AE.aenderungenHtml().includes('Noch keine Einträge'));
 }
 
 // ===========================================================================
@@ -42573,9 +42581,37 @@ titel('287  Vollversion: Einspannstufe, massgebender Nachweis in der Kachel, kei
          massgebend: { wert: 0.063, grenz: 0.085, eta: 0.74, z: 8.5, achse: 'y', spitze: true, bez: 'Wind +y' },
          nachweise: [] } } };
   const k = U.gzgKacheln(erg).join('');
-  wahr('Verformung: Zeile «massgebend: Mastspitze L/100» sichtbar in der Kachel', /class="kz-n"[^>]*>massgebend: Mastspitze L\/100</.test(k));
+  // 17. November: nur wo sie Neues sagt - bei der Mastspitze das Kriterium.
+  wahr('Verformung: Zeile «Grenze L/100 (Mastlänge …)» sichtbar in der Kachel', /class="kz-n"[^>]*>Grenze L\/100 \(Mastlänge 8\.50 m\)</.test(k));
   wahr('Kein «Drucken» in Vollversion, Viewer und Schulung',
        !S.exportErlaubt('drucken', 'viewer') && !S.exportErlaubt('drucken', 'schulung'));
+}
+
+// ===========================================================================
+titel('288  Durchsicht der Vollversion: Anteile grau, Fussleiste, Einspannung, Bügelschrauben');
+/* 17. November: «checke die funktionalität der vollversion und mach
+ * optimierungsvorschläge …», dann «Alle umsetzen». */
+{
+  const NB = await import(J('export.nachweisbericht.js'));
+  const q = { typ: { typ: 'DP2a / 2.0', Vmax: 150 }, ok: true, stufe: 'basis', ablauf: {},
+    nachweise: [{ key: 'Hl', was: 'H_l', wert: 7.35, einheit: 'kN', zul: 17, eta: 0.43, bez: 'G + Wind' },
+                { key: 'Hlver', was: 'H_l veränderlich', wert: 7.35, einheit: 'kN', zul: 8.5, eta: 0.86, bez: 'Wind', lenkt: true }] };
+  const h = NB.fundamentHtml(q, 'M1', 'A');
+  wahr('Bericht: Anteil grau «lenkt den Ablauf, kein Nachweis», keine Ampel', h.includes('lenkt den Ablauf, kein Nachweis'));
+  const CHq = await import(J('core.checks.js'));
+  wahr('Fussleiste: mit Gebrauchstauglichkeit wie die Hauptkachel',
+       CHq.urteilFusszeile({ gut: true, eta: 0.74, wer: ' (Verformung M2)', urteil: {}, gzg: true })
+         === 'Tragsicherheit erfüllt · Gebrauchstauglichkeit erfüllt · η = 0.740 (Verformung M2)');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'ui.auflagerlinks.js'), 'utf8');
+  const SQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  wahr('Einspannung: unter Auflager (Vollversion), Skizze hebt die Stufe auf, Ersatzbalken-Schalter mit',
+       SQ.includes("gruppe: EINFACH ? 'mast' : 'aufl'") && LQ.includes('schraubenGrenze: _weg, ...alt')
+       && AQ.includes("werte = { ...werte, schraubenGrenze: wert === 'grenze' };"));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Bügelschrauben: Mast und Gurt statt Linkname, «begrenzt auf …»',
+       UQ.includes("const anschluss = (z) => (z?.ende ? `${z.ende} ${gurtWort(z.gurt)}`")
+       && UQ.includes('begrenzt auf ${f2(Fg)} kN'));
 }
 
 console.log('\n' + '='.repeat(104));

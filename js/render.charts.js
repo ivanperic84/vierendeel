@@ -640,9 +640,10 @@ export function fundamentDiagramm(q, opt = {}) {
     titel: opt.titel ?? `Mastfundament ${q.typ?.typ ?? ''} — Ausnutzung je Nachweis`,
     breite: opt.breite ?? 900, einheit: 'η [–]',
     grenze: 1.0, grenzText: 'η = 1.00', mL: 240,
+    // Anteile, die nur den Ablauf lenken (17. November), grau und benannt.
     reihen: q.nachweise.map((n) => ({
-      name: n.was, wert: n.eta, nk: 3,
-      farbe: opt.farbeVon ? opt.farbeVon(n.eta) : 'var(--acc)',
+      name: n.lenkt ? `${n.was} (lenkt Ablauf)` : n.was, wert: n.eta, nk: 3,
+      farbe: n.lenkt ? '#9aa0a6' : opt.farbeVon ? opt.farbeVon(n.eta) : 'var(--acc)',
     })),
   });
 }

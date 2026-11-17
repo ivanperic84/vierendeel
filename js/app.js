@@ -3079,10 +3079,26 @@ function aktualisiereFuss(erg, urteil, joch) {
                  quelle: stabwerkGilt() ? 'stabwerk' : 'ersatzbalken' };
   // Schulung: die Fussleiste schreibt das einfache Ergebnis (ui.einfach.js,
   // dieselbe Zahl wie die Kachel); hier nur, wenn die Übersicht nicht steht.
+  /*
+   * >>> DIESELBE ZAHL WIE DIE HAUPTKACHEL (17. November). <<< Durchsicht
+   * der Vollversion: die Hauptkachel nahm bei «beide» das Maximum über
+   * Tragsicherheit und Gebrauchstauglichkeit («η 0.740 Verformung M2»), die
+   * Fussleiste nur die Tragsicherheit («η = 0.695 (Mast M2)»). Jetzt
+   * dieselbe Regel (`urteilMitGebrauch`) mit denselben Wegen (Stabwerk,
+   * wenn es gilt) - die Schulung tat es schon über ihr einfaches Ergebnis.
+   */
+  const einzelFall = anzeigeKombi !== 'umhuellend';
+  const swV = stabwerkGilt() ? stabwerk?.verformung ?? null : null;
+  const Ug = ui.urteilMitGebrauch({ eta: e, zustand: gut ? 'ok' : 'nok', wer: bt?.massgebend?.name ?? null, text: '' },
+    swV ? { ...erg, verformung: swV } : erg, nachweisart, einzelFall);
+  const gzgGibt = Ug.eta > e + 1e-12 && Ug.wer;
+  const farbeF = urteil.tragwerkGefuehrt === false ? 'var(--warn)'
+    : (Ug.zustand === 'ok' ? 'var(--ok)' : 'var(--fail)');
   if (!(EINFACH && tabAuswertung === 'uebersicht')) {
     ui.el('st-urteil').innerHTML =
-      `<span class="pkt" style="background:${farbe}"></span>` +
-      urteilFusszeile({ gut, eta: e, wer, urteil });
+      `<span class="pkt" style="background:${nachweisart === 'trag' ? farbe : farbeF}"></span>` +
+      urteilFusszeile({ gut, eta: gzgGibt ? Ug.eta : e, wer: gzgGibt ? ` (${esc(Ug.wer)})` : wer, urteil,
+                        gzg: nachweisart !== 'trag' && (swV ?? erg.verformung) ? (swV ?? erg.verformung).ok !== false : null });
     ui.el('st-urteil').title = '';
   }
   /*
@@ -3435,6 +3451,10 @@ function aendern(key, wert) {
   // Masten - eingespannt die beiden Gurte voll, sonst wieder die Vorgabe.
   if (key === 'jochEinspannung') {
     if (wert === 'eigen') return;   // nur Anzeige einer eigenen Lagerung
+    // Der Ersatzbalken kennt die Stufe nicht; er hat seinen eigenen Schalter
+    // («Einspannung durch die Gurtverbindung begrenzen», Drehfeder iterativ,
+    // dieselbe Grenzlast F_Grenz). Die Stufe schaltet ihn mit (17. November).
+    werte = { ...werte, schraubenGrenze: wert === 'grenze' };
     // «grenze» (17. November): eingespannt, die Hakenschrauben begrenzen.
     return aendern('auflagerLinks', wert === 'eingespannt' || wert === 'grenze'
       ? { ...JSON.parse(JSON.stringify(JOCH_EINGESPANNT)), ...(wert === 'grenze' ? { schraubenGrenze: true } : {}) }

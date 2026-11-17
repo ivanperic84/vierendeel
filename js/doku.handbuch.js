@@ -2644,11 +2644,22 @@ und Gesamtmoment im Rahmen bleiben (Schritt 6).</p>
 abgeminderten Werten</i> (der Schritt steht dabei), <i>grösseres Fundament
 nötig</i>. Das η ist das grösste Verhältnis der Prüfungen, die auf dem
 gegangenen Weg eingehalten sein müssen; eine Überschreitung, die der Ablauf
-ausgleicht, zählt nicht - sie ist der Grund der Abminderung. In der Tabelle
-des Berichts steht sie deshalb als «ausgeglichen». Das η liegt damit genau
-dann über 1.00, wenn das Fundament nicht zulässig ist. Nur der Vergleich des
-<b>Bestandesschutzes</b> nimmt den grössten <b>Basiswert</b> - er steigt mit
-der Last, auch wo der Ablauf ausgleicht (Weisung 11. Oktober).</p>
+ausgleicht, zählt nicht - sie ist der Grund der Abminderung. Das η liegt damit
+genau dann über 1.00, wenn das Fundament nicht zulässig ist.</p>
+<p><b>Horizontalkraft und Moment als Resultierende</b> (17. November): die
+Anteile ständig und veränderlich (H_st, H_ver, M_st, M_ver) lenken den Ablauf,
+zählen aber nicht einzeln. Massgebend sind H_tot und M_tot gegen ihre
+zulässigen Werte, M_ver gegen die Grenze M_ver,max und auf dem abgeminderten
+Weg M_st gegen den abgeminderten Wert. So steigt η stetig mit der Last; vorher
+stand z. B. ein fast unbelastetes ständiges Moment neben einem veränderlichen
+knapp unter seinem Basiswert bei 0.98 und sprang knapp darüber auf 0.68.
+Bericht, Diagramm und Kachel führen die Anteile grau als «lenkt den Ablauf,
+kein Nachweis». Ohne Abminderungswerte in der Tabelle (ältere Typen) bleiben
+die Momentanteile Nachweise. Der Vergleich des <b>Bestandesschutzes</b> nimmt
+den grössten Basiswert ohne diese Anteile.</p>
+<p>Die Kachel nennt Typ und Weg («Basiswerte eingehalten», «abgemindert
+(Schritt n)», «grösseres Fundament nötig»), darunter die massgebende Prüfung
+(«massgebend: H_tot längs 7.35 / 17.00 kN»).</p>
 <p>Beispiel (DP22 auf DP1a / 2.1, 14°–33° horizontal): M_st 41.1 kNm über
 seinem Basiswert, M_ver 27.4 und M_tot 68.5 kNm im Rahmen → <b>zulässig in
 Schritt 6</b>, wie die alte Maststatik-Mappe.</p>
