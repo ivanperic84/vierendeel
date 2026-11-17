@@ -42637,6 +42637,16 @@ titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte 
        ZQ.includes("(o[2] > 0) !== (gurt === 'OG')") && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
 }
 
+// ===========================================================================
+titel('290  Modell-Ebenen: Rechtsklick zeigt nur diese, zweiter Rechtsklick alle');
+/* 17. November: «hier auch mit rechtsklick einzelauswahl ermöglichen und wenn
+ * man wieder mit rechtsklick macht dann alle ein» (Gruppe Modell). */
+{
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Gruppe Modell mit Rechtsklick wie die Lasten (nur vorhandene Ebenen)',
+       LQ.includes('ui.el(`wz-m-${s.key}`).oncontextmenu') && LQ.includes('const keys = WZ_MODELL(app).map((x) => x.key).filter((k) => !da || da.has(k));'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

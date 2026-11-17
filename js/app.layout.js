@@ -460,6 +460,21 @@ export function zeichneModellWerkzeuge(app) {
     ui.el(`wz-m-${s.key}`).onclick = () => {
       app.ansicht.ebenen[s.key] = !app.ansicht.ebenen[s.key]; nach();
     };
+    /*
+     * >>> RECHTSKLICK: NUR DIESE EBENE (17. November). <<< Mit Bild der
+     * Gruppe Modell: «hier auch mit rechtsklick einzelauswahl ermöglichen und
+     * wenn man wieder mit rechtsklick macht dann alle ein» - wie bei den
+     * Lasten. Gezählt werden nur Ebenen, die es in diesem Tragwerk gibt.
+     */
+    ui.el(`wz-m-${s.key}`).oncontextmenu = (e) => {
+      e.preventDefault();
+      const da = app.ansicht.szene ? app.ansicht.ebenenVorhanden() : null;
+      const keys = WZ_MODELL(app).map((x) => x.key).filter((k) => !da || da.has(k));
+      const allein = keys.every((k) => Boolean(app.ansicht.ebenen[k]) === (k === s.key));
+      keys.forEach((k) => { app.ansicht.ebenen[k] = allein ? true : k === s.key; });
+      app.ansicht.gruppen.modell = true;
+      nach();
+    };
   });
   WZ_ZEICHNUNG(app).forEach((s) => {
     ui.el(`wz-z-${s.key}`).onclick = () => {
