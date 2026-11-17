@@ -2964,17 +2964,17 @@ export const KURS_HANDBUCH = [
         quer, Wind längs, Schnee), Werte anschreiben. Rechtsklick auf einen
         Knopf zeigt nur diese Last.</li>
       <li><b>Resultate</b> - η (Ausnutzung), σ_v (Vergleichsspannung), M, V, N,
-        T (Schnittkräfte), w (Verformung), Pos (Bauteile nach Position).</li>
+        T (Schnittkräfte), w (Verformung), Pos (Bauteile nach Position).
+        <b>Linie</b> zeigt die gewählte Grösse als Zustandslinie entlang der
+        Stäbe statt als Farbe; Ebene und Teile wählt man in der Legende.</li>
     </ul>` },
   { id: 'k-mehr', titel: '7 Auflager und Export', html: `
     <p>Der Reiter <b>Auflager</b> zeigt die Reaktionskräfte an den
       Fundamenten, charakteristisch (alle Beiwerte 1.0), getrennt quer und
       längs zum Gleis.</p>
     <p><b>Export</b>: das Blatt der Reaktionskräfte (mit Skizze und Hinweisen)
-      und Drucken.</p>
-    <p>Die <b>Fussleiste</b> unten sagt dasselbe wie die Ergebniskachel. Steht
-      dort «einige Nachweise rechnet nur die Vollversion», zeigt das
-      Überfahren, welche (z. B. Knicken).</p>` },
+      und die Kurzzusammenfassung der Berechnung als PDF.</p>
+    <p>Die <b>Fussleiste</b> unten sagt dasselbe wie die Ergebniskachel.</p>` },
   { id: 'k-modell', titel: '8 Wie gerechnet wird', html: `
     <p>Das Tragwerk ist ein räumliches <b>Stabwerk</b>: die vier Winkel des Jochs,
       die Bindebleche dazwischen und die Masten sind Stäbe. Die Masten sind am
@@ -3020,7 +3020,8 @@ export const KURS_HANDBUCH = [
       statischer Nachweis. Das Knicken der Masten ist in der Vorgabe nicht eingeschaltet;
       Rechenmodell, Beiwerte, Lastfälle und Bauteildaten sind fest eingestellt,
       die Havarie (Leiterbruch) wird nicht gerechnet. Den
-      Nachweis für ein Projekt führt eine Fachperson in der Vollversion.</p>` },
+      Nachweis für ein Projekt führt eine Fachperson mit einem geprüften
+      Programm.</p>` },
   // Nutzungsbedingungen (16. November, «lizenztext und verteilungstext
   // einfügen»); der volle Text steht in LIZENZ.md der Ablage.
   { id: 'k-nutzung', titel: '13 Nutzung und Weitergabe', html: NUTZUNG_HTML },

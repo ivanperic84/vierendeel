@@ -3871,8 +3871,9 @@ html[data-stufe="schulung"] label:has(> [data-at-bestand]),
 html[data-stufe="schulung"] .legende-fuss { display: none !important; }
 /* Schulung: Werkzeugleiste im 3D auf Blick, Lasten ein/aus und Ergebnis
    (Ausnutzung, Verformung) - «nur das nötigste» (15. November). */
+/* 17. November: «bei der resultat steuerung noch die linie hinterlegen als
+   darstellungsart» - der Schalter «Linie» steht auch in der Schulung. */
 html[data-stufe="schulung"]:not([data-mehr]) .wz-gruppe:has(#wz-g-modell),
-html[data-stufe="schulung"]:not([data-mehr]) .wz-linie,
 html[data-stufe="schulung"] #wz-zu,
 html[data-stufe="schulung"] #wz-p-neutral { display: none !important; }
 /* 15. November: «die auswahl der einzelnen lasten ständig / veränderlich

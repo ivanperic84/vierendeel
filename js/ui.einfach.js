@@ -149,8 +149,8 @@ export function einfachAusKacheln(kacheln, opt = {}) {
      * >>> MIT DEM MASSGEBENDEN NACHWEIS (17. November). <<< «die ausnutzung
      * des fundaments ist etwas intransparent, kann man den relevanten
      * nachweiswert aufführen beim anklicken.» Trägt eine Gruppe Nachweise
-     * in Worten (heute das Fundament), klappt ein Klick sie auf - das
-     * massgebende Fundament zuerst.
+     * in Worten (Fundament, Verformung - 17. November), klappt ein Klick
+     * sie auf - das massgebende Bauteil zuerst.
      */
     const nw = (g.nachweise ?? []).slice().sort((a, c) => c.eta - a.eta);
     const zeile = `<div class="ef-zeile" title="${esc(g.name)}: ${prozent(g.eta)} (η ${g.eta.toFixed(2)})${nw.length ? ' - anklicken für den massgebenden Nachweis' : ''}">
@@ -232,12 +232,11 @@ function fusszeileEinfach(erg, opt = {}) {
   if (!el || !erg?.gruppen?.length) return;
   const max = erg.gruppen.reduce((a, b) => (b.eta > a.eta ? b : a));
   const farbe = max.eta > 1 ? 'var(--fail)' : max.eta > 0.9 ? 'var(--warn)' : 'var(--ok)';
-  const offen = (opt.nichtGefuehrt ?? []).map((g) => g.titel).filter(Boolean);
+  // 17. November: «hinweise zu der vollversion überall entfernen».
   const satz = (opt.fall ? `Im Fall «${opt.fall}»: ` : '')
-    + (max.eta > 1 ? `überlastet: ${max.name} ${prozent(max.eta)}` : `${prozent(max.eta)} ausgelastet: ${max.name}`)
-    + (offen.length ? ' · einige Nachweise rechnet nur die Vollversion' : '');
+    + (max.eta > 1 ? `überlastet: ${max.name} ${prozent(max.eta)}` : `${prozent(max.eta)} ausgelastet: ${max.name}`);
   el.innerHTML = `<span class="pkt" style="background:${farbe}"></span>${esc(satz)}`;
-  el.title = offen.length ? `Nur in der Vollversion: ${offen.join(', ')}` : '';
+  el.title = '';
 }
 
 /* ==========================================================================

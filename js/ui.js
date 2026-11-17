@@ -6874,8 +6874,24 @@ export function gzgKacheln(erg) {
         + `(${q.L.toFixed(2)} m) und gilt deshalb nicht. Gemessen wird auf `
         + `${mg.z?.toFixed(2)} m — dort, wo der Kern eine Verschiebung `
         + `rechnet.` : '';
-    k.push(kachel(ende === 'fahrdraht' ? `Seitenlage ${name}`
-      : ende === 'ausleger' ? 'Verdrehung Tragausleger' : `Verformung ${name}`, mm(mg.wert),
+    /*
+     * >>> DER MASSGEBENDE WERT IN WORTEN (17. November). <<< «die verformung
+     * aus ausklappbar machen und aufführen welcher wert massgebend ist.»
+     * Das einfache Ergebnisfeld klappt ihn beim Anklicken auf.
+     */
+    const kTitel = ende === 'fahrdraht' ? `Seitenlage ${name}`
+      : ende === 'ausleger' ? 'Verdrehung Tragausleger' : `Verformung ${name}`;
+    const richtung = mg.ausleger ? 'um die Mastachse' : mg.verdrehung ? 'um die Mastachse'
+      : (mg.achse === 'x' ? 'quer zum Gleis' : 'längs zum Gleis');
+    const stelle = mg.ausleger ? `bei x ${f2(mg.x)} m`
+      : Number.isFinite(mg.z) ? `${mg.verdrehung ? 'Mastverdrehung' : mg.spitze ? 'Mastspitze'
+        : (q.stelle?.was ?? 'Messstelle')} auf ${mg.z.toFixed(2)} m` : '';
+    // `mg.was` nennt Stelle, Richtung und Grenze schon («Mastspitze auf
+    // 8.50 m, in Gleisrichtung, Betriebswind, L/100»); sonst aus den Teilen.
+    const nwText = `${kTitel}: ${mg.was || [stelle, richtung].filter(Boolean).join(', ')} - `
+      + `${mm(mg.wert)} von ${mm(mg.grenz)} zulässig (${Math.round((mg.eta ?? 0) * 100)} %). `
+      + `Lastfall: ${mg.bez ?? '?'}, Wind × ${erg.verformung.psi.toFixed(2)}.`;
+    k.push(kachel(kTitel, mm(mg.wert),
       `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig`
       + `${mg.ausleger ? ' · um die Mastachse' : mg.verdrehung ? ' · um die Achse' : ` · ${mg.achse === 'x' ? 'quer' : 'längs'}`}`
       /*
@@ -6895,6 +6911,7 @@ export function gzgKacheln(erg) {
       ampel(mg.eta), {
         // Für das einfache Ergebnisfeld der Schulung (15. November).
         eta: mg.eta,
+        nachweis: nwText,
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
          * Tragsicherheit, und welche von ihnen massgebend wurde, steht

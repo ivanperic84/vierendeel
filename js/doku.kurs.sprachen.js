@@ -136,10 +136,8 @@ export const KURS_FR = [
       caractéristiques (tous les coefficients 1.0), séparément perpendiculaire
       et parallèle à la voie.</p>
     <p><b>Exporter</b> : la feuille des réactions (avec croquis et remarques) et
-      l'impression.</p>
-    <p>La <b>barre du bas</b> dit la même chose que la vignette du résultat. Si
-      elle indique «certaines justifications seulement dans la version
-      complète», le survol montre lesquelles (p. ex. flambage).</p>` },
+      le résumé du calcul en PDF.</p>
+    <p>La <b>barre du bas</b> dit la même chose que la vignette du résultat.</p>` },
   { id: 'k-modell', titel: '8 Comment le calcul est effectué', html: `
     <p>La structure est un <b>treillis spatial</b> : les quatre cornières du joug,
       les plats de liaison entre elles et les mâts sont des barres. Les mâts sont
@@ -190,8 +188,8 @@ export const KURS_FR = [
       justification statique vérifiée. Le flambage des mâts n'est pas activé par
       défaut ; modèle de calcul, coefficients, cas de charge et données des
       éléments sont fixes, l'avarie (rupture d'un conducteur) n'est pas calculée.
-      La justification d'un projet est établie par un spécialiste dans la
-      version complète.</p>` },
+      La justification d'un projet est établie par un spécialiste avec un
+      logiciel vérifié.</p>` },
   { id: 'k-nutzung', titel: '13 Utilisation et diffusion', html: NUTZUNG_HTML_FR },
 ];
 
@@ -318,11 +316,10 @@ export const KURS_IT = [
     <p>La scheda <b>Appoggi</b> mostra le reazioni alle fondazioni,
       caratteristiche (tutti i coefficienti 1.0), separatamente trasversali e
       longitudinali al binario.</p>
-    <p><b>Esporta</b>: il foglio delle reazioni (con schizzo e note) e la
-      stampa.</p>
+    <p><b>Esporta</b>: il foglio delle reazioni (con schizzo e note) e il
+      riassunto del calcolo in PDF.</p>
     <p>La <b>barra in basso</b> dice la stessa cosa del riquadro del
-      risultato. Se indica «alcune verifiche solo nella versione completa»,
-      passandoci sopra si vede quali (p. es. instabilità).</p>` },
+      risultato.</p>` },
   { id: 'k-modell', titel: '8 Come viene calcolato', html: `
     <p>La struttura è un <b>telaio spaziale</b>: i quattro angolari del
       portale, le piastre di collegamento tra di essi e i pali sono aste. I pali
@@ -374,6 +371,6 @@ export const KURS_IT = [
       default; modello di calcolo, coefficienti, casi di carico e dati degli
       elementi sono fissi, l'avaria (rottura di un conduttore) non viene
       calcolata. La verifica per un progetto è eseguita da uno specialista
-      nella versione completa.</p>` },
+      con un programma verificato.</p>` },
   { id: 'k-nutzung', titel: '13 Uso e diffusione', html: NUTZUNG_HTML_IT },
 ];

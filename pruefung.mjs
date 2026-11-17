@@ -28493,7 +28493,8 @@ titel('113  Mastverformung im Gebrauchszustand');
     wahr('Die Kachel traegt die Ampel (28. September)',
          // Seit dem 4. Oktober mit der Kachel «Seitenlage Fahrdraht» im selben Aufruf.
          // Seit dem 14. November dazu «Verdrehung Tragausleger».
-         /kachel\(ende === 'fahrdraht' \? `Seitenlage \$\{name\}`\s*: ende === 'ausleger' \? 'Verdrehung Tragausleger' : `Verformung \$\{name\}`[\s\S]{0,1400}?ampel\(mg\.eta\)/.test(ui113));
+         // Seit dem 17. November steht der Titel in `kTitel` (Nachweis als Satz).
+         /const kTitel = ende === 'fahrdraht' \? `Seitenlage \$\{name\}`\s*: ende === 'ausleger' \? 'Verdrehung Tragausleger' : `Verformung \$\{name\}`[\s\S]{0,2500}?ampel\(mg\.eta\)/.test(ui113));
   }
 }
 
@@ -42325,8 +42326,9 @@ titel('280  Audit der Schulung: Kopfzeile, 100 %, Startbeispiel, Fussleiste, Üb
   wahr('Startblatt mit Fahrdrahtabzug UND Kettenwerk (Gleis 1)',
        AQ.includes("neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrdrahtabzug Gleis 1', gleis: 1")
        && AQ.includes("neuesAnbauteil('kw-nfl-joch', 10), name: 'Kettenwerk Gleis 1', gleis: 1"));
-  wahr('Fussleiste der Schulung aus dem einfachen Ergebnis (gleiche Zahl, gleicher Name, nicht Geführtes im Titel)',
-       EQ.includes('function fusszeileEinfach') && EQ.includes('Nur in der Vollversion:')
+  // 17. November: ohne Hinweis auf die Vollversion.
+  wahr('Fussleiste der Schulung aus dem einfachen Ergebnis (gleiche Zahl, gleicher Name, kein Hinweis auf die Vollversion)',
+       EQ.includes('function fusszeileEinfach') && !EQ.includes('Nur in der Vollversion:')
        && AQ.includes("if (!(EINFACH && tabAuswertung === 'uebersicht'))"));
   wahr('Übungsbeispiel mit einem Klick: steht es in der Ablage, wird es geladen, sonst eingelesen und geladen',
        ABQ.includes('inhalt.liste[0].doppeltZu') && ABQ.includes('await eintragLaden(app, r.neueIds[0], true)'));
@@ -42490,6 +42492,39 @@ titel('284  Fundament: massgebender Nachweis beim Anklicken; Protokoll geleert')
   wahr('Fundamente-Zeile klappt auf, massgebendes zuerst; Masten ohne', r.html.includes('class="ef-det" data-ef-gruppe="fundament"')
        && r.html.indexOf('<li>B</li>') < r.html.indexOf('<li>A</li>') && !r.html.includes('data-ef-gruppe="mast"'));
   wahr('Änderungsprotokoll leer, Dialog sagt es', AE.AENDERUNGEN.length === 0 && AE.aenderungenHtml().includes('Noch keine Einträge'));
+}
+
+// ===========================================================================
+titel('285  Schulung: Linie, keine Hinweise auf die Vollversion, Verformung aufklappbar');
+/* 17. November: «bei der resultat steuerung noch die linie hinterlegen als
+ * darstellungsart. hinweise zu der vollversion überall entfernen. die
+ * verformung aus ausklappbar machen und aufführen welcher wert massgebend
+ * ist.» */
+{
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Schalter «Linie» in der Schulung nicht mehr ausgeblendet',
+       !/html\[data-stufe="schulung"\][^{]*\.wz-linie[^{]*\{\s*display:\s*none/.test(css)
+       && !/data-stufe="schulung"\]:not\(\[data-mehr\]\) \.wz-linie/.test(css));
+  const UE = readFileSync(join(HIER, 'js', 'ui.einfach.js'), 'utf8');
+  const H = await import(J('doku.handbuch.js'));
+  const KS = await import(J('doku.kurs.sprachen.js'));
+  const kurs = ['de', 'fr', 'it'].map((s) => H.kursHandbuchHtml(s)).join('');
+  wahr('kein Hinweis auf die Vollversion in Fussleiste und Handbuch zum Kurs (DE/FR/IT)',
+       !/nur die Vollversion|Nur in der Vollversion/.test(UE.replace(/\/\/.*$/gm, ''))
+       && !/Vollversion|version complète|versione completa/.test(kurs), String(Boolean(KS)));
+  const U = await import(J('ui.js'));
+  const erg = { modell: { federn: { namen: { A: 'M1' } } }, verformung: { psi: 0.7,
+    A: { ok: true, L: 8.5, stelle: { was: 'Jochauflager' },
+         massgebend: { wert: 0.0201, grenz: 0.04, eta: 0.5025, z: 7.5, achse: 'x', bez: 'Betriebswind +x' },
+         nachweise: [{ was: 'Jochauflager quer', wert: 0.0201, grenz: 0.04, eta: 0.5025 }] } } };
+  const k = U.gzgKacheln(erg).join('');
+  wahr('Verformungskachel trägt den massgebenden Wert als Satz (Stelle, Richtung, mm von mm, Lastfall)',
+       /data-nachweis="[^"]*von [0-9]+ mm zulässig \([0-9]+ %\)\. Lastfall: [^"]*Wind × 0\.70/.test(k),
+       (k.match(/data-nachweis="[^"]*"/)?.[0] ?? k.slice(0, 300)));
+  const r = (await import(J('ui.einfach.js'))).einfachAusKacheln([
+    { titel: 'Verformung M1', eta: 0.7, nachweis: 'V1' }, { titel: 'Seitenlage Fahrdraht', eta: 0.3, nachweis: 'V2' }]);
+  wahr('… im einfachen Ergebnis aufklappbar, massgebendes zuerst',
+       r.html.includes('data-ef-gruppe="verformung"') && r.html.indexOf('<li>V1</li>') < r.html.indexOf('<li>V2</li>'));
 }
 
 console.log('\n' + '='.repeat(104));
