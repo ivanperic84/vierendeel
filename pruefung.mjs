@@ -42629,6 +42629,10 @@ titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte 
   wahr('Linie: kein «Reaktionen dazu», kein «Ansicht folgt», Knopf «Blick auf die Ebene» (einmal)',
        !ZQ.includes('Reaktionen dazu') && !ZQ.includes('> Ansicht folgt') && ZQ.includes('data-zl-blick')
        && ZQ.includes("folgt: false") && ZQ.includes('zustandBlickFolgen(app, true)'));
+  const UQ289 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Ein Sprungknopf «Profile, Bleche, Stückliste» öffnet alle drei (auch die ohne eigenes Feld zugeklappt)',
+       UQ289.includes("titel: 'Profile, Bleche, Stückliste', zusammen: true") && UQ289.includes('data-sprung-mit')
+       && UQ289.includes('zusatz && g.zugeklappt && !EINFACH'));
   wahr('Gurte nach aussen: 3D und Bericht nach derselben Regel',
        ZQ.includes("(o[2] > 0) !== (gurt === 'OG')") && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
 }

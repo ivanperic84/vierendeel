@@ -757,7 +757,12 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     const felder = sichtbareFelder(gid, werte);
     // Eine Gruppe kann ohne eigenes Eingabefeld auskommen und nur aus einem
     // Zusatzstück bestehen - die Lastfallmatrix ist so ein Fall.
-    if (!felder.length) return block(gid, gTitel, zusatz);
+    // Zugeklappt auch ohne eigenes Feld (17. November: Bindebleche und
+    // Stückliste standen offen, während «Profile» zugeklappt war).
+    if (!felder.length) {
+      return block(gid, gTitel, zusatz && g.zugeklappt && !EINFACH
+        ? klapp(`gruppe-${gid}`, gTitel, zusatz, '', false) : zusatz);
+    }
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
                 : felder.some((f) => f.ausLast) && !lastKnopfDa
                   ? ((lastKnopfDa = true), lastenKnopf(werte)) : '';
@@ -828,9 +833,24 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
         knopf ? `<span class="sec-r">${knopf}</span>` : ''}</summary>
       <div class="grp-koerper">${inhalt}</div></details>`);
   }).join('');
+  /*
+   * >>> PROFILE, BLECHE, STÜCKLISTE: EIN KNOPF (17. November). <<< Mit Bild
+   * der drei Sprungknöpfe: «diese drei hier zusammennehmen als button». Der
+   * Knopf öffnet alle drei Gruppen und springt zur ersten.
+   */
+  const ZUSAMMEN = ['prof', 'blech', 'stueck'];
+  const chips = [];
+  bloecke.forEach((b) => {
+    if (!ZUSAMMEN.includes(b.gid)) { chips.push(b); return; }
+    const da = chips.find((c) => c.zusammen);
+    if (da) da.mit.push(b.gid);
+    else chips.push({ gid: b.gid, titel: 'Profile, Bleche, Stückliste', zusammen: true, mit: [b.gid] });
+  });
+  chips.forEach((c) => { if (c.zusammen && c.mit.length === 1) c.titel = bloecke.find((b) => b.gid === c.gid).titel; });
   const sprung = bloecke.length >= 3
     ? `<nav class="sprung" aria-label="Gruppen dieses Reiters">${
-        bloecke.map((b) => `<button type="button" class="sprung-chip" data-sprung="${esc(b.gid)}">${esc(b.titel)}</button>`).join('')
+        chips.map((b) => `<button type="button" class="sprung-chip" data-sprung="${esc(b.gid)}"${
+          b.zusammen ? ` data-sprung-mit="${esc(b.mit.join(','))}"` : ''}>${esc(b.titel)}</button>`).join('')
       }<button type="button" class="sprung-chip sprung-alle" data-sprung-alle
           title="Alle Gruppen dieses Reiters zu- oder aufklappen">alle zu / auf</button></nav>`
     : '';
@@ -854,8 +874,11 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     b.addEventListener('click', () => {
       const ziel = container.querySelector(`[data-grp="${CSS.escape(b.dataset.sprung)}"]`);
       if (!ziel) return;
-      const d = ziel.querySelector(':scope > details');
-      if (d && !d.open) d.open = true;
+      // Ein Sammelknopf öffnet alle seine Gruppen (17. November).
+      (b.dataset.sprungMit ? b.dataset.sprungMit.split(',') : [b.dataset.sprung]).forEach((gid) => {
+        const d = container.querySelector(`[data-grp="${CSS.escape(gid)}"] > details`);
+        if (d && !d.open) d.open = true;
+      });
       ziel.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
   });
