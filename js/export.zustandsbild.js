@@ -108,8 +108,12 @@ export function zustandSvg(geo, faelle, o = {}) {
       const t = p / (ZL_PUNKTE - 1);
       const P = [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t, s.a[2] + (s.b[2] - s.a[2]) * t];
       const q = pr(P, s);
-      const d = x.d ? richtung(s, x.d) : [0, 0];
+      let d = x.d ? richtung(s, x.d) : [0, 0];
       const v = x.v ?? 0;
+      // Obergurt nach oben, Untergurt nach unten (17. November, «Betrag
+      // nach aussen»), wie im 3D (app.zustand.js).
+      const gurt = /^gurt/.test(s.r) ? /(^|_)(OG|UG)[LR]_/.exec(s.n)?.[2] : null;
+      if (gurt && Math.abs(d[1]) > 0.3 && Math.abs(v) > 1e-12 && ((d[1] * v > 0) !== (gurt === 'OG'))) d = [-d[0], -d[1]];
       return { q, Q: [q[0] + d[0] * v * skal, q[1] + d[1] * v * skal], v, leer: x.v === null || !x.d };
     });
     for (let p = 0; p < pk.length - 1; p += 1) {

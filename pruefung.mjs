@@ -2192,8 +2192,10 @@ titel('26  Lastarten im Modell und Vorlagen ganzer Tragwerke');
   wahr('Die Stückliste ist kein eigener Auswertungsreiter mehr',
        !U.AUSWERTUNG_TABS.some((t) => t.id === 'stueckliste'),
        U.AUSWERTUNG_TABS.map((t) => t.titel).join(' · '));
-  wahr('Sie steht im Reiter Profile',
-       U.EINGABE_TABS.find((t) => t.id === 'profil').gruppen.includes('stueck'));
+  // 17. November: kein Reiter Profile mehr - Profile, Bleche und Stückliste zugeklappt im Reiter System.
+  wahr('Sie steht (mit Profilen und Blechen) zugeklappt im Reiter System',
+       U.EINGABE_TABS.find((t) => t.id === 'system').gruppen.join() === 'art,geo,aufl,mast,prof,blech,stueck'
+       && !U.EINGABE_TABS.some((t) => t.id === 'profil'));
   wahr('Jeder Reiter hat ein Symbol für die Schiene',
        [...U.EINGABE_TABS, ...U.AUSWERTUNG_TABS].every((t) => t.icon));
 
@@ -42612,6 +42614,23 @@ titel('288  Durchsicht der Vollversion: Anteile grau, Fussleiste, Einspannung, B
   wahr('Bügelschrauben: Mast und Gurt statt Linkname, «begrenzt auf …»',
        UQ.includes("const anschluss = (z) => (z?.ende ? `${z.ende} ${gurtWort(z.gurt)}`")
        && UQ.includes('begrenzt auf ${f2(Fg)} kN'));
+}
+
+// ===========================================================================
+titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte nach aussen');
+/* 17. November: «der reiter profile wird meist nicht genutzt …», «bei den
+ * reaktionen unter linien plot ist etwas inkonsistent …», auf Rückfrage
+ * «Block in System», «Weglassen», «Einmal-Knopf», «Betrag nach aussen». */
+{
+  const ZQ = readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8');
+  const BQ = readFileSync(join(HIER, 'js', 'export.zustandsbild.js'), 'utf8');
+  const SCH = await import(J('ui.schema.js'));
+  wahr('Profile, Bleche, Stückliste zugeklappt', ['prof', 'blech', 'stueck'].every((g) => SCH.GRUPPEN.find((x) => x.id === g)?.zugeklappt === true));
+  wahr('Linie: kein «Reaktionen dazu», kein «Ansicht folgt», Knopf «Blick auf die Ebene» (einmal)',
+       !ZQ.includes('Reaktionen dazu') && !ZQ.includes('> Ansicht folgt') && ZQ.includes('data-zl-blick')
+       && ZQ.includes("folgt: false") && ZQ.includes('zustandBlickFolgen(app, true)'));
+  wahr('Gurte nach aussen: 3D und Bericht nach derselben Regel',
+       ZQ.includes("(o[2] > 0) !== (gurt === 'OG')") && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
 }
 
 console.log('\n' + '='.repeat(104));

@@ -6,8 +6,9 @@
  * Eingebaut wie vorgeschlagen: in der Gruppe «Resultate» ein Schalter
  * «Linie»; ist er an, zeigt die gewählte Plotgrösse (η, σ_v, M, V, N, T)
  * statt der Farbe die Zustandslinie, das Modell steht neutral. Ebene (auto /
- * quer / längs / lotrecht bzw. waagrecht), «Reaktionen dazu», Teile und
- * «Ansicht folgt» stehen in der Legende - nur solange «Linie» an ist.
+ * quer / längs / lotrecht bzw. waagrecht), Teile und der Knopf «Blick auf
+ * die Ebene» stehen in der Legende - nur solange «Linie» an ist (die
+ * Reaktionen und die Automatik der Ansicht sind seit dem 17. November weg).
  * Gerechnet wird aus dem Stabwerk, das ohnehin läuft (core.zustandslinien.js);
  * gezeichnet wie die verformte Figur, über `ansicht.zustand`.
  */
@@ -21,7 +22,15 @@ import {
 
 const MERKER = 'tragjoch-zustandslinie';
 /** Die Wahl des Anwenders - Bedienzustand, nicht Teil des Blattes. */
-export const zl = { an: false, eb: 'auto', reak: false, teile: 'alle', folgt: true, ax: 'global' };
+/*
+ * 17. November: «bei den reaktionen unter linien plot ist etwas inkonsistent.
+ * auch die funktion ansicht folgen verstehe ich nicht ganz und verwirrt
+ * etwas.» Auf Rückfrage «Weglassen» (Reaktionen) und «Einmal-Knopf»
+ * (Ansicht): keine Reaktionen mehr an der Linie (sie stehen im Reiter
+ * Auflager und im Reaktionsblatt), kein automatisches Drehen - ein Knopf
+ * «Blick auf die Ebene» dreht einmal.
+ */
+export const zl = { an: false, eb: 'auto', reak: false, teile: 'alle', folgt: false, ax: 'global' };
 try { zl.an = localStorage.getItem(MERKER) === '1'; } catch { /* kein Speicher */ }
 export function zlSetzeAn(an) {
   zl.an = an === true;
@@ -114,7 +123,20 @@ export function zustandSetzen(app, g) {
       const t = p / (ZL_PUNKTE - 1);
       const P = [s.a[0] + (s.b[0] - s.a[0]) * t + dx, s.a[1] + (s.b[1] - s.a[1]) * t, s.a[2] + (s.b[2] - s.a[2]) * t + dz];
       const v = x.v ?? 0, d = x.d ?? s.ez;
-      return { p: P, o: d.map((c) => c * v * skal), v, leer: x.v === null || !x.d };
+      /*
+       * >>> OBERGURT NACH OBEN, UNTERGURT NACH UNTEN (17. November). <<<
+       * «die diagramm auswertung bei den ober und untergurten nach oben und
+       * unten darstellen, so dass sich diese nicht überdecken» - auf
+       * Rückfrage «Betrag nach aussen»: steht das Diagramm eines Gurts in
+       * einer lotrechten Ebene, zeigt es mit dem Betrag vom Joch weg; das
+       * Vorzeichen sagen Farbe (rot +, blau −) und Anschrift.
+       */
+      let o = d.map((c) => c * v * skal);
+      const gurt = /^gurt/.test(s.r) ? /(^|_)(OG|UG)[LR]_/.exec(s.n)?.[2] : null;
+      if (gurt && Math.abs(d[2]) > 0.3 && (o[2] > 0) !== (gurt === 'OG') && Math.abs(o[2]) > 1e-12) {
+        o = o.map((c) => -c);
+      }
+      return { p: P, o, v, leer: x.v === null || !x.d };
     }),
   }));
   // Reaktionen zum Diagramm.
@@ -155,9 +177,9 @@ export function zustandSetzen(app, g) {
 }
 
 /** Die Ansicht dreht so, dass die Linie flach vor einem liegt (leicht schräg). */
-export function zustandBlickFolgen(app) {
+export function zustandBlickFolgen(app, einmal = false) {
   const ansicht = app.ansicht;
-  if (!zl.an || !zl.folgt || !ansicht?.zustand || !cache) return;
+  if (!zl.an || (!zl.folgt && !einmal) || !ansicht?.zustand || !cache) return;
   const key = zustandBlick(ansicht.zustand.k, cache.geo, zl.teile);
   if (!key) return;
   ansicht.blickrichtung(key, false);
@@ -197,12 +219,10 @@ export function zustandLegendeHtml(app) {
         + (z.spannung ? `<br><span class="zl-dim">f_yd = ${z.fyd.toFixed(1)} N/mm²</span>` : '')
       : '<span class="zl-dim">an diesen Teilen nicht darstellbar oder null</span>'}</div>
     ${ebenen}
-    <label class="zl-haken"><input type="checkbox" data-zl-reak ${zl.reak ? 'checked' : ''}> Reaktionen dazu</label>
-    ${z.reakText ? `<div class="zl-dim">${esc(z.reakText)}<br>Kraft bzw. Moment des Lagers auf das Tragwerk, global.</div>` : ''}
     <select data-zl-teile aria-label="Teile">${teile.map(([v, t]) =>
       `<option value="${v}"${zl.teile === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
     <div class="zl-reihe zl-klein">
-      <label class="zl-haken"><input type="checkbox" data-zl-folgt ${zl.folgt ? 'checked' : ''}> Ansicht folgt</label>
+      <button type="button" data-zl-blick title="Dreht den Blick einmal so, dass die Linie flach vor einem liegt (leicht schräg)">Blick auf die Ebene</button>
       <button type="button" data-zl-ax="${zl.ax === 'global' ? 'lokal' : 'global'}"
         title="global: x quer, y längs, z oben - unabhängig von der Drehlage der Profile; örtlich: Achsen je Stab wie im Löser">${
         zl.ax === 'global' ? 'Achsen global' : 'Achsen örtlich'}</button>
@@ -217,8 +237,8 @@ export function zustandLegendeVerdrahten(app, n, neu) {
   if (r) { stopp(r); r.onchange = () => { zl.reak = r.checked; neu(false); }; }
   const t = n.querySelector('[data-zl-teile]');
   if (t) { stopp(t); t.onchange = () => { zl.teile = t.value; neu(true); }; }
-  const f = n.querySelector('[data-zl-folgt]');
-  if (f) { stopp(f); f.onchange = () => { zl.folgt = f.checked; neu(true); }; }
+  const f = n.querySelector('[data-zl-blick]');
+  if (f) { stopp(f); f.onclick = () => zustandBlickFolgen(app, true); }
   const a = n.querySelector('[data-zl-ax]');
   if (a) { stopp(a); a.onclick = () => { zl.ax = a.dataset.zlAx; zl.eb = 'auto'; neu(true); }; }
 }

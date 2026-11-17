@@ -218,11 +218,11 @@ export const EINGABE_TABS = [
   { id: 'system', titel: 'System', icon: 'system',
     // Die Tragwerksart zuerst: sie entscheidet, welche der folgenden Gruppen
     // ueberhaupt erscheinen.
-    gruppen: ['art', 'geo', 'aufl', 'mast'] },
-  // Die Stückliste gehört zu den Profilen: sie sagt, was aus der gewählten
-  // Profil- und Blechwahl an Stahl herauskommt. Als eigener Auswertungsreiter
-  // stand sie weit weg von der Entscheidung, die sie beeinflusst.
-  { id: 'profil', titel: 'Profile', icon: 'profil', gruppen: ['prof', 'blech', 'stueck'] },
+    // Profile, Bleche und Stückliste stehen seit dem 17. November zugeklappt
+    // unten im Reiter System («der reiter profile wird meist nicht genutzt,
+    // könnte man diesen in eine andere gruppe verschieben?» - «Block in
+    // System»); einen eigenen Reiter gibt es nicht mehr.
+    gruppen: ['art', 'geo', 'aufl', 'mast', 'prof', 'blech', 'stueck'] },
   { id: 'anbau', titel: 'Anbauteile', icon: 'anbau', gruppen: ['trasse', 'anbau'] },
   // Nach Einwirkung gegliedert (6. Oktober): ständig, Wind, Schnee, Bestandesschutz.
   { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['staendig', 'ein', 'schnee', 'bestand', 'havarie', 'komb'] },

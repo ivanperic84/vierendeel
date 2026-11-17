@@ -414,13 +414,14 @@ export const GRUPPEN = [
    * blenden sich weiterhin selbst aus (`sichtbar` am Feld); was bleibt, ist
    * die Profiluebersicht und der Stahl.
    */
-  { id: 'prof',  titel: 'Profile' },
+  // Zugeklappt im Reiter System (17. November).
+  { id: 'prof',  titel: 'Profile und Querschnitte', zugeklappt: true },
   // Der Tragausleger führt seine Bleche im Sortiment (Tafel unter «Geometrie»).
-  { id: 'blech', titel: 'Bindebleche', arten: ['joch'] },
+  { id: 'blech', titel: 'Bindebleche', arten: ['joch'], zugeklappt: true },
   // Ohne eigene Eingabefelder: die Stückliste wird als Ergebnisstück
   // eingehängt (siehe extras in app.js).
   { id: 'stueck', titel: 'Stückliste und Eigengewicht',
-    arten: ['joch'] },
+    arten: ['joch'], zugeklappt: true },
   /*
    * >>> DIE TRASSE FAENGT ZUGEKLAPPT AN. <<<
    *
