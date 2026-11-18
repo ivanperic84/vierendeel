@@ -32798,6 +32798,22 @@ titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
        new Set(teile(r, /^BL_[OU]\d+$/).map((f) => f.teil)).size === 26);
   wahr('Aufhängung, Traverse und Längsanker stehen im Bild',
        ['AUFHAENGUNG', 'TRAVERSE', 'LAENGSANKER'].every((k) => teile(r, new RegExp(`^${k}$`)).length));
+  // 18. November: «beim durchklicken unter den fällen werden die lasten im model
+  // nicht automatisch deselektiert» (Tragausleger). Mit den Beiwerten des Falls
+  // wie am Joch: Gruppe mit Beiwert 0 ohne Pfeil, die übrigen mal dem Beiwert.
+  {
+    const arten = (sz) => new Set(sz.vektoren.filter((v) => v.gruppe === 'last').map((v) => v.lastart));
+    const huelle = arten(r);
+    const nurG = szene('rechts', { beiwerte: { G: 1.35, WindX: 0, WindY: 0, Schnee: 0 } });
+    const nurWy = szene('rechts', { beiwerte: { G: 0, WindX: 0, WindY: 1.5, Schnee: 0 } });
+    const fz = (sz) => sz.vektoren.find((v) => v.lastart === 'staendig' && /^F_z/.test(v.text ?? ''))?.text;
+    wahr('Tragausleger, gewählter Fall: nur die Lastarten mit Beiwert, Werte mal Beiwert',
+         huelle.has('windY') && huelle.has('staendig')
+         && !arten(nurG).has('windY') && !arten(nurG).has('windX') && arten(nurG).has('staendig')
+         && !arten(nurWy).has('staendig') && arten(nurWy).has('windY')
+         && Math.abs(parseFloat(fz(nurG).split('=')[1].replace('−', '-')) / parseFloat(fz(r).split('=')[1].replace('−', '-')) - 1.35) < 0.03,
+         `umhüllend ${[...huelle].join(',')} · nur G ${[...arten(nurG)].join(',')} · nur Wind y ${[...arten(nurWy)].join(',')} · ${fz(r)} → ${fz(nurG)}`);
+  }
   const xs = (sz) => teile(sz, /^GURT_/).flatMap((f) => f.punkte.map((p) => p[0]));
   wahr('Rechts reicht der Ausleger bis +12.75 m, links bis −12.75 m',
        Math.abs(Math.max(...xs(r)) - 12.75) < 1e-9 && Math.abs(Math.min(...xs(l)) + 12.75) < 1e-9
@@ -36219,7 +36235,7 @@ titel('201  Tragausleger am Jochmasten: ein Mast, der Ausleger hängt daran');
        && ohne.bezug.masten.A.zKopf > 0, `${ohne.bezug?.masten?.A?.zKopf}`);
   const q201 = APP_QUELLE();
   wahr('Die App reicht den Plan an beide Wege (gewählt und nebenan)',
-       q201.includes('mastZeichnen: plan[aktivId] });') && q201.includes('mastZeichnen: zeichnen });'));
+       q201.includes('mastZeichnen: plan[aktivId],') && q201.includes('mastZeichnen: zeichnen });'));
 }
 
 // ===========================================================================

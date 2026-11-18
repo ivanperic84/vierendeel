@@ -2414,9 +2414,23 @@ function nachbarFaerben(sz, t) {
   return sz;
 }
 
+/*
+ * >>> DIE BEIWERTE DES GEWÄHLTEN FALLS (18. November). <<< «beim
+ * durchklicken unter den fällen werden die lasten im model nicht automatisch
+ * deselektiert» - das gerechnete Tragwerk zeigte die Lasten des Falls, die
+ * Nachbarn (passiv) und der Tragausleger immer alle. Null bei «umhüllend».
+ */
+function fallBeiwerte() {
+  if (anzeigeKombi === 'umhuellend') return null;
+  return (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi)?.beiwerte ?? null;
+}
+
 function szeneVonNebenanRoh(t, zeichnen) {
   try {
-    const satz = tragwerkSatz(werte, t.id);
+    const bwFall = fallBeiwerte();
+    // Mit den Beiwerten des Falls rechnet der Kern des Nachbarn seine Pfeile
+    // (`beiwerteFest`, core.vierendeel.js) - nur das Bild, er wird nicht nachgewiesen.
+    const satz = bwFall ? { ...tragwerkSatz(werte, t.id), beiwerteFest: bwFall } : tragwerkSatz(werte, t.id);
     // Der Zeichenplan gehoert an die SZENE, nicht an die Rechnung: was ein
     // Tragwerk traegt, bleibt unveraendert - nur wer den geteilten Masten
     // ins Bild setzt, ist geregelt.
@@ -2447,7 +2461,7 @@ function szeneVonNebenanRoh(t, zeichnen) {
       // Gefärbt aus dem Stabwerk wie das aktive (4. Oktober, «alle stäbe färben»).
       const g = stabwerkAnsicht();
       return mastTeileNebenan(auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A,
-                                   mastZeichnen: zeichnen,
+                                   mastZeichnen: zeichnen, beiwerte: bwFall,
                                    jeStab: g?.h?.jeStab ?? null, praefix: `${t.id}_` }), satz);
     }
     const j = getTragjoch(satz.typ);
@@ -2568,7 +2582,12 @@ function blattSzene(erg) {
         mast: abfangMastenAngabe(satz, erg.modell.federn?.namen)?.A,
         ergMast: erg.mast ?? null, ergVerf: erg.verformung ?? null,
         jeStab: g?.h?.jeStab ?? null, praefix: `${werte.twId ?? ''}_`,
-        mastZeichnen: plan[aktivId] });
+        mastZeichnen: plan[aktivId],
+        // Die Lastpfeile des gewählten Falls (18. November, «beim durchklicken
+        // unter den fällen werden die lasten im model nicht automatisch
+        // deselektiert»): mit den Beiwerten des Falls wie am Joch; bei
+        // «umhüllend» charakteristisch.
+        beiwerte: fallBeiwerte() });
     } catch { return null; }
   };
   const ta = tragwerksart(werte).key === 'tragausleger' ? taSzene() : null;
@@ -3389,8 +3408,14 @@ function abfangMastenAngabe(satz, namen) {
 function mastTeileNebenan(sz, satz) {
   const amM = (satz?.anbauteile ?? []).filter((a) => a && a.aktiv !== false && amMast(a));
   if (!sz || !amM.length) return sz;
-  const flach = expandiereAnbauteile(amM, { ek: ekVonWindklasse(satz.windKlasse),
+  const flach0 = expandiereAnbauteile(amM, { ek: ekVonWindklasse(satz.windKlasse),
     R: satz.trasseRadius, spannweite: satz.flSpannweite, havarie: satz.havarie });
+  // Mit den Beiwerten des gewählten Falls (18. November), sonst wie bisher.
+  const bw = satz.beiwerteFest ?? null;
+  const flach = bw ? flach0.map((tp) => ({ ...tp, proGruppe: Object.fromEntries(
+    Object.entries(tp.kraefte ?? {}).filter(([g]) => Number(bw[g]))
+      .map(([g, k]) => [g, { Fx: bw[g] * (k.Fx ?? 0), Fy: bw[g] * (k.Fy ?? 0), Fz: bw[g] * (k.Fz ?? 0) }])) }))
+    : flach0;
   return mastTeileSzene(sz, satz.anbauteile ?? [], flach, {});
 }
 

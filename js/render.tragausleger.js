@@ -69,6 +69,17 @@ export function auslegerSzene(satz, opt = {}) {
   const bS = d.tragausleger.b;
   const zKopfModell = Math.max(...d.knoten.filter((k) => /^MAST_A_/.test(k.name)).map((k) => k.z));
 
+  /*
+   * DER GEWÄHLTE FALL (18. November): «beim durchklicken unter den fällen
+   * werden die lasten im model nicht automatisch deselektiert» - der
+   * Ausleger zeichnete immer alle Gruppen charakteristisch. Mit
+   * `opt.beiwerte` (Beiwerte des Falls) wie am Joch (core.vierendeel.js,
+   * `proGruppe`): jede Gruppe mal ihrem Beiwert, Beiwert 0 = kein Pfeil.
+   * Ohne Angabe (umhüllend) charakteristisch wie bisher.
+   */
+  const bw = opt.beiwerte ?? null;
+  const faktor = (g) => (bw ? (Number(bw[g]) || 0) : 1);
+
   const rohFlaechen = [];
   const flaechen = {
     push: (...f) => rohFlaechen.push(...f.map((x) => ({ werte: OHNE_WERTE, ...x }))),
@@ -236,11 +247,13 @@ export function auslegerSzene(satz, opt = {}) {
                     fahrdraht: istFahrdraht(tp), abzug: tp.rolle === 'drahtwerk' && tp.wirkung?.G === false && tp.wirkung?.ablenk !== false,
                     titel: `${tp.name ?? ''} · Angriffspunkt`,
                     zieh: ziehAngabe(kette, tp) });
-      Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k0]) => {
+      Object.entries(tp.kraefte ?? {}).forEach(([gruppe, k1]) => {
         const art0 = LASTART[gruppe];
-        if (!art0 || !k0) return;
+        const fG = faktor(gruppe);
+        if (!art0 || !k1 || !fG) return;
+        const k0 = fG === 1 ? k1 : { Fx: fG * (k1.Fx ?? 0), Fy: fG * (k1.Fy ?? 0), Fz: fG * (k1.Fz ?? 0) };
         // Wind längs roh, der Halt als eigener Pfeil (11. Oktober, `haltVektor`).
-        const halt = gruppe === 'WindY' && tp.rueckhalt > 0 ? -tp.rueckhalt : 0;
+        const halt = gruppe === 'WindY' && tp.rueckhalt > 0 ? -fG * tp.rueckhalt : 0;
         const k = halt ? { ...k0, Fy: (k0.Fy ?? 0) - halt } : k0;
         if (halt) vektoren.push(haltVektor(halt, pAn, teil, tp.name ?? at.name ?? '', pfeilLaenge(halt)));
         [{ w: k.Fz, ri: [0, 0, -1], nm: 'F_z' }, { w: k.Fy, ri: [0, 1, 0], nm: 'F_y' },
@@ -376,18 +389,21 @@ export function auslegerSzene(satz, opt = {}) {
     const zU = Math.min(...zs), zO = Math.max(...zs);
     [['WindX', 0, 'windX', 'w_M,x,k', 'quer zum Gleis'],
      ['WindY', 1, 'windY', 'w_M,y,k', 'längs zum Gleis']].forEach(([fall, achse, la, nm, bez]) => {
-      const w = strecke.find((l) => l.lastfall === fall && /MAST_A_S\d+$/.test(l.stab))?.wert;
+      const fW = faktor(fall);
+      const w = fW * (strecke.find((l) => l.lastfall === fall && /MAST_A_S\d+$/.test(l.stab))?.wert ?? 0);
       if (!(w > 0)) return;
       const kante = (z) => { const p0 = [0, 0, z]; p0[achse] = -halb; return p0; };
-      windLinie(kante(zU), kante(zO), achse, w, la, nm, `Wind auf Mast · ${bez}`, 'MAST_A');
+      windLinie(kante(zU), kante(zO), achse, w, la, fW === 1 ? nm : nm.replace(/,k$/, ''),
+                `Wind auf Mast · ${bez}`, 'MAST_A');
     });
   }
   // Ausleger: die Hälften auf beiden UPE zusammen, vor dem hinteren Gurt.
   const qA = strecke.filter((l) => l.lastfall === 'WindY' && /^[VH]_S\d+$/.test(l.stab));
-  if (qA.length) {
-    const wA = 2 * qA[0].wert;
+  if (qA.length && faktor('WindY')) {
+    const fA = faktor('WindY');
+    const wA = 2 * qA[0].wert * fA;
     const yK = -(d.tragausleger.e ?? t.spreizung / 1000) / 2 - 0.08;
-    windLinie([xG(-t.hinten), yK, 0], [xG(t.L - t.hinten), yK, 0], 1, wA, 'windY', 'w_A,k',
+    windLinie([xG(-t.hinten), yK, 0], [xG(t.L - t.hinten), yK, 0], 1, wA, 'windY', fA === 1 ? 'w_A,k' : 'w_A',
               'Wind auf den Tragausleger · längs zum Gleis', 'GURT_H');
   }
 
