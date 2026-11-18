@@ -376,6 +376,26 @@ der Masse ist nach `AddI` angenommen. **In AxisVM nicht erprobt** - die Flächen
 im Aufbaubericht zeigt, ob sie stimmt (Soll: halbe Fläche des Walzprofils). Auf welcher
 Seite der lokalen z-Achse AxisVM den Flansch legt, ist nicht vermessen.
 
+## Knicken (Schalter -Knicken, 18. November 2026)
+
+Lineare Stabilität in AxisVM, zum Vergleich mit dem Knick-Eigenwert α_cr der
+Anwendung:
+
+```
+node modell_knicken.mjs J130 30 schnee          (im Projektordner)
+AxisVM_aufbauen.cmd -Json AxisVM_Knick_J130_30m_Schnee.json -Rechnen -Knicken -Stapel
+```
+
+- AxisVM knickt je **Lastfall**; `modell_knicken.mjs` faltet deshalb die
+  massgebende Kombination der Anwendung in einen Lastfall `KNICK`
+  (Eigengewicht als Streckenlast darin, ohne Lastfall `G` setzt die Brücke
+  kein eigenes) und prüft vorher, dass der eigene Löser damit dasselbe α gibt.
+- Die Brücke ruft je Lastfall `Calculation.Buckling_V162` (6 Eigenformen,
+  nur positive) und schreibt `Results.Ncr` je Eigenform nach
+  `<modell>_knicken.json`.
+- Gemessen 18. November: J90/20 m 23.022 (Anwendung 22.995), J130/30 m mit
+  Schnee 8.269 (Anwendung 7.996). Rechenzeit in AxisVM 8 bzw. 15 s.
+
 ## Statikbericht (Schalter -Statikbericht, 7. Oktober 2026)
 
 Nach dem Rechnen legt die Brücke die Plots für einen Statikbericht an

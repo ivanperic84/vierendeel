@@ -50,7 +50,8 @@ param(
     [switch]$Statikbericht,
     [string]$BerichtVorlage,
     [switch]$BerichtNur,
-    [string]$BerichtVariante
+    [string]$BerichtVariante,
+    [switch]$Knicken
 )
 
 $ErrorActionPreference = 'Stop'
@@ -3638,6 +3639,68 @@ if ($Rechnen -and $Auslesen) {
     Schreib ''
     Schreib "  Ergebnisse: $zielR"
     Schreib "  $nR Lastfaelle gelesen"
+}
+
+<#  =========================================================================
+    KNICKEN - LINEARE STABILITAET JE LASTFALL (18. November, auf Weisung
+    "Ja, AxisVM rechnen" zum Vergleich mit dem Knick-Eigenwert der
+    Anwendung).
+
+    AxisVM rechnet den Knickfall je LASTFALL. Die Anwendung bewertet je
+    Kombination; die Vergleichsdatei faltet deshalb die massgebende
+    Kombination vorher in EINEN Lastfall (Eigengewicht als Last darin).
+    Gelesen wird je Lastfall der kritische Lastfaktor Ncr der ersten
+    Eigenformen und nach <modell>_knicken.json geschrieben.
+
+    VERMESSEN (Typbibliothek, 18. November):
+      Calculation.Buckling_V162(RBuckling_V162, ECalculationUserInteraction)
+      RBuckling_V162: LoadCase Iterations ModeShapes EigenValueConvergence
+                      EigenVectorConvergence OnlyPositiveEigenvalues
+      Results.ResultCaseOfLoadCase(EAnalysisType, int), atBuckling = 4
+      Results.ModeShapeCount(EAnalysisType, int), Results.Ncr(int, int)
+    ========================================================================= #>
+if ($Knicken) {
+    Abschnitt '11 - Knicken (lineare Stabilitaet, auf Weisung)'
+    $cuiK = Aufzaehlung 'ECalculationUserInteraction' 'cuiNoUserInteractionWithAutoCorrectNoShow'
+    if ($null -eq $cuiK) { $cuiK = 3 }
+    $atK = Aufzaehlung 'EAnalysisType' 'atBuckling'
+    if ($null -eq $atK) { $atK = 4 }
+    $ausK = [ordered]@{ modell = $axs; lastfaelle = [ordered]@{} }
+    foreach ($f in $d.lastfaelle) {
+        $id = $lf[$f.key]
+        $rb = NeuerSatz 'RBuckling_V162'
+        $rb.LoadCase = [int]$id
+        $rb.Iterations = 100
+        $rb.ModeShapes = 6
+        $rb.EigenValueConvergence = 1e-8
+        $rb.EigenVectorConvergence = 1e-6
+        $rb.OnlyPositiveEigenvalues = 1
+        $t0 = Get-Date
+        $rk = $null
+        try { $rk = $m.Calculation.Buckling_V162([ref]$rb, $cuiK) }
+        catch { Schreib "  >>> Buckling_V162: $($_.Exception.Message)" }
+        $sek = ((Get-Date) - $t0).TotalSeconds
+        $rc = -1
+        try { $rc = [int]$m.Results.ResultCaseOfLoadCase($atK, [int]$id) } catch { }
+        $nm = -1
+        try { $nm = [int]$m.Results.ModeShapeCount($atK, $rc) } catch { }
+        Schreib ("  Lastfall {0} ({1}): Rueckgabe {2}, Ergebnisfall {3}, Eigenformen {4}, {5:N0} s" -f $f.key, $f.label, $rk, $rc, $nm, $sek)
+        $werte = @()
+        for ($k = 1; $k -le [math]::Max($nm, 0); $k++) {
+            try { $werte += [double]$m.Results.Ncr($rc, $k) } catch { Schreib "  >>> Ncr($rc, $k): $($_.Exception.Message)" }
+        }
+        if ($werte.Count -eq 0) {
+            try { $arr = [double[]]@(); $null = $m.Results.GetAllNcr($rc, [ref]$arr); $werte = @($arr) }
+            catch { Schreib "  >>> GetAllNcr: $($_.Exception.Message)" }
+        }
+        Schreib ('    Ncr: ' + (($werte | ForEach-Object { '{0:N4}' -f $_ }) -join ' | '))
+        $ausK.lastfaelle[$f.key] = [ordered]@{ label = $f.label; ncr = $werte; rueckgabe = "$rk"; sekunden = $sek }
+    }
+    $zielK = if ($Json) { NebenDatei $Json '_knicken.json' } else { Join-Path $PSScriptRoot 'AxisVM_knicken.json' }
+    ($ausK | ConvertTo-Json -Depth 6) | Set-Content -Path $zielK -Encoding UTF8
+    Schreib "  geschrieben: $zielK"
+    try { $null = $m.SaveToFile($axs, $lbFalsch) } catch { }
+    $gefunden.Add('Knicken -> Calculation.Buckling_V162(RBuckling_V162), Results.Ncr(ResultCase, Mode)')
 }
 
 Abschnitt 'Fertig'
