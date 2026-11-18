@@ -40318,6 +40318,13 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
   });
   wahr('istGespreizt erkennt Namen und Datensatz, ein Walzprofil nicht',
        M259.istGespreizt('DGP24/5.5') && M259.istGespreizt(M259.getMastprofil('DGP26/10')) && !M259.istGespreizt('HEB 240'));
+  // 18. November: I_t der Hälfte = I_t der Tabelle / 2 (die Rechteckformel ohne
+  // Ausrundung lag am HEB 260 19 % darunter; gegen AxisVM gemessen, Torsion
+  // am DGP26/10 von 11-14 % auf ≤ 1.5 %).
+  ['DGP24/5.5', 'DGP26/10'].forEach((t) => {
+    const g = M259.gespreiztGeometrie(t), p = M259.getMastprofil(g.T ? M259.getGespreizt(t).profil : 'HEB 240');
+    pruef(`${t}: I_t der Hälfte = I_t(${p.name}) / 2`, g.T.It * 1e8, p.It / 2, 1e-9, 'cm⁴');
+  });
 
   const einzel = (profil, L, extra = {}) => ({ ...standardwerte(), bearbeiten: false, tragwerksart: 'einzelmast',
     mastVorhanden: true, mastProfil: profil, mastLaenge: L, windKlasse: '0.9', anbauteile: [], twId: 'M1', ...extra });

@@ -16,6 +16,12 @@
  */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-18',
+    punkte: [
+      { text: 'Gespreizte Masten (DGP): die Torsionssteifigkeit der beiden Hälften ist jetzt die Hälfte des Walzprofils (mit Ausrundungen, bisher ohne, 19 % weniger). Gegen AxisVM nachgerechnet; ändert die Zahlen nur bei Torsion am Masten, meist erst in der dritten Stelle.', rechnung: true },
+    ],
+  },
+  {
     datum: '2026-11-17',
     punkte: [
       { text: 'Modell: Explosionsdarstellung (Schieber «Explosion» in der Gruppe Modell, Doppelklick setzt zurück) und stehende / liegende Bindebleche getrennt schaltbar. Nur das Bild.' },

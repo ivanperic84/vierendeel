@@ -296,7 +296,14 @@ export function halbesProfil(p) {
   const e = teile.reduce((a, t) => a + t.A * t.z, 0) / A;
   const Iy = teile.reduce((a, t) => a + t.Iy + t.A * (t.z - e) ** 2, 0);
   const Iz = teile.reduce((a, t) => a + t.Iz + t.A * (t.y ?? 0) ** 2, 0);
-  const It = (b * tf ** 3 + hw * tw ** 3) / 3;
+  // Torsion: die Hälfte des tabellierten I_t des Walzprofils (18. November).
+  // Die Rechteckformel (b·tf³ + hw·tw³)/3 lässt den Wulst der Ausrundungen
+  // weg und gab am HEB 260 50.2 statt 61.9 cm⁴ (−19 %). Gemessen am
+  // DGP26/10 gegen AxisVM (AddT mit Ausrundung), Probe 1 kNm um die
+  // Mastachse: mit der Formel Gurt M_z 11.4 %, Blech T 14.3 % daneben, mit
+  // I_t/2 0.9 % bzw. 1.5 %. Ohne Tabellenwert bleibt die Formel.
+  const ItTab = Number(p.It) * 1e-8;   // cm⁴ -> m⁴
+  const It = ItTab > 0 ? ItTab / 2 : (b * tf ** 3 + hw * tw ** 3) / 3;
   return { A, e, Iy, Iz, It, hT, b, tw, tf,
            // Rand in der Stegebene: die Stegkante liegt weiter vom Schwerpunkt als der Flansch.
            Wy: Iy / Math.max(e, hT - e), Wz: Iz / (b / 2) };
