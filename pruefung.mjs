@@ -42743,6 +42743,37 @@ titel('294  Zustandslinie: Bindebleche nach aussen wie die Gurte');
        && ZQ.includes("else if (au && s.r === 'blech') o = au.map((c) => c * Math.abs(v) * skal);"));
 }
 
+titel('295  Sprungleiste Anbauteile, Grundwerte statt Lastfallfeld, Einzellasten in der Liste');
+{
+  // 18. November: «bei anbauteilen auch die untergruppen aufführen in der sidebar»
+  // (Rückfrage: die Pillen zum Springen und Einklappen); «man kann das
+  // auswahlfeld weglassen im 3d modell … anstelle dieses felds die globalen
+  // eingaben ek radius etc. schieben»; «bei der auswahl der lastfälle auch die
+  // einzelnen lasten aufführen (ständige / wind quer / wind längs etc.)».
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Reiter Anbauteile: eigene Sprungleiste (Blöcke, Gruppen der Liste, Drahtwerke, alle zu / auf)',
+       UQ.includes("if (tab === 'anbau' && !sprung) anbauSprungleiste(container);")
+       && UQ.includes("'.at-gruppe .at-gname'") && UQ.includes('data-sprung-anbau-alle'));
+  const IH = readFileSync(join(HIER, 'index.html'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('3D: oben die Grundwerte (#pos-ek im Kopf), kein Lastfallfeld mehr',
+       /id="einwirkung-wahl"><span class="viewer-marke viewer-ek" id="pos-ek">/.test(IH)
+       && !/viewer-fuss[\s\S]*id="pos-ek"[\s\S]*<\/div>\s*<\/div>\s*<!--/.test(IH.slice(IH.indexOf('class="viewer-fuss"'), IH.indexOf('class="viewer-fuss"') + 1200))
+       && LQ.includes('if (app) return;'));
+  const E = await import(J('ui.einfach.js'));
+  const k = { lastfaelle: [
+    { key: 'a', bez: 'Wind +y (längs zum Gleis) leitend', art: 'tragsicherheit', nachweis: true },
+    { key: 'b', bez: 'Ständig (Tragwerk)', art: 'charakteristisch' },
+    { key: 'c', bez: 'Wind −x (quer zum Gleis)', art: 'charakteristisch' },
+    { key: 'd', bez: 'Ständig + Wind +y (längs zum Gleis)', art: 'charakteristisch' },
+    { key: 'e', bez: 'Schnee', art: 'charakteristisch' }] };
+  const h = E.kombiEinfachHtml(k);
+  const ein = [...h.matchAll(/lf-einzel[^>]*>\s*<span>([^<]*)/g)].map((m) => m[1]);
+  wahr('Lastfallliste: einzelne Lasten unter den Kombinationen, ohne «Ständig + …», ohne Ausnutzung',
+       ein.join(' | ') === 'Ständig (Tragwerk) | Wind quer zum Gleis, von rechts | Schnee'
+       && h.indexOf('Einzelne Lasten') > h.indexOf('data-lf-wahl="a"'), ein.join(' | '));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

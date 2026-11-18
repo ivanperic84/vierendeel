@@ -401,6 +401,25 @@ function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend') {
   return `<div class="sec-klein">Verformung (nur Wind × 0.70)</div>${zeilen}`;
 }
 
+/*
+ * >>> DIE EINZELNEN LASTEN UNTER DEN KOMBINATIONEN (18. November). <<<
+ * Weisung: «bei der auswahl der lastfälle auch die einzelnen lasten
+ * aufführen (ständige / wind quer / wind längs etc.) diese können weiter
+ * unten aufgeführt werden da diese nicht so wichtig sind wie die
+ * kombinationen.» Die charakteristischen Einzelfälle der Rechnung (ohne
+ * «Ständig + …»), ohne Ausnutzung - sie sind kein Nachweis. Ein Klick zeigt
+ * die Last im 3D (die Pfeile folgen den Beiwerten des Falls).
+ */
+function einzelLastenHtml(kombi, gewaehlt) {
+  const einzeln = (kombi?.lastfaelle ?? [])
+    .filter((k) => k.art === 'charakteristisch' && !/\s\+\s/.test(k.bez ?? ''));
+  if (!einzeln.length) return '';
+  return `<div class="sec-klein">Einzelne Lasten (charakteristisch)</div>${einzeln.map((k) => `
+    <div class="lf-einfach lf-einzel${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
+      data-lf-wahl="${esc(k.key)}" title="${esc(k.bez)} - charakteristisch, kein Nachweis; im 3D zeigen">
+      <span>${esc(/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez)}</span><span></span></div>`).join('')}`;
+}
+
 export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', gzg = []) {
   const faelle = (kombi?.lastfaelle ?? []).filter((k) => k.nachweis);
   if (!faelle.length) return '';
@@ -428,6 +447,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
     ${block('Längs zum Gleis', je.laengs)}
     ${block('Weitere', je.weitere)}
     ${gzgEinfachHtml(gzg, gewaehlt)}
+    ${einzelLastenHtml(kombi, gewaehlt)}
     <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster
       title="Die Tabelle aller Kombinationen mit den Beiwerten je Einwirkung">Alle Kombinationen mit Lastbeiwerten …</button></div>`;
 }

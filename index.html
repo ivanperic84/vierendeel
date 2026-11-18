@@ -68,7 +68,11 @@
              statt gestellt, weil die Lastfallzeile umbrechen kann - ein fester
              Abstand waere dann wieder falsch. -->
         <div class="viewer-kopf">
-          <div class="viewer-oben" id="einwirkung-wahl"></div>
+          <!-- 18. November: «man kann das auswahlfeld weglassen im 3d modell …
+               anstelle dieses felds die globalen eingaben ek radius etc.
+               schieben» - oben stehen die Grundwerte, der Lastfall wird in
+               der Seitenleiste gewählt. -->
+          <div class="viewer-oben" id="einwirkung-wahl"><span class="viewer-marke viewer-ek" id="pos-ek"></span></div>
           <!-- Handlungsbalken: sagt, was jetzt anzuklicken ist - beim
                Einmessen der Zeichnung wie beim Setzen eines Bauteils. -->
           <div class="viewer-balken" id="viewer-balken" role="status" aria-live="polite" hidden></div>
@@ -83,10 +87,6 @@
           <div id="ansicht-tools-u"></div>
           <span class="viewer-marke" id="pos-marke">x = 0.00 m</span>
           <span class="viewer-marke" id="pos-station"></span>
-          <!-- Die Einwirkungsklasse steht fuer sich und rechts (Weisung):
-               sie gehoert nicht zum Schnitt, sondern gilt fuer das ganze
-               Tragwerk. -->
-          <span class="viewer-marke viewer-ek" id="pos-ek"></span>
         </div>
       </div>
     </section>

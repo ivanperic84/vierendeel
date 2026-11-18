@@ -720,6 +720,54 @@ function verdrahteHavarie(container, werte, onChange) {
   });
 }
 
+/** Sprungleiste des Reiters Anbauteile aus dem gezeichneten Inhalt (18. November). */
+function anbauSprungleiste(container) {
+  const chips = [];
+  container.querySelectorAll('[data-grp]').forEach((g) => {
+    const t = g.querySelector('summary .grp-titel, summary')?.textContent?.trim().split(/\d+ Vorlage/)[0].trim();
+    if (t) chips.push({ art: 'grp', ziel: g.dataset.grp, titel: t.length > 28 ? `${t.slice(0, 26)}…` : t });
+  });
+  container.querySelectorAll('.at-gruppe .at-gname').forEach((n) => {
+    chips.push({ art: 'at', ziel: n.textContent.trim(), titel: n.textContent.trim() });
+  });
+  if (container.querySelector('details[data-klapp="at-drahtwerke-v2"]')) {
+    chips.push({ art: 'klapp', ziel: 'at-drahtwerke-v2', titel: 'Drahtwerke' });
+  }
+  if (chips.length < 2) return;
+  const nav = document.createElement('nav');
+  nav.className = 'sprung';
+  nav.setAttribute('aria-label', 'Abschnitte dieses Reiters');
+  nav.innerHTML = chips.map((c, i) => `<button type="button" class="sprung-chip" data-sprung-anbau="${i}">${esc(c.titel)}</button>`).join('')
+    + '<button type="button" class="sprung-chip sprung-alle" data-sprung-anbau-alle title="Alle Abschnitte dieses Reiters zu- oder aufklappen">alle zu / auf</button>';
+  container.prepend(nav);
+  nav.querySelectorAll('[data-sprung-anbau]').forEach((b) => b.addEventListener('click', () => {
+    const c = chips[Number(b.dataset.sprungAnbau)];
+    let ziel = null;
+    if (c.art === 'grp') {
+      ziel = container.querySelector(`[data-grp="${CSS.escape(c.ziel)}"]`);
+      const d = ziel?.querySelector(':scope > details');
+      if (d && !d.open) d.open = true;
+    } else if (c.art === 'klapp') {
+      ziel = container.querySelector(`details[data-klapp="${CSS.escape(c.ziel)}"]`);
+      if (ziel && !ziel.open) setzeKlapp(c.ziel, true);
+    } else {
+      // Die Liste wird neu gezeichnet, ohne dass die Leiste es merkt: beim Klick suchen.
+      ziel = [...container.querySelectorAll('.at-gruppe')]
+        .find((g) => g.querySelector('.at-gname')?.textContent.trim() === c.ziel) ?? null;
+      const d = ziel?.closest('details');
+      if (d && !d.open) d.open = true;
+    }
+    ziel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }));
+  nav.querySelector('[data-sprung-anbau-alle]')?.addEventListener('click', () => {
+    const alle = [...container.querySelectorAll('details[data-klapp]')].filter((d) => d.dataset.klapp.startsWith('grp-')
+      || ['anbau-vorrat', 'anbau-achsen', 'at-drahtwerke-v2'].includes(d.dataset.klapp));
+    const auf = alle.every((d) => !d.open);
+    alle.forEach((d) => setzeKlapp(d.dataset.klapp, auf));
+    if (!auf) container.scrollTop = 0;
+  });
+}
+
 export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = {}) {
   aktuelleWerte = werte;
   /*
@@ -857,6 +905,16 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
           title="Alle Gruppen dieses Reiters zu- oder aufklappen">alle zu / auf</button></nav>`
     : '';
   container.innerHTML = sprung + koerper + schrittWeiterHtml(tab);
+  /*
+   * >>> SPRUNGLEISTE AUCH IM REITER ANBAUTEILE (18. November). <<< Weisung:
+   * «bei anbauteilen auch die untergruppen aufführen in der sidebar», auf
+   * Rückfrage: «gemeint sind die pillen um auf die jeweiligen abschnitte zu
+   * springen und oder alle einzuklappen». Der Reiter hat nur zwei Blöcke
+   * (die Leiste kam erst ab drei); hier stehen dazu die Abschnitte im Block
+   * Anbauteile: jede Gruppe der Anbauteilliste (#Gleis 1 …) und die
+   * Drahtwerke. «alle zu / auf» klappt alle Klappabschnitte des Reiters.
+   */
+  if (tab === 'anbau' && !sprung) anbauSprungleiste(container);
   // Schulung (15. November): «?» hinter den Begriffen, die Laien fremd sind.
   if (EINFACH && BEGRIFFE_ZEIGEN) begriffeInMaske(container);
   // Schulung: «Weiter» wählt den nächsten Schritt wie ein Klick auf den Reiter.

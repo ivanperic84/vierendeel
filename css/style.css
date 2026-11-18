@@ -2703,8 +2703,11 @@ body.datei-ueber::after {
 }
 .viewer-ek { margin-left: auto; flex: none; text-align: right; }
 /* Die Grundwerte der Trasse sind anklickbar (7. Oktober). */
-.viewer-fuss .viewer-ek { cursor: pointer; pointer-events: auto; white-space: nowrap; }
-.viewer-fuss .viewer-ek:hover { border-color: var(--acc); color: var(--on); }
+.viewer-fuss .viewer-ek, .viewer-oben .viewer-ek { cursor: pointer; pointer-events: auto; white-space: nowrap; }
+.viewer-fuss .viewer-ek:hover, .viewer-oben .viewer-ek:hover { border-color: var(--acc); color: var(--on); }
+/* Grundwerte oben statt des Lastfallfelds (18. November): ohne Rahmen des Felds. */
+.viewer-oben:has(> .viewer-ek:only-child) { background: none; border: 0; padding: 0; }
+.viewer-oben .viewer-ek { margin-left: 0; text-align: center; white-space: normal; }
 
 /* Ein ausgeblendetes Tragwerk steht als gestrichelter Umriss an seiner
    Stelle - es gehoert zum Blatt, zaehlt aber gerade nicht. Ganz zu
@@ -3856,8 +3859,8 @@ html[data-stufe="schulung"] .ef-mehr .stabwerk-leiste,
 html[data-stufe="schulung"] .ef-mehr .nw-plastisch,
 html[data-stufe="schulung"] .ef-mehr [data-klapp^="uebersicht-"],
 html[data-stufe="schulung"] .ef-mehr .quellzeile { display: none !important; }
-/* Schulung: Lastfallwahl und technische Fusszeilen weg, immer der ungünstigste Fall. */
-html[data-stufe="schulung"]:not([data-mehr]) #einwirkung-wahl,
+/* Schulung: technische Fusszeilen weg. Das Lastfallfeld im 3D gibt es seit dem
+   18. November nicht mehr; dort stehen die Grundwerte, auch in der Schulung. */
 html[data-stufe="schulung"] #st-modell,
 html[data-stufe="schulung"] #st-db,
 html[data-stufe="schulung"] label:has(> [data-at-bestand]),

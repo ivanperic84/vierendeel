@@ -550,6 +550,15 @@ export function zeichneModellWerkzeuge(app) {
  * alle Kombinationen. Einzeln gewählt zeigt das Modell genau eine Kombination.
  */
 export function zeichneEinwirkungswahl(app) {
+  /*
+   * >>> DAS AUSWAHLFELD IM 3D IST WEG (18. November). <<< Weisung: «man kann
+   * das auswahlfeld weglassen im 3d modell, da dieses schon in der sidebar
+   * übersichtlicher aufgeführt ist. anstelle dieses felds die globalen
+   * eingaben ek radius etc. schieben». Der Lastfall wird in der Lastfallliste
+   * der Seitenleiste gewählt; oben stehen die Grundwerte (#pos-ek). Der Code
+   * darunter bleibt für einen späteren Weg zurück, er läuft nicht.
+   */
+  if (app) return;
   const n = ui.el('einwirkung-wahl');
   if (!n || !app.letzte) return;
   /*
