@@ -42440,8 +42440,11 @@ titel('284  Fundament: massgebender Nachweis beim Anklicken; Protokoll geleert')
   wahr('Fundamente-Zeile klappt auf, massgebendes zuerst; Masten ohne', r.html.includes('class="ef-det" data-ef-gruppe="fundament"')
        && r.html.indexOf('<li>B</li>') < r.html.indexOf('<li>A</li>') && !r.html.includes('data-ef-gruppe="mast"'));
   // Geleert am 17. November; seither neue Einträge (Durchsicht der Vollversion).
-  wahr('Änderungsprotokoll neu begonnen: nur der 17. November', AE.AENDERUNGEN.length === 1
-       && AE.AENDERUNGEN[0].datum === '2026-11-17' && !AE.aenderungenHtml().includes('Noch keine Einträge'));
+  // Seit dem 18. November steht ein neuerer Tag darüber: der älteste ist der 17., neueste oben.
+  wahr('Änderungsprotokoll neu begonnen am 17. November, neueste zuerst',
+       AE.AENDERUNGEN.at(-1).datum === '2026-11-17'
+       && AE.AENDERUNGEN.every((t, i, a) => i === 0 || a[i - 1].datum > t.datum)
+       && !AE.aenderungenHtml().includes('Noch keine Einträge'));
 }
 
 // ===========================================================================
