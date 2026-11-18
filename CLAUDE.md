@@ -522,7 +522,7 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
-- **18. Nov., Ursache gefunden:** K_G jetzt mit Momenttermen und an den Starrelementen; gegen AxisVM Mastkopf 111.7 / 111.97 mm, Stabkräfte 0.5-3 %, Bindeblech J130 Wind +y 0.42 → 0.49 bestätigt. Nicht gepusht.
+- **18. Nov., Ursache gefunden:** K_G jetzt mit Momenttermen und an den Starrelementen; gegen AxisVM Mastkopf 111.7 / 111.97 mm, Stabkräfte 0.5-3 %, Bindeblech J130 Wind +y 0.42 → 0.49 bestätigt. **Alles bis `35e194f` gepusht** (Weisung «Jetzt pushen»; dabei `pruefung.mjs` von CR LF auf LF vereinheitlicht wie alle übrigen Dateien).
 - **18. Nov., Theorie 2. Ordnung gegen AxisVM nichtlinear** (Brücke `-Nichtlinear`, `vergleich_th2.mjs`): J130/30 m mit Schnee Mastkopf 111.97 / 110.35 mm, Zuwachs 2. Ordnung beim Löser rund 19 % kleiner (leicht unsicher). Nicht gepusht.
 - **18. Nov., Theorie 2. Ordnung Etappe B** (Schalter in Optionen → Nachweise, Schiefstellung EN 5.3.2, `core.stabtheorie2.js`; J130/30 m mit Schnee Mast 1.169 → 1.232). Nicht gepusht.
 - **18. Nov., Theorie 2. Ordnung Etappe A** (Faktor 1/(1 − 1/α_cr) als Auskunft in der Stabwerksleiste; Arbeitsstand η 0.690 → 0.733). B offen. Nicht gepusht.
