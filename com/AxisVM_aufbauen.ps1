@@ -3748,6 +3748,41 @@ if ($Nichtlinear) {
             elseif (-not $meldNL) { $meldNL = "linear: Rueckgabe $o1" }
         }
         Schreib "    $($linW.Count) lineare Knotenwege vor der nichtlinearen Rechnung"
+        # Stabkraefte an beiden Enden (Schnitt 1 und der letzte), linear vor
+        # der nichtlinearen Rechnung, nichtlinear danach. Werte wie im
+        # Zuruecklesen: lfvNx Vy Vz Tx My Mz im Ortssystem des Stabs.
+        $nSchn = 11
+        $kraftLies = {
+            param($li, $si, $at, $stufe)
+            $v = NeuerSatz 'RLineForceValues'; $x = 0.0; $tx = ''; $ok = 0
+            try { $ok = $m.Results.Forces.GetLineForceByLoadCaseId($li, $si, $id, $stufe, $at, [ref]$v, [ref]$x, [ref]$tx) } catch { $ok = 0 }
+            if ($ok -le 0) { return $null }
+            return @([double]$v.lfvNx, [double]$v.lfvVy, [double]$v.lfvVz, [double]$v.lfvTx, [double]$v.lfvMy, [double]$v.lfvMz)
+        }
+        # Nach der nichtlinearen Rechnung teilt AxisVM die Staebe feiner: der
+        # Schnitt 11 liegt dann nicht am Ende (gemessen 18. November: x 0.149 m
+        # an einem 7 m langen Mastabschnitt). Der letzte Schnitt wird je Stab
+        # gesucht - verdoppeln, bis nichts mehr kommt, dann halbieren.
+        $letzterSchnitt = {
+            param($li, $at, $stufe)
+            $da = { param($si) $v = NeuerSatz 'RLineForceValues'; $x = 0.0; $tx = ''; $ok = 0
+                    try { $ok = $m.Results.Forces.GetLineForceByLoadCaseId($li, $si, $id, $stufe, $at, [ref]$v, [ref]$x, [ref]$tx) } catch { $ok = 0 }
+                    return ($ok -gt 0) }
+            $lo = 1
+            $hi = 2
+            while ($hi -le 8192 -and (& $da $hi)) { $lo = $hi; $hi = $hi * 2 }
+            while ($hi - $lo -gt 1) { $mi = [int][math]::Floor(($lo + $hi) / 2); if (& $da $mi) { $lo = $mi } else { $hi = $mi } }
+            return $lo
+        }
+        $kraefte = [ordered]@{}
+        $staebeK = @($d.staebe | Where-Object { (StabArt $_) -eq 'stab' -and $st[$_.name] })
+        foreach ($sb in $staebeK) {
+            $li = [int]$st[$sb.name]
+            $a1 = & $kraftLies $li 1 $atLN 1
+            $a2 = & $kraftLies $li $nSchn $atLN 1
+            if ($a1 -and $a2) { $kraefte[$sb.name] = @($a1 + $a2) }
+        }
+        Schreib "    $($kraefte.Count) Staebe mit linearen Endkraeften"
         $rn = NeuerSatz 'RNonLinearAnalysis_V162'
         $rn.LoadCase = $id
         $rn.SolutionControl = 0
@@ -3790,9 +3825,71 @@ if ($Nichtlinear) {
             $wege[$kname] = @($l[0], $l[1], $l[2], [double]$dn.ex, [double]$dn.ey, [double]$dn.ez)
         }
         Schreib "    $($wege.Count) Knotenwege gelesen ($nNein nicht lesbar)"
+        <#  NACH DER NICHTLINEAREN RECHNUNG SIND DIE LINIEN NEU NUMMERIERT.
+            Gemessen 18. November: 1006 Linien vorher, 1966 danach - AxisVM
+            teilt die Staebe. Die Knoten bleiben. Je Stabende wird deshalb
+            die Teillinie gesucht, die an diesem Knoten liegt und in
+            Stabrichtung weiterlaeuft; ihr Schnitt an diesem Knoten ist das
+            Stabende. Verglichen werden die Betraege (die Teillinie kann
+            entgegen dem Stab laufen).                                     #>
+        $nLin = 0; try { $nLin = [int]$m.Lines.Count } catch { }
+        $pkt = @{}
+        $knObj = $null
+        try { $knObj = $m.Nodes } catch { }
+        if ($null -eq $knObj) { try { $knObj = $app.Models.Item(1).Nodes } catch { } }
+        Schreib "    Knoten nach der nichtlinearen Rechnung: $(if ($knObj) { $knObj.Count } else { 'nicht lesbar' })"
+        $kp = {
+            param($nid)
+            if (-not $pkt.ContainsKey($nid)) {
+                $pp = NeuerSatz 'RPoint3d'
+                try { $null = $knObj.GetNodeCoord($nid, [ref]$pp) } catch { }
+                $pkt[$nid] = @([double]$pp.x, [double]$pp.y, [double]$pp.z)
+            }
+            return $pkt[$nid]
+        }
+        $anKnoten = @{}
+        for ($i = 1; $i -le $nLin; $i++) {
+            $lo = $null; try { $lo = $m.Lines.Item($i) } catch { continue }
+            $a = [int]$lo.StartNode; $b = [int]$lo.EndNode
+            foreach ($q in @(@($a, $b, 1), @($b, $a, 0))) {
+                if (-not $anKnoten.ContainsKey($q[0])) { $anKnoten[$q[0]] = New-Object System.Collections.Generic.List[object] }
+                $anKnoten[$q[0]].Add(@($i, $q[1], $q[2]))
+            }
+        }
+        Schreib "    Linien nach der nichtlinearen Rechnung: $nLin"
+        $stNL = [math]::Max($nStufen, 1)
+        $endeLies = {
+            param($von, $nach)
+            $pa = & $kp $von; $pb = & $kp $nach
+            $d = @(($pb[0] - $pa[0]), ($pb[1] - $pa[1]), ($pb[2] - $pa[2]))
+            $dl = [math]::Sqrt($d[0] * $d[0] + $d[1] * $d[1] + $d[2] * $d[2])
+            if (-not $anKnoten.ContainsKey($von) -or $dl -le 0) { return $null }
+            foreach ($c in $anKnoten[$von]) {
+                $po = & $kp $c[1]
+                $e = @(($po[0] - $pa[0]), ($po[1] - $pa[1]), ($po[2] - $pa[2]))
+                $el = [math]::Sqrt($e[0] * $e[0] + $e[1] * $e[1] + $e[2] * $e[2])
+                if ($el -le 0) { continue }
+                $cos = ($d[0] * $e[0] + $d[1] * $e[1] + $d[2] * $e[2]) / ($dl * $el)
+                if ($cos -lt 0.9999 -or $el -gt $dl * 1.0001) { continue }
+                $si = if ($c[2] -eq 1) { 1 } else { & $letzterSchnitt $c[0] $atNL $stNL }
+                return (& $kraftLies $c[0] $si $atNL $stNL)
+            }
+            return $null
+        }
+        $nK2 = 0
+        foreach ($sb in $staebeK) {
+            if (-not $kraefte.Contains($sb.name)) { continue }
+            $na = $kn[$sb.von]; $nb = $kn[$sb.bis]
+            if (-not $na -or -not $nb) { continue }
+            $b1 = & $endeLies ([int]$na) ([int]$nb)
+            $b2 = & $endeLies ([int]$nb) ([int]$na)
+            if ($b1 -and $b2) { $kraefte[$sb.name] = @($kraefte[$sb.name] + $b1 + $b2); $nK2++ }
+        }
+        Schreib "    $nK2 Staebe mit nichtlinearen Endkraeften"
         if ($meldNL) { Schreib "    >>> erste Meldung: $meldNL" }
         $ausNL.lastfaelle[$f.key] = [ordered]@{ label = $f.label; rueckgabe = "$rk"; stufen = $nStufen;
-            lambda = [double]$info.Lambda; konvergenz = [int]$info.Convergence; sekunden = $sek; wege = $wege }
+            lambda = [double]$info.Lambda; konvergenz = [int]$info.Convergence; sekunden = $sek; wege = $wege;
+            kraefte = $kraefte }
     }
     $zielNL = if ($Json) { NebenDatei $Json '_nichtlinear.json' } else { Join-Path $PSScriptRoot 'AxisVM_nichtlinear.json' }
     ($ausNL | ConvertTo-Json -Depth 8 -Compress) | Set-Content -Path $zielNL -Encoding UTF8

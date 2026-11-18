@@ -413,8 +413,14 @@ node vergleich_th2.mjs com/AxisVM_TH2_J130_30m_Schnee.json
   Rechnung gibt AxisVM sie nicht mehr heraus, Rückgabe −100014), rechnet dann
   `NonLinearAnalysis_V162` (geometrisch nichtlinear, kraftgesteuert,
   10 Laststufen) und schreibt beide nach `<modell>_nichtlinear.json`.
-- Gemessen 18. November: Mastkopf 111.97 mm (AxisVM) gegen 110.35 mm
-  (Anwendung), linear 103.20 / 103.25 mm.
+- Gemessen 18. November: Mastkopf 111.97 mm (AxisVM) gegen 111.69 mm
+  (Anwendung, mit Momenttermen in K_G), linear 103.20 / 103.25 mm.
+- **Stabkräfte:** nach der nichtlinearen Rechnung teilt AxisVM die Stäbe
+  (1006 → 1966 Linien, neue Knoten); die Liniennummern der Zuordnung gelten
+  nicht mehr. Die Brücke sucht je Stabende die Teillinie, die an diesem
+  Knoten in Stabrichtung anschliesst, und darauf den letzten Schnitt
+  (Schnitt 11 liegt dann nicht am Ende). Verglichen werden Beträge.
+- `modell_knicken.mjs … th2 fall=<Kombination>` wählt die Kombination.
 
 ## Statikbericht (Schalter -Statikbericht, 7. Oktober 2026)
 

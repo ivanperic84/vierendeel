@@ -52,7 +52,9 @@ const L = Number(Ls);
 const mitSchnee = args.includes('schnee');
 const th2 = args.includes('th2');
 const zielArg = args.find((a) => a.endsWith('.json'));
-const ziel = zielArg ?? `com/AxisVM_${th2 ? 'TH2' : 'Knick'}_${typ}_${L}m${mitSchnee ? '_Schnee' : ''}.json`;
+// fall=<key> wählt die Kombination (sonst die mit dem kleinsten alpha_cr).
+const fallArg = args.find((a) => a.startsWith('fall='))?.slice(5);
+const ziel = zielArg ?? `com/AxisVM_${th2 ? 'TH2' : 'Knick'}_${typ}_${L}m${mitSchnee ? '_Schnee' : ''}${fallArg ? `_${fallArg}` : ''}.json`;
 
 let w = S.typUebernehmen({ ...S.standardwerte(), bearbeiten: false, typ }, T.getTragjoch(typ));
 w = { ...w, L, xLage: 0, mastVorhanden: true, ...(mitSchnee ? { schneeAktiv: true } : {}) };
@@ -62,7 +64,8 @@ const h = AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
 if (h.fehler || h.ohneModell) throw new Error(h.fehler ?? h.ohneModell);
 const k = AS.knickEigenwert(h);
 const { dat, auswertung } = h.roh;
-const lf = auswertung.faelle.find((f) => f.key === k.key);
+const lf = auswertung.faelle.find((f) => f.key === (fallArg ?? k.key));
+if (!lf) throw new Error(`Kombination ${fallArg} gibt es nicht: ${auswertung.faelle.map((f) => f.key).join(', ')}`);
 const fak = new Map(SN.anteileFuer(lf, dat).map((a) => [a.lastfall, a.faktor]));
 
 // Die Datei des Stabwerks traegt das Eigengewicht schon als Streckenlast im
@@ -80,7 +83,7 @@ if (schief) {
   schief.zusatz.forEach((z, i) => neu.lasten.punkt.push({ name: `IMP_${i}`, knoten: z.knoten,
     richtung: z.richtung, wert: z.wert, lastfall: 'KNICK' }));
 }
-neu.lastfaelle = [{ key: 'KNICK', label: `Knick ${k.bez}`.slice(0, 60), art: 'staendig' }];
+neu.lastfaelle = [{ key: 'KNICK', label: `Knick ${lf.bez}`.slice(0, 60), art: 'staendig' }];
 neu.kombinationen = [];
 neu.titel = `Knick ${typ}/${L} m${mitSchnee ? ' Schnee' : ''}`;
 
@@ -91,7 +94,7 @@ const probe = (schubweich) => {
   return lsg.knicken(new Map([...kr].map(([n, v]) => [n, v[6]])), { unterraum: 8, toleranz: 1e-7 });
 };
 const rw = probe(true);
-if (!schief && Math.abs(rw.alpha / k.alpha - 1) > 1e-3) {
+if (!schief && !fallArg && Math.abs(rw.alpha / k.alpha - 1) > 1e-3) {
   console.error(`>>> gefaltet ${rw.alpha} gegen Kombination ${k.alpha} - nicht geschrieben.`);
   process.exit(1);
 }
@@ -104,7 +107,11 @@ if (schief) {
     const r = lsg.zweiteOrdnung('TH2', [{ lastfall: 'KNICK', faktor: 1 }]);
     const aus = (fall) => Object.fromEntries(neu.knoten.map((kk, i) =>
       [kk.name, [...lsg.u.get(fall).slice(i * 6, i * 6 + 6)]]));
-    return { linear: aus('KNICK'), zweite: aus('TH2'), iterationen: r.iterationen };
+    // Endkräfte wie AxisVM sie ausgibt (Anfang -f[0..5], Ende f[6..11]).
+    const kr = (fall) => Object.fromEntries([...lsg.stabkraft(fall)].map(([nm, f]) =>
+      [nm, [...[0, 1, 2, 3, 4, 5].map((q) => -f[q]), ...[6, 7, 8, 9, 10, 11].map((q) => f[q])]]));
+    return { linear: aus('KNICK'), zweite: aus('TH2'), kraftLinear: kr('KNICK'),
+             kraftZweite: kr('TH2'), iterationen: r.iterationen };
   };
   writeFileSync(join(HIER, ziel.replace(/\.json$/, '_soll.json')),
     JSON.stringify({ phi: schief.phi, m: schief.m, imperfektion: schief.zusatz,
@@ -112,7 +119,7 @@ if (schief) {
   console.log(`  Schiefstellung phi = 1/${Math.round(1 / schief.phi)}, ${schief.zusatz.length} Knotenlasten`);
 }
 console.log(ziel);
-console.log(`  massgebend: ${k.bez}`);
+console.log(`  Kombination: ${lf.bez}${fallArg ? '' : ' (kleinstes alpha_cr)'}`);
 console.log(`  Anteile: ${[...fak].map(([l, f]) => `${l} x ${f}`).join(', ')}`);
 console.log(`  alpha_cr schubweich: ${rw.alle.slice(0, 4).map((a) => a.toFixed(3)).join(' | ')}`);
 console.log(`  alpha_cr schubstarr: ${rs.alle.slice(0, 4).map((a) => a.toFixed(3)).join(' | ')}`);

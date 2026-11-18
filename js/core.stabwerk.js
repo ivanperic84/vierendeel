@@ -411,6 +411,38 @@ function kFeder(cs, arm = 0, armJ = null) {
  * x-z-Ebene koppeln w und phi_y negativ, in der x-y-Ebene v und phi_z
  * positiv. Prüfstand: Euler-Fälle (Abschnitt 296).
  * ========================================================================= */
+/*
+ * >>> DIE MOMENTTERME DER GEOMETRISCHEN STEIFIGKEIT (18. November). <<<
+ * Ursache gesucht für den kleineren Zuwachs 2. Ordnung gegenüber AxisVM:
+ * aus den Endmomenten (My, Mz je Ende, Torsion Mx) entstehen Kopplungen
+ * zwischen Torsion und seitlicher Verschiebung (Kippen, Biegedrillen).
+ * Matrix nach McGuire/Gallagher/Ziemian, Matrix Structural Analysis,
+ * 2. Aufl., Abschnitt 9 (ohne Wölbkraft). `f`: die zwölf lokalen
+ * Endkräfte wie stabkraft(). Geprüft am Kippen unter konstantem Moment
+ * (M_cr = π/L √(E I_z G I_t), +0.16 % mit 16 Stäben) und gegen AxisVM
+ * (J130/30 m mit Schnee, Stabkräfte 2. Ordnung auf 0.5-3 % des Grössten).
+ * Die Rechnung 2. Ordnung nimmt sie immer (`momente: false` schaltet ab);
+ * der Knick-Eigenwert bleibt bei N allein, wenn er nur Zahlen bekommt.
+ */
+function kGeoMomente(f, L) {
+  const k = new Float64Array(144);
+  // Vorzeichen wie in der Quelle: am Joch gegen AxisVM nichtlinear gemessen
+  // (mit +1 Zuwachs am Mastkopf 8.44 mm, AxisVM 8.77; mit -1 nur 6.82 mm).
+  const My1 = f[4], Mz1 = f[5], My2 = f[10], Mz2 = f[11], Mx2 = f[9];
+  const put = (i, j, v) => { k[i * 12 + j] += v; if (i !== j) k[j * 12 + i] += v; };
+  put(1, 3, My1 / L); put(1, 4, Mx2 / L); put(1, 9, My2 / L); put(1, 10, -Mx2 / L);
+  put(2, 3, Mz1 / L); put(2, 5, Mx2 / L); put(2, 9, Mz2 / L); put(2, 11, -Mx2 / L);
+  put(3, 4, -(2 * Mz1 - Mz2) / 6); put(3, 5, (2 * My1 - My2) / 6);
+  put(3, 7, -My1 / L); put(3, 8, -Mz1 / L);
+  put(3, 10, -(Mz1 + Mz2) / 6); put(3, 11, (My1 + My2) / 6);
+  put(4, 7, -Mx2 / L); put(4, 9, -(Mz1 + Mz2) / 6); put(4, 11, Mx2 / 2);
+  put(5, 8, Mx2 / L); put(5, 9, (My1 + My2) / 6); put(5, 10, -Mx2 / 2);
+  put(7, 9, -My2 / L); put(7, 10, Mx2 / L);
+  put(8, 9, -Mz2 / L); put(8, 11, -Mx2 / L);
+  put(9, 10, (Mz1 - 2 * Mz2) / 6); put(9, 11, -(My1 - 2 * My2) / 6);
+  return k;
+}
+
 function kGeoLokal(N, L, ip2 = 0) {
   const k = new Float64Array(144);
   const f = N / L;
@@ -1294,11 +1326,19 @@ export function loese(dat, opt = {}) {
     const t1 = Date.now();
     const geo = elemente.map((e) => {
       if ((e.s.art || 'stab') !== 'stab') return null;
-      const Ne = Number(N.get(e.s.name));
-      if (!Number.isFinite(Ne) || Ne === 0) return null;
+      const roh = N.get(e.s.name);
+      // Eine Zahl (nur N) oder die zwölf Endkräfte (mit Momenttermen).
+      const voll = roh && typeof roh === 'object' && roh.length === 12;
+      const Ne = Number(voll ? roh[6] : roh);
+      if (!Number.isFinite(Ne) || (Ne === 0 && !voll)) return null;
       const w0 = qs.get(e.s.querschnitt);
       const ip = w0 && w0.A > 0 ? (w0.Iy + w0.Iz) / w0.A : 0;
-      return drehen(kGeoLokal(Ne, e.L, ip), e.R);
+      const kl = kGeoLokal(Ne, e.L, ip);
+      if (voll && ko.momente !== false) {
+        const km = kGeoMomente(roh, e.L);
+        for (let q = 0; q < 144; q += 1) kl[q] += km[q];
+      }
+      return drehen(kl, e.R);
     });
     if (!geo.some(Boolean)) return { alpha: Infinity, alle: [], form: null, iterationen: 0, zeit: 0 };
     // B = -K_G: positiv, wo gedrückt wird.
@@ -1433,9 +1473,16 @@ export function loese(dat, opt = {}) {
     // Festkräfte je Element (ein Element kann mehrere Streckenlasten tragen).
     const festVon = new Map();
     streckeAuf.filter((s2) => s2.fall === name).forEach((s2) => {
-      festVon.set(s2.e, (festVon.get(s2.e) ?? 0) + s2.fLokal[6]);
+      const alt = festVon.get(s2.e) ?? new Float64Array(12);
+      for (let q = 0; q < 12; q += 1) alt[q] += s2.fLokal[q];
+      festVon.set(s2.e, alt);
     });
-    const echt = elemente.map((e) => ((e.s.art || 'stab') === 'stab' ? qs.get(e.s.querschnitt) : null));
+    // Echte Stäbe mit ihrem Querschnitt; Starrelemente (Konsolen, Blechenden,
+    // Anschlüsse) drehen in AxisVM als Starrkörper mit - ihre Normalkraft
+    // wirkt am verdrehten Glied genauso. Ohne Torsionsanteil (i_p = 0): ihr
+    // Ersatzquerschnitt ist erfunden.
+    const echt = elemente.map((e) => ((e.s.art || 'stab') === 'stab' ? qs.get(e.s.querschnitt)
+      : (ko.starr !== false && e.s.art === 'starr') ? { A: 0, Iy: 0, Iz: 0 } : null));
     const voll = (xf) => {
       const uv = new Float64Array(nD);
       for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) uv[d] = xf[gl[d]]; }
@@ -1457,12 +1504,22 @@ export function loese(dat, opt = {}) {
             ul[b * 3 + r] = sm;
           }
         }
-        let N = 0;
-        for (let c = 0; c < 12; c += 1) N += e.kL[6 * 12 + c] * ul[c];
-        N -= festVon.get(e) ?? 0;
-        if (!Number.isFinite(N) || N === 0) { lokal.push(null); global.push(null); return; }
+        // Endkräfte lokal (ohne K_G-Anteil): N, mit `momente` auch die Momente.
+        const fe = new Float64Array(12);
+        const fest = festVon.get(e);
+        for (let r = 0; r < 12; r += 1) {
+          let sm = 0;
+          for (let c = 0; c < 12; c += 1) sm += e.kL[r * 12 + c] * ul[c];
+          fe[r] = sm - (fest ? fest[r] : 0);
+        }
+        const N = fe[6];
+        if (!Number.isFinite(N) || (N === 0 && ko.momente === false)) { lokal.push(null); global.push(null); return; }
         const ip = w0.A > 0 ? (w0.Iy + w0.Iz) / w0.A : 0;
         const kl = kGeoLokal(N, e.L, ip);
+        if (ko.momente !== false) {
+          const km = kGeoMomente(fe, e.L);
+          for (let q = 0; q < 144; q += 1) kl[q] += km[q];
+        }
         lokal.push(kl); global.push(drehen(kl, e.R));
       });
     };
@@ -1490,7 +1547,6 @@ export function loese(dat, opt = {}) {
       let gx = 0, gd = 0;
       for (let i = 0; i < n; i += 1) { x[i] += dx[i]; gx = Math.max(gx, Math.abs(x[i])); gd = Math.max(gd, Math.abs(dx[i])); }
       schrittGross = gx > 0 ? gd / gx : 0;
-      ko.protokoll?.push(schrittGross);
       if (!Number.isFinite(schrittGross)) break;
       if (schrittGross >= altGross) wachsend += 1; else wachsend = 0;
       if (wachsend >= 3 && it > 5) { konvergiert = schrittGross <= boden; break; }

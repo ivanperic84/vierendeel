@@ -42876,6 +42876,30 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
     wahr(`2. Ordnung Kragarm P/Pcr ${anteil}: Stabendkraft mit K_G = Auflager`,
          Math.abs(Math.hypot(f[4], f[5]) / Ms - 1) < 1e-3, `${Math.hypot(f[4], f[5]).toFixed(4)}`);
   }
+  // Momentterme der geometrischen Steifigkeit (18. November): Kippen eines
+  // Einfeldträgers unter konstantem Moment, Gabellager, ohne Wölbkraft -
+  // M_cr = π/L · √(E I_z · G I_t).
+  {
+    const SN = await import(J('core.stabnachweis.js'));
+    const Lk = 8, nk = 16, Izk = 2e-6, Itk = 1e-6;
+    const knoten = Array.from({ length: nk + 1 }, (_, i) => ({ name: `K${i}`, x: (Lk * i) / nk, y: 0, z: 0 }));
+    const staebe = Array.from({ length: nk }, (_, i) => ({ name: `S${i}`, von: `K${i}`, bis: `K${i + 1}`,
+      querschnitt: 'Q', art: 'stab', lcsZ: [0, 0, 1] }));
+    const gabel = { ux: 'Free', uy: R, uz: R, fix: R };
+    const dat = { material: { E, G: Gm }, querschnitte: [{ name: 'Q', A, Iy: 8e-5, Iz: Izk, It: Itk }], knoten, staebe,
+      auflager: [{ knoten: 'K0', ...gabel, ux: R }, { knoten: `K${nk}`, ...gabel }],
+      lastfaelle: [{ key: 'M' }],
+      lasten: { punkt: [], moment: [{ knoten: 'K0', richtung: 'My', wert: -1, lastfall: 'M' },
+                                    { knoten: `K${nk}`, richtung: 'My', wert: 1, lastfall: 'M' }], strecke: [] } };
+    const lsg = SW.loese(dat, { eigengewicht: false, schubweich: false });
+    const kr = SN.kraefteAusAnteilen(lsg, [{ lastfall: 'M', faktor: 1 }]);
+    const r = lsg.knicken(new Map([...kr]), { unterraum: 8, toleranz: 1e-9 });
+    const soll = Math.PI / Lk * Math.sqrt(E * 1000 * Izk * Gm * 1000 * Itk);
+    wahr('Momentterme K_G: Kippen unter konstantem Moment wie geschlossen (0.5 %)',
+         Math.abs(r.alpha / soll - 1) < 5e-3, `${r.alpha.toFixed(3)} / ${soll.toFixed(3)} kNm`);
+    const nurN = lsg.knicken(new Map([...kr].map(([nm, f]) => [nm, f[6]])));
+    wahr('ohne Momentterme kein Kippen (nur N = 0)', nurN.alpha === Infinity);
+  }
   const T2 = await import(J('core.stabtheorie2.js'));
   wahr('Schiefstellung: alpha_h 2/√h zwischen 2/3 und 1, alpha_m √(0.5(1+1/m))',
        Math.abs(T2.alphaH(8.5) - 2 / Math.sqrt(8.5)) < 1e-12 && T2.alphaH(1) === 1 && T2.alphaH(100) === 2 / 3

@@ -50,3 +50,37 @@ const zeig = (n) => {
   console.log(`\n  ${art}: grösste Abweichung der Wege 2. Ordnung ${(gross * 1000).toFixed(2)} mm `
     + `(${(100 * gross / bezug).toFixed(2)} % des grössten Wegs ${(bezug * 1000).toFixed(1)} mm) bei ${wo}`);
 });
+
+/* ---------------------------------------------------------------------------
+ * STABKRÄFTE (18. November): an beiden Enden, je Teil (Gurte, Bleche,
+ * Masten) - linear und 2. Ordnung, Löser gegen AxisVM. Bezogen auf den
+ * grössten Wert der Grösse im Teil; dazu der ZUWACHS aus der 2. Ordnung.
+ * ------------------------------------------------------------------------- */
+if (fall.kraefte && soll.schubweich.kraftZweite) {
+  const GR = ['Nx', 'Vy', 'Vz', 'Tx', 'My', 'Mz'];
+  const teil = (n) => (/^MAST_/.test(n) ? 'Mast' : /^B[VH]_/.test(n) ? 'Blech' : /^(OG|UG)/.test(n) ? 'Gurt' : null);
+  const w = soll.schubweich;
+  ['Gurt', 'Blech', 'Mast'].forEach((t) => {
+    const st = Object.keys(fall.kraefte).filter((n) => teil(n) === t && w.kraftZweite[n] && fall.kraefte[n].length === 24);
+    console.log(`\n  ${t} (${st.length} Stäbe): grösste Abweichung bezogen auf den grössten Wert, linear | 2. Ordnung | Zuwachs`);
+    GR.forEach((g, q) => {
+      let ref = 0, d1 = 0, d2 = 0, zA = 0, zL = 0, wo = '';
+      st.forEach((n) => {
+        const a = fall.kraefte[n]; const l = w.kraftLinear[n]; const z = w.kraftZweite[n];
+        [0, 6].forEach((o) => {
+          ref = Math.max(ref, Math.abs(a[12 + o + q]));
+          d1 = Math.max(d1, Math.abs(a[o + q] - l[o + q]));
+          // 2. Ordnung als Betrag: AxisVM teilt die Stäbe dabei, die Teillinie
+          // kann entgegen dem Stab laufen (Vorzeichen von V, M dann umgekehrt).
+          const dd = Math.abs(Math.abs(a[12 + o + q]) - Math.abs(z[o + q]));
+          if (dd > d2) { d2 = dd; wo = `${n}${o ? ' Ende' : ' Anf.'}`; }
+          const za = Math.abs(a[12 + o + q]) - Math.abs(a[o + q]); const zl = Math.abs(z[o + q]) - Math.abs(l[o + q]);
+          if (Math.abs(za) > Math.abs(zA)) { zA = za; zL = zl; }
+        });
+      });
+      if (ref < 1e-6) return;
+      console.log(`    ${g.padEnd(3)} max ${ref.toFixed(3).padStart(8)}   ${(100 * d1 / ref).toFixed(1).padStart(5)} % | `
+        + `${(100 * d2 / ref).toFixed(1).padStart(5)} % (${wo}) | grösster Zuwachs AxisVM ${zA.toFixed(3)} Löser ${zL.toFixed(3)}`);
+    });
+  });
+}
