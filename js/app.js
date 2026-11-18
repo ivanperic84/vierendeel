@@ -138,6 +138,7 @@ import { verlauf } from './verlauf.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
+import { knickEigenwert } from './app.stabwerk.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand,
          buegelGrenzfeder, stabwerkDatei } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk, anteileFuer,
@@ -181,6 +182,13 @@ let letzte = null;
  * nachschlagen will, faende sie weg.
  * ========================================================================= */
 let stabwerk = null;
+/*
+ * Knick-Eigenwert (18. November, Etappe 2): auf Knopfdruck, gilt dem Stand
+ * des Stabwerks, an dem er gerechnet wurde (`kennung`). `knickZeigen`
+ * legt die Knickfigur statt der verformten Figur über das Modell.
+ */
+let knick = null;
+let knickZeigen = false;
 let ansicht = null;
 let station = null;
 let projekt = { id: null, name: 'Neues Tragjoch', projekt: '' };
@@ -619,6 +627,33 @@ function wiederherstellen() {
  * «rechnet …» gestellt, damit die halbe Sekunde nicht wie ein toter
  * Knopf aussieht.
  */
+/** Der Knick-Eigenwert, wenn er zum gültigen Stabwerk gehört - sonst null. */
+function knickGilt() {
+  const g = stabwerkGilt();
+  return g && knick && knick.kennung === g.h.kennung ? knick : null;
+}
+
+/** alpha_cr über alle Nachweis-Kombinationen rechnen (Knopf, 18. November). */
+function knickRechnen() {
+  const g = stabwerkGilt();
+  if (!g) { meldeImBalken('Zuerst das Stabwerk rechnen.'); return; }
+  try {
+    knick = knickEigenwert(g.h);
+    knickZeigen = !!knick;
+    verformtMerk = null;
+  } catch (e) {
+    knick = null;
+    meldeImBalken(`Knick-Eigenwert nicht gerechnet: ${e?.message ?? e}`);
+  }
+  neuRechnen();
+}
+
+function knickFigurSchalten() {
+  knickZeigen = !knickZeigen;
+  verformtMerk = null;
+  neuRechnen();
+}
+
 function stabwerkRechnen() {
   clearTimeout(stabwerkUhr);
   stabwerkUhr = null;
@@ -2146,8 +2181,10 @@ function zeichneAuswertung() {
                     grund: reiheOhneStabmodell(werte), ergebnis: stabwerk,
                     // Der gewählte Fall aus dem Stabwerk (4. Oktober).
                     ergebnisFall: anzeigeKombi === 'umhuellend' ? null : stabwerkAnsicht()?.h ?? null,
-                    name: reiheName },
+                    name: reiheName, knick: knickGilt(), knickZeigen },
         beiStabwerk: stabwerkRechnen,
+        beiKnick: knickRechnen,
+        beiKnickFigur: knickFigurSchalten,
         beiStab: zeigeStab,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
@@ -2231,7 +2268,8 @@ function zeichneAuswertung() {
                                        ergebnis: stabwerk, name: reiheName,
                                        // Der gewählte Fall aus dem Stabwerk (4. Oktober).
                                        ergebnisFall: anzeigeKombi === 'umhuellend'
-                                         ? null : stabwerkAnsicht()?.h ?? null },
+                                         ? null : stabwerkAnsicht()?.h ?? null,
+                                       knick: knickGilt(), knickZeigen },
                            /*
                             * >>> WIE EINE KOMBINATION HEISST (25. Sept.). <<<
                             *
@@ -2246,6 +2284,8 @@ function zeichneAuswertung() {
                            fallBez: (key) => kombi.lastfaelle
                              ?.find((l) => l.key === key)?.bez ?? null,
                            beiStabwerk: stabwerkRechnen,
+                           beiKnick: knickRechnen,
+                           beiKnickFigur: knickFigurSchalten,
                            beiStab: zeigeStab,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
@@ -2813,11 +2853,48 @@ function figurGrundlage(lf, f = 1) {
   return [bw ? `Beiwerte: ${bw}` : '', art].filter(Boolean);
 }
 
+/** Vom Modell aufs Blatt: ein Mast, der im Modell und im Blatt steht, ist der Bezug. */
+function figurVersatz(roh) {
+  const masten = mastenVon(werte);
+  const fuss = roh.dat.knoten.map((k) => ({ k, m: /(?:^|_)MAST_(.+)_F$/.exec(k.name) }))
+    .filter((x) => x.m).map((x) => ({ k: x.k, mast: masten.find((mm) => mastName(werte, mm) === x.m[1]) }))
+    .find((x) => x.mast);
+  return { dx: fuss ? fuss.mast.x - fuss.k.x : 0,
+           dz: fuss ? (Number(fuss.mast.fuss) || 0) - fuss.k.z : (Number(werte.mastH) || 0) };
+}
+
 function verformtSetzen(szene = null) {
   if (!ansicht) return;
   const g = stabwerkGilt();
   const roh = g?.h?.roh;
   if (!roh) { ansicht.verformt = null; verformtMerk = null; return; }
+  /*
+   * >>> DIE KNICKFIGUR (18. November, Etappe 2). <<< Ist der Knick-
+   * Eigenwert gerechnet und eingeschaltet, liegt statt der verformten Figur
+   * die erste Eigenform über dem Modell - in jedem Plot (`immer`), ohne
+   * Werte in mm: sie ist auf den grössten Weg 1 normiert, ihr Betrag sagt
+   * nichts. Gezeichnet über dieselbe Biegelinie wie die verformte Figur.
+   */
+  const kn = knickGilt();
+  if (kn && knickZeigen && kn.form) {
+    const merkK = `knick|${kn.kennung}|${kn.key}`;
+    if (verformtMerk?.merk === merkK) { ansicht.verformt = verformtMerk.wert; return; }
+    const fig = verformteFigur(roh.dat, { ...roh.lsg, u: new Map([['KNICK', kn.form]]) },
+                               [{ lastfall: 'KNICK', faktor: 1 }]);
+    const { dx, dz } = figurVersatz(roh);
+    const linien = fig.linien.map((l) => ({ ...l, punkte: l.punkte.map((p) => [p[0] + dx, p[1], p[2] + dz]) }));
+    const xs = linien.flatMap((l) => l.punkte.map((p) => p[0]));
+    const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
+    const groesse = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
+    const wert = fig.max > 1e-12 ? {
+      linien, faktor: (0.08 * groesse) / fig.max, fahrdraehte: [], spitzen: [], immer: true,
+      text: [`Knickfigur · α_cr = ${kn.alpha.toFixed(2)}`, kn.bez,
+             'erste Eigenform, Massstab frei (normiert)'],
+    } : null;
+    verformtMerk = { merk: merkK, wert };
+    ansicht.verformt = wert;
+    return;
+  }
   const umh = anzeigeKombi === 'umhuellend';
   const lf = wegeFall(g);
   const key = lf?.key;
@@ -2828,12 +2905,7 @@ function verformtSetzen(szene = null) {
   // Mit dem Faktor des Nachweises (ψ bei «umhüllend», 4. Oktober).
   const fig = verformteFigur(roh.dat, roh.lsg, wegeAnteile(g, lf));
   // Der Bezug: ein Mast, der im Modell und im Blatt steht.
-  const masten = mastenVon(werte);
-  const fuss = roh.dat.knoten.map((k) => ({ k, m: /(?:^|_)MAST_(.+)_F$/.exec(k.name) }))
-    .filter((x) => x.m).map((x) => ({ k: x.k, mast: masten.find((mm) => mastName(werte, mm) === x.m[1]) }))
-    .find((x) => x.mast);
-  const dx = fuss ? fuss.mast.x - fuss.k.x : 0;
-  const dz = fuss ? (Number(fuss.mast.fuss) || 0) - fuss.k.z : (Number(werte.mastH) || 0);
+  const { dx, dz } = figurVersatz(roh);
   const linien = fig.linien.map((l) => ({ ...l, punkte: l.punkte.map((p) => [p[0] + dx, p[1], p[2] + dz]) }));
   /*
    * >>> AM TRAGAUSLEGER STEHT DIE KETTE NICHT IM MODELL (4. Oktober). <<<
@@ -2930,7 +3002,8 @@ function verformtSetzen(szene = null) {
  * liegt (Anbauteile weit ab vom Stab), bleibt der Wert, der dasteht.
  */
 function wegeAusFigur(szene, fig) {
-  if (!szene?.flaechen?.length || !fig?.linien?.length) return;
+  // Die Knickfigur (18. November) trägt keine Wege in mm.
+  if (!szene?.flaechen?.length || !fig?.linien?.length || fig.immer) return;
   const Z = 0.5;
   const key = (x, y, z) => `${Math.floor(x / Z)}|${Math.floor(y / Z)}|${Math.floor(z / Z)}`;
   const raster = new Map();

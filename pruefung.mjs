@@ -7701,8 +7701,12 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      * unter «Stabwerk» und sind beim Ersatzbalken gesperrt - sie ZEIGEN,
      * was beim Zurückschalten gilt, das Verfahren daneben ist bedienbar.
      */
+    /*
+     * >>> ELF (18. November). <<< Der Knopf «Stabilität (α_cr) rechnen»
+     * sperrt sich, während er rechnet - wie der Knopf des Stabwerks.
+     */
     const sperren = [...uq4.matchAll(/disabled/g)].length;
-    wahr('Es gibt genau zehn Stellen mit einer Sperre', sperren === 10,
+    wahr('Es gibt genau elf Stellen mit einer Sperre', sperren === 11,
          `${sperren} Stellen`);
     wahr('7-9 - Unterpunkt, Grenzwert und Referenzhöhe ohne Oberschalter',
          uq4.includes("const gesperrt = !g.vorhanden || (g.unterVon && !nw[g.unterVon]);")
@@ -37579,9 +37583,10 @@ if (AJ.abfangDbDa()) {
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   const app = APP_QUELLE();
   const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
-  wahr('Die Figur erscheint mit «w» und «η w» - und nur dort',
+  // Seit dem 18. November steht die Knickfigur (`immer`) in jedem Plot.
+  wahr('Die Figur erscheint mit «w» und «η w» - und nur dort (ausser der Knickfigur)',
        JSON.stringify(R215.FIGUR_MODI) === JSON.stringify(['w', 'etaGzg'])
-       && r3.includes('this.verformt && FIGUR_MODI.includes(this.modus)'));
+       && r3.includes('(FIGUR_MODI.includes(this.modus) || this.verformt.immer)'));
   wahr('Kein Schalter mehr: gerechnet, sobald das Stabwerk gilt',
        !app.includes('verformtAn') && !app.includes('verformtUmschalten')
        && !lay.includes('v-verformt') && app.includes('const g = stabwerkGilt();'));
@@ -42772,6 +42777,60 @@ titel('295  Sprungleiste Anbauteile, Grundwerte statt Lastfallfeld, Einzellasten
   wahr('Lastfallliste: einzelne Lasten unter den Kombinationen, ohne «Ständig + …», ohne Ausnutzung',
        ein.join(' | ') === 'Ständig (Tragwerk) | Wind quer zum Gleis, von rechts | Schnee'
        && h.indexOf('Einzelne Lasten') > h.indexOf('data-lf-wahl="a"'), ein.join(' | '));
+}
+
+
+titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
+{
+  // 18. November, Frage «wie könnte man das knicken beim joch nachrechnen lassen
+  // bei einem räumlichen vierendeel träger», darauf «Ja, Etappe 1 und 2».
+  // Etappe 1: (K + alpha K_G(N)) phi = 0 im eigenen Löser, gegen Euler.
+  const SW = await import(J('core.stabwerk.js'));
+  const E = 210000, Gm = 81000, A = 0.01, Iy = 8e-5, Iz = 2e-5, It = 1e-6;
+  const saeule = (L, n, lager) => ({
+    material: { E, G: Gm }, querschnitte: [{ name: 'Q', A, Iy, Iz, It }],
+    knoten: Array.from({ length: n + 1 }, (_, i) => ({ name: `K${i}`, x: 0, y: 0, z: (L * i) / n })),
+    staebe: Array.from({ length: n }, (_, i) => ({ name: `S${i}`, von: `K${i}`, bis: `K${i + 1}`, querschnitt: 'Q', art: 'stab', lcsZ: [1, 0, 0] })),
+    auflager: lager(n), lastfaelle: [{ key: 'G' }], lasten: { punkt: [], strecke: [] } });
+  const R = 'Rigid';
+  const faelle = [
+    ['gelenkig', (n) => [{ knoten: 'K0', ux: R, uy: R, uz: R, fiz: R }, { knoten: `K${n}`, ux: R, uy: R }], 1],
+    ['Kragarm', () => [{ knoten: 'K0', ux: R, uy: R, uz: R, fix: R, fiy: R, fiz: R }], 2],
+    ['beidseits eingespannt', (n) => [{ knoten: 'K0', ux: R, uy: R, uz: R, fix: R, fiy: R, fiz: R },
+      { knoten: `K${n}`, ux: R, uy: R, fix: R, fiy: R, fiz: R }], 0.5]];
+  const EI = E * 1000 * Math.min(Iy, Iz);
+  for (const [name, lager, beta] of faelle) {
+    const dat = saeule(6, 8, lager);
+    const lsg = SW.loese(dat, { eigengewicht: false, schubweich: false });
+    const r = lsg.knicken(new Map(dat.staebe.map((s) => [s.name, -1])));
+    const soll = Math.PI ** 2 * EI / (beta * 6) ** 2;
+    wahr(`Euler ${name}: alpha_cr = pi² EI / (beta L)² auf 0.1 % (8 Stäbe)`,
+         Math.abs(r.alpha / soll - 1) < 1e-3, `${r.alpha.toFixed(2)} / ${soll.toFixed(2)}`);
+    if (name === 'Kragarm') {
+      const zug = lsg.knicken(new Map(dat.staebe.map((s) => [s.name, 1])));
+      wahr('nur Zug: kein Knicken (alpha unendlich)', zug.alpha === Infinity);
+      const f = r.form;
+      wahr('Knickfigur auf grössten Weg 1 normiert, Fuss in Ruhe',
+           Math.abs(Math.max(...f.map(Math.abs).filter((_, i) => i % 6 < 3)) - 1) < 1e-9
+           && Math.abs(f[0]) + Math.abs(f[1]) + Math.abs(f[2]) < 1e-9);
+    }
+  }
+}
+{
+  // Etappe 2: Auskunft in der Stabwerksleiste, Knickfigur über dem Modell.
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const AQ = APP_QUELLE();
+  wahr('Leiste: Knopf «Stabilität (α_cr) rechnen», Satz nach EN 1993-1-1 5.2.1, ohne Ampel',
+       UQ.includes('data-knick-rechnen') && UQ.includes('Theorie 1. Ordnung genügt')
+       && !/sw-knick[^`]*\$\{ampel/.test(UQ));
+  wahr('Knickfigur: Eigenform über verformteFigur, gilt nur zum Stand des Stabwerks',
+       AQ.includes("[{ lastfall: 'KNICK', faktor: 1 }]") && AQ.includes('knick.kennung === g.h.kennung'));
+  const UI = await import(J('ui.js'));
+  const h = UI.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+    ergebnis: { staebe: 1, freiheitsgrade: 6, faelle: 1, ms: 1 },
+    knick: { alpha: 7.996, bez: 'Schnee leitend, Wind +y', alle: [], ms: 1, form: [0] } } });
+  wahr('unter 10: «Theorie 2. Ordnung nötig» und Knopf Knickfigur',
+       h.includes('Theorie 2. Ordnung nötig') && h.includes('data-knick-figur') && h.includes('α_cr <b>8.00</b>'));
 }
 
 console.log('\n' + '='.repeat(104));

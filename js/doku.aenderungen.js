@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Neu: Stabilität des Stabwerks - in der Stabwerksleiste «Stabilität (α_cr) rechnen» gibt den kleinsten Knick-Eigenwert über die Kombinationen und ob die Theorie 1. Ordnung genügt (Auskunft, kein Nachweis); «Knickfigur zeigen» legt die Eigenform über das Modell.' },
       { text: 'Reiter Anbauteile mit Sprungleiste (Abschnitte und Gruppen, alle zu / auf). Im 3D oben die Grundwerte statt des Lastfallfelds; der Lastfall wird in der Liste gewählt, dort jetzt auch die einzelnen Lasten (ständig, Wind quer / längs, Schnee).' },
       { text: 'Zustandslinie: die Diagramme der Bindebleche zeigen nach aussen (liegende nach oben bzw. unten, stehende zur Seite), damit sie sich nicht überdecken.' },
       { text: 'Lastpfeile im Modell folgen dem gewählten Lastfall jetzt auch am Tragausleger und an den Nachbartragwerken.' },

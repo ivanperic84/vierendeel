@@ -7196,6 +7196,44 @@ export function stabwerkLeiste(opt = {}) {
     ${zahl}
     <span class="notiz">${esc(text)}</span>
     ${reihe}
+    ${stand === 'gueltig' ? knickZeile(sw) : ''}
+  </div>`;
+}
+
+/* ===========================================================================
+ * >>> STABILITÄT DES STABWERKS: alpha_cr (18. November, Etappe 2). <<<
+ * =========================================================================
+ *
+ * «wie könnte man das knicken beim joch nachrechnen lassen bei einem
+ * räumlichen vierendeel träger», darauf «Ja, Etappe 1 und 2». Eine
+ * AUSKUNFT, kein Nachweis: der kleinste Verzweigungsfaktor über die
+ * Nachweis-Kombinationen und was er nach EN 1993-1-1, 5.2.1 bedeutet.
+ * Ohne Ampel, ohne Anteil am Urteil - die Theorie 2. Ordnung, die ein
+ * alpha_cr unter 10 verlangt, ist nicht gebaut.
+ */
+function knickZeile(sw) {
+  const k = sw.knick;
+  if (!k) {
+    return `<div class="sw-knick">
+      <button type="button" class="btn sw-knopf" data-knick-rechnen
+        title="Verzweigungslast des ganzen Stabwerks je Nachweis-Kombination (einige Sekunden)"
+        >Stabilität (α_cr) rechnen</button>
+      <span class="notiz">Knick-Eigenwert des räumlichen Stabwerks - Auskunft, kein Nachweis.</span>
+    </div>`;
+  }
+  const a = k.alpha;
+  const satz = !Number.isFinite(a) ? 'kein Druck - kein Knicken'
+    : a >= 10 ? 'α_cr ≥ 10: Theorie 1. Ordnung genügt (EN 1993-1-1, 5.2.1)'
+    : 'α_cr < 10: Theorie 2. Ordnung nötig - im Werkzeug noch nicht gebaut';
+  const titel = (k.alle ?? []).slice(0, 5)
+    .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(' · ');
+  return `<div class="sw-knick${Number.isFinite(a) && a < 10 ? ' unter10' : ''}">
+    <span class="sw-marke">Stabilität</span>
+    <span title="${esc(titel)}">α_cr <b>${Number.isFinite(a) ? a.toFixed(2) : '∞'}</b>
+      · ${esc(k.bez ?? '')}</span>
+    <span class="notiz">${esc(satz)} · ${(k.alle ?? []).length} Kombinationen · ${k.ms} ms</span>
+    ${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
+      >${sw.knickZeigen ? 'Knickfigur ausblenden' : 'Knickfigur zeigen'}</button>` : ''}
   </div>`;
 }
 
@@ -7385,6 +7423,15 @@ export function verdrahteStabwerk(node, opt = {}) {
       });
     });
   }
+  const kb = node.querySelector('[data-knick-rechnen]');
+  if (kb && typeof opt.beiKnick === 'function') {
+    kb.onclick = () => {
+      kb.disabled = true;
+      kb.textContent = 'rechnet …';
+      setTimeout(() => opt.beiKnick(), 0);
+    };
+  }
+  node.querySelector('[data-knick-figur]')?.addEventListener('click', () => opt.beiKnickFigur?.());
   const b = node.querySelector('[data-stabwerk-rechnen]');
   if (!b || typeof opt.beiStabwerk !== 'function') return;
   b.onclick = () => {

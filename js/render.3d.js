@@ -2957,7 +2957,8 @@ export class Modellansicht {
       c.font = this._wertFont();
       fd.forEach((f) => this._beschriftung(c, t, f.text, f.q[0] + 8 * s, f.q[1] + 14 * s, t.warn ?? '#e0a030'));
     }
-    this._figurWerte = marken;
+    // Die Knickfigur (18. November) ist auf 1 normiert - keine Werte in mm.
+    this._figurWerte = v.immer ? null : marken;
     if (v.text && !this.sparsam) {
       c.font = this._wertFont();
       // Über der unteren Werkzeugleiste, nicht hinter ihr - und in kurzen
@@ -4884,7 +4885,8 @@ export class Modellansicht {
     // In der Explosion stehen nur die Körper: Achsen, Pfeile, Marken, Masse,
     // Figur und Zustandslinie gehören zum zusammengesetzten Tragwerk.
     const explodiert = (this.explosion ?? 0) > 0;
-    if (!explodiert && this.gruppen.resultate && this.verformt && FIGUR_MODI.includes(this.modus)) {
+    if (!explodiert && this.gruppen.resultate && this.verformt
+        && (FIGUR_MODI.includes(this.modus) || this.verformt.immer)) {
       this._verformtMalen(c, proj, t);
     }
     if (!explodiert && this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);

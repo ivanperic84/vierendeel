@@ -402,6 +402,103 @@ function kFeder(cs, arm = 0, armJ = null) {
 }
 
 /** 12x12 lokal -> global: T^T k T, T blockdiagonal aus vier R. */
+/* ===========================================================================
+ * >>> GEOMETRISCHE STEIFIGKEIT EINES STABES (18. November). <<<
+ * Räumlicher Euler-Bernoulli-Balken, konsistente Matrix, nur aus der
+ * Normalkraft N (Zug positiv), dazu der Torsionsanteil N · i_p² / L
+ * (i_p² = (I_y + I_z) / A, um den Schwerpunkt). Dieselben Freiheitsgrade
+ * und Vorzeichen wie kLokal: (u, v, w, phi_x, phi_y, phi_z) je Ende; in der
+ * x-z-Ebene koppeln w und phi_y negativ, in der x-y-Ebene v und phi_z
+ * positiv. Prüfstand: Euler-Fälle (Abschnitt 296).
+ * ========================================================================= */
+function kGeoLokal(N, L, ip2 = 0) {
+  const k = new Float64Array(144);
+  const f = N / L;
+  const put = (i, j, v) => { k[i * 12 + j] += v; if (i !== j) k[j * 12 + i] += v; };
+  const a = 6 / 5, b = L / 10, c = (2 * L * L) / 15, d = -(L * L) / 30;
+  // x-y-Ebene: v (1, 7), phi_z (5, 11)
+  put(1, 1, f * a); put(7, 7, f * a); put(1, 7, -f * a);
+  put(1, 5, f * b); put(1, 11, f * b); put(7, 5, -f * b); put(7, 11, -f * b);
+  put(5, 5, f * c); put(11, 11, f * c); put(5, 11, f * d);
+  // x-z-Ebene: w (2, 8), phi_y (4, 10)
+  put(2, 2, f * a); put(8, 8, f * a); put(2, 8, -f * a);
+  put(2, 4, -f * b); put(2, 10, -f * b); put(8, 4, f * b); put(8, 10, f * b);
+  put(4, 4, f * c); put(10, 10, f * c); put(4, 10, f * d);
+  // Torsion um den Schwerpunkt
+  if (ip2 > 0) { put(3, 3, f * ip2); put(9, 9, f * ip2); put(3, 9, -f * ip2); }
+  return k;
+}
+
+/**
+ * Rayleigh-Ritz im kleinen Unterraum: K_r z = (1/mu) B_r z, K_r positiv
+ * definit. Über Cholesky K_r = L L^T und Jacobi auf C = L^-1 B_r L^-T.
+ * Rückgabe { mu: [...], z: [[...]] } (z in der Basis des Unterraums).
+ */
+function ritzZerlegen(Kr, Br) {
+  const m = Kr.length;
+  const L = Array.from({ length: m }, () => new Float64Array(m));
+  for (let i = 0; i < m; i += 1) {
+    for (let j = 0; j <= i; j += 1) {
+      let s = Kr[i][j];
+      for (let k = 0; k < j; k += 1) s -= L[i][k] * L[j][k];
+      if (i === j) { if (!(s > 0)) return null; L[i][i] = Math.sqrt(s); } else L[i][j] = s / L[j][j];
+    }
+  }
+  const vorw = (B) => {
+    const X = B.map((r) => Float64Array.from(r));
+    for (let col = 0; col < m; col += 1) {
+      for (let i = 0; i < m; i += 1) {
+        let s = X[i][col];
+        for (let k = 0; k < i; k += 1) s -= L[i][k] * X[k][col];
+        X[i][col] = s / L[i][i];
+      }
+    }
+    return X;
+  };
+  const T = vorw(Br);
+  const Tt = T.map((_, i) => Float64Array.from({ length: m }, (_, j) => T[j][i]));
+  const C = vorw(Tt);
+  const A = C.map((r, i) => Float64Array.from(r, (v, j) => (v + C[j][i]) / 2));
+  const V = Array.from({ length: m }, (_, i) => Float64Array.from({ length: m }, (_, j) => (i === j ? 1 : 0)));
+  for (let sweep = 0; sweep < 60; sweep += 1) {
+    let off = 0;
+    for (let p = 0; p < m; p += 1) for (let q = p + 1; q < m; q += 1) off += A[p][q] * A[p][q];
+    if (off < 1e-30) break;
+    for (let p = 0; p < m; p += 1) {
+      for (let q = p + 1; q < m; q += 1) {
+        if (Math.abs(A[p][q]) < 1e-300) continue;
+        const th = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+        const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+        const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+        for (let k = 0; k < m; k += 1) {
+          const akp = A[k][p], akq = A[k][q];
+          A[k][p] = c * akp - s * akq; A[k][q] = s * akp + c * akq;
+        }
+        for (let k = 0; k < m; k += 1) {
+          const apk = A[p][k], aqk = A[q][k];
+          A[p][k] = c * apk - s * aqk; A[q][k] = s * apk + c * aqk;
+        }
+        for (let k = 0; k < m; k += 1) {
+          const vkp = V[k][p], vkq = V[k][q];
+          V[k][p] = c * vkp - s * vkq; V[k][q] = s * vkp + c * vkq;
+        }
+      }
+    }
+  }
+  const mu = Array.from({ length: m }, (_, i) => A[i][i]);
+  const z = Array.from({ length: m }, (_, e) => {
+    const v = Array.from({ length: m }, (_, k) => V[k][e]);
+    const out = new Float64Array(m);
+    for (let i = m - 1; i >= 0; i -= 1) {
+      let s = v[i];
+      for (let k = i + 1; k < m; k += 1) s -= L[k][i] * out[k];
+      out[i] = s / L[i][i];
+    }
+    return Array.from(out);
+  });
+  return { mu, z };
+}
+
 function drehen(k, R) {
   const g = new Float64Array(144);
   const tmp = new Float64Array(144);
@@ -1133,8 +1230,121 @@ export function loese(dat, opt = {}) {
     return sum + (e ? Math.abs(l.wert) * e.L : 0);
   }, 0);
 
+  /* =========================================================================
+   * >>> KNICKEN: DER KLEINSTE LASTFAKTOR alpha_cr (18. November, Etappe 1). <<<
+   * =======================================================================
+   *
+   * Auf die Frage «wie könnte man das knicken beim joch nachrechnen lassen
+   * bei einem räumlichen vierendeel träger wie bei uns?» und «Ja, Etappe 1
+   * und 2»: lineare Knickanalyse im selben Stabwerk.
+   *
+   *     (K + alpha · K_G(N)) · phi = 0
+   *
+   * K ist die zerlegte Steifigkeitsmatrix von oben (dieselben Auflager,
+   * Federn, Links, Starrkörper), K_G die geometrische Steifigkeit aus den
+   * Normalkräften N einer Kombination (`kGeoLokal`, nur echte Stäbe). Gesucht
+   * ist der kleinste POSITIVE Faktor alpha_cr, mit dem die Lasten der
+   * Kombination zu vervielfachen wären, bis das System ausweicht, und die
+   * Knickfigur phi.
+   *
+   * GELÖST mit Unterraum-Iteration: Y = K^-1 (-K_G) X über die vorhandene
+   * Bandzerlegung, dann Rayleigh-Ritz im kleinen Unterraum (Jacobi). Negative
+   * Eigenwerte gehören zu umgekehrter Last (Zug wird Druck) und zählen nicht.
+   *
+   * `N`: Map Stabname -> Normalkraft [kN], ZUG POSITIV (wie stabkraft()[6]).
+   * Rückgabe { alpha, alle, form (nD, grösste Verschiebung 1), iterationen,
+   * zeit } oder { alpha: Infinity } ohne Druck.
+   *
+   * WAS ES NICHT ERFASST: Biegedrillknicken mit Wölbung (6 Freiheitsgrade
+   * je Knoten, keine Wölbkraft) und den Einfluss der Biegemomente auf K_G
+   * (nur N). Am Vierendeel trägt das Joch seine Biegung über die Gurtkräfte
+   * - das Ausweichen des gedrückten Gurts und das Kippen des Ganzen stecken
+   * damit in N.
+   * ========================================================================= */
+  const knicken = (N, ko = {}) => {
+    const t1 = Date.now();
+    const geo = elemente.map((e) => {
+      if ((e.s.art || 'stab') !== 'stab') return null;
+      const Ne = Number(N.get(e.s.name));
+      if (!Number.isFinite(Ne) || Ne === 0) return null;
+      const w0 = qs.get(e.s.querschnitt);
+      const ip = w0 && w0.A > 0 ? (w0.Iy + w0.Iz) / w0.A : 0;
+      return drehen(kGeoLokal(Ne, e.L, ip), e.R);
+    });
+    if (!geo.some(Boolean)) return { alpha: Infinity, alle: [], form: null, iterationen: 0, zeit: 0 };
+    // B = -K_G: positiv, wo gedrückt wird.
+    const bMal = (xFrei) => {
+      const uv = new Float64Array(nD);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) uv[d] = xFrei[gl[d]]; }
+      const r = new Float64Array(nD);
+      elemente.forEach((e, k) => {
+        const g = geo[k];
+        if (!g) return;
+        for (let a2 = 0; a2 < 12; a2 += 1) {
+          let sm = 0;
+          for (let b2 = 0; b2 < 12; b2 += 1) {
+            const q = b2 < 6 ? e.i * 6 + b2 : e.j * 6 + (b2 - 6);
+            sm += g[a2 * 12 + b2] * uv[q];
+          }
+          r[a2 < 6 ? e.i * 6 + a2 : e.j * 6 + (a2 - 6)] -= sm;
+        }
+      });
+      const aus = new Float64Array(n);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) aus[gl[d]] = r[d]; }
+      return aus;
+    };
+    const p0 = Math.min(ko.unterraum ?? 10, n);
+    const itMax = ko.iterationen ?? 60;
+    let zuf = 12345;
+    const rnd = () => { zuf = (zuf * 1103515245 + 12345) % 2147483648; return zuf / 2147483648 - 0.5; };
+    let X = Array.from({ length: p0 }, () => { const v = new Float64Array(n); for (let i = 0; i < n; i += 1) v[i] = rnd(); return v; });
+    const dot = (a2, b2) => { let sm = 0; for (let i = 0; i < n; i += 1) sm += a2[i] * b2[i]; return sm; };
+    let alt = null, mu = [], Zbest = null, Ybest = null, it = 0;
+    for (it = 1; it <= itMax; it += 1) {
+      // Y = K^-1 B X, dann orthonormieren (Gram-Schmidt, zweimal).
+      const Y = X.map((x) => schritt(bMal(x)));
+      for (let r2 = 0; r2 < 2; r2 += 1) {
+        for (let i = 0; i < Y.length; i += 1) {
+          for (let j = 0; j < i; j += 1) { const c = dot(Y[i], Y[j]); for (let q = 0; q < n; q += 1) Y[i][q] -= c * Y[j][q]; }
+          const nn = Math.sqrt(dot(Y[i], Y[i])) || 1;
+          for (let q = 0; q < n; q += 1) Y[i][q] /= nn;
+        }
+      }
+      const KY = Y.map((y) => kMal(y)), BY = Y.map((y) => bMal(y));
+      const m = Y.length;
+      const Kr = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) => dot(Y[i], KY[j])));
+      const Br = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) => dot(Y[i], BY[j])));
+      for (let i = 0; i < m; i += 1) for (let j = 0; j < i; j += 1) {
+        const k2 = (Kr[i][j] + Kr[j][i]) / 2; Kr[i][j] = k2; Kr[j][i] = k2;
+        const b3 = (Br[i][j] + Br[j][i]) / 2; Br[i][j] = b3; Br[j][i] = b3;
+      }
+      const ritz = ritzZerlegen(Kr, Br);
+      if (!ritz) break;
+      mu = ritz.mu; Zbest = ritz.z; Ybest = Y;
+      X = Zbest.map((z) => { const v = new Float64Array(n); z.forEach((c, j) => { for (let q = 0; q < n; q += 1) v[q] += c * Y[j][q]; }); return v; });
+      const pos = mu.filter((x) => x > 0);
+      const a1 = pos.length ? 1 / Math.max(...pos) : Infinity;
+      if (alt !== null && Math.abs(a1 - alt) <= (ko.toleranz ?? 1e-7) * Math.abs(a1)) { alt = a1; break; }
+      alt = a1;
+    }
+    const posI = mu.map((x, i) => [x, i]).filter(([x]) => x > 0).sort((a2, b2) => b2[0] - a2[0]);
+    if (!posI.length) return { alpha: Infinity, alle: [], form: null, iterationen: it, zeit: Date.now() - t1 };
+    const alle = posI.map(([x]) => 1 / x);
+    const formen = posI.slice(0, ko.formen ?? 1).map(([, i]) => {
+      const v = new Float64Array(n);
+      Zbest[i].forEach((c, j) => { for (let q = 0; q < n; q += 1) v[q] += c * Ybest[j][q]; });
+      const uv = new Float64Array(nD);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) uv[d] = v[gl[d]]; }
+      let mx = 0;
+      for (let k3 = 0; k3 < nK; k3 += 1) for (let d = 0; d < 3; d += 1) mx = Math.max(mx, Math.abs(uv[k3 * 6 + d]));
+      if (mx > 0) for (let d = 0; d < nD; d += 1) uv[d] /= mx;
+      return uv;
+    });
+    return { alpha: alle[0], alle, form: formen[0] ?? null, formen, iterationen: it, zeit: Date.now() - t1 };
+  };
+
   return { n, bw, nK, knotenIdx: idx, faelle, u, stabkraft, auflagerkraefte,
-           restkraft, restNachIteration: restGross,
+           restkraft, restNachIteration: restGross, knicken,
            eigengewicht, eigenLasten: eigenLasten.length, schubweich,
            lastVoll: pVoll, elemente,
            zeit: { bau: tBau - t0, faktor: tFak - tBau, loesen: tLoes - tFak,

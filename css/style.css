@@ -3961,3 +3961,11 @@ html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: bloc
 .sprachwahl .btn.an { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
 
 .nutzung-sprache { margin: 0 0 10px; }
+
+/* Stabilität des Stabwerks (18. November): Auskunft, keine Ampel. */
+.sw-knick {
+  flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding-top: 6px; border-top: 1px solid var(--ol);
+}
+.sw-knick.unter10 .notiz { color: var(--warn); }
+.sw-knick .sw-knopf.an { border-color: var(--warn); color: var(--warn); }

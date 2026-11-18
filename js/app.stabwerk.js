@@ -52,7 +52,7 @@ import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
 import { linkBedingung } from './core.auflager.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
-import { anteileFuer } from './core.stabnachweis.js';
+import { anteileFuer, kraefteAusAnteilen } from './core.stabnachweis.js';
 import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte, neueTeileSkizze } from './core.reaktionen.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
@@ -895,4 +895,39 @@ export function stabwerkStand(app) {
     return s.kennung && s.kennung !== eingabeKennung(app.werte) ? 'veraltet' : 'fehler';
   }
   return s.kennung === eingabeKennung(app.werte) ? 'gueltig' : 'veraltet';
+}
+
+/* ===========================================================================
+ * >>> KNICK-EIGENWERT DES STABWERKS (18. November, Etappe 2). <<<
+ * =========================================================================
+ *
+ * Frage «wie könnte man das knicken beim joch nachrechnen lassen bei einem
+ * räumlichen vierendeel träger», darauf «Ja, Etappe 1 und 2». Je
+ * Nachweis-Kombination der Verzweigungsfaktor alpha_cr aus
+ * (K + alpha K_G(N)) phi = 0, mit den Normalkräften derselben Lösung, die
+ * die Hülle trägt (EN 1993-1-1, 5.2.1: alpha_cr >= 10 - Theorie 1. Ordnung
+ * genügt). KEIN NACHWEIS, KEIN URTEIL: eine Auskunft, ob die Rechnung
+ * 1. Ordnung trägt. Die Theorie 2. Ordnung ist nicht gebaut.
+ *
+ * AUF KNOPFDRUCK: je Kombination rund 0.3 s (J90/20 m, Unterraum 6) -
+ * in Echtzeit wäre die Anwendung träge.
+ *
+ * @returns {{alpha, key, bez, form, alle: {key, bez, alpha}[], ms, kennung}|null}
+ */
+export function knickEigenwert(h, opt = {}) {
+  const roh = h?.roh;
+  if (!roh?.lsg?.knicken || !roh.auswertung?.faelle?.length) return null;
+  const { dat, lsg, auswertung } = roh;
+  const t0 = Date.now();
+  const alle = [];
+  let best = null;
+  for (const lf of auswertung.faelle) {
+    const kr = kraefteAusAnteilen(lsg, anteileFuer(lf, dat));
+    const N = new Map([...kr].map(([name, f]) => [name, f[6]]));
+    const r = lsg.knicken(N, { unterraum: 6, toleranz: 1e-5, ...opt });
+    alle.push({ key: lf.key, bez: lf.bez, alpha: r.alpha });
+    if (!best || r.alpha < best.alpha) best = { alpha: r.alpha, key: lf.key, bez: lf.bez, form: r.form };
+  }
+  alle.sort((a, b) => a.alpha - b.alpha);
+  return { ...best, alle, ms: Date.now() - t0, kennung: h.kennung };
 }
