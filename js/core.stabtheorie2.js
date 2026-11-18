@@ -75,6 +75,42 @@ export function alphaH(h) {
 export const alphaM = (m) => Math.sqrt(0.5 * (1 + 1 / Math.max(1, m)));
 
 /**
+ * Die Ersatzlast der Schiefstellung einer Kombination (EN 1993-1-1, 5.3.2):
+ * je Mastknoten phi mal der Zuwachs der Druckkraft, in Windrichtung.
+ * Auch für die Vergleichsdatei mit AxisVM (modell_knicken.mjs th2).
+ */
+export function schiefstellung(dat, lsg, lf, linear, zuege = mastZuege(dat), aH = null) {
+  if (aH === null) {
+    let h = 0;
+    zuege.forEach((l) => { h = Math.max(h, l[l.length - 1].zO - l[0].zU); });
+    aH = alphaH(h);
+  }
+  const kr = kraefteAusAnteilen(lsg, linear);
+  // Endkräfte lokal: f[0] = -N am Anfang, f[6] = N am Ende (Zug positiv).
+  const druckIn = (stab) => { const f = kr.get(stab); return f ? Math.max(0, f[0], -f[6]) : 0; };
+  const druck = new Map();
+  zuege.forEach((l, id) => druck.set(id, druckIn(l[0].stab)));
+  const werte = [...druck.values()].filter((v) => v > 0);
+  const mittel = werte.length ? werte.reduce((a, b) => a + b, 0) / werte.length : 0;
+  const m = werte.filter((v) => v >= 0.5 * mittel).length;
+  const phi = PHI0 * aH * alphaM(m);
+  const ri = imperfektionsRichtung(lf);
+  const zusatz = [];
+  if (ri) {
+    zuege.forEach((l) => {
+      // Druck im Stab (positiv), von oben nach unten; Knotenlast = Zuwachs.
+      const C = l.map((s) => druckIn(s.stab));
+      l.forEach((s, i) => {
+        const oben = i + 1 < l.length ? C[i + 1] : 0;
+        const dC = C[i] - oben;
+        if (dC > 0) zusatz.push({ knoten: s.oben, richtung: ri.richtung, wert: ri.vorzeichen * phi * dC });
+      });
+    });
+  }
+  return { zusatz, phi, m };
+}
+
+/**
  * Je Nachweis-Kombination die Rechnung 2. Ordnung einsetzen.
  * @returns {{phi, alphaH, alphaM, m, h, faelle, nichtKonvergiert, ohneRichtung,
  *            ohneImperfektion, iterationen, ms}}
@@ -93,31 +129,8 @@ export function zweiteOrdnungEinsetzen(dat, lsg, faelle) {
   (dat.kombinationen ??= []);
   faelle.forEach((lf) => {
     const linear = anteileFuer(lf, dat).filter((a) => !String(a.lastfall).startsWith(TH2_FALL));
-    const kr = kraefteAusAnteilen(lsg, linear);
-    // Druckkraft je Mast am Fuss (positiv = Druck).
-    // Endkräfte lokal: f[0] = -N am Anfang, f[6] = N am Ende (Zug positiv).
-    const druckIn = (stab) => { const f = kr.get(stab); return f ? Math.max(0, f[0], -f[6]) : 0; };
-    const druck = new Map();
-    zuege.forEach((l, id) => druck.set(id, druckIn(l[0].stab)));
-    const werte = [...druck.values()].filter((v) => v > 0);
-    const mittel = werte.length ? werte.reduce((a, b) => a + b, 0) / werte.length : 0;
-    const m = werte.filter((v) => v >= 0.5 * mittel).length;
-    const phi = PHI0 * aH * alphaM(m);
-    const ri = imperfektionsRichtung(lf);
-    const zusatz = [];
-    if (ri) {
-      zuege.forEach((l) => {
-        // Druck im Stab (positiv), von oben nach unten; Knotenlast = Zuwachs.
-        const C = l.map((s) => druckIn(s.stab));
-        l.forEach((s, i) => {
-          const oben = i + 1 < l.length ? C[i + 1] : 0;
-          const dC = C[i] - oben;
-          if (dC > 0) zusatz.push({ knoten: s.oben, richtung: ri.richtung, wert: ri.vorzeichen * phi * dC });
-        });
-      });
-    } else {
-      ohneRichtung.push(lf.key);
-    }
+    const { zusatz, phi, m } = schiefstellung(dat, lsg, lf, linear, zuege, aH);
+    if (!imperfektionsRichtung(lf)) ohneRichtung.push(lf.key);
     const name = TH2_FALL + lf.key;
     const r = lsg.zweiteOrdnung(name, linear, zusatz);
     if (!r.konvergiert) nichtKonvergiert.push(lf.key);

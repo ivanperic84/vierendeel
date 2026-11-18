@@ -396,6 +396,26 @@ AxisVM_aufbauen.cmd -Json AxisVM_Knick_J130_30m_Schnee.json -Rechnen -Knicken -S
 - Gemessen 18. November: J90/20 m 23.022 (Anwendung 22.995), J130/30 m mit
   Schnee 8.269 (Anwendung 7.996). Rechenzeit in AxisVM 8 bzw. 15 s.
 
+## Nichtlinear (Schalter -Nichtlinear, 18. November 2026)
+
+Geometrisch nichtlineare Rechnung je Lastfall (Theorie 2. Ordnung), zum
+Vergleich mit dem Schalter «Theorie 2. Ordnung» der Anwendung:
+
+```
+node modell_knicken.mjs J130 30 schnee th2      (im Projektordner)
+AxisVM_aufbauen.cmd -Json AxisVM_TH2_J130_30m_Schnee.json -Rechnen -Nichtlinear -Stapel
+node vergleich_th2.mjs com/AxisVM_TH2_J130_30m_Schnee.json
+```
+
+- `th2` faltet die Kombination samt Schiefstellung (EN 1993-1-1, 5.3.2) in
+  einen Lastfall und legt die Wege des eigenen Lösers daneben (`_soll.json`).
+- Die Brücke liest zuerst die linearen Knotenwege (nach der nichtlinearen
+  Rechnung gibt AxisVM sie nicht mehr heraus, Rückgabe −100014), rechnet dann
+  `NonLinearAnalysis_V162` (geometrisch nichtlinear, kraftgesteuert,
+  10 Laststufen) und schreibt beide nach `<modell>_nichtlinear.json`.
+- Gemessen 18. November: Mastkopf 111.97 mm (AxisVM) gegen 110.35 mm
+  (Anwendung), linear 103.20 / 103.25 mm.
+
 ## Statikbericht (Schalter -Statikbericht, 7. Oktober 2026)
 
 Nach dem Rechnen legt die Brücke die Plots für einen Statikbericht an

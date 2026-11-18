@@ -51,7 +51,8 @@ param(
     [string]$BerichtVorlage,
     [switch]$BerichtNur,
     [string]$BerichtVariante,
-    [switch]$Knicken
+    [switch]$Knicken,
+    [switch]$Nichtlinear
 )
 
 $ErrorActionPreference = 'Stop'
@@ -3701,6 +3702,103 @@ if ($Knicken) {
     Schreib "  geschrieben: $zielK"
     try { $null = $m.SaveToFile($axs, $lbFalsch) } catch { }
     $gefunden.Add('Knicken -> Calculation.Buckling_V162(RBuckling_V162), Results.Ncr(ResultCase, Mode)')
+}
+
+<#  =========================================================================
+    NICHTLINEAR - THEORIE 2. ORDNUNG JE LASTFALL (18. November, auf Weisung
+    "Ja, AxisVM rechnen" zum Vergleich mit der Rechnung 2. Ordnung der
+    Anwendung, Etappe B).
+
+    Geometrisch nichtlinear, kraftgesteuert, ohne Materialnichtlinearitaet.
+    Die Vergleichsdatei (modell_knicken.mjs ... th2) faltet die Kombination
+    samt Schiefstellung in EINEN Lastfall. Gelesen werden die Knotenwege
+    linear und nichtlinear (letzte Laststufe) aller Knoten nach
+    <modell>_nichtlinear.json.
+
+    VERMESSEN (Typbibliothek, 18. November):
+      Calculation.NonLinearAnalysis_V162(RNonLinearAnalysis_V162, ECalculationUserInteraction)
+      Results.ResultCaseOfLoadCase(atNonLinearStatic = 1, int)
+      Results.LoadLevelCount(EAnalysisType, int)
+      Results.GetNonLinearAnalysisResultInfo(int, int, RNonLinearAnalysisResultInfo)
+      Results.Displacements.GetNodalDisplacementByLoadCaseId(Knoten, Lastfall,
+        Laststufe, EAnalysisType, ELongBoolean, RDisplacementValues, string)
+    ========================================================================= #>
+if ($Nichtlinear) {
+    Abschnitt '12 - Geometrisch nichtlinear (Theorie 2. Ordnung, auf Weisung)'
+    $cuiNL = Aufzaehlung 'ECalculationUserInteraction' 'cuiNoUserInteractionWithAutoCorrectNoShow'
+    if ($null -eq $cuiNL) { $cuiNL = 3 }
+    $atNL = Aufzaehlung 'EAnalysisType' 'atNonLinearStatic'
+    if ($null -eq $atNL) { $atNL = 1 }
+    $atLN = Aufzaehlung 'EAnalysisType' 'atLinearStatic'
+    if ($null -eq $atLN) { $atLN = 0 }
+    $ausNL = [ordered]@{ modell = $axs; lastfaelle = [ordered]@{} }
+    foreach ($f in $d.lastfaelle) {
+        $id = [int]$lf[$f.key]
+        # Die linearen Wege ZUERST: nach der nichtlinearen Rechnung gibt
+        # AxisVM sie nicht mehr heraus (Rueckgabe -100014, gemessen 18. November).
+        $lbN0 = Aufzaehlung 'ELongBoolean' 'lbFalse'
+        if ($null -eq $lbN0) { $lbN0 = 0 }
+        $meldNL = ''
+        $linW = @{}
+        foreach ($kname in $kn.Keys) {
+            $dl = NeuerSatz 'RDisplacementValues'; $t1 = ''; $o1 = 0
+            try { $o1 = $m.Results.Displacements.GetNodalDisplacementByLoadCaseId([int]$kn[$kname], $id, 1, $atLN, $lbN0, [ref]$dl, [ref]$t1) }
+            catch { if (-not $meldNL) { $meldNL = 'linear: ' + ($_.Exception.Message -replace "`r?`n", ' ') } }
+            if ($o1 -gt 0) { $linW[$kname] = @([double]$dl.ex, [double]$dl.ey, [double]$dl.ez) }
+            elseif (-not $meldNL) { $meldNL = "linear: Rueckgabe $o1" }
+        }
+        Schreib "    $($linW.Count) lineare Knotenwege vor der nichtlinearen Rechnung"
+        $rn = NeuerSatz 'RNonLinearAnalysis_V162'
+        $rn.LoadCase = $id
+        $rn.SolutionControl = 0
+        $rn.Increments = 10
+        $rn.Iterations = 50
+        $rn.DisplacementConvergenceValue = 0.001
+        $rn.ForceConvergenceValue = 0.001
+        $rn.WorkConvergenceValue = 0.000001
+        $rn.EnableDisplacementConvergence = 1
+        $rn.EnableForceConvergence = 1
+        $rn.EnableWorkConvergence = 1
+        $rn.GeometricNonLinearity = 1
+        $rn.MaterialNonLinearity = 0
+        $rn.ReinforcementCalculation = 0
+        $rn.StoreLastIncrementOnly = 0
+        $rn.ContinueWithoutConvergence = 0
+        $t0 = Get-Date
+        $rk = $null
+        try { $rk = $m.Calculation.NonLinearAnalysis_V162([ref]$rn, $cuiNL) }
+        catch { Schreib "  >>> NonLinearAnalysis_V162: $($_.Exception.Message)" }
+        $sek = ((Get-Date) - $t0).TotalSeconds
+        $rc = -1
+        try { $rc = [int]$m.Results.ResultCaseOfLoadCase($atNL, $id) } catch { }
+        $nStufen = -1
+        try { $nStufen = [int]$m.Results.LoadLevelCount($atNL, $rc) } catch { }
+        $info = NeuerSatz 'RNonLinearAnalysisResultInfo'
+        try { $null = $m.Results.GetNonLinearAnalysisResultInfo($rc, $nStufen, [ref]$info) } catch { }
+        Schreib ("  Lastfall {0}: Rueckgabe {1}, Ergebnisfall {2}, Laststufen {3}, Lambda {4}, Konvergenz {5}, {6:N0} s" -f `
+                 $f.key, $rk, $rc, $nStufen, $info.Lambda, $info.Convergence, $sek)
+        $wege = [ordered]@{}
+        $nNein = 0
+        foreach ($kname in $kn.Keys) {
+            $kid = [int]$kn[$kname]
+            $dn = NeuerSatz 'RDisplacementValues'; $t2 = ''; $o2 = 0
+            try { $o2 = $m.Results.Displacements.GetNodalDisplacementByLoadCaseId($kid, $id, [math]::Max($nStufen, 1), $atNL, $lbN0, [ref]$dn, [ref]$t2) }
+            catch { if (-not $meldNL) { $meldNL = 'nichtlinear: ' + ($_.Exception.Message -replace "`r?`n", ' ') } }
+            if ($o2 -le 0) { if (-not $meldNL) { $meldNL = "nichtlinear: Rueckgabe $o2" }; $nNein++; continue }
+            $l = $linW[$kname]
+            if (-not $l) { $l = @($null, $null, $null) }
+            $wege[$kname] = @($l[0], $l[1], $l[2], [double]$dn.ex, [double]$dn.ey, [double]$dn.ez)
+        }
+        Schreib "    $($wege.Count) Knotenwege gelesen ($nNein nicht lesbar)"
+        if ($meldNL) { Schreib "    >>> erste Meldung: $meldNL" }
+        $ausNL.lastfaelle[$f.key] = [ordered]@{ label = $f.label; rueckgabe = "$rk"; stufen = $nStufen;
+            lambda = [double]$info.Lambda; konvergenz = [int]$info.Convergence; sekunden = $sek; wege = $wege }
+    }
+    $zielNL = if ($Json) { NebenDatei $Json '_nichtlinear.json' } else { Join-Path $PSScriptRoot 'AxisVM_nichtlinear.json' }
+    ($ausNL | ConvertTo-Json -Depth 8 -Compress) | Set-Content -Path $zielNL -Encoding UTF8
+    Schreib "  geschrieben: $zielNL"
+    try { $null = $m.SaveToFile($axs, $lbFalsch) } catch { }
+    $gefunden.Add('Nichtlinear -> Calculation.NonLinearAnalysis_V162(RNonLinearAnalysis_V162), Wege atNonLinearStatic')
 }
 
 Abschnitt 'Fertig'
