@@ -309,6 +309,8 @@ export function stabwerkBerichtDaten(app) {
     blatt: { name: app.projekt?.name, ort: verortung(w0), projektNr: w0.projektNr,
              bearbeiter: w0.bearbeiter, datum: w0.datum, werte: rechensatz(w0) },
     sw, faelle: sw.roh?.faelle ?? [], tragwerke, masten,
+    // Theorie 2. Ordnung (sw.zweite) und Knick-Eigenwert stehen in den Grundlagen.
+    knick: app.knick ?? null,
     nichtGefuehrt: app.letzte?.urteil?.nichtGefuehrt ?? [], anzeige,
     reaktionen: app.reaktionsDaten?.()?.zeilen ?? null,
     // Die Gegenrechnung mit AxisVM, wenn Ergebnisse eingelesen sind (9. Oktober).

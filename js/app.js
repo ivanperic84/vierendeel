@@ -212,6 +212,8 @@ const app = {
   get urteilKurz() { return urteilKurz; },
   get axisErgebnis() { return axisErgebnis; },
   get stabwerk() { return stabwerk; }, set stabwerk(v) { stabwerk = v; },
+  // Der Knick-Eigenwert zum Stand des Stabwerks (für den Bericht, 18. November).
+  get knick() { return knickGilt(); },
   get projekt() { return projekt; }, set projekt(v) { projekt = v; },
   get station() { return station; }, set station(v) { station = v; },
   get ungesichert() { return ungesichert; }, set ungesichert(v) { ungesichert = v; },

@@ -42909,6 +42909,20 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
        && T2.imperfektionsRichtung({ beiwerte: { WindY: -0.65 } }).vorzeichen === -1
        && T2.imperfektionsRichtung({ beiwerte: { WindX: 1.3 } }).richtung === 'X'
        && T2.imperfektionsRichtung({ beiwerte: { G: 1.3 } }) === null);
+  // Bericht (18. November, «theorie 2. ordnung im bericht aufführen»).
+  const SB = await import(J('export.stabbericht.js'));
+  const zw = { phi: 1 / 337, alphaH: 0.686, mMin: 2, mMax: 2, h: 8.5, faelle: 8, iterationen: 5,
+               nichtKonvergiert: [], ohneImperfektion: [] };
+  const b2 = SB.zweiteOrdnungHtml({ zweite: zw }, { alpha: 7.996, bez: 'Schnee leitend, Wind +y' });
+  const b1 = SB.zweiteOrdnungHtml({}, { alpha: 7.996, bez: 'X', zweite: { eta: 1.336, etaLinear: 1.169, name: 'Mast M1' } });
+  wahr('Bericht: Theorie 2. Ordnung mit Schiefstellung (φ, α_h, α_m) und α_cr',
+       b2.includes('Theorie 2. Ordnung</b>') && b2.includes('1/337') && b2.includes('0.866')
+       && b2.includes('so gerechnet') && b2.includes('Normalkräfte nach Theorie 2. Ordnung'));
+  wahr('Bericht: 1. Ordnung bei α_cr < 10 sagt «nicht gerechnet» und nennt die Näherung',
+       b1.includes('Theorie 1. Ordnung</b>') && b1.includes('in diesem Bericht nicht gerechnet')
+       && b1.includes('1.336 statt 1.169') && !b1.includes('α<sub>cr</sub> < 10'));
+  wahr('Bericht ohne α_cr: sagt, dass er nicht gerechnet wurde',
+       SB.zweiteOrdnungHtml({}, null).includes('nicht gerechnet'));
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',
