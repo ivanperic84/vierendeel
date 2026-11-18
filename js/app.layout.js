@@ -60,7 +60,8 @@ const WZ_MODELL = (app) => [
   // das halbe Joch - man muss ihn allein wegnehmen koennen.
   { key: 'mast', icon: 'mast', text: 'Masten' },
   { key: 'masse', icon: 'mass', text: 'Bemassung' },
-  { key: 'raster', icon: 'raster', text: 'Bodenraster' },
+  // Bodenraster ohne Knopf (18. November, «bodenrasten layerbutton entfernen»);
+  // das Raster selbst bleibt im Bild.
 ];
 
 /*

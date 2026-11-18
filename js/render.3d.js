@@ -4873,7 +4873,9 @@ export class Modellansicht {
     });
     c.globalAlpha = 1;
 
-    this._lastflaechen(c, proj, t);
+    // In der Explosion auch die Lastflächen weg (18. November): das Band des
+    // Mastwinds blieb am alten Ort stehen und sah aus wie ein zweiter Mast.
+    if (!((this.explosion ?? 0) > 0)) this._lastflaechen(c, proj, t);
     if (this._ebeneAn('schnitt')) this._schnittebene(c, proj, t);
     // Die verformte Figur über dem Modell (30. September), auch während
     // der Fahrt - sie ist das, was man dabei ansehen will.
@@ -5372,11 +5374,30 @@ export class Modellansicht {
       sz._explMitte = quelle.length
         ? [0, 1, 2].map((k) => quelle.reduce((s, p) => s + p[k], 0) / quelle.length) : [0, 0, 0];
     }
-    if (!f._mitte) {
-      f._mitte = [0, 1, 2].map((k) => f.punkte.reduce((s, p) => s + p[k], 0) / f.punkte.length);
+    /*
+     * 18. November: «die explosion beim tragausleger C-Profil ist nicht
+     * korrekt». Die Richtung kam aus der Mitte jeder FLÄCHE - beim UPE des
+     * Tragauslegers liegt die Gurtmitte auf der Mittelebene, Steg und
+     * Flansche darüber und darunter: das Profil flog in Stücke. Jetzt aus
+     * der Mitte des BAUTEILS (alle Flächen gleicher Gruppe und gleichen
+     * Teils), und liegt das Bauteil in einer Richtung auf der Mitte (unter
+     * 2 cm), rückt es in dieser Richtung nicht.
+     */
+    if (!sz._explTeile) {
+      const summe = new Map();
+      (sz.flaechen ?? []).forEach((g) => {
+        if (g.passiv) return;
+        const k = `${g.gruppe}|${g.teil ?? g.label ?? ''}`;
+        const s = summe.get(k) ?? [0, 0, 0, 0];
+        g.punkte.forEach((p) => { s[0] += p[0]; s[1] += p[1]; s[2] += p[2]; s[3] += 1; });
+        summe.set(k, s);
+      });
+      sz._explTeile = new Map([...summe].map(([k, s]) => [k, [s[0] / s[3], s[1] / s[3], s[2] / s[3]]]));
     }
-    const m = sz._explMitte, c = f._mitte;
-    const sg = (v) => (v >= 0 ? 1 : -1);
+    const c = sz._explTeile.get(`${f.gruppe}|${f.teil ?? f.label ?? ''}`)
+      ?? [0, 1, 2].map((k) => f.punkte.reduce((s, p) => s + p[k], 0) / f.punkte.length);
+    const m = sz._explMitte;
+    const sg = (v) => (Math.abs(v) < 0.02 ? 0 : v > 0 ? 1 : -1);
     const sy = sg(c[1] - m[1]), sz2 = sg(c[2] - m[2]), sx = sg(c[0] - m[0]);
     /*
      * 18. November: «die bleche weiter raus nehmen auf eine eigene ebene».

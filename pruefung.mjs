@@ -42609,8 +42609,8 @@ titel('292  Explosionsdarstellung; stehende und liegende Bleche getrennt');
        && !M._flaecheAn({ gruppe: 'blech', teil: 'BL_O3' }));
   M.explosion = 1;
   M.szene = { flaechen: [
-    { gruppe: 'profil', punkte: [[0, 0.2, 0.25], [1, 0.2, 0.25], [1, 0.2, 0.3]] },
-    { gruppe: 'profil', punkte: [[0, -0.2, -0.25], [1, -0.2, -0.25], [1, -0.2, -0.3]] }] };
+    { gruppe: 'profil', teil: 'OGR', punkte: [[0, 0.2, 0.25], [1, 0.2, 0.25], [1, 0.2, 0.3]] },
+    { gruppe: 'profil', teil: 'UGL', punkte: [[0, -0.2, -0.25], [1, -0.2, -0.25], [1, -0.2, -0.3]] }] };
   const vOG = M._explosionsVersatz(M.szene.flaechen[0]), vUG = M._explosionsVersatz(M.szene.flaechen[1]);
   wahr('Explosion: Obergurt hinten nach oben und hinten, Untergurt vorn nach unten und vorn',
        vOG[2] > 0 && vOG[1] > 0 && vUG[2] < 0 && vUG[1] < 0);
@@ -42625,6 +42625,23 @@ titel('292  Explosionsdarstellung; stehende und liegende Bleche getrennt');
   }
   wahr('… nur das Bild: in der Explosion keine Achsen, Pfeile, Marken',
        RQ.includes('if (!explodiert) this._vektoren(c, proj, t);'));
+  // 18. November: «die explosion beim tragausleger C-Profil ist nicht korrekt» -
+  // Steg oben und unten der Mittelebene, ein Profil: es rückt als Ganzes, und
+  // weil seine Mitte auf der Mittelebene liegt, nicht in der Höhe.
+  {
+    const M2 = Object.create(R.Modellansicht.prototype);
+    M2.explosion = 1;
+    const upe = (y, z) => ({ gruppe: 'profil', teil: y > 0 ? 'GURT_V' : 'GURT_H',
+      punkte: [[0, y, z], [1, y, z], [1, y + 0.01, z]] });
+    M2.szene = { flaechen: [upe(0.2, 0.07), upe(0.2, -0.07), upe(-0.2, 0.07), upe(-0.2, -0.07)] };
+    const v = M2.szene.flaechen.map((f) => M2._explosionsVersatz(f));
+    wahr('Explosion Tragausleger: Steg oben und unten eines UPE rücken gleich, nur in y, die Gurte auseinander',
+         JSON.stringify(v[0]) === JSON.stringify(v[1]) && v[0][2] === 0 && v[0][1] > 0 && v[2][1] < 0,
+         JSON.stringify(v));
+  }
+  wahr('Werkzeugleiste: kein Knopf Bodenraster, Explosionsschieber über die ganze Gruppe',
+       !readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes("key: 'raster', icon: 'raster'")
+       && /\.wz-explo \{[^}]*grid-column: 1 \/ -1/.test(readFileSync(join(HIER, 'css', 'style.css'), 'utf8')));
 }
 
 titel('293  Viewer-Ausleitung: Szene, Lastfälle, Bericht mit Ansichten, Massenauszug');
