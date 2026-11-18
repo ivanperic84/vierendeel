@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = '038944b49553';
+const VERSION = '1d6ab2799f56';
 const SCHALE = [
   './',
   'index.html',
@@ -47,6 +47,7 @@ const SCHALE = [
   'js/app.setzen.js',
   'js/app.stabwerk.js',
   'js/app.uebungen.js',
+  'js/app.viewer.js',
   'js/app.zeichnung.js',
   'js/app.zustand.js',
   'js/bild.erkennung.js',
@@ -63,6 +64,7 @@ const SCHALE = [
   'js/core.fundament.js',
   'js/core.klassen.js',
   'js/core.lasten.js',
+  'js/core.massenauszug.js',
   'js/core.mast.js',
   'js/core.nachbarn.js',
   'js/core.profilgeometrie.js',
@@ -144,6 +146,8 @@ const SCHALE = [
   'js/ui.schema.js',
   'js/verlauf.js',
   'js/version.js',
+  'js/viewer.js',
+  'js/viewer.laufzeit.js',
   'com/AxisVM_aufbauen.cmd',
   'com/AxisVM_aufbauen.ps1',
   'com/AxisVM_auslesen.cmd',

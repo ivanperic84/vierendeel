@@ -38,6 +38,41 @@ import { FELDER } from './ui.schema.js';
 import { reaktionenTabelleHtml } from './export.reaktionen.js';
 import { gegenrechnungAbschnitt } from './export.gegenrechnung.js';
 
+/*
+ * >>> ANSICHTSANGABEN AN DEN BILDERN (18. November). <<< Weisung: «ist es
+ * auch möglich den bericht interaktiv zu gestalten wo man die auf die
+ * jeweiligen abbildungen klicken kann und man dann zu der 3d switcht
+ * dynamisch?» Jedes Bild trägt in `data-ansicht`, welche Ansicht des
+ * Modells es zeigt (Blick, Plotgrösse, Lastarten). Im Viewer
+ * (js/viewer.js) schaltet ein Klick darauf ins 3D; im gewöhnlichen Bericht
+ * ist das Attribut ohne Wirkung.
+ */
+const ansichtAttr = (a) => (a ? ` data-ansicht="${esc(JSON.stringify(a))}"` : '');
+const bildA = (inhalt, titel, a) => bild(inhalt, titel).replace(/^<figure>/, `<figure${ansichtAttr(a)}>`);
+
+/** Tragwerksteile mit Querschnitten und Massenauszug (18. November, core.massenauszug.js). */
+function massen(d) {
+  const m = d.massen;
+  if (!m?.zeilen?.length) return '';
+  const cm2 = (v) => zahl(v * 1e4, 2), cm4 = (v) => zahl(v * 1e8, 1);
+  return `<section><h2>§ Tragwerksteile und Massenauszug</h2>
+    <p>Die Stäbe des Stabwerks, je Bauteil, Teil und Querschnitt: Querschnittswerte,
+    Anzahl Stäbe im Modell, Stablänge und Masse A · L · ρ (ρ = ${zahl(m.rho, 0)} kg/m³) -
+    dieselbe Masse, aus der das Stabwerk das Eigengewicht rechnet. Nicht enthalten ist,
+    was das Modell nicht als Stab führt: Anschlusswinkel, Stosslaschen, Schrauben,
+    Fussplatten, Konsolen und die Anbauteile (sie stehen als starre Ketten mit ihren
+    Lasten im Modell). Die Stäbe der Gurte sind Rechenabschnitte, keine Stückzahl.</p>
+    ${tabelle(['Bauteil', 'Teil', 'Querschnitt', 'A [cm²]', 'I<sub>y</sub> [cm⁴]', 'I<sub>z</sub> [cm⁴]',
+      'Stäbe', 'Länge [m]', 'Masse [kg]'],
+      m.zeilen.map((z) => [esc(z.bauteil), esc(z.rolle), esc(z.profil), cm2(z.A), cm4(z.Iy), cm4(z.Iz),
+        String(z.staebe), zahl(z.laenge, 2), zahl(z.kg, 1)]), 'eng')}
+    <h3>§.1 Massen je Bauteil</h3>
+    ${tabelle(['Bauteil', 'Stablänge [m]', 'Masse [kg]'],
+      [...m.bauteile.map((b) => [esc(b.name), zahl(b.laenge, 2), zahl(b.kg, 1)]),
+       ['<b>Total</b>', `<b>${zahl(m.total.laenge, 2)}</b>`, `<b>${zahl(m.total.kg, 1)}</b>`]])}
+  </section>`;
+}
+
 /** Wie die Teile eines Tragwerks im Bericht heissen. */
 export const TEIL_NAMEN = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindebleche',
                             UPE: 'Gurte UPE', mast: 'Mast' };
@@ -231,7 +266,7 @@ function deckblatt(d, U) {
     <h1>${esc(b.name || 'Querprofil')}</h1>
     ${b.ort ? `<p class="ort">${esc(b.ort)}</p>` : ''}
     ${d.opt.bilder.modell3d && d.bilder?.modell3d
-      ? `<figure class="titelbild"><img src="${esc(d.bilder.modell3d)}" alt="3D-Ansicht mit Ausnutzung"></figure>` : ''}
+      ? `<figure class="titelbild"${ansichtAttr({ blick: 'iso', modus: 'eta' })}><img src="${esc(d.bilder.modell3d)}" alt="3D-Ansicht mit Ausnutzung"></figure>` : ''}
     ${angaben([
       ['Tragwerke', esc((d.tragwerke ?? []).map((tw) => `${tw.pos} ${artText(tw)} (${tw.label})`).join(' · '))],
       ['Masten', esc((d.masten ?? []).map((m) => `${m.anzeige} ${m.profil ?? ''}`).join(' · '))],
@@ -316,7 +351,7 @@ function system(d) {
     ${tws}
     <h3>Masten</h3>
     ${tabelle(['Mast', 'Profil', 'Länge [m]', 'Stegrichtung', 'x [m]', 'trägt', 'Anker', 'Fundament'], masten)}
-    ${d.opt.bilder.skizze ? bild(d.bilder?.skizze, 'Systemskizze') : ''}
+    ${d.opt.bilder.skizze ? bildA(d.bilder?.skizze, 'Systemskizze', { blick: 'laengs', modus: 'neutral' }) : ''}
   </section>`;
 }
 
@@ -350,7 +385,7 @@ function einwirkungen(d) {
     Streckenlasten als Band mit Wert, Einzellasten als Pfeil (rot) mit Wert.
     Was in Blickrichtung oder in Stabrichtung wirkt, steht nur in der Summe.
     Wind je mit positivem Vorzeichen; die Gegenrichtung wirkt gleich gross.</p>
-    ${d.bilder.lasten.map((z) => `<figure class="gv-fig"><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
+    ${d.bilder.lasten.map((z) => `<figure class="gv-fig"${ansichtAttr(z.ansicht)}><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
   </section>`;
 }
 
@@ -402,8 +437,8 @@ function schnittgroessen(d) {
     Querrichtungen. Welche Kombination sie gibt, steht je Stab in der
     Stabliste der Nachweise.</p>
     ${tabelle(['Teil', 'Stäbe', '|N| [kN]', '|V| [kN]', '|M| [kNm]', '|T| [kNm]'], zeilen)}
-    ${d.opt.bilder.verlaeufe ? bild(d.bilder?.verlaeufe, 'Verläufe aus dem Stabwerk') : ''}
-    ${d.opt.bilder.eta ? bild(d.bilder?.eta, 'Ausnutzung aus dem Stabwerk') : ''}
+    ${d.opt.bilder.verlaeufe ? bildA(d.bilder?.verlaeufe, 'Verläufe aus dem Stabwerk', { blick: 'laengs', modus: 'eta' }) : ''}
+    ${d.opt.bilder.eta ? bildA(d.bilder?.eta, 'Ausnutzung aus dem Stabwerk', { blick: 'iso', modus: 'eta' }) : ''}
     ${d.opt.bilder.zustand && d.bilder?.zustand?.length ? `
     <h3>§.1 Zustandslinien</h3>
     <p>Aus demselben Stabwerk, je Stab an 11 Stellen; Hülle über die
@@ -413,7 +448,7 @@ function schnittgroessen(d) {
     blau negativ; σ_v nach der Ausnutzung. «Lager»: Kraft bzw. Moment des
     Lagers auf das Tragwerk, global (anderes Vorzeichen als die Schnittgrösse
     im Stab am Fuss).</p>
-    ${d.bilder.zustand.map((z) => `<figure class="gv-fig"><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
+    ${d.bilder.zustand.map((z) => `<figure class="gv-fig"${ansichtAttr(z.ansicht)}><figcaption>${esc(z.titel)}</figcaption>${z.svg}</figure>`).join('')}` : ''}
   </section>`;
 }
 
@@ -496,7 +531,7 @@ function nachweise(d, U) {
   const fundBlock = fund ? `${h3('Mastfundamente')}${FUNDAMENT_TEXT}${fund}` : '';
   const uebersicht = (d.opt.bilder.bauteile && d.bilder?.bauteile)
     // Das Diagramm trägt seinen Titel selbst (14. November: er stand doppelt).
-    ? d.bilder.bauteile : '';
+    ? `<div${ansichtAttr({ blick: 'iso', modus: 'eta' })}>${d.bilder.bauteile}</div>` : '';
   return `<section><h2>§ Nachweise</h2>
     ${uebersicht}
     <p>f<sub>yd</sub> = ${zahl(sw.fyd, 2)} N/mm². Je Bauteil der massgebende
@@ -512,7 +547,8 @@ function gebrauch(d) {
   const eintraege = (d.tragwerke ?? []).map((tw) => ({ v: tw.verformung, namen: tw.namen ?? {} }));
   return gebrauchKapitel(eintraege,
     (d.opt.bilder.verformung && d.bilder?.verformung)
-      ? bild(d.bilder.verformung, 'Verformte Figur quer zum Gleis - Fahrdrahtlage (massgebender Fall nur Wind × ψ 0.70)') : '',
+      ? bildA(d.bilder.verformung, 'Verformte Figur quer zum Gleis - Fahrdrahtlage (massgebender Fall nur Wind × ψ 0.70)',
+          { blick: 'quer', modus: 'w' }) : '',
     d.anzeige ?? ((x) => x), 'stabwerk');
 }
 
@@ -573,7 +609,7 @@ function nummeriert(d) {
   const teile = [
     // Das 3D-Bild steht auf dem Deckblatt (14. November, «das 3d aus der app
     // kann man für die titelseite nutzen», «Ja, nur Titelseite»).
-    ['grundlagen', grundlagen(d)], ['system', system(d)], ['einwirkungen', einwirkungen(d)],
+    ['grundlagen', grundlagen(d)], ['system', system(d)], ['massen', massen(d)], ['einwirkungen', einwirkungen(d)],
     ['kombinationen', kombinationen(d)], ['schnittgroessen', schnittgroessen(d)],
     ['nachweise', nachweise(d, U)], ['gebrauch', gebrauch(d)], ['pruefungen', pruefungen(d)],
     ['nichtGefuehrt', nichtGefuehrt(d)], ['auflager', auflager(d)],

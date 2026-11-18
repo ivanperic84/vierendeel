@@ -24477,8 +24477,10 @@ titel('68  Das Menueband und der Name der Anwendung');
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
   // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
   // 17. November: «den drucken button entfernen» - zehn Eintraege, kein Drucken.
-  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel - kein Drucken',
-       eintraege.length === 10 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+  // 18. November: dazu der Viewer (elf Eintraege).
+  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Viewer - kein Drucken',
+       eintraege.length === 11 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+       && menue.includes('viewerAusleiten(app)')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
            'reaktionsBlatt', 'exportKlick'].every((t) => menue.includes(t)) && !menue.includes('window.print()'),
        eintraege.join(' · '));
@@ -42626,6 +42628,66 @@ titel('292  Explosionsdarstellung; stehende und liegende Bleche getrennt');
   }
   wahr('… nur das Bild: in der Explosion keine Achsen, Pfeile, Marken',
        RQ.includes('if (!explodiert) this._vektoren(c, proj, t);'));
+}
+
+titel('293  Viewer-Ausleitung: Szene, Lastfälle, Bericht mit Ansichten, Massenauszug');
+{
+  /*
+   * 18. November: «als viewer stelle ich mir eine html ausleitung vor wo man
+   * das modell betrachten kann und der bericht enthalten ist, alles
+   * hardcoded», «den bericht interaktiv … auf die jeweiligen abbildungen
+   * klicken … zu der 3d switcht», «die verwendeten tragwersteile mit den
+   * dazugehörigen querschnitten und einem Massenauszug».
+   */
+  const VW = await import(J('app.viewer.js'));
+  const MZ = await import(J('core.massenauszug.js'));
+  const VL = await import(J('viewer.laufzeit.js'));
+  const SW293 = await import(J('core.stabwerk.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const V2 = await import(J('core.vierendeel.js'));
+  const N2 = await import(J('core.nachbarn.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true };
+  const satz = N2.rechensatzMitNachbarn(w);
+  const erg = V2.berechne(satz, ...N2.kernArgumente(satz));
+  const h = AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const m = MZ.massenauszug(h.roh.dat);
+  // Gegen das Eigengewicht des Lösers: dieselben Stäbe, A · ρ · g.
+  const d0 = JSON.parse(JSON.stringify(h.roh.dat));
+  d0.lasten = { punkt: [], strecke: [] };
+  const lsg = SW293.loese(d0, { eigengewicht: true });
+  const G = lsg.auflagerkraefte('G').reduce((sum, a) => sum + a.uz, 0);
+  pruef('Massenauszug: Masse · g = Eigengewicht des Stabwerks (J90/20 m, Vorgabemasten)', m.total.kg * 9.81 / 1000, G, 1e-6, 'kN');
+  const z = (b, p) => m.zeilen.find((x) => x.bauteil === b && x.profil === p);
+  const mast = m.zeilen.find((x) => x.bauteil === 'Mast M1');
+  pruef(`… Mast ${mast?.profil}: A · L · ρ`, mast?.kg, mast?.A * mast?.laenge * 7850, 1e-6, 'kg');
+  wahr('… Gurte L 90x90x9 über 4 × 20 m (mit Knotenbereichen) und Bleche als Flachstahl',
+       Math.abs((z('Joch', 'L 90x90x9')?.laenge ?? 0) - 80) < 0.05 && m.zeilen.some((x) => /^FL \d+×\d+$/.test(x.profil)),
+       m.zeilen.map((x) => `${x.bauteil} ${x.profil}`).join(' · '));
+  // Werte je Lastfall: Verweis in eine Tabelle, zugeordnet über die Kennung.
+  const fl = (teil, eta, x = 0) => ({ gruppe: 'profil', teil, station: 0, xMitte: x, werte: { eta, sig_v: 1, sig: 0, M: 0, V: 0, N: 0, T: 0 } });
+  const huelle = { flaechen: [fl('OG', 0.5), fl('OG', 0.5), fl('UG', 0.4, 1), { gruppe: 'last', punkte: [] }] };
+  const [f1] = VW.werteJeFall(huelle, [{ key: 'LF1', bez: 'Wind', szene: { flaechen: [fl('UG', 0.3, 1), fl('OG', 0.2), fl('OG', 0.2)] } }]);
+  wahr('Werte je Fall: über Kennung und Vorkommen zugeordnet, gleiche Werte einmal in der Tabelle',
+       f1.idx[0] === f1.idx[1] && f1.tab[f1.idx[0]][0] === 0.2 && f1.tab[f1.idx[2]][0] === 0.3 && f1.idx[3] === -1 && f1.tab.length === 2,
+       JSON.stringify({ idx: f1.idx, tab: f1.tab }));
+  // Die Vorlage: Platzhalter ersetzt, kein schliessendes Script-Tag in den Daten.
+  const html = VW.viewerHtml({ titel: 'Probe <b>', bericht: '<script>alert(1)</script>', faelle: [] });
+  const a0 = html.indexOf('id="viewer-daten">');
+  const daten = html.slice(a0, html.indexOf('</script>', a0));
+  wahr('Vorlage: Titel und Daten eingesetzt, Daten ohne «</script», Titel maskiert',
+       !html.includes('__VIEWER_DATEN__') && !html.includes('__VIEWER_TITEL__')
+       && daten.includes(String.fromCharCode(92) + 'u003cscript') && !daten.includes('<' + 'script')
+       && html.includes('<title>Probe &#60;b&#62; · Viewer</title>'));
+  const LZ = readFileSync(join(HIER, 'js', 'viewer.laufzeit.js'), 'utf8');
+  wahr('Laufzeit gebündelt aus viewer.js mit dem Renderer, ohne Rechenkern und ohne Sortimente',
+       /Module: .*render\.3d\.js.*viewer\.js/.test(LZ) && !/Module: .*(core\.vierendeel|app\.js|data\.paket)/.test(LZ)
+       && VL.VIEWER_LAUFZEIT.includes('id=\"viewer-daten\"'));
+  const SB = readFileSync(join(HIER, 'js', 'export.stabbericht.js'), 'utf8');
+  wahr('Bericht: Bilder mit data-ansicht, Kapitel «Tragwerksteile und Massenauszug»',
+       SB.includes('data-ansicht=') && SB.includes("['massen', massen(d)]") && SB.includes('Tragwerksteile und Massenauszug'));
+  wahr('Exportmenü der Vollversion: «Viewer (HTML: Modell, Bericht, Massen)»',
+       readFileSync(join(HIER, 'js', 'app.js'), 'utf8').includes('viewerAusleiten(app)'));
 }
 
 console.log('\n' + '='.repeat(104));

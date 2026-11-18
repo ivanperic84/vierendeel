@@ -6,6 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { viewerAusleiten } from './app.viewer.js';
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
@@ -272,6 +273,8 @@ const app = {
   stabwerkGilt: () => stabwerkGilt(),
   // Hülle oder gewählter Fall aus dem Stabwerk (4. Oktober) - für die Schiene.
   stabwerkAnsicht: () => stabwerkAnsicht(),
+  // Die Szenen für den Viewer (18. November, app.viewer.js).
+  viewerSzenen: () => viewerSzenen(),
   // Für den Bericht über das ganze Blatt (1. Oktober).
   stabwerkRechnen: () => stabwerkRechnen(),
   reaktionsDaten: () => reaktionsDaten(),
@@ -2932,6 +2935,40 @@ function wegeAusFigur(szene, fig) {
     }
     if (best) { f.werte = { ...f.werte, w: best.mm }; f.wegeStabwerk = true; }
   });
+}
+
+/*
+ * >>> DIE SZENEN FÜR DEN VIEWER (18. November, app.viewer.js). <<<
+ * Weisung: «als viewer stelle ich mir eine html ausleitung vor wo man das
+ * modell betrachten kann und der bericht enthalten ist, alles hardcoded».
+ * Die Szene der Hülle so, wie das Bild sie zeigt (mit verformter Figur),
+ * dazu je Lastfall die Werte der Flächen aus demselben Stabwerk - der
+ * Viewer rechnet nicht, er tauscht nur die Werte. Danach wird das Bild
+ * wieder auf den gewählten Fall gestellt.
+ */
+function viewerSzenen() {
+  const kombi = letzte?.kombi, erg = letzte?.erg;
+  if (!erg || !stabwerkGilt()) return null;
+  const alt = anzeigeKombi;
+  try {
+    anzeigeKombi = 'umhuellend';
+    const szene = blattSzene(kombi?.huellkurve ?? erg);
+    verformtSetzen(szene);
+    wegeAusFigur(szene, ansicht?.verformt);
+    const verformt = ansicht?.verformt ?? null;
+    const faelle = [];
+    (kombi?.lastfaelle ?? []).forEach((l) => {
+      anzeigeKombi = l.key;
+      try {
+        const sz = blattSzene(kombi.ergebnisse?.[l.key] ?? erg);
+        faelle.push({ key: l.key, bez: l.bez, art: l.art ?? null, szene: sz });
+      } catch (e) { console.warn('Viewer, Lastfall', l.key, e); }
+    });
+    return { szene, verformt, faelle, karte: [...anzeigeKarte.entries()] };
+  } finally {
+    anzeigeKombi = alt;
+    if (letzte?.anzeige) aktualisiereModell(letzte.anzeige);
+  }
 }
 
 function aktualisiereModell(erg) {
@@ -5841,6 +5878,10 @@ function exportMenue() {
     { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     // «Drucken» weg (17. November, «den drucken button entfernen»).
+    '-',
+    // Der Viewer (18. November): Modell und Bericht in einer Datei, rechnet nicht.
+    { kopf: 'Weitergeben' },
+    { text: 'Viewer (HTML: Modell, Bericht, Massen)', tun: () => handlung('Viewer', () => viewerAusleiten(app)) },
   ];
 }
 

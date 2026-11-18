@@ -70,7 +70,7 @@ def abhaengigkeiten(text):
     return d
 
 
-def sortiere(module):
+def sortiere(module, einstieg=None):
     """Topologische Sortierung; erkennt Zyklen und meldet sie."""
     fertig, offen, reihenfolge = set(), set(), []
 
@@ -88,7 +88,7 @@ def sortiere(module):
         fertig.add(name)
         reihenfolge.append(name)
 
-    besuche(EINSTIEG)
+    besuche(einstieg or EINSTIEG)
     return reihenfolge
 
 
@@ -275,6 +275,45 @@ def schreibe_sw():
 
 
 STAND = JS / "version.js"
+
+
+VIEWER_EINSTIEG = "viewer.js"
+VIEWER_LAUFZEIT = JS / "viewer.laufzeit.js"
+VIEWER_CSS = WURZEL / "css" / "viewer.css"
+
+
+def schreibe_viewer_laufzeit():
+    """
+    DIE LAUFZEIT DER VIEWER-DATEI (18. November, js/viewer.js, app.viewer.js).
+
+    js/viewer.js und was es braucht (Renderer, Farben) werden fuer sich
+    gebuendelt und als Vorlage in js/viewer.laufzeit.js geschrieben - die
+    Anwendung setzt beim Ausleiten nur noch Titel und Daten ein. Die Datei
+    gehoert in die Ablage (die Modulversion importiert sie), geschrieben
+    wird nur, wenn sich der Inhalt aendert.
+    """
+    module = {p.name: p.read_text(encoding="utf-8") for p in sorted(JS.glob("*.js"))
+              if p.name != VIEWER_LAUFZEIT.name}
+    reihenfolge = sortiere(module, VIEWER_EINSTIEG)
+    js = ("(function () {\n'use strict';\nconst __M = {};\n"
+          + "".join(umschreiben(n, module[n]) for n in reihenfolge) + "})();\n")
+    pruefe_syntax(js)
+    # Im HTML darf kein schliessendes Script-Tag stehen.
+    js = re.sub(r"</(script)", r"<\/\1", js, flags=re.I)
+    html = ("<!DOCTYPE html>\n<html lang=\"de-CH\"><head><meta charset=\"utf-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+            "<title>__VIEWER_TITEL__ · Viewer</title>\n<style>\n"
+            + VIEWER_CSS.read_text(encoding="utf-8") + "\n</style></head><body>\n"
+            "<script type=\"application/json\" id=\"viewer-daten\">__VIEWER_DATEN__</script>\n"
+            "<script>\n" + js + "\n</script></body></html>\n")
+    text = ("// Von build_html.py erzeugt (schreibe_viewer_laufzeit) - nicht von Hand aendern.\n"
+            "// Die Vorlage der Viewer-Datei: js/viewer.js gebuendelt, dazu css/viewer.css.\n"
+            f"// Module: {', '.join(reihenfolge)}\n"
+            "export const VIEWER_LAUFZEIT = " + json.dumps(html, ensure_ascii=True) + ";\n")
+    alt = VIEWER_LAUFZEIT.read_text(encoding="utf-8") if VIEWER_LAUFZEIT.exists() else ""
+    if alt != text:
+        VIEWER_LAUFZEIT.write_text(text, encoding="utf-8")
+    print(f"Viewer-Laufzeit: {len(reihenfolge)} Module, {len(text) / 1024:.0f} kB")
 
 
 def schreibe_stand():
@@ -612,6 +651,7 @@ def main(ohne_daten=False, stufe=None):
 if __name__ == "__main__":
     # Der Dienstarbeiter gehört zur Modulversion (index.html) und wird bei
     # jedem Bauen aufgefrischt, unabhängig davon, welche Einzeldatei entsteht.
+    schreibe_viewer_laufzeit()
     schreibe_stand()
     schreibe_sw()
     stufe = None

@@ -11,6 +11,7 @@
  * ---------------------------------------------------------------------------
  */
 import { axisVergleich } from './core.axisvergleich.js';
+import { massenauszug } from './core.massenauszug.js';
 import { nachweisbericht, berichtVorgabe, UMFAENGE, BILDER,
          BERICHT_ARTEN } from './export.nachweisbericht.js';
 import { APP_NAME, tragwerksart, rechensatz, sichtbareTragwerke, tauscheAktives,
@@ -312,6 +313,8 @@ export function stabwerkBerichtDaten(app) {
     reaktionen: app.reaktionsDaten?.()?.zeilen ?? null,
     // Die Gegenrechnung mit AxisVM, wenn Ergebnisse eingelesen sind (9. Oktober).
     axis: app.axisErgebnis ? axisVergleich(sw, app.axisErgebnis.erg) : null,
+    // Tragwerksteile und Massenauszug aus den Stäben des Stabwerks (18. November).
+    massen: sw.roh?.dat ? massenauszug(sw.roh.dat, { mastName: (id) => anzeige(id) }) : null,
     fassung: `${APP_NAME} ${app.VERSION}`, datum: new Date().toLocaleDateString('de-CH'),
   };
 }
@@ -335,16 +338,19 @@ function zustandBilder(sw) {
   const spannung = nf.map((lf) => zustandFall(roh.dat, roh.lsg, geo, lf, { spannung: true, fyd, auswertung: roh.auswertung.opt }));
   const vorn = 'gurt:OGL,UGL';
   const bilder = [
-    ['Joch, vordere Gurte - Biegemoment M_y in der Jochebene', kraft, { k: 'My', teile: vorn, blick: 'laengs' }],
+    ['Joch, vordere Gurte - Biegemoment M_y in der Jochebene', kraft, { k: 'My', teile: vorn, blick: 'laengs' },
+     { blick: 'laengs', modus: 'M' }],
     // Gurte N und die beiden Mastbilder entfallen (14. November, «Ja, so
     // aufteilen»): N steht im Diagramm |N|, die Masten im Diagramm
     // M quer / M längs (`mastMDiagramme`) - dort lesbarer als die Zeichnung.
-    ['Vergleichsspannung σ_v - Gurte vorn und Masten', spannung, { k: 'sig', teile: 'alle-ohne-bleche', blick: 'laengs' }],
+    ['Vergleichsspannung σ_v - Gurte vorn und Masten', spannung, { k: 'sig', teile: 'alle-ohne-bleche', blick: 'laengs' },
+     { blick: 'laengs', modus: 'sig_v' }],
   ];
-  return bilder.map(([titel, faelle, o]) => {
+  // Die vierte Stelle: die Ansicht des Modells zum Bild (Viewer, 18. November).
+  return bilder.map(([titel, faelle, o, ansicht]) => {
     const r = zustandSvg(geo, faelle, { ...o, fyd, breite: 860,
       teile: o.teile === 'alle-ohne-bleche' ? 'gurt:OGL,UGL|mast' : o.teile });
-    return r ? { titel, svg: r.svg } : null;
+    return r ? { titel, svg: r.svg, ansicht } : null;
   }).filter(Boolean);
 }
 
@@ -355,6 +361,8 @@ function zustandBilder(sw) {
  * der Modelldatei ein Bild - ständig (Eigengewicht, Anbauteile,
  * Ablenkkräfte), Wind quer, Wind längs (im Querschnitt), Schnee.
  */
+const LASTARTEN_BILD = { G: ['staendig'], G_Anbau: ['staendig'], G_Ablenk: ['leiterzug'],
+                         WindX: ['windX'], WindY: ['windY'], Schnee: ['schnee'] };
 function lastBilder(sw) {
   const dat = sw?.roh?.dat;
   if (!dat) return null;
@@ -366,7 +374,9 @@ function lastBilder(sw) {
     ['Schnee', ['Schnee'], 'iso', ''],
   ].map(([titel, gruppen, blick, hinweis]) => {
     const r = lastSvg(dat, { gruppen, blick, breite: 860, hinweis });
-    return r ? { titel, svg: r.svg } : null;
+    // Ansicht im Viewer (18. November): nur die Lastarten dieses Bildes.
+    const lasten = [...new Set(gruppen.map((g) => LASTARTEN_BILD[g]).flat())];
+    return r ? { titel, svg: r.svg, ansicht: { blick: 'iso', modus: 'neutral', lasten } } : null;
   }).filter(Boolean);
 }
 
@@ -460,7 +470,11 @@ function verformungBild(sw, grenzeM = 0.04) {
 }
 
 function berichtStabwerk(app, wahl) {
-  const d = stabwerkBerichtDaten(app);
+  berichtZeigen(berichtStabwerkHtml(app, wahl));
+}
+
+/** Der Bericht des Stabwerks als HTML - für die Anzeige und den Viewer (18. November). */
+export function berichtStabwerkHtml(app, wahl, d = stabwerkBerichtDaten(app)) {
   const b = wahl.bilder;
   const satz = (b.verlaeufe || b.eta) ? app.diagrammSatz(app.letzte.bemessung, 900) : {};
   const reihe = (schluessel) => Object.entries(satz)
@@ -498,7 +512,7 @@ function berichtStabwerk(app, wahl) {
       (d.tragwerke ?? []).map((tw) => tw.verformung?.fahrdraht?.massgebend?.grenz).find(Number.isFinite) ?? 0.04) : null,
   };
   d.stil = diagrammStil();
-  berichtZeigen(stabwerkBericht(d, wahl));
+  return stabwerkBericht(d, wahl);
 }
 
 /**

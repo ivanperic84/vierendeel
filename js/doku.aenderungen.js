@@ -18,6 +18,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Neu: Export → «Viewer (HTML: Modell, Bericht, Massen)» - eine Datei zum Weitergeben, die das Modell mit allen Lastfällen, den Nachweisbericht und den Massenauszug zeigt und nicht rechnet. Im Bericht führt ein Klick auf ein Bild zur selben Ansicht im Modell.' },
+      { text: 'Nachweisbericht: neues Kapitel «Tragwerksteile und Massenauszug» (Querschnitte, Stablängen, Massen je Bauteil).' },
       { text: 'Explosionsdarstellung: die Bindebleche liegen auf einer eigenen Ebene ausserhalb der Gurte, die Anbauteile weiter aussen. Farbe und Werte der Resultate bleiben darin sichtbar.' },
       { text: 'Gespreizte Masten (DGP): die Torsionssteifigkeit der beiden Hälften ist jetzt die Hälfte des Walzprofils (mit Ausrundungen, bisher ohne, 19 % weniger). Gegen AxisVM nachgerechnet; ändert die Zahlen nur bei Torsion am Masten, meist erst in der dritten Stelle.', rechnung: true },
     ],
