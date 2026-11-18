@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Stabilität: unter dem α_cr steht die Ausnutzung mit dem Vergrösserungsfaktor 1/(1 − 1/α_cr) je Kombination (Näherung für Theorie 2. Ordnung nach EN 1993-1-1, 5.2.2; Auskunft, kein Nachweis). Gegen AxisVM nachgerechnet: α_cr stimmt auf 0.1 bzw. 3 % (Werkzeug auf der sicheren Seite).' },
       { text: 'Neu: Stabilität des Stabwerks - in der Stabwerksleiste «Stabilität (α_cr) rechnen» gibt den kleinsten Knick-Eigenwert über die Kombinationen und ob die Theorie 1. Ordnung genügt (Auskunft, kein Nachweis); «Knickfigur zeigen» legt die Eigenform über das Modell.' },
       { text: 'Reiter Anbauteile mit Sprungleiste (Abschnitte und Gruppen, alle zu / auf). Im 3D oben die Grundwerte statt des Lastfallfelds; der Lastfall wird in der Liste gewählt, dort jetzt auch die einzelnen Lasten (ständig, Wind quer / längs, Schnee).' },
       { text: 'Zustandslinie: die Diagramme der Bindebleche zeigen nach aussen (liegende nach oben bzw. unten, stehende zur Seite), damit sie sich nicht überdecken.' },

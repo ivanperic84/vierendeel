@@ -7211,6 +7211,19 @@ export function stabwerkLeiste(opt = {}) {
  * Ohne Ampel, ohne Anteil am Urteil - die Theorie 2. Ordnung, die ein
  * alpha_cr unter 10 verlangt, ist nicht gebaut.
  */
+/* Etappe A der Theorie 2. Ordnung (18. November): die Ausnutzung mit dem
+   Vergroesserungsfaktor je Kombination, als Auskunft. */
+function zweiteZeile(z) {
+  if (!z) return '';
+  const titel = `Näherung nach EN 1993-1-1, 5.2.2(5)B: je Kombination η des Stabwerks `
+    + `× 1/(1 − 1/α_cr) dieser Kombination, auf alle Schnittgrössen (sichere Seite), `
+    + `ohne Schiefstellung, ohne Bauteilknicken. Linear ${z.etaLinear.toFixed(3)} × `
+    + `${z.faktor.toFixed(3)} (α_cr ${z.alpha.toFixed(2)}).`;
+  return `<span class="notiz sw-zweite" title="${esc(titel)}">mit 2. Ordnung (Näherung):
+    η <b>${z.eta.toFixed(3)}</b> statt ${z.etaLinear.toFixed(3)} · ${esc(z.name ?? '')}
+    · ${esc(z.bez ?? '')}${z.gueltig ? '' : ' · α_cr < 3: Näherung nicht zulässig'}</span>`;
+}
+
 function knickZeile(sw) {
   const k = sw.knick;
   if (!k) {
@@ -7224,7 +7237,7 @@ function knickZeile(sw) {
   const a = k.alpha;
   const satz = !Number.isFinite(a) ? 'kein Druck - kein Knicken'
     : a >= 10 ? 'α_cr ≥ 10: Theorie 1. Ordnung genügt (EN 1993-1-1, 5.2.1)'
-    : 'α_cr < 10: Theorie 2. Ordnung nötig - im Werkzeug noch nicht gebaut';
+    : 'α_cr < 10: Theorie 2. Ordnung nötig - hier näherungsweise mit 1/(1 − 1/α_cr)';
   const titel = (k.alle ?? []).slice(0, 5)
     .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(' · ');
   return `<div class="sw-knick${Number.isFinite(a) && a < 10 ? ' unter10' : ''}">
@@ -7232,6 +7245,7 @@ function knickZeile(sw) {
     <span title="${esc(titel)}">α_cr <b>${Number.isFinite(a) ? a.toFixed(2) : '∞'}</b>
       · ${esc(k.bez ?? '')}</span>
     <span class="notiz">${esc(satz)} · ${(k.alle ?? []).length} Kombinationen · ${k.ms} ms</span>
+    ${zweiteZeile(k.zweite)}
     ${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
       >${sw.knickZeigen ? 'Knickfigur ausblenden' : 'Knickfigur zeigen'}</button>` : ''}
   </div>`;

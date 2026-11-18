@@ -42831,6 +42831,19 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
     knick: { alpha: 7.996, bez: 'Schnee leitend, Wind +y', alle: [], ms: 1, form: [0] } } });
   wahr('unter 10: «Theorie 2. Ordnung nötig» und Knopf Knickfigur',
        h.includes('Theorie 2. Ordnung nötig') && h.includes('data-knick-figur') && h.includes('α_cr <b>8.00</b>'));
+  // Etappe A der Theorie 2. Ordnung (18. November): Faktor 1/(1 − 1/α_cr)
+  // je Kombination, ohne Bauteilknicken, Auskunft.
+  wahr('2. Ordnung A: Faktor je Kombination, Bauteilknicken ausgenommen',
+       AQ.includes('const faktor = 1 / (1 - 1 / x.alpha);') && AQ.includes("b.key !== 'knicken'")
+       && AQ.includes('knick.zweite = zweiteOrdnungNaeherung(g, knick)'));
+  const h2 = UI.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+    ergebnis: { staebe: 1, freiheitsgrade: 6, faelle: 1, ms: 1 },
+    knick: { alpha: 2.5, bez: 'X', alle: [], ms: 1,
+             zweite: { eta: 1.2, etaLinear: 0.72, faktor: 1 / (1 - 1 / 2.5), alpha: 2.5,
+                       name: 'Mast M1', bez: 'X', gueltig: false } } } });
+  wahr('2. Ordnung A in der Leiste: η mit und ohne, unter 3 «nicht zulässig»',
+       h2.includes('mit 2. Ordnung (Näherung)') && h2.includes('<b>1.200</b> statt 0.720')
+       && h2.includes('Näherung nicht zulässig'));
 }
 
 console.log('\n' + '='.repeat(104));

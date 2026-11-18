@@ -639,6 +639,7 @@ function knickRechnen() {
   if (!g) { meldeImBalken('Zuerst das Stabwerk rechnen.'); return; }
   try {
     knick = knickEigenwert(g.h);
+    if (knick) knick.zweite = zweiteOrdnungNaeherung(g, knick);
     knickZeigen = !!knick;
     verformtMerk = null;
   } catch (e) {
@@ -646,6 +647,39 @@ function knickRechnen() {
     meldeImBalken(`Knick-Eigenwert nicht gerechnet: ${e?.message ?? e}`);
   }
   neuRechnen();
+}
+
+/*
+ * >>> THEORIE 2. ORDNUNG NAEHERUNGSWEISE (18. November, Etappe A). <<<
+ * Auf die Frage, ob die Theorie 2. Ordnung gebaut werden soll, und den
+ * Vorschlag in zwei Schritten: «A, dann B». A ist der Vergroesserungs-
+ * faktor nach EN 1993-1-1, 5.2.2(5)B: je Kombination die Ausnutzung des
+ * Stabwerks mal 1/(1 - 1/alpha_cr DIESER Kombination). Auf ALLE
+ * Schnittgroessen (die Norm meint die horizontalen Anteile - sichere
+ * Seite), ohne Schiefstellung, gueltig nur fuer alpha_cr >= 3. Das
+ * Bauteilknicken (SIA 263) bleibt draussen - es enthaelt die Stabilitaet
+ * schon. Auskunft neben dem alpha_cr, kein Anteil am Urteil.
+ */
+function zweiteOrdnungNaeherung(g, k) {
+  const bt = letzte?.urteil?.bauteile;
+  if (!bt) return null;
+  let best = null;
+  (k.alle ?? []).forEach((x) => {
+    if (!Number.isFinite(x.alpha) || x.alpha <= 1) return;
+    const h = g.h.imFall?.(x.key);
+    if (!h) return;
+    const l = (bauteileMitStabwerk(bt, h, { jochKey: g.jochKey })?.liste ?? [])
+      .filter((b) => b.key !== 'knicken');
+    const m = ui.etaImFall({ liste: l });
+    if (!m) return;
+    const faktor = 1 / (1 - 1 / x.alpha);
+    const eta = m.eta * faktor;
+    if (!best || eta > best.eta) {
+      best = { eta, etaLinear: m.eta, faktor, alpha: x.alpha, name: m.name, bez: x.bez,
+               gueltig: x.alpha >= 3 };
+    }
+  });
+  return best;
 }
 
 function knickFigurSchalten() {
