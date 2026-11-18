@@ -42615,6 +42615,15 @@ titel('292  Explosionsdarstellung; stehende und liegende Bleche getrennt');
   const vOG = M._explosionsVersatz(M.szene.flaechen[0]), vUG = M._explosionsVersatz(M.szene.flaechen[1]);
   wahr('Explosion: Obergurt hinten nach oben und hinten, Untergurt vorn nach unten und vorn',
        vOG[2] > 0 && vOG[1] > 0 && vUG[2] < 0 && vUG[1] < 0);
+  // 18. November: Bleche auf eigener Ebene jenseits der Gurte, Anbauteile noch weiter.
+  {
+    const bl = { gruppe: 'blech', teil: 'BL_O3', punkte: [[0, 0, 0.27], [1, 0, 0.27], [1, 0.1, 0.27]] };
+    const bs = { gruppe: 'blech', teil: 'V_L', punkte: [[0, 0.17, 0], [1, 0.17, 0], [1, 0.17, 0.2]] };
+    const at = { gruppe: 'anbau', punkte: [[0, 0, -1], [0.1, 0, -1], [0.1, 0, -2]] };
+    const vL = M._explosionsVersatz(bl), vS = M._explosionsVersatz(bs), vA = M._explosionsVersatz(at);
+    wahr('Explosion: liegendes Blech über dem Obergurt, stehendes neben dem Gurt, Anbauteil darüber hinaus',
+         vL[2] > vOG[2] && vS[1] > vOG[1] && Math.abs(vA[2]) > vL[2], `liegend ${vL[2]} · stehend ${vS[1]} · Anbau ${vA[2]}`);
+  }
   wahr('… nur das Bild: in der Explosion keine Achsen, Pfeile, Marken',
        RQ.includes('if (!explodiert) this._vektoren(c, proj, t);'));
 }

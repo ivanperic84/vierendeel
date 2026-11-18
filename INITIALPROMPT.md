@@ -7,9 +7,9 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 18. November 2026 - hier weitermachen
 
-Zuletzt (18. November, örtlich committet, **nicht gepusht**): gespreizte Masten in AxisVM geprüft und finalisiert (DGP26/10 gerechnet; I_t der T-Hälften jetzt I_t des Walzprofils / 2, Torsion gegen AxisVM 11-14 % → ≤ 1.5 %). Prüfstand **7415** grün.
+Zuletzt (18. November, örtlich committet, **nicht gepusht**): gespreizte Masten in AxisVM geprüft und finalisiert (DGP26/10 gerechnet; I_t der T-Hälften jetzt I_t des Walzprofils / 2, Torsion gegen AxisVM 11-14 % → ≤ 1.5 %). Danach Explosion: Bleche auf eigener Ebene jenseits der Gurte (Resultate liessen sich dort schon plotten). Prüfstand **7416** grün.
 
-**Liste (aufgenommen, Reihenfolge beim Auftraggeber):** Viewer als HTML-Ausleitung mit Modell und Bericht fest eingebrannt (Einschätzung gegeben, Entscheid offen); Befestigung an Mauer; Schaltposten; Spannweitenkategorien (min. Radien je Spannweite, Quelle erfragen); Tablet-/Touch-Fassung. Nach hinten: Lizenzentwurf, italienische Übersetzung. Übungsbeispiele: nicht mehr auf Rückmeldung warten. Einzelheiten: CLAUDE.md, *Offene Punkte*, «Liste vom 18. November».
+**Liste (aufgenommen, Reihenfolge beim Auftraggeber):** Viewer als HTML-Ausleitung mit Modell und Bericht fest eingebrannt, Bericht interaktiv (Klick auf Bild → 3D), Tragwerksteile mit Querschnitten und Massenauszug (Einschätzung gegeben, Entscheid offen); Befestigung an Mauer; Schaltposten; Spannweitenkategorien (min. Radien je Spannweite, Quelle erfragen); Tablet-/Touch-Fassung. Nach hinten: Lizenzentwurf, italienische Übersetzung. Übungsbeispiele: nicht mehr auf Rückmeldung warten. Einzelheiten: CLAUDE.md, *Offene Punkte*, «Liste vom 18. November».
 
 ## Stand 17. November 2026 (davor)
 
@@ -321,7 +321,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7415 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7416 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node modell_beispiele.mjs   # Beispielblaetter A/B fuer AxisVM nach com/

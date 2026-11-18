@@ -5378,11 +5378,19 @@ export class Modellansicht {
     const m = sz._explMitte, c = f._mitte;
     const sg = (v) => (v >= 0 ? 1 : -1);
     const sy = sg(c[1] - m[1]), sz2 = sg(c[2] - m[2]), sx = sg(c[0] - m[0]);
+    /*
+     * 18. November: «die bleche weiter raus nehmen auf eine eigene ebene».
+     * Vorher lagen die Bleche innerhalb der auseinandergerückten Gurte
+     * (liegend 0.4, stehend 0.3 gegen Gurte 0.8 / 0.6) und deckten sich mit
+     * ihnen. Jetzt jenseits der Gurte: liegende 1.6 in der Höhe, stehende 1.2
+     * zur Seite; die Anbauteile darum noch weiter hinaus (2.4), damit eine
+     * Hängestütze nicht in der Ebene der unteren Bleche steht.
+     */
     switch (f.gruppe) {
       case 'profil': return [0, sy * 0.6 * e, sz2 * 0.8 * e];
-      case 'blech': return blechLiegend(f) ? [0, 0, sz2 * 0.4 * e] : [0, sy * 0.3 * e, 0];
+      case 'blech': return blechLiegend(f) ? [0, 0, sz2 * 1.6 * e] : [0, sy * 1.2 * e, 0];
       case 'mast': return [sx * 1.2 * e, 0, 0];
-      case 'anbau': return [0, 0, sz2 * 1.2 * e];
+      case 'anbau': return [0, 0, sz2 * 2.4 * e];
       default: return null;
     }
   }
