@@ -11,9 +11,16 @@
  * enthält. eine für viewer und eine für die schulung. man kann da auch denk
  * fokus auf das abbilden und einfache eingabe setzen.»
  *
- * DIE STUFE IST FEST IN DER DATEI. `build_html.py --stufe viewer|schulung`
+ * >>> DIE STUFE «VIEWER» IST GESTRICHEN (18. November). <<< Weisung «Ja,
+ * streichen» auf die Frage, ob die bisherige Stufe neben der neuen
+ * Viewer-Ausleitung (js/app.viewer.js: Modell und Bericht in einer Datei,
+ * rechnet nicht) bleibt, und «der viewer wurde nie benutzt man kann es
+ * überall entfernen wo möglich». Es gibt nur noch die Schulung als leichte
+ * Stufe.
+ *
+ * DIE STUFE IST FEST IN DER DATEI. `build_html.py --stufe schulung`
  * schreibt dieses Modul beim Buendeln um (`STUFE_FEST`); in der Modulversion
- * laesst sie sich zum Pruefen ueber `?stufe=viewer` waehlen. Eine leichte
+ * laesst sie sich zum Pruefen ueber `?stufe=schulung` waehlen. Eine leichte
  * Datei kennt `?stufe=voll` nicht - einschraenken darf die Adresse,
  * erweitern nicht.
  *
@@ -33,11 +40,11 @@ const STUFE_FEST = null;
 function ausAdresse() {
   try {
     const s = new URLSearchParams(globalThis.location?.search ?? '').get('stufe');
-    return s === 'viewer' || s === 'schulung' ? s : null;
+    return s === 'schulung' ? s : null;
   } catch { return null; }
 }
 
-/** 'voll' | 'viewer' | 'schulung' */
+/** 'voll' | 'schulung' */
 export const STUFE = STUFE_FEST ?? ausAdresse() ?? 'voll';
 export const LEICHT = STUFE !== 'voll';
 /** Einfache Darstellung (ein Urteil mit Balken, kurze Sprache): die Schulung. */
@@ -63,7 +70,7 @@ export const MEHR_FELDER = new Set([
 ]);
 
 export const STUFEN_TITEL = {
-  voll: 'Vollversion', viewer: 'Viewer', schulung: 'Schulung',
+  voll: 'Vollversion', schulung: 'Schulung',
 };
 
 /** Der Vermerk auf Bildschirm und Bericht. */
@@ -147,31 +154,10 @@ export function nutzungHtml(s = 'de') {
  * FELDER DER MASKE
  * --------------------------------------------------------------------- */
 
-// Im Viewer: ansehen und kleine Anpassungen (Weisung «geringfügige anpassungen»).
-const VIEWER_BEARBEITEN = [
-  'tragwerksart',          // Tragwerk wählen; Anlegen/Löschen sperrt das Stilblatt
-  'mastX', 'mastLaenge',
-  'anbauteile', 'bestandesschutz',
-];
-const VIEWER_SEHEN = [
-  'xLage', 'typ', 'abfangTyp', 'L', 'stuetzweite', 'auslegerSeite',
-  'laengsverankerung', 'laengsverankerungX', 'kragA', 'kragB',
-  'mastVorhanden', 'mastNummer', 'mastProfil', 'mastSteg', 'mastH',
-  'mastFundament', 'mastGelaende',
-  'ankerTyp', 'ankerH', 'ankerA', 'ankerD', 'ankerWinkel', 'ankerRichtung',
-  'ankerSeite', 'ankerBef',
-  'ubAn', 'ubArt', 'ubHoehe', 'ubStuetze', 'ubSteg', 'ubRiegel', 'ubRichtung',
-  'ubSpannweite', 'ubLage', 'ubTorsion', 'ubLagerung',
-  'flSpannweite', 'trasseRadius', 'trasseWinkel',
-  'windKlasse', 'windReduktion', 'rueckhaltAn', 'rueckhaltProzent', 'rueckhaltMax',
-  'schneeAktiv', 'schneeKlasse',
-  'bestandProzent', 'bestandBezug',
-];
-
 // In der Schulung: Tragwerke selbst aufbauen («die teilnehmer werden die
 // tragwerke selbst aufbauen») und die Einwirkungen variieren.
 const SCHULUNG_BEARBEITEN = [
-  ...VIEWER_BEARBEITEN.filter((k) => k !== 'bestandesschutz'),
+  'tragwerksart', 'mastX', 'mastLaenge', 'anbauteile',
   'linie', 'ortschaft', 'km', 'projektNr', 'bearbeiter', 'datum',
   // 'laengsverankerungX' (16. November): ohne die Stelle fehlte der Längsanker
   // am Tragausleger («die längsverankerung beim tragausleger … war auch nicht
@@ -194,7 +180,6 @@ const SCHULUNG_BEARBEITEN = [
 const SCHULUNG_SEHEN = [];
 
 const FELDER = {
-  viewer: { bearbeiten: new Set(VIEWER_BEARBEITEN), sehen: new Set(VIEWER_SEHEN) },
   schulung: { bearbeiten: new Set(SCHULUNG_BEARBEITEN), sehen: new Set(SCHULUNG_SEHEN) },
 };
 
@@ -287,7 +272,6 @@ export function feldEinfach(f, einfach = EINFACH) {
  * --------------------------------------------------------------------- */
 const GRUPPEN_AUS = {
   // Auflager: Endbedingung, Federn, Lagerung - Rechenmodell der Fachperson.
-  viewer: new Set(['ort', 'aufl', 'blech', 'staendig', 'havarie']),
   schulung: new Set(['aufl', 'staendig', 'prof', 'blech', 'stueck', 'bestand', 'havarie']),
 };
 
@@ -303,7 +287,6 @@ export function gruppeErlaubt(gid, stufe = STUFE) {
  * AUSWERTUNG, PLOTS, MENUES
  * --------------------------------------------------------------------- */
 const AUSWERTUNG = {
-  viewer: new Set(['uebersicht', 'auflager']),
   schulung: new Set(['uebersicht', 'auflager']),
 };
 export function auswertungErlaubt(tabId, stufe = STUFE) {
@@ -312,9 +295,7 @@ export function auswertungErlaubt(tabId, stufe = STUFE) {
   return AUSWERTUNG[stufe]?.has(tabId) ?? false;
 }
 
-// Viewer: Ausnutzung und Verformung (Fokus aufs Abbilden). Schulung: alle.
 const PLOTS = {
-  viewer: new Set(['eta', 'w', 'etaGzg', 'positionen', 'neutral']),
   // 16. November: «die spannungen und die tragwerksteile als auswahl in der
   // layersteuerung ergänzen» - Vergleichsspannung σ_v und Positionen (Teile).
   // Die Normalspannung σ (nur N/A) weg: am Masten rund 1 N/mm² und in jedem
@@ -336,7 +317,6 @@ export function plotErlaubt(key, stufe = STUFE) {
  */
 const EXPORT = {
   // «Drucken» weg (17. November, «den drucken button entfernen»).
-  viewer: new Set(['bericht', 'reaktionen', 'anschluss', 'bestand']),
   // 17. November: «mach beim export die funktion druck weg und dafür eine
   // kurzzusammenfassung der berechnung …» - kein «Drucken», dafür «kurz».
   schulung: new Set(['reaktionen', 'kurz']),

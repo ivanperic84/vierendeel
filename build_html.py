@@ -14,7 +14,7 @@ Die Module bleiben die Quelle - hier wird nur gebündelt:
   * die Reihenfolge ergibt sich aus einer topologischen Sortierung
 
 Aufruf:  python3 build_html.py [--ohne-daten]
-        python3 build_html.py --stufe viewer|schulung [--mit-daten]
+        python3 build_html.py --stufe schulung [--mit-daten]
 ================================================================================
 """
 
@@ -356,7 +356,8 @@ def schreibe_stand():
 # VIEWER UND SCHULUNG (15. November)
 #
 # Weisung: «ich wäre für eine separate datei die nur das nötigste enthält. eine
-# für viewer und eine für die schulung.» `--stufe viewer|schulung` schreibt
+# für viewer und eine für die schulung.» `--stufe schulung` schreibt (die Stufe
+# «viewer» ist am 18. November gestrichen, Viewer jetzt als Ausleitung)
 # js/stufe.js mit der festen Stufe um und ersetzt die Werkzeuge der Fachperson
 # durch Stellvertreter: die Ausleitungen nach AxisVM/SAF/DXF (Dialog), PyNite,
 # die COM-Skripte und die Gegenrechnung stehen in der Datei gar nicht erst -
@@ -367,7 +368,8 @@ def schreibe_stand():
 # Ohne `--mit-daten` OHNE Betreiberdaten: die leichten Dateien sind zum
 # Weitergeben gedacht, das Datenpaket wird intern verteilt.
 # ---------------------------------------------------------------------------
-STUFEN = ("viewer", "schulung")
+# «viewer» gestrichen am 18. November (Viewer jetzt als Ausleitung, js/app.viewer.js).
+STUFEN = ("schulung",)
 STELLVERTRETER = ("app.axisvm.js", "export.pynite.js", "export.comskripte.js",
                   "core.axisvergleich.js", "export.gegenrechnung.js")
 

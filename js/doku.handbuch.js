@@ -774,8 +774,11 @@ der Profile gehören zur Anwendung.</p>
   Fälle quer und längs zum Gleis.</li>
 <li><b>Rückgängig</b> Strg+Z, Wiederholen Strg+Umschalt+Z; die Tastenkürzel
   stehen in der Übersicht der Anwendung.</li>
-<li><b>Leichte Fassungen</b>: Viewer und Schulung rechnen mit demselben Stabwerk
-  und zeigen nur einen Teil der Eingaben.</li>
+<li><b>Schulung</b>: die leichte Fassung rechnet mit demselben Stabwerk und zeigt
+  nur einen Teil der Eingaben.</li>
+<li><b>Viewer</b> (Export → Weitergeben): eine HTML-Datei mit Modell, allen
+  Lastfällen, Nachweisbericht und Massenauszug zum Weitergeben; sie rechnet nicht.
+  Ein Klick auf ein Bild im Bericht zeigt dieselbe Ansicht im Modell.</li>
 </ul>
 `,
 },

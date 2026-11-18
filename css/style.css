@@ -3796,32 +3796,12 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
   min-width: 0; flex-shrink: 20;
 }
-html[data-stufe="viewer"] .stufe-band,
 html[data-stufe="schulung"] .stufe-band { display: inline-flex; }
 
-/* Viewer: ansehen und kleine Anpassungen - nichts anlegen, nichts umbauen. */
-html[data-stufe="viewer"] [data-generator],
-html[data-stufe="viewer"] [data-at-vorlage],
-html[data-stufe="viewer"] .kachel-stift,
-html[data-stufe="viewer"] .kachel-weg,
-html[data-stufe="viewer"] [data-mod-neu],
-html[data-stufe="viewer"] [data-mod-weg],
-html[data-stufe="viewer"] [data-mod-spiegeln],
-html[data-stufe="viewer"] [data-last-neu],
-html[data-stufe="viewer"] [data-last-weg],
-html[data-stufe="viewer"] [data-lastart-dazu],
-html[data-stufe="viewer"] [data-setz-frei],
-html[data-stufe="viewer"] .bs-kopf [data-neu],
-html[data-stufe="viewer"] .qp-kacheln { display: none !important; }
+/* Stufe «viewer» gestrichen (18. November). Schulung: die Datenbasis gehört der Fachperson. */
+html[data-stufe="schulung"] [data-bauteildaten] { display: none !important; }
 
-/* Beide leichten Stufen: die Datenbasis gehört der Fachperson. */
-html[data-stufe="viewer"] [data-bauteildaten],
-html[data-stufe="schulung"] [data-bauteildaten],
-html[data-stufe="viewer"] .opt-reset { display: none !important; }
-html[data-stufe="viewer"] [data-bs-oeffnen] { pointer-events: none; }
-
-/* Beide leichten Stufen: eigene Vorlagen speichern gehört der Fachperson. */
-html[data-stufe="viewer"] .kachel-stift,
+/* Schulung: eigene Vorlagen speichern gehört der Fachperson. */
 html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !important; }
 
 /* Schulung, einfaches Ergebnisfeld (15. November, js/ui.einfach.js).

@@ -1413,7 +1413,7 @@ function rechneTragwerk(werte, joch) {
   // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
   // gehört in die Liste, sonst stünde nur das Phantomjoch da.
   if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
-  // Ein Stand aus Viewer oder Schulung sagt es der Fachperson (15. November).
+  // Ein Stand aus der Schulung sagt es der Fachperson (15. November).
   if (!LEICHT && herkunftHinweis(werte)) hinw.unshift(herkunftHinweis(werte));
   // Masten auf einem Unterbau (Perrondach, 12. Oktober): was gilt und was nicht.
   const ubNamen = [rs.mastUnterbauA ? rs.mastNameA : null, rs.mastUnterbauB ? rs.mastNameB : null]

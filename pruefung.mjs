@@ -42031,42 +42031,39 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   // Jeder Feldschlüssel der Freigabeliste ist ein Feld des Schemas: ein Tippfehler
   // blendete das Feld sonst still aus.
   const QS = readFileSync(join(HIER, 'js', 'stufe.js'), 'utf8');
-  const listen = QS.slice(QS.indexOf('const VIEWER_BEARBEITEN'), QS.indexOf('const FELDER = {'));
+  const listen = QS.slice(QS.indexOf('const SCHULUNG_BEARBEITEN'), QS.indexOf('const FELDER = {'));
   const unbekannt = [...listen.matchAll(/'([A-Za-z][A-Za-z0-9]*)'/g)].map((m) => m[1])
     .filter((k) => !keys.has(k));
   wahr('Jeder Schlüssel der Freigabeliste ist ein Feld des Schemas', !unbekannt.length, unbekannt.join(', '));
-  wahr('Viewer: Mastlänge und Anbauteile bearbeitbar, Typ nur sichtbar, Auflager und Lastbeiwerte aus',
-       S.feldRecht('mastLaenge', 'viewer') === 'bearbeiten' && S.feldRecht('anbauteile', 'viewer') === 'bearbeiten'
-       && S.feldRecht('typ', 'viewer') === 'sehen' && S.feldRecht('cPhi', 'viewer') === 'aus'
-       && S.feldRecht('gammaG', 'viewer') === 'aus' && S.feldRecht('wkManuell', 'viewer') === 'aus'
-       && !S.gruppeErlaubt('aufl', 'viewer'));
+  // 18. November: «Ja, streichen», «der viewer wurde nie benutzt man kann es
+  // überall entfernen wo möglich» - nur noch die Schulung als leichte Stufe.
+  wahr('Stufe «viewer» gestrichen: keine Freigabeliste, nicht über die Adresse, nicht im Bündler',
+       !/viewer\s*:/.test(QS.slice(QS.indexOf('const FELDER = {'))) && !QS.includes("s === 'viewer'")
+       && /STUFEN = \("schulung",\)/.test(readFileSync(join(HIER, 'build_html.py'), 'utf8'))
+       && !readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('data-stufe="viewer"'));
   wahr('Schulung: Typ, Profil, Anker, Wind bearbeitbar; Lasten von Hand und Auflager aus',
        ['typ', 'L', 'mastProfil', 'ankerTyp', 'windKlasse', 'schneeAktiv']
          .every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
        && S.feldRecht('gkManuell', 'schulung') === 'aus' && S.feldRecht('mastWindX', 'schulung') === 'aus'
        && !S.gruppeErlaubt('aufl', 'schulung'));
-  // Schulung vereinfacht (15. November, «Ja, Paket 1 bauen»): nur was man ändern
-  // kann; der Bestandesschutz bleibt dem Viewer.
-  wahr('Was der Viewer bearbeiten darf, darf auch die Schulung (ausser Bestandesschutz)',
-       SCH.FELDER.every((f) => f.key === 'bestandesschutz' || S.feldRecht(f.key, 'viewer') !== 'bearbeiten'
-                              || S.feldRecht(f.key, 'schulung') === 'bearbeiten'));
+  wahr('Schulung: Mastlänge, Mastlage, Anbauteile bearbeitbar, Bestandesschutz nicht',
+       ['mastLaenge', 'mastX', 'anbauteile', 'tragwerksart'].every((k) => S.feldRecht(k, 'schulung') === 'bearbeiten')
+       && S.feldRecht('bestandesschutz', 'schulung') !== 'bearbeiten');
   wahr('Schulung zeigt keine gesperrten Felder, kein Reiter Profile, Lastfälle vereinfacht',
        SCH.FELDER.every((f) => S.feldRecht(f.key, 'schulung') !== 'sehen')
        && !S.gruppeErlaubt('prof', 'schulung') && S.gruppeErlaubt('komb', 'schulung')
        && S.EINFACH === false);
-  wahr('Auswertung: Viewer Übersicht + Auflager, Schulung Übersicht + Auflager',
-       ['uebersicht', 'auflager'].every((t) => S.auswertungErlaubt(t, 'viewer'))
-       && !S.auswertungErlaubt('verlauf', 'viewer') && S.auswertungErlaubt('uebersicht', 'schulung')
+  wahr('Auswertung: Schulung Übersicht + Auflager',
+       S.auswertungErlaubt('uebersicht', 'schulung') && S.auswertungErlaubt('auflager', 'schulung')
        && !S.auswertungErlaubt('verlauf', 'schulung'));
   wahr('Export: keine Ausleitung nach AxisVM/PyNite und kein Excel in den leichten Stufen',
-       !S.exportErlaubt('excel', 'viewer') && !S.exportErlaubt('excel', 'schulung')
+       !S.exportErlaubt('excel', 'schulung')
        && !S.exportErlaubt('bericht', 'schulung') && S.exportErlaubt('reaktionen', 'schulung')
-       && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'viewer') && !S.exportErlaubt(x, 'schulung')));
+       && ['json', 'saf', 'dxf', 'pynite'].every((x) => !S.exportErlaubt(x, 'schulung')));
   // 15. November: «unterhalb der resultaten die reaktionskräfte und die
   // spannungen auswählbar machen» - Spannung als Plot, Reiter Auflager.
-  wahr('Plots: Viewer η und w; Schulung dazu die Spannung; Auflager in der Schulung',
-       S.plotErlaubt('eta', 'viewer') && S.plotErlaubt('w', 'viewer') && !S.plotErlaubt('sig', 'viewer')
-       && S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('sig_v', 'schulung') && !S.plotErlaubt('sig', 'schulung')
+  wahr('Plots: Schulung η, w und die Spannung; Auflager in der Schulung',
+       S.plotErlaubt('eta', 'schulung') && S.plotErlaubt('w', 'schulung') && S.plotErlaubt('sig_v', 'schulung') && !S.plotErlaubt('sig', 'schulung')
        && ['M', 'V', 'N', 'T'].every((p) => S.plotErlaubt(p, 'schulung')) && S.auswertungErlaubt('auflager', 'schulung')
        && S.feldRecht('mastVorhanden', 'schulung') === 'aus');
   // Das einfache Ergebnisfeld liest die Kacheln: Satz, Balken je Gruppe, Prozent.
@@ -42150,10 +42147,10 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
        && UQ278.includes('<div class="at-technik">')
        && CQ278.includes('html[data-stufe="schulung"] .at-technik')
        && CQ278.includes('html[data-stufe="schulung"] [data-generator]'));
-  const h = S.herkunftMarkieren({ a: 1 }, 'viewer');
+  const h = S.herkunftMarkieren({ a: 1 }, 'schulung');
   wahr('Herkunftsmerker: gesetzt in der leichten Stufe, Hinweis in der Vollversion',
-       h.geaendertIn === 'viewer' && S.herkunftMarkieren({ a: 1 }, 'voll').geaendertIn === undefined
-       && /Viewer/.test(S.herkunftHinweis(h) ?? '') && S.herkunftHinweis({}) === null);
+       h.geaendertIn === 'schulung' && S.herkunftMarkieren({ a: 1 }, 'voll').geaendertIn === undefined
+       && /Schulung/.test(S.herkunftHinweis(h) ?? '') && S.herkunftHinweis({}) === null);
   // Die Stellvertreter des Bündlers dürfen nie an der Rechnung hängen.
   const BQ = readFileSync(join(HIER, 'build_html.py'), 'utf8');
   const stell = (BQ.match(/STELLVERTRETER = \(([^)]*)\)/)?.[1] ?? '').match(/"[^"]+"/g)?.map((x) => x.slice(1, -1)) ?? [];
@@ -42169,8 +42166,8 @@ titel('278  Viewer und Schulung: Freigabeliste, Stufe, Bündel ohne Fachwerkzeug
   const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Oberfläche: Stufe am Wurzelelement, Band mit Vermerk, Stilblatt blendet Werkzeuge aus',
        AQ.includes('document.documentElement.dataset.stufe = STUFE;') && AQ.includes('stufe-band')
-       && CQ.includes('html[data-stufe="viewer"] [data-generator]')
-       && CQ.includes('html[data-stufe="viewer"] .qp-kacheln'));
+       && CQ.includes('html[data-stufe="schulung"] [data-generator]')
+       && CQ.includes('html[data-stufe="schulung"] .stufe-band'));
   /*
    * UEBUNGSBEISPIELE (16. November, «übungsbeispiel aufnehmen»). Die Pakete
    * stammen aus Querprofilen des Betreibers: eingebettet nur in die Schulung
@@ -42518,8 +42515,8 @@ titel('287  Vollversion: Einspannstufe, massgebender Nachweis in der Kachel, kei
   const k = U.gzgKacheln(erg).join('');
   // 17. November: nur wo sie Neues sagt - bei der Mastspitze das Kriterium.
   wahr('Verformung: Zeile «Grenze L/100 (Mastlänge …)» sichtbar in der Kachel', /class="kz-n"[^>]*>Grenze L\/100 \(Mastlänge 8\.50 m\)</.test(k));
-  wahr('Kein «Drucken» in Vollversion, Viewer und Schulung',
-       !S.exportErlaubt('drucken', 'viewer') && !S.exportErlaubt('drucken', 'schulung'));
+  wahr('Kein «Drucken» in Vollversion und Schulung',
+       !S.exportErlaubt('drucken', 'schulung'));
 }
 
 // ===========================================================================

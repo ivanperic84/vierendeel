@@ -16,7 +16,7 @@ import { anbauGruppe } from './data.anbauteile.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
-import { STUFE, LEICHT, mehrAn } from './stufe.js';
+import { LEICHT, mehrAn } from './stufe.js';
 import * as ui from './ui.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
@@ -36,15 +36,12 @@ export function kontextSchliessen(app) {
  * @param {Array} punkte          {text, tun, warn} - null trennt Gruppen
  */
 /*
- * VIEWER UND SCHULUNG (15. November): das Kontextmenü bietet nur, was die
- * Freigabeliste erlaubt. Der Viewer baut keine Tragwerke an oder um
- * (anlegen, Art, Lage, duplizieren, entfernen, Masten und Anker bearbeiten,
- * Bausteinwahl); die Schulung setzt keine Lasten von Hand zurück. Gefiltert
+ * SCHULUNG (15. November): das Kontextmenü bietet nur, was die
+ * Freigabeliste erlaubt; die Schulung setzt keine Lasten von Hand zurück.
+ * (Die Stufe «viewer» ist am 18. November gestrichen.) Gefiltert
  * wird an EINER Stelle nach dem Wortlaut der Einträge - jeder Menüpunkt
  * geht hier durch.
  */
-const VIEWER_NICHT = /(bearbeiten …|duplizieren …|entfernen|zwischen .* …| ab .* …|Mast mit Tragausleger|^Masten von|Steg drehen|Gemeinsame Angaben|Zurücksetzen auf die Datenbankwerte|Vom Blatt nehmen|Zeichnung)/;
-const VIEWER_FELD_NICHT = new Set(['Art', 'Lage x₀', 'Typ']);
 /*
  * Schulung (15. November, «kontext menus vereinfachen»): ohne Zeichnung,
  * Gruppen, Markieren, Nachweisschnitt, «rechnen», Steg drehen, gemeinsame
@@ -55,10 +52,6 @@ const SCHULUNG_FELD_NICHT = new Set(['Typ']);
 function kontextErlaubt(p) {
   if (!LEICHT || typeof p !== 'object') return true;
   const text = p.text ?? '';
-  if (STUFE === 'viewer') {
-    if (p.feld && VIEWER_FELD_NICHT.has(p.feld.label)) return false;
-    return !VIEWER_NICHT.test(text);
-  }
   if (p.feld && SCHULUNG_FELD_NICHT.has(p.feld.label)) return false;
   // «Mehr zeigen» (16. November): Steg drehen, Masten von …, Zeichnung.
   if (mehrAn() && /(Steg drehen|^Masten von|Zeichnung)/.test(text)) return true;
