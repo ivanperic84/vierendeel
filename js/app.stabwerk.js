@@ -61,6 +61,7 @@ import { ohneNeueTeile, bestandVergleich, bestandRegel } from './core.bestand.js
 import { rechensatzMitNachbarn, kernArgumente } from './core.nachbarn.js';
 import { berechne } from './core.vierendeel.js';
 import { loese } from './core.stabwerk.js';
+import { zweiteOrdnungEinsetzen } from './core.stabtheorie2.js';
 import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
@@ -445,6 +446,13 @@ export function rechneStabwerk(app, aufruf = {}) {
   const schraubenInfo = begrenzterHalt(dat, lsg, rueckhaltPunkte(dat, SCHRAUBE_FALL), alleFaelleS,
     { praefix: SCHRAUBE_FALL, skala: SCHRAUBE_SKALA });
   const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
+  /*
+   * >>> THEORIE 2. ORDNUNG (18. November, Etappe B). <<< Mit dem Schalter
+   * des Blattes rechnet jede Nachweis-Kombination nach Theorie 2. Ordnung
+   * mit Schiefstellung (core.stabtheorie2.js) - NACH Halt, Schrauben und
+   * Seilausfall, deren Faktoren sie übernimmt; alles Folgende liest sie.
+   */
+  const zweite = satz.theorie2 === true ? zweiteOrdnungEinsetzen(dat, lsg, faelle) : null;
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).
   // Der Gurt am Anschnitt oder in der Blechachse (4. Oktober) - dieselbe
@@ -665,6 +673,7 @@ export function rechneStabwerk(app, aufruf = {}) {
     gitterJe, gespreiztJe,
     ankerJe,
     seile: seile.length,
+    zweite,
     kennung: eingabeKennung(app.werte),
     fyd, fydMast,
     knoten: dat.knoten.length,

@@ -653,6 +653,10 @@ export function dialogOptionen(app) {
      * Er stellt nur um - gerechnet wird auf Knopfdruck in den Ergebnissen,
      * und bis dahin sagt die Leiste, dass noch kein Ergebnis vorliegt.
      */
+    // Theorie 2. Ordnung (18. November, Etappe B) - ein Schalter des Blattes.
+    rahmen.querySelectorAll('[data-theorie2]').forEach((inp) => {
+      inp.onchange = () => { app.aendern('theorie2', inp.checked); neu(); };
+    });
     // Echtzeit oder Knopf (6. Oktober).
     rahmen.querySelectorAll('[data-auslosung]').forEach((inp) => {
       inp.onchange = () => {

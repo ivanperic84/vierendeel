@@ -209,6 +209,8 @@ export const BLATT_FELDER = [
   'rueckhaltAn', 'rueckhaltProzent', 'rueckhaltMax',
   // Echtzeit oder Knopf beim Stabwerk (6. Oktober) - eine Einstellung des Blattes.
   'stabwerkAuslosung',
+  // Theorie 2. Ordnung (18. November) - rechnet das ganze Blatt so oder nicht.
+  'theorie2',
   // Die Regel des Bestandesschutzes (6. Oktober) gilt dem Blatt.
   'bestandProzent', 'bestandBezug',
   // Lastfälle, Beiwerte und Rechenmodelle: sie beschreiben, WIE gerechnet

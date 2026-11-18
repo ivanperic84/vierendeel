@@ -774,7 +774,13 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
   const begrenzt = new Set();   // Anschlüsse mit Hilfsfall der Hakenschrauben
   faelle.forEach((lf) => {
     const summe = new Map();
-    anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
+    /*
+     * Theorie 2. Ordnung (18. November): die Kombination liest ihren Fall
+     * `TH2|…`; die Kraft der Hakenschraube steht als Faktor unter `linear`.
+     */
+    anteileFuer(lf, dat).flatMap((x) => (x.linear
+      ? [x, ...x.linear.filter((y) => String(y.lastfall).startsWith('Schraube|'))] : [x]))
+      .forEach(({ lastfall, faktor }) => {
       if (!faktor) return;
       /*
        * Begrenzter Anschluss (17. November, core.stabschraube.js): das Link

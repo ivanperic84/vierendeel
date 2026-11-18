@@ -662,7 +662,9 @@ function knickRechnen() {
  */
 function zweiteOrdnungNaeherung(g, k) {
   const bt = letzte?.urteil?.bauteile;
-  if (!bt) return null;
+  // Rechnen die Nachweise schon nach Theorie 2. Ordnung (Etappe B), wäre
+  // der Faktor doppelt.
+  if (!bt || g.h.zweite) return null;
   let best = null;
   (k.alle ?? []).forEach((x) => {
     if (!Number.isFinite(x.alpha) || x.alpha <= 1) return;

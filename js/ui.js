@@ -7196,6 +7196,7 @@ export function stabwerkLeiste(opt = {}) {
     ${zahl}
     <span class="notiz">${esc(text)}</span>
     ${reihe}
+    ${stand === 'gueltig' ? theorie2Zeile(e?.zweite) : ''}
     ${stand === 'gueltig' ? knickZeile(sw) : ''}
   </div>`;
 }
@@ -7224,6 +7225,21 @@ function zweiteZeile(z) {
     · ${esc(z.bez ?? '')}${z.gueltig ? '' : ' · α_cr < 3: Näherung nicht zulässig'}</span>`;
 }
 
+/* Theorie 2. Ordnung (18. November, Etappe B): was gerechnet wurde. */
+function theorie2Zeile(z) {
+  if (!z) return '';
+  const nk = z.nichtKonvergiert?.length
+    ? ` · ⚠ ${z.nichtKonvergiert.length} Kombination(en) nicht konvergiert (α_cr nahe 1?)` : '';
+  const oi = z.ohneImperfektion?.length
+    ? ` · ohne Schiefstellung: ${z.ohneImperfektion.join(', ')} (Gittermast / gespreizt)` : '';
+  return `<div class="sw-knick sw-th2">
+    <span class="sw-marke ok">2. Ordnung</span>
+    <span class="notiz">Nachweise nach Theorie 2. Ordnung · Schiefstellung φ = 1/${Math.round(1 / z.phi)}
+      (1/200 · α_h ${z.alphaH.toFixed(3)} · α_m, m = ${z.mMin === z.mMax ? z.mMin : `${z.mMin}-${z.mMax}`})
+      in Windrichtung · ${z.faelle} Kombinationen · ${z.ms} ms${nk}${oi}</span>
+  </div>`;
+}
+
 function knickZeile(sw) {
   const k = sw.knick;
   if (!k) {
@@ -7237,7 +7253,8 @@ function knickZeile(sw) {
   const a = k.alpha;
   const satz = !Number.isFinite(a) ? 'kein Druck - kein Knicken'
     : a >= 10 ? 'α_cr ≥ 10: Theorie 1. Ordnung genügt (EN 1993-1-1, 5.2.1)'
-    : 'α_cr < 10: Theorie 2. Ordnung nötig - hier näherungsweise mit 1/(1 − 1/α_cr)';
+    : sw.ergebnis?.zweite ? 'α_cr < 10: Theorie 2. Ordnung nötig - die Nachweise rechnen so (Optionen)'
+    : 'α_cr < 10: Theorie 2. Ordnung nötig - hier näherungsweise mit 1/(1 − 1/α_cr), genau mit dem Schalter in Optionen → Nachweise';
   const titel = (k.alle ?? []).slice(0, 5)
     .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(' · ');
   return `<div class="sw-knick${Number.isFinite(a) && a < 10 ? ' unter10' : ''}">
@@ -10959,7 +10976,26 @@ export function verfahrenHtml(werte) {
   return `${abschnitt('Rechnung')}
     <p class="notiz">Gerechnet wird mit dem <b>räumlichen Stabwerk</b>. Eine
       vereinfachte <b>Kontrollrechnung</b> zeigt vorläufige Werte, solange das
-      Stabwerk rechnet.</p>${auslosungHtml(werte, false)}`;
+      Stabwerk rechnet.</p>${auslosungHtml(werte, false)}${theorie2Html(werte)}`;
+}
+
+/*
+ * >>> THEORIE 2. ORDNUNG (18. November, Etappe B). <<< Auf Rückfrage
+ * «Schalter, dann Urteil»: eingeschaltet tragen die Schnittgrössen nach
+ * Theorie 2. Ordnung mit Schiefstellung alle Nachweise und das Urteil.
+ */
+function theorie2Html(werte) {
+  return `<div class="nw-wahl">
+      <label>
+        <input type="checkbox" data-theorie2${werte?.theorie2 === true ? ' checked' : ''}>
+        <span class="nw-titel">Theorie 2. Ordnung</span>
+      </label>
+      <p class="notiz">Jede Nachweis-Kombination am verformten System, mit
+        Schiefstellung der Masten nach EN 1993-1-1, 5.3.2 (φ₀ = 1/200 · α_h · α_m,
+        in Richtung des leitenden Winds). Die Nachweise und das Urteil lesen dann
+        diese Schnittgrössen; der Knicknachweis der Masten nach SIA 263 bleibt.
+        Fundament, Anker und Gebrauchstauglichkeit bleiben nach Theorie 1. Ordnung.</p>
+    </div>`;
 }
 
 /*

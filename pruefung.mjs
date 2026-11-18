@@ -42845,6 +42845,51 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
        h2.includes('mit 2. Ordnung (Näherung)') && h2.includes('<b>1.200</b> statt 0.720')
        && h2.includes('Näherung nicht zulässig'));
 }
+{
+  // Etappe B (18. November): Theorie 2. Ordnung im Löser gegen die
+  // geschlossene Lösung - Kragarm mit Normalkraft P und Querlast H am Kopf:
+  // M_Fuss = H · tan(kL) / k, Kopfweg = H (tan kL − kL) / (P k), k = √(P/EI).
+  const SW = await import(J('core.stabwerk.js'));
+  const E = 210000, Gm = 81000, A = 0.01, Iy = 8e-5, Iz = 2e-5, It = 1e-6, L = 6, n = 16, R = 'Rigid';
+  const EI = E * 1000 * Iz;
+  for (const anteil of [0.3, 0.6]) {
+    const P = anteil * Math.PI ** 2 * EI / (2 * L) ** 2; const H = 1;
+    const knoten = Array.from({ length: n + 1 }, (_, i) => ({ name: `K${i}`, x: 0, y: 0, z: (L * i) / n }));
+    const staebe = Array.from({ length: n }, (_, i) => ({ name: `S${i}`, von: `K${i}`, bis: `K${i + 1}`,
+      querschnitt: 'Q', art: 'stab', lcsZ: [1, 0, 0] }));
+    const dat = { material: { E, G: Gm }, querschnitte: [{ name: 'Q', A, Iy, Iz, It }], knoten, staebe,
+      auflager: [{ knoten: 'K0', ux: R, uy: R, uz: R, fix: R, fiy: R, fiz: R }],
+      lastfaelle: [{ key: 'V' }, { key: 'H' }],
+      lasten: { punkt: [{ knoten: `K${n}`, richtung: 'Z', wert: -P, lastfall: 'V' },
+                        { knoten: `K${n}`, richtung: 'Y', wert: H, lastfall: 'H' }], strecke: [] } };
+    const lsg = SW.loese(dat, { eigengewicht: false, schubweich: false });
+    const r = lsg.zweiteOrdnung('TH2', [{ lastfall: 'V', faktor: 1 }, { lastfall: 'H', faktor: 1 }]);
+    const k = Math.sqrt(P / EI);
+    const M = Math.abs(lsg.auflagerkraefte('TH2')[0].fix);
+    const w = lsg.u.get('TH2')[n * 6 + 1];
+    const Ms = H * Math.tan(k * L) / k; const ws = H * (Math.tan(k * L) - k * L) / (P * k);
+    wahr(`2. Ordnung Kragarm P/Pcr ${anteil}: M_Fuss und Kopfweg wie geschlossen (1e-4)`,
+         r.konvergiert && Math.abs(M / Ms - 1) < 1e-4 && Math.abs(w / ws - 1) < 1e-4,
+         `${M.toFixed(4)} / ${Ms.toFixed(4)}, ${(w * 1e3).toFixed(3)} / ${(ws * 1e3).toFixed(3)} mm`);
+    // Endkraft am Fuss mit K + K_G: M am Stabanfang = Auflagermoment.
+    const f = lsg.stabkraft('TH2').get('S0');
+    wahr(`2. Ordnung Kragarm P/Pcr ${anteil}: Stabendkraft mit K_G = Auflager`,
+         Math.abs(Math.hypot(f[4], f[5]) / Ms - 1) < 1e-3, `${Math.hypot(f[4], f[5]).toFixed(4)}`);
+  }
+  const T2 = await import(J('core.stabtheorie2.js'));
+  wahr('Schiefstellung: alpha_h 2/√h zwischen 2/3 und 1, alpha_m √(0.5(1+1/m))',
+       Math.abs(T2.alphaH(8.5) - 2 / Math.sqrt(8.5)) < 1e-12 && T2.alphaH(1) === 1 && T2.alphaH(100) === 2 / 3
+       && Math.abs(T2.alphaM(2) - Math.sqrt(0.75)) < 1e-12);
+  wahr('Schiefstellung in Richtung des grösseren Windanteils (Schnee leitend: Begleitwind)',
+       T2.imperfektionsRichtung({ beiwerte: { WindY: -0.65, Schnee: 1.3 } }).richtung === 'Y'
+       && T2.imperfektionsRichtung({ beiwerte: { WindY: -0.65 } }).vorzeichen === -1
+       && T2.imperfektionsRichtung({ beiwerte: { WindX: 1.3 } }).richtung === 'X'
+       && T2.imperfektionsRichtung({ beiwerte: { G: 1.3 } }) === null);
+  const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
+  const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
+  wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',
+       KQ.includes("'theorie2'") && SQ.indexOf('zweiteOrdnungEinsetzen(dat, lsg, faelle)') > SQ.indexOf('seilAusfall(dat, lsg, seile, alleFaelleS)'));
+}
 
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

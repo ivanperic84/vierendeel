@@ -1085,10 +1085,34 @@ export function loese(dat, opt = {}) {
   const tLoes = Date.now();
 
   /* --- Auswertung -------------------------------------------------------- */
+  /*
+   * Geometrische Steifigkeit je Lastfall (Theorie 2. Ordnung, 18. November):
+   * für die Fälle aus `zweiteOrdnung` stehen je Element K_G lokal und global
+   * da; ihre Endkräfte und Auflagerkräfte rechnen mit K + K_G(N), damit das
+   * Gleichgewicht am verformten System stimmt. Für alle übrigen Fälle leer.
+   */
+  const geoL = new Map();
+  const geoG = new Map();
+  const geoGlobalDazu = (fall, uv, r) => {
+    const gg = geoG.get(fall);
+    if (!gg) return;
+    elemente.forEach((e, k) => {
+      const g = gg[k];
+      if (!g) return;
+      for (let a = 0; a < 12; a += 1) {
+        let sm = 0;
+        for (let b = 0; b < 12; b += 1) {
+          sm += g[a * 12 + b] * uv[b < 6 ? e.i * 6 + b : e.j * 6 + (b - 6)];
+        }
+        r[a < 6 ? e.i * 6 + a : e.j * 6 + (a - 6)] += sm;
+      }
+    });
+  };
   const stabkraft = (fall) => {
     const uv = u.get(fall);
     const out = new Map();
-    elemente.forEach((e) => {
+    const gL = geoL.get(fall);
+    elemente.forEach((e, k) => {
       const ug = new Float64Array(12);
       for (let d = 0; d < 6; d += 1) { ug[d] = uv[e.i * 6 + d]; ug[d + 6] = uv[e.j * 6 + d]; }
       const ul = new Float64Array(12);
@@ -1103,6 +1127,7 @@ export function loese(dat, opt = {}) {
       for (let r = 0; r < 12; r += 1) {
         let s = 0;
         for (let c = 0; c < 12; c += 1) s += e.kL[r * 12 + c] * ul[c];
+        if (gL?.[k]) for (let c = 0; c < 12; c += 1) s += gL[k][r * 12 + c] * ul[c];
         f[r] = s;
       }
       out.set(e.s.name, f);
@@ -1128,6 +1153,7 @@ export function loese(dat, opt = {}) {
       }
     });
     federn.forEach((f) => { r[f[0]] += f[1] * uv[f[0]]; });
+    geoGlobalDazu(fall, uv, r);
     const pv = pVoll.get(fall);
     return [...dat.auflager.map((a) => {
       const kn = idx.get(a.knoten);
@@ -1152,7 +1178,8 @@ export function loese(dat, opt = {}) {
     const v = { knoten: ue.knoten, uebergang: true };
     FELD.forEach((f2) => { v[f2] = 0; });
     if (kn === undefined) return v;
-    elemente.forEach((e) => {
+    const gL = geoL.get(fall);
+    elemente.forEach((e, k) => {
       if (ohne.has(e.s.name) || (e.i !== kn && e.j !== kn)) return;
       const ug = new Float64Array(12);
       for (let d = 0; d < 6; d += 1) { ug[d] = uv[e.i * 6 + d]; ug[d + 6] = uv[e.j * 6 + d]; }
@@ -1169,6 +1196,7 @@ export function loese(dat, opt = {}) {
       for (let q = 0; q < 6; q += 1) {
         let sm = 0;
         for (let c = 0; c < 12; c += 1) sm += e.kL[(o + q) * 12 + c] * ul[c];
+        if (gL?.[k]) for (let c = 0; c < 12; c += 1) sm += gL[k][(o + q) * 12 + c] * ul[c];
         fl[q] = sm;
       }
       streckeAuf.forEach((x) => {
@@ -1204,6 +1232,7 @@ export function loese(dat, opt = {}) {
       }
     });
     federn.forEach((f) => { r[f[0]] += f[1] * uv[f[0]]; });
+    geoGlobalDazu(fall, uv, r);
     const pv = pVoll.get(fall);
     let gross = 0; let wo = '';
     let bezug = 0;
@@ -1343,8 +1372,142 @@ export function loese(dat, opt = {}) {
     return { alpha: alle[0], alle, form: formen[0] ?? null, formen, iterationen: it, zeit: Date.now() - t1 };
   };
 
+  /* =========================================================================
+   * >>> THEORIE 2. ORDNUNG JE KOMBINATION (18. November, Etappe B). <<<
+   * =======================================================================
+   *
+   * Auf den Vorschlag «A, dann B» und die Rückfragen: Schiefstellung nach
+   * EN 1993-1-1, 5.3.2 in Windrichtung, Schalter mit Urteil, Knicknachweis
+   * SIA 263 bleibt.
+   *
+   *     (K + K_G(N)) · u = P
+   *
+   * P ist die Kombination (Summe faktor · Lastfall) und die Zusatzlasten der
+   * Schiefstellung, N die Normalkraft aus u selbst. Gelöst mit der VORHANDENEN
+   * Zerlegung von K, ohne neue Faktorisierung:
+   *
+   *     du = K^-1 · (P - (K + K_G(N)) · u),   u += du,   N neu aus u
+   *
+   * Das zieht sich mit dem Verhältnis rund 1/alpha_cr je Schritt zusammen
+   * (alpha_cr 8 → ein Faktor 8 je Schritt). Unter alpha_cr 1 wächst es -
+   * dann kein Ergebnis (`konvergiert: false`).
+   *
+   * Das Ergebnis steht danach als eigener Lastfall `name` in `u`, mit
+   * seinem Lastvektor und K_G: `stabkraft` und `auflagerkraefte` rechnen ihn
+   * mit K + K_G - alles, was über `anteileFuer` liest, nimmt ihn ohne Zutun.
+   *
+   * `anteile`: [{lastfall, faktor}] wie in den Kombinationen.
+   * `zusatz`:  [{knoten, richtung, wert}] Knotenlasten (Schiefstellung).
+   * ========================================================================= */
+  const zweiteOrdnung = (name, anteile, zusatz = [], ko = {}) => {
+    const t1 = Date.now();
+    const P = new Float64Array(n);
+    const Pv = new Float64Array(nD);
+    const x = new Float64Array(n);
+    (anteile ?? []).forEach(({ lastfall, faktor }) => {
+      if (!faktor || !p.has(lastfall)) return;
+      const pf = p.get(lastfall); const pv = pVoll.get(lastfall);
+      for (let i = 0; i < n; i += 1) P[i] += faktor * pf[i];
+      for (let d = 0; d < nD; d += 1) Pv[d] += faktor * pv[d];
+      const uv = u.get(lastfall);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) x[gl[d]] += faktor * uv[d]; }
+    });
+    // Ein zweiter Aufruf mit demselben Namen ersetzt den ersten.
+    for (let i = streckeAuf.length - 1; i >= 0; i -= 1) {
+      if (streckeAuf[i].fall === name) streckeAuf.splice(i, 1);
+    }
+    // Die Festkräfte der Streckenlasten gehören mit ihrem Faktor zum Fall.
+    (anteile ?? []).forEach(({ lastfall, faktor }) => {
+      if (!faktor) return;
+      streckeAuf.filter((s2) => s2.fall === lastfall).forEach((s2) => {
+        streckeAuf.push({ e: s2.e, fall: name, fLokal: s2.fLokal.map((v) => v * faktor) });
+      });
+    });
+    (zusatz ?? []).forEach((l) => {
+      const kn = idx.get(l.knoten);
+      if (kn === undefined || !l.wert) return;
+      const dof = kn * 6 + RICHT[l.richtung];
+      Pv[dof] += l.wert;
+      if (gl[dof] >= 0) P[gl[dof]] += l.wert;
+    });
+    // Festkräfte je Element (ein Element kann mehrere Streckenlasten tragen).
+    const festVon = new Map();
+    streckeAuf.filter((s2) => s2.fall === name).forEach((s2) => {
+      festVon.set(s2.e, (festVon.get(s2.e) ?? 0) + s2.fLokal[6]);
+    });
+    const echt = elemente.map((e) => ((e.s.art || 'stab') === 'stab' ? qs.get(e.s.querschnitt) : null));
+    const voll = (xf) => {
+      const uv = new Float64Array(nD);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) uv[d] = xf[gl[d]]; }
+      return uv;
+    };
+    let lokal = [], global = [];
+    // K_G je echtem Stab aus seiner Normalkraft (Zug positiv, wie stabkraft()[6]).
+    const geoAus = (uv) => {
+      lokal = []; global = [];
+      elemente.forEach((e, k) => {
+        const w0 = echt[k];
+        if (!w0) { lokal.push(null); global.push(null); return; }
+        const ul = new Float64Array(12);
+        for (let b = 0; b < 4; b += 1) {
+          const basis = (b < 2 ? e.i * 6 : e.j * 6) + (b % 2) * 3;
+          for (let r = 0; r < 3; r += 1) {
+            let sm = 0;
+            for (let c = 0; c < 3; c += 1) sm += e.R[r][c] * uv[basis + c];
+            ul[b * 3 + r] = sm;
+          }
+        }
+        let N = 0;
+        for (let c = 0; c < 12; c += 1) N += e.kL[6 * 12 + c] * ul[c];
+        N -= festVon.get(e) ?? 0;
+        if (!Number.isFinite(N) || N === 0) { lokal.push(null); global.push(null); return; }
+        const ip = w0.A > 0 ? (w0.Iy + w0.Iz) / w0.A : 0;
+        const kl = kGeoLokal(N, e.L, ip);
+        lokal.push(kl); global.push(drehen(kl, e.R));
+      });
+    };
+    const itMax = ko.iterationen ?? 200;
+    /*
+     * Toleranz auf die Wegänderung je Schritt, bezogen auf den grössten Weg.
+     * Darunter liegt der Stellenverlust der Zerlegung (wie bei der
+     * Nachiteration: rund 1e-5 der grössten Grösse) - ein Schritt, der dort
+     * stehen bleibt, ist am Ziel, nicht davongelaufen.
+     */
+    const tol = ko.toleranz ?? 1e-5;
+    const boden = ko.boden ?? 1e-4;
+    let it = 0; let konvergiert = false; let schrittGross = Infinity; let altGross = Infinity;
+    let wachsend = 0;
+    for (it = 1; it <= itMax; it += 1) {
+      const uv = voll(x);
+      geoAus(uv);
+      geoG.set(name, global);
+      const r = new Float64Array(nD);
+      geoGlobalDazu(name, uv, r);
+      const kx = kMal(x);
+      const rest = new Float64Array(n);
+      for (let d = 0; d < nD; d += 1) { if (gl[d] >= 0) rest[gl[d]] = P[gl[d]] - kx[gl[d]] - r[d]; }
+      const dx = schritt(rest);
+      let gx = 0, gd = 0;
+      for (let i = 0; i < n; i += 1) { x[i] += dx[i]; gx = Math.max(gx, Math.abs(x[i])); gd = Math.max(gd, Math.abs(dx[i])); }
+      schrittGross = gx > 0 ? gd / gx : 0;
+      ko.protokoll?.push(schrittGross);
+      if (!Number.isFinite(schrittGross)) break;
+      if (schrittGross >= altGross) wachsend += 1; else wachsend = 0;
+      if (wachsend >= 3 && it > 5) { konvergiert = schrittGross <= boden; break; }
+      altGross = schrittGross;
+      if (schrittGross <= tol) { konvergiert = true; break; }
+    }
+    const uv = voll(x);
+    geoAus(uv);
+    geoG.set(name, global); geoL.set(name, lokal);
+    u.set(name, uv);
+    pVoll.set(name, Pv);
+    p.set(name, P);
+    return { konvergiert, iterationen: it, schritt: schrittGross, zeit: Date.now() - t1 };
+  };
+
   return { n, bw, nK, knotenIdx: idx, faelle, u, stabkraft, auflagerkraefte,
-           restkraft, restNachIteration: restGross, knicken,
+           restkraft, restNachIteration: restGross, knicken, zweiteOrdnung,
            eigengewicht, eigenLasten: eigenLasten.length, schubweich,
            lastVoll: pVoll, elemente,
            zeit: { bau: tBau - t0, faktor: tFak - tBau, loesen: tLoes - tFak,
