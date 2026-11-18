@@ -18,6 +18,7 @@ import { mastenVon, mastName } from './core.constants.js';
 import {
   ZL_AUS_MODUS, ZL_PUNKTE, ZL_EBENEN, ZL_NAME, ZL_REAKTION, zlEinheit, zustandGeometrie, zustandFall,
   zustandIntern, zustandReihe, zustandSicht, zustandDarstellbar, zustandEbeneAuto, zustandBlick, zustandWo,
+  zustandAussen,
 } from './core.zustandslinien.js';
 
 const MERKER = 'tragjoch-zustandslinie';
@@ -82,8 +83,12 @@ export function zustandSetzen(app, g) {
   const roh = g?.h?.roh;
   if (!zl.an || !groesse || !roh) { ansicht.zustand = null; return; }
   const merk = `${g.h.kennung}`;
-  if (cache?.merk !== merk) cache = { merk, geo: zustandGeometrie(roh.dat), faelle: new Map() };
+  if (cache?.merk !== merk) {
+    const geo0 = zustandGeometrie(roh.dat);
+    cache = { merk, geo: geo0, aussen: zustandAussen(geo0), faelle: new Map() };
+  }
   const geo = cache.geo;
+  const aussen = cache.aussen;
   const spannung = groesse === 'sig' || groesse === 'eta';
   const faelle = faelleFuer(app, g, roh, spannung);
   if (!faelle.length) { ansicht.zustand = null; return; }
@@ -117,7 +122,7 @@ export function zustandSetzen(app, g) {
   const xs = geo.flatMap((s) => [s.a[0], s.b[0]]), zs = geo.flatMap((s) => [s.a[2], s.b[2]]);
   const groesseM = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
   const skal = vmax > 1e-9 ? 0.08 * groesseM / vmax : 0;
-  const linien = reihen.map(({ s, r }) => ({
+  const linien = reihen.map(({ s, r, i }) => ({
     name: s.n,
     pkt: r.map((x, p) => {
       const t = p / (ZL_PUNKTE - 1);
@@ -132,10 +137,15 @@ export function zustandSetzen(app, g) {
        * Vorzeichen sagen Farbe (rot +, blau −) und Anschrift.
        */
       let o = d.map((c) => c * v * skal);
-      const gurt = /^gurt/.test(s.r) ? /(^|_)(OG|UG)[LR]_/.exec(s.n)?.[2] : null;
-      if (gurt && Math.abs(d[2]) > 0.3 && (o[2] > 0) !== (gurt === 'OG') && Math.abs(o[2]) > 1e-12) {
-        o = o.map((c) => -c);
-      }
+      // Seit dem 18. November auch die Bindebleche nach aussen (`zustandAussen`).
+      const au = aussen[i];
+      const proj = au ? d[0] * au[0] + d[1] * au[1] + d[2] * au[2] : 0;
+      const oa = au ? o[0] * au[0] + o[1] * au[1] + o[2] * au[2] : 0;
+      if (au && Math.abs(proj) > 0.3 && oa < 0 && Math.abs(oa) > 1e-12) o = o.map((c) => -c);
+      // Bindebleche IMMER nach aussen, in jeder Ebene: ihr Diagramm liegt sonst
+      // oft in Jochachse (Ebene «quer») und überdeckt das des Nachbarblechs.
+      // Der Betrag zeigt vom Tragwerk weg, das Vorzeichen sagen Farbe und Anschrift.
+      else if (au && s.r === 'blech') o = au.map((c) => c * Math.abs(v) * skal);
       return { p: P, o, v, leer: x.v === null || !x.d };
     }),
   }));

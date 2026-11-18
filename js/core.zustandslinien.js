@@ -63,6 +63,45 @@ export function zustandGeometrie(dat) {
 }
 
 /**
+ * >>> «NACH AUSSEN» JE STAB (18. November). <<< Weisung: «die
+ * diagrammdarstellung linie bei den bindeblechen sinngemäss jeweils gegen
+ * aussen darstellen wie bei den gurten, so dass diese besser lesbar sind.»
+ * Je Stab die Richtung vom Tragwerk weg (Einheitsvektor) oder null:
+ *   - Gurte: Obergurt nach oben, Untergurt nach unten (17. November);
+ *   - liegende Bleche (Stab quer zur Höhe): nach oben bzw. unten, je nachdem,
+ *     ob sie über oder unter der Mitte der Gurte ihres Tragwerks liegen;
+ *   - stehende Bleche (Stab lotrecht): zur Seite, auf der sie stehen (y).
+ * Die Mitte je Tragwerk aus seinen Gurtstäben (Präfix T1_, MT1_ …).
+ * Das Diagramm zeigt dann mit dem Betrag nach aussen, sofern es in einer
+ * Ebene steht, die diese Richtung enthält; das Vorzeichen sagen Farbe und
+ * Anschrift.
+ */
+export function zustandAussen(geo) {
+  const praefix = (n) => /^((?:MT|[TA])\d+_)?/.exec(String(n))[1] ?? '';
+  const mitte = new Map();
+  geo.forEach((s) => {
+    if (!/^gurt/.test(s.r ?? '')) return;
+    const k = praefix(s.n);
+    const m = mitte.get(k) ?? { y: 0, z: 0, n: 0 };
+    m.y += (s.a[1] + s.b[1]) / 2; m.z += (s.a[2] + s.b[2]) / 2; m.n += 1;
+    mitte.set(k, m);
+  });
+  return geo.map((s) => {
+    const gurt = /^gurt/.test(s.r ?? '') ? /(^|_)(OG|UG)[LR]_/.exec(s.n)?.[2] : null;
+    if (gurt) return [0, 0, gurt === 'OG' ? 1 : -1];
+    if (s.r !== 'blech') return null;
+    const m = mitte.get(praefix(s.n));
+    if (!m?.n) return null;
+    const my = (s.a[1] + s.b[1]) / 2 - m.y / m.n, mz = (s.a[2] + s.b[2]) / 2 - m.z / m.n;
+    const d = [s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]];
+    const L = Math.hypot(...d) || 1;
+    // Stehend: Stab vorwiegend lotrecht -> zur Seite; liegend -> nach oben / unten.
+    if (Math.abs(d[2]) / L > 0.7) return Math.abs(my) > 1e-3 ? [0, Math.sign(my), 0] : null;
+    return Math.abs(mz) > 1e-3 ? [0, 0, Math.sign(mz)] : null;
+  });
+}
+
+/**
  * Die Werte eines Lastfalls: je Stab und Stelle die sechs örtlichen
  * Schnittgrössen [N, V_y, V_z, T, M_y, M_z], auf Wunsch σ_v, dazu die
  * Auflagerreaktionen [R_x, R_y, R_z, M_x, M_y, M_z] je Lagerknoten.

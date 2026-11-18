@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Zustandslinie: die Diagramme der Bindebleche zeigen nach aussen (liegende nach oben bzw. unten, stehende zur Seite), damit sie sich nicht überdecken.' },
       { text: 'Lastpfeile im Modell folgen dem gewählten Lastfall jetzt auch am Tragausleger und an den Nachbartragwerken.' },
       { text: 'Die leichte Fassung «Viewer» entfällt (nie benutzt); an ihre Stelle tritt die Viewer-Ausleitung. Die Schulung bleibt.' },
       { text: 'Neu: Export → «Viewer (HTML: Modell, Bericht, Massen)» - eine Datei zum Weitergeben, die das Modell mit allen Lastfällen, den Nachweisbericht und den Massenauszug zeigt und nicht rechnet. Im Bericht führt ein Klick auf ein Bild zur selben Ansicht im Modell.' },

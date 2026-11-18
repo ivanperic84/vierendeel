@@ -42579,8 +42579,9 @@ titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte 
   wahr('Ein Sprungknopf «Profile, Bleche, Stückliste» öffnet alle drei (auch die ohne eigenes Feld zugeklappt)',
        UQ289.includes("titel: 'Profile, Bleche, Stückliste', zusammen: true") && UQ289.includes('data-sprung-mit')
        && UQ289.includes('zusatz && g.zugeklappt && !EINFACH'));
-  wahr('Gurte nach aussen: 3D und Bericht nach derselben Regel',
-       ZQ.includes("(o[2] > 0) !== (gurt === 'OG')") && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
+  // Seit dem 18. November liest das 3D die Richtung aus `zustandAussen` (Gurte und Bleche).
+  wahr('Gurte nach aussen: 3D (zustandAussen) und Bericht (Gurtregel)',
+       ZQ.includes('const au = aussen[i];') && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
 }
 
 // ===========================================================================
@@ -42718,6 +42719,28 @@ titel('293  Viewer-Ausleitung: Szene, Lastfälle, Bericht mit Ansichten, Massena
        SB.includes('data-ansicht=') && SB.includes("['massen', massen(d)]") && SB.includes('Tragwerksteile und Massenauszug'));
   wahr('Exportmenü der Vollversion: «Viewer (HTML: Modell, Bericht, Massen)»',
        readFileSync(join(HIER, 'js', 'app.js'), 'utf8').includes('viewerAusleiten(app)'));
+}
+
+titel('294  Zustandslinie: Bindebleche nach aussen wie die Gurte');
+{
+  // 18. November: «die diagrammdarstellung linie bei den bindeblechen sinngemäss
+  // jeweils gegen aussen darstellen wie bei den gurten, so dass diese besser lesbar sind.»
+  const ZL = await import(J('core.zustandslinien.js'));
+  const st = (n, r, a, b) => ({ n, r, a, b });
+  const geo = [
+    st('OGL_S0', 'gurt', [0, -0.17, 0.25], [1, -0.17, 0.25]), st('OGR_S0', 'gurt', [0, 0.17, 0.25], [1, 0.17, 0.25]),
+    st('UGL_S0', 'gurt', [0, -0.17, -0.25], [1, -0.17, -0.25]), st('UGR_S0', 'gurt', [0, 0.17, -0.25], [1, 0.17, -0.25]),
+    st('BV_L_0_2', 'blech', [0.5, -0.17, 0.2], [0.5, -0.17, -0.2]), st('BV_R_0_2', 'blech', [0.5, 0.17, 0.2], [0.5, 0.17, -0.2]),
+    st('BH_O_3', 'blech', [0.5, -0.15, 0.25], [0.5, 0.15, 0.25]), st('BH_U_3', 'blech', [0.5, -0.15, -0.25], [0.5, 0.15, -0.25]),
+    st('MAST_M1_S1', 'mast', [0, 0, -7], [0, 0, 0]),
+  ];
+  const au = ZL.zustandAussen(geo).map((v) => JSON.stringify(v));
+  wahr('Gurte oben/unten, stehende Bleche zu ihrer Seite, liegende nach oben/unten, Mast ohne',
+       au.join(' ') === '[0,0,1] [0,0,1] [0,0,-1] [0,0,-1] [0,-1,0] [0,1,0] [0,0,1] [0,0,-1] null', au.join(' '));
+  const ZQ = readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8');
+  wahr('3D: die Linie liest die Richtung je Stab (zustandAussen) statt nur der Gurtregel',
+       ZQ.includes('zustandAussen(geo0)') && ZQ.includes('const au = aussen[i];')
+       && ZQ.includes("else if (au && s.r === 'blech') o = au.map((c) => c * Math.abs(v) * skal);"));
 }
 
 console.log('\n' + '='.repeat(104));
