@@ -2952,7 +2952,9 @@ export class Modellansicht {
       marken.push({ x: B[0] + 6 * s, y: B[1], text: r.text, farbe: t.on2 ?? '#c8c9cf', v: Infinity });
     });
     c.restore();
-    if (this.sparsam) return;
+    // Die Werte der Linie folgen dem Schalter «Werte anschreiben» (19. November,
+    // «hier werden die werte geschrieben obwohl die einstellung auf aus ist»).
+    if (this.sparsam || !this.werteAnschreiben) return;
     // Anschrift ohne Überlappung: Raster am Bildschirm, die grössten zuerst.
     c.save();
     c.font = this._wertFont();
