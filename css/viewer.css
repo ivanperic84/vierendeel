@@ -69,6 +69,25 @@ button, select, input { font: inherit; color: inherit; }
 .v-bauteile td.z { text-align: right; font-variant-numeric: tabular-nums; }
 .v-bauteile h3 { margin: 6px 0 8px; }
 .v-bauteile .notiz { color: var(--dim); max-width: 760px; }
+/* Grundwerte, einzelne Ausnutzungen, Fundament (19. November) */
+.v-kennwerte { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px 16px; background: var(--s1);
+  border-bottom: 1px solid var(--ol); font-size: 11px; color: var(--dim); }
+.v-kennwerte span { border: 1px solid var(--ol); border-radius: 999px; padding: 1px 8px; }
+.v-notiz { color: var(--dim); font-size: 11px; margin-top: 3px; }
+.v-aus { display: flex; flex-direction: column; gap: 3px; }
+.v-aus-z { position: relative; display: flex; justify-content: space-between; gap: 6px; text-align: left;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: 5px; padding: 3px 6px 6px; font-size: 11px; cursor: default; }
+.v-aus-z[data-fund] { cursor: pointer; }
+.v-aus-z b { font-variant-numeric: tabular-nums; }
+.v-aus-z i { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 0 0 0 5px; background: var(--ok); max-width: 100%; }
+.v-aus-z.warn i { background: var(--warn); } .v-aus-z.fail i { background: var(--fail); }
+.v-aus-z.fail b { color: var(--fail); }
+.v-fund { background: var(--s1); border: 1px solid var(--ol); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; max-width: 900px; }
+.v-fund-kopf { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.v-fund p { margin: 6px 0; }
+.v-fund table { margin-bottom: 0; min-width: 100%; }
+.v-dim { color: var(--dim); }
+.v-bauteile tr.v-grau td { color: var(--dim); }
 .v-fuss { padding: 4px 16px; font-size: 11px; color: var(--dim); background: var(--s1); border-top: 1px solid var(--ol); }
 /* Tablet und schmale Fenster: Leiste oben statt links. */
 @media (max-width: 760px) {

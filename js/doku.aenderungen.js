@@ -18,6 +18,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Viewer: Liniendiagramm (auch in der Explosion), Ausnutzung je Bauteil in der Leiste, Lastfälle nur der massgebende je Einwirkungsrichtung, Zusammenfassung des Fundamentnachweises, Hauptkennwerte (EK, Trasse, Reduktion) im Kopf, Lasten voreingestellt aus, Farbbalken der Ausnutzung bis 1.0.' },
+      { text: 'Nachweisbericht: das 3D-Bild auf dem Deckblatt wird nicht mehr abgeschnitten (festes Format, an der Szene eingepasst).' },
       { text: 'Neu: Schieber «Auffällig» bei den Resultaten im 3D - was unter der Schwelle liegt (η bzw. Anteil am grössten Wert), tritt stark durchsichtig zurück.' },
       { text: 'Explosionsdarstellung: Zustandslinien werden mit den Teilen auseinandergezogen, die Abstände sind doppelt so gross, die Anbauteile stehen in der Explosion nicht.' },
       { text: 'Werkzeugleiste im 3D ohne «Teil» und «η w»; Erklärtexte unter den Feldern sind bei neuen Querprofilen voreingestellt aus.' },

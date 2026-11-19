@@ -17,6 +17,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
+// Seit dem 19. November steht der Aufbau der Zustandslinie in core.zustandwerte.js.
+const ZWQ = readFileSync(join(HIER, 'js', 'core.zustandwerte.js'), 'utf8');
 const NL = String.fromCharCode(10);
 
 // Als URL, nicht als Pfad: unter Windows ist "C:\...\js\x.js" für import()
@@ -42595,7 +42597,7 @@ titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte 
        && UQ289.includes('zusatz && g.zugeklappt && !EINFACH'));
   // Seit dem 18. November liest das 3D die Richtung aus `zustandAussen` (Gurte und Bleche).
   wahr('Gurte nach aussen: 3D (zustandAussen) und Bericht (Gurtregel)',
-       ZQ.includes('const au = aussen[i];') && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
+       ZWQ.includes('const au = aussen?.[i];') && ZQ.includes('zustandBauen(') && BQ.includes("((d[1] * v > 0) !== (gurt === 'OG'))"));
 }
 
 // ===========================================================================
@@ -42753,8 +42755,8 @@ titel('294  Zustandslinie: Bindebleche nach aussen wie die Gurte');
        au.join(' ') === '[0,0,1] [0,0,1] [0,0,-1] [0,0,-1] [0,-1,0] [0,1,0] [0,0,1] [0,0,-1] null', au.join(' '));
   const ZQ = readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8');
   wahr('3D: die Linie liest die Richtung je Stab (zustandAussen) statt nur der Gurtregel',
-       ZQ.includes('zustandAussen(geo0)') && ZQ.includes('const au = aussen[i];')
-       && ZQ.includes("else if (au && s.r === 'blech') o = au.map((c) => c * Math.abs(v) * skal);"));
+       ZQ.includes('zustandAussen(geo0)') && ZWQ.includes('const au = aussen?.[i];')
+       && ZWQ.includes("else if (au && s.r === 'blech') off = au.map((c) => c * Math.abs(v) * skal);"));
 }
 
 titel('295  Sprungleiste Anbauteile, Grundwerte statt Lastfallfeld, Einzellasten in der Liste');
@@ -42970,6 +42972,42 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',
        KQ.includes("'theorie2'") && SQ.indexOf('zweiteOrdnungEinsetzen(dat, lsg, faelle)') > SQ.indexOf('seilAusfall(dat, lsg, seile, alleFaelleS)'));
+}
+
+titel('297  Viewer: massgebende Fälle je Richtung, Liniendiagramm, Fundament, Kennwerte, Skala 1.0, Titelbild');
+{
+  const AV = await import(J('app.viewer.js'));
+  const r = (l) => AV.viewerRichtung(l)?.key ?? null;
+  wahr('Richtung: Wind x quer, Wind y längs, Schnee nach Begleitwind, Havarie, charakteristisch keiner',
+       r({ art: 'tragsicherheit', leit: 'WindX' }) === 'quer' && r({ art: 'tragsicherheit', leit: 'WindY' }) === 'laengs'
+       && r({ art: 'tragsicherheit', leit: 'Schnee', beiwerte: { WindX: 0.65, WindY: 0 } }) === 'schneeQuer'
+       && r({ art: 'tragsicherheit', leit: 'Schnee', beiwerte: { WindY: -0.65 } }) === 'schneeLaengs'
+       && r({ art: 'aussergewoehnlich' }) === 'havarie' && r({ art: 'charakteristisch', leit: 'WindX' }) === null);
+  const w = [0.3, 0.5, 0.4, 0.2].map((e, i) => ({ key: `k${i}`, bez: `F${i}`, tab: [[e]], idx: [] }));
+  const f = [{ art: 'tragsicherheit', leit: 'WindY' }, { art: 'tragsicherheit', leit: 'WindY' },
+             { art: 'tragsicherheit', leit: 'WindX' }, { art: 'charakteristisch', leit: 'WindX' }];
+  const m = AV.massgebendeFaelle(w, f);
+  wahr('Je Richtung der Fall mit dem grössten η (quer vor längs), charakteristisch fällt weg',
+       m.map((x) => `${x.gruppeKey}:${x.key}`).join(' ') === 'quer:k2 laengs:k1', m.map((x) => x.key).join(' '));
+  const kw = AV.kennwerteDaten({ windKlasse: '0.9', flSpannweite: 40, trasseRadius: 600, windReduktion: true, schneeAktiv: false });
+  wahr('Hauptkennwerte: EK, Spannweite, Radius, Reduktion, Schnee',
+       kw.join(' | ') === 'EK1 | Spannweite L_FL 40 m | Radius 600 m | Wind × 0.74 | ohne Schnee', kw.join(' | '));
+  // Die Linie im Viewer baut dieselbe Funktion wie die App.
+  const ZW = await import(J('core.zustandwerte.js'));
+  const st = (n, r0, a, b) => ({ n, r: r0, a, b, ex: [1, 0, 0], ey: [0, 1, 0], ez: [0, 0, 1], dSig: [0, 0, 1] });
+  const geo = [st('OGL_S0', 'gurt', [0, 0, 0.2], [1, 0, 0.2]), st('UGL_S0', 'gurt', [0, 0, -0.2], [1, 0, -0.2])];
+  const q = (v) => Array.from({ length: 11 }, () => [0, 0, 0, 0, v, 0]);
+  const z = ZW.zustandBauen({ geo, aussen: ZW.zustandAussen(geo), faelle: [{ key: 'a', bez: 'A', w: [q(2), q(-3)], sig: null }], groesse: 'M', eb: 'auto' });
+  wahr('zustandBauen: zwei Linien, massgebend −3 am Untergurt, Obergurt nach oben, Untergurt nach unten',
+       z?.linien.length === 2 && Math.abs(z.mg.v + 3) < 1e-9 && z.linien[0].pkt[5].o[2] > 0 && z.linien[1].pkt[5].o[2] < 0);
+  const VQ = readFileSync(join(HIER, 'js', 'viewer.js'), 'utf8');
+  wahr('Viewer: Liniendiagramm-Schalter, Lasten aus, Skala η bis 1.0, Fundament-Zusammenfassung, Ausnutzung je Bauteil',
+       VQ.includes('id="v-linie"') && VQ.includes('ansicht.ebenen.last = false') && VQ.includes('const bis = s.fest ? 1 : 1.25')
+       && VQ.includes('id="v-fund"') && VQ.includes('id="v-aus"') && VQ.includes("from './core.zustandwerte.js'"));
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Momentaufnahme: festes Format 2:1, an den projizierten Ecken nachgeführt, Schrift fest',
+       RQ.includes('opt.breite ?? 900') && RQ.includes('const pk = ecken.map(proj)') && RQ.includes('this._pxFest = dpr'));
+  wahr('core.zustandwerte.js kommt ohne Importe aus (Viewer bündelt keinen Löser)', !/^import /m.test(ZWQ));
 }
 
 console.log('\n' + '='.repeat(104));

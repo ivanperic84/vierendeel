@@ -18,7 +18,7 @@ import { mastenVon, mastName } from './core.constants.js';
 import {
   ZL_AUS_MODUS, ZL_PUNKTE, ZL_EBENEN, ZL_NAME, ZL_REAKTION, zlEinheit, zustandGeometrie, zustandFall,
   zustandIntern, zustandReihe, zustandSicht, zustandDarstellbar, zustandEbeneAuto, zustandBlick, zustandWo,
-  zustandAussen,
+  zustandAussen, zustandBauen,
 } from './core.zustandslinien.js';
 
 const MERKER = 'tragjoch-zustandslinie';
@@ -44,7 +44,7 @@ let cache = null;          // { merk, geo, faelle: Map(key -> zustandFall) }
 export const zlGroesse = (modus) => ZL_AUS_MODUS[modus] ?? null;
 
 /** Der Versatz Modell -> Szene, wie bei der verformten Figur (app.js `verformtSetzen`). */
-function versatz(app, roh) {
+export function versatz(app, roh) {
   const w = app.werte;
   const masten = mastenVon(w);
   const fuss = roh.dat.knoten.map((k) => ({ k, m: /(?:^|_)MAST_(.+)_F$/.exec(k.name) }))
@@ -93,62 +93,12 @@ export function zustandSetzen(app, g) {
   const faelle = faelleFuer(app, g, roh, spannung);
   if (!faelle.length) { ansicht.zustand = null; return; }
   const fyd = roh.auswertung?.fyd ?? 1;
-  const ebAuto = zustandEbeneAuto(groesse, faelle, geo, zl.teile, zl.ax);
-  const eb = (zl.eb !== 'auto' && ZL_EBENEN[zl.ax].includes(zl.eb)) ? zl.eb : ebAuto;
-  const k = zustandIntern(groesse, eb, zl.ax);
   const { dx, dz } = versatz(app, roh);
-  const huelle = faelle.length > 1;
-  // Bei σ_v / η zählt nur der Grösstwert (immer positiv).
-  const arten = huelle ? (spannung ? ['max'] : ['max', 'min']) : ['eins'];
-  const zFuss = Math.min(...geo.map((s) => Math.min(s.a[2], s.b[2])));
-  // Werte sammeln, Grösstwerte suchen.
-  const reihen = [];
-  let vmax = 0, gmax = null, gmin = null;
-  geo.forEach((s, i) => {
-    if (!zustandSicht(s, zl.teile)) return;
-    arten.forEach((art) => {
-      const r = zustandReihe(k, faelle, i, s, art, fyd);
-      if (!r.some((x) => x.d && x.v !== null)) return;
-      reihen.push({ s, i, r });
-      r.forEach((x, p) => {
-        if (!x.d || x.v === null) return;
-        vmax = Math.max(vmax, Math.abs(x.v));
-        if (!gmax || x.v > gmax.v) gmax = { ...x, s, p };
-        if (!gmin || x.v < gmin.v) gmin = { ...x, s, p };
-      });
-    });
-  });
-  // Massstab: der grösste Betrag wird 8 % der Modellgrösse.
-  const xs = geo.flatMap((s) => [s.a[0], s.b[0]]), zs = geo.flatMap((s) => [s.a[2], s.b[2]]);
-  const groesseM = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
-  const skal = vmax > 1e-9 ? 0.08 * groesseM / vmax : 0;
-  const linien = reihen.map(({ s, r, i }) => ({
-    name: s.n,
-    pkt: r.map((x, p) => {
-      const t = p / (ZL_PUNKTE - 1);
-      const P = [s.a[0] + (s.b[0] - s.a[0]) * t + dx, s.a[1] + (s.b[1] - s.a[1]) * t, s.a[2] + (s.b[2] - s.a[2]) * t + dz];
-      const v = x.v ?? 0, d = x.d ?? s.ez;
-      /*
-       * >>> OBERGURT NACH OBEN, UNTERGURT NACH UNTEN (17. November). <<<
-       * «die diagramm auswertung bei den ober und untergurten nach oben und
-       * unten darstellen, so dass sich diese nicht überdecken» - auf
-       * Rückfrage «Betrag nach aussen»: steht das Diagramm eines Gurts in
-       * einer lotrechten Ebene, zeigt es mit dem Betrag vom Joch weg; das
-       * Vorzeichen sagen Farbe (rot +, blau −) und Anschrift.
-       */
-      let o = d.map((c) => c * v * skal);
-      // Seit dem 18. November auch die Bindebleche nach aussen (`zustandAussen`).
-      const au = aussen[i];
-      const proj = au ? d[0] * au[0] + d[1] * au[1] + d[2] * au[2] : 0;
-      const oa = au ? o[0] * au[0] + o[1] * au[1] + o[2] * au[2] : 0;
-      if (au && Math.abs(proj) > 0.3 && oa < 0 && Math.abs(oa) > 1e-12) o = o.map((c) => -c);
-      // Bindebleche IMMER nach aussen, in jeder Ebene: ihr Diagramm liegt sonst
-      // oft in Jochachse (Ebene «quer») und überdeckt das des Nachbarblechs.
-      // Der Betrag zeigt vom Tragwerk weg, das Vorzeichen sagen Farbe und Anschrift.
-      else if (au && s.r === 'blech') o = au.map((c) => c * Math.abs(v) * skal);
-      return { p: P, o, v, leer: x.v === null || !x.d };
-    }),
-  }));
+  // Der Aufbau der Linien steht seit dem 19. November in core.zustandwerte.js
+  // (zustandBauen) - derselbe Weg wie in der Viewer-Datei.
+  const z0 = zustandBauen({ geo, aussen, faelle, groesse, eb: zl.eb, teile: zl.teile, ax: zl.ax, dx, dz, fyd });
+  if (!z0) { ansicht.zustand = null; return; }
+  const { k, huelle, groesseM } = z0;
   // Reaktionen zum Diagramm.
   let reaktionen = [];
   let reakText = '';
@@ -173,17 +123,7 @@ export function zustandSetzen(app, g) {
     const nameVon = (x) => (/MAST_([^_]+)_F$/.exec(x)?.[1] ?? x);
     reakText = werte.length ? `Lager ${kurz}: ${werte.map((w) => `${nameVon(w.x)} ${huelle ? `${fmtR(w.lo)} / ${fmtR(w.hi)}` : fmtR(w.v)}`).join(' · ')} ${einh}` : '';
   }
-  const mg = gmax && gmin ? (Math.abs(gmin.v) > Math.abs(gmax.v) ? gmin : gmax) : gmax;
-  const gg = mg === gmin ? gmax : gmin;
-  ansicht.zustand = {
-    k, spannung, fyd, linien, reaktionen,
-    name: ZL_NAME[k], einheit: zlEinheit(k), eb, ebAuto: zl.eb === 'auto',
-    vmax,
-    mg: mg ? { v: mg.v, wo: zustandWo(mg.s, mg.p, zFuss), f: mg.f } : null,
-    // Bei σ_v und η gibt es keinen Gegenwert (immer positiv).
-    gg: !spannung && gg && Math.abs(gg.v) > 1e-3 ? { v: gg.v, wo: zustandWo(gg.s, gg.p, zFuss) } : null,
-    reakText, huelle,
-  };
+  ansicht.zustand = { ...z0, reaktionen, reakText };
 }
 
 /** Die Ansicht dreht so, dass die Linie flach vor einem liegt (leicht schräg). */

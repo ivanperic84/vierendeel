@@ -4618,6 +4618,9 @@ export class Modellansicht {
    * sonst schrumpfen sie auf hochauflösenden Bildschirmen auf die Hälfte.
    */
   _px() {
+    // Während einer Momentaufnahme fest (19. November): das Bild hat dort ein
+    // eigenes Format, die Schrift soll so gross bleiben wie im Fenster.
+    if (this._pxFest) return this._pxFest;
     const b = this.cv.getBoundingClientRect().width || this.cv.width;
     return Math.max(1, this.cv.width / b);
   }
@@ -4702,26 +4705,62 @@ export class Modellansicht {
    * @param {string} key  Schluessel aus ANSICHTEN
    * @returns {string|null} PNG als Daten-URL
    */
-  momentaufnahme(key = 'iso') {
+  momentaufnahme(key = 'iso', opt = {}) {
     const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
     const alt = { kamera: structuredClone(this.kamera), fokus: this.fokus,
-                  station: this.station, ansichtKey: this.ansichtKey };
+                  station: this.station, ansichtKey: this.ansichtKey,
+                  w: this.cv.width, h: this.cv.height };
     let url = null;
     try {
+      /*
+       * >>> DAS BILD NICHT ABSCHNEIDEN (19. November). <<< Gemeldet: «beim
+       * bericht ist das modellbild abgeschnitten (auch in der vollversion der
+       * fall)». Zwei Ursachen: das Bild übernahm das Seitenverhältnis des
+       * Modellfensters (schmal oder hochkant), und `_noetigerAbstand` schätzt
+       * den Abstand wie bei einer Parallelprojektion - in der Perspektive
+       * ragen die nahen Ecken darüber hinaus. Jetzt ein festes Format
+       * (Vorgabe 2:1) und ein Nachführen an den PROJIZIERTEN Ecken der Szene
+       * (mit Rand für die Anschriften über den Masten), mittig gesetzt.
+       */
+      const dpr = Math.min(2, Math.max(1, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1));
+      const bw = Math.round((opt.breite ?? 900) * dpr), bh = Math.round((opt.hoehe ?? 450) * dpr);
+      this._pxFest = dpr;
+      if (this.cv.width !== bw || this.cv.height !== bh) { this.cv.width = bw; this.cv.height = bh; }
       const g = this.szene?.grenzen;
       this.kamera.az = a.az; this.kamera.el = a.el;
       this.fokus = null; this.station = null; this.ansichtKey = key;
       if (g) {
-        this.kamera.ziel = [(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2];
+        this.kamera.ziel = [(g.xMin + g.xMax) / 2, (g.yMin + g.yMax) / 2, (g.zMin + g.zMax) / 2];
         this.kamera.pan = [0, 0, 0];
         const d = this._noetigerAbstand(0.9);
         if (d) this.kamera.dist = d;
+        const rand = 0.3; // m, für Titel und Masse
+        const ecken = [];
+        [g.xMin - rand, g.xMax + rand].forEach((x) => [g.yMin - rand, g.yMax + rand].forEach((y) =>
+          [g.zMin - rand, g.zMax + 2 * rand].forEach((z) => ecken.push([x, y, z]))));
+        for (let i = 0; i < 6; i += 1) {
+          const proj = this._projektor();
+          const pk = ecken.map(proj).filter(Boolean);
+          if (pk.length < ecken.length) { this.kamera.dist *= 1.5; continue; }
+          const x0 = Math.min(...pk.map((q) => q[0])), x1 = Math.max(...pk.map((q) => q[0]));
+          const y0 = Math.min(...pk.map((q) => q[1])), y1 = Math.max(...pk.map((q) => q[1]));
+          const s = Math.max((x1 - x0) / (bw * 0.92), (y1 - y0) / (bh * 0.92));
+          const { rechts, hoch } = this._basis();
+          const f = (bh / 2) / Math.tan(this.kamera.fov / 2);
+          const k = this.kamera.dist / f;
+          const ox = ((x0 + x1) / 2 - bw / 2) * k, oy = ((y0 + y1) / 2 - bh / 2) * k;
+          this.kamera.ziel = this.kamera.ziel.map((c, j) => c + rechts[j] * ox - hoch[j] * oy);
+          this.kamera.dist *= s;
+          if (Math.abs(s - 1) < 0.01 && Math.abs(ox) + Math.abs(oy) < 1e-3 * this.kamera.dist) break;
+        }
       }
       this.zeichneJetzt();
       url = this.cv.toDataURL('image/png');
     } finally {
       Object.assign(this, { kamera: alt.kamera, fokus: alt.fokus,
                             station: alt.station, ansichtKey: alt.ansichtKey });
+      this._pxFest = null;
+      if (this.cv.width !== alt.w || this.cv.height !== alt.h) { this.cv.width = alt.w; this.cv.height = alt.h; }
       this.zeichneJetzt();
     }
     return url;

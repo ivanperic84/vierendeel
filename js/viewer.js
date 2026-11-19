@@ -16,6 +16,7 @@
  */
 import { Modellansicht, PLOTS, ANSICHTEN } from './render.3d.js';
 import { etaFarbe } from './design.js';
+import { zustandBauen, ZL_AUS_MODUS } from './core.zustandwerte.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g,
@@ -50,10 +51,12 @@ export function starte(daten) {
       <nav class="v-reiter" role="tablist">
         <button role="tab" data-seite="modell" aria-selected="true">Modell</button>
         <button role="tab" data-seite="bericht" aria-selected="false">Bericht</button>
-        <button role="tab" data-seite="bauteile" aria-selected="false">Bauteile und Massen</button>
+        <button role="tab" data-seite="bauteile" aria-selected="false">Nachweise und Massen</button>
       </nav>
       <button class="v-knopf" id="v-thema" title="Hell / dunkel">◐</button>
     </header>
+    ${(daten.kennwerte ?? []).length ? `<div class="v-kennwerte" title="Grundwerte des Querprofils">${
+      daten.kennwerte.map((k) => `<span>${esc(k)}</span>`).join('')}</div>` : ''}
     <main class="v-seite an" id="seite-modell">
       <aside class="v-leiste" id="v-leiste"></aside>
       <div class="v-buehne">
@@ -85,26 +88,52 @@ export function starte(daten) {
   const verformt = daten.verformt ?? null;
   ansicht.verformt = verformt;
   ansicht.setzeSzene(szene, false);
+  // Voreinstellung ohne Lasten (19. November).
+  ansicht.ebenen.last = false;
 
   const plots = [...PLOTS.filter((p) => szene.flaechen.some((f) => Number.isFinite(f.werte?.[p.feld]))),
     { key: 'positionen', label: 'Positionen' }, { key: 'neutral', label: 'Bauteile (ohne Werte)' }];
   let fall = 'huelle';
+  /*
+   * DIE ZUSTANDSLINIE (19. November, «darstellungsbutton liniendiagramm / bei
+   * der explosion das liniendiagramm auch darstellen»): dieselbe Funktion wie
+   * in der Anwendung (zustandBauen), aus den Schnittgrössen der Nachweisfälle,
+   * die die Datei trägt. Der Renderer zeichnet sie auch explodiert.
+   */
+  const zDaten = daten.zustand ?? null;
+  const zFaelle = zDaten ? zDaten.faelle.map((f) => ({
+    key: f.key, bez: f.bez, sig: f.sig,
+    w: f.w.map((flach) => Array.from({ length: zDaten.punkte }, (_, p) => flach.slice(p * 6, p * 6 + 6))),
+  })) : [];
+  let linie = false;
 
   $('v-leiste').innerHTML = `
     <div class="v-gruppe"><h4>Blick</h4><div class="v-blicke">${ANSICHTEN.filter((a) => ANSICHT_NAMEN[a.key])
       .map((a) => `<button data-blick="${a.key}">${ANSICHT_NAMEN[a.key]}</button>`).join('')}</div></div>
     <div class="v-gruppe"><h4>Darstellung</h4><select id="v-plot">${plots
       .map((p) => `<option value="${p.key}">${esc(p.label)}</option>`).join('')}</select>
-      <label class="v-schalter"><input type="checkbox" id="v-werte"> Werte anschreiben</label></div>
+      <label class="v-schalter"><input type="checkbox" id="v-werte"> Werte anschreiben</label>
+      ${zDaten ? `<label class="v-schalter" title="Zustandslinie statt Farbe (η, σ_v, M, V, N, T), auch in der Explosion"><input type="checkbox" id="v-linie"> Liniendiagramm</label>` : ''}</div>
+    <div class="v-gruppe"><h4>Ausnutzung je Bauteil</h4><div class="v-aus" id="v-aus"></div></div>
     <div class="v-gruppe"><h4>Lastfall</h4><select id="v-fall">
       <option value="huelle">umhüllend (alle Nachweisfälle)</option>
-      ${(daten.faelle ?? []).map((l, i) => `<option value="${i}">${esc(l.bez)}</option>`).join('')}</select></div>
+      ${(daten.faelle ?? []).map((l, i) => `<option value="${i}">${esc(l.gruppe ? `${l.gruppe}: ` : '')}${esc(l.bez)}${
+        Number.isFinite(l.eta) ? ` · η ${zahl(l.eta, 2)}` : ''}</option>`).join('')}</select>
+      <div class="v-notiz">je Einwirkungsrichtung der massgebende Fall</div></div>
     <div class="v-gruppe"><h4>Ebenen</h4>${EBENEN.map(([k, t]) =>
-      `<label class="v-schalter"><input type="checkbox" data-ebene="${k}" checked> ${t}</label>`).join('')}</div>
+      `<label class="v-schalter"><input type="checkbox" data-ebene="${k}"${k === 'last' ? '' : ' checked'}> ${t}</label>`).join('')}</div>
     <div class="v-gruppe"><h4>Explosion</h4><input type="range" id="v-explosion" min="0" max="100" step="5" value="0"></div>
     <div class="v-gruppe"><button class="v-knopf" id="v-ganz" style="width:100%">Ganzes Modell</button></div>`;
 
-  const zeichne = () => { ansicht._bereichCache = null; ansicht.zeichne(); legende(); };
+  function zustandNeu() {
+    const g = ZL_AUS_MODUS[ansicht.modus];
+    if (!linie || !zDaten || !g) { ansicht.zustand = null; return; }
+    const l = fall === 'huelle' ? null : daten.faelle[Number(fall)];
+    const fs = l ? zFaelle.filter((f) => f.key === l.key) : zFaelle;
+    ansicht.zustand = fs.length ? zustandBauen({ geo: zDaten.geo, aussen: zDaten.aussen, faelle: fs, groesse: g,
+      eb: 'auto', dx: zDaten.versatz?.dx ?? 0, dz: zDaten.versatz?.dz ?? 0, fyd: zDaten.fyd }) : null;
+  }
+  const zeichne = () => { zustandNeu(); ansicht._bereichCache = null; ansicht.zeichne(); legende(); };
   const blick = (k) => {
     ansicht.blickrichtung(k);
     document.querySelectorAll('[data-blick]').forEach((b) => b.classList.toggle('an', b.dataset.blick === k));
@@ -113,6 +142,7 @@ export function starte(daten) {
   const setzeModus = (m) => { ansicht.modus = m; $('v-plot').value = m; zeichne(); };
   $('v-plot').onchange = (e) => setzeModus(e.target.value);
   $('v-werte').onchange = (e) => { ansicht.werteAnschreiben = e.target.checked; zeichne(); };
+  if ($('v-linie')) $('v-linie').onchange = (e) => { linie = e.target.checked; zeichne(); };
   $('v-explosion').oninput = (e) => { ansicht.explosion = Number(e.target.value) / 100; zeichne(); };
   $('v-ganz').onclick = () => ansicht.schwenkeAufsGanze?.(ansicht.ansichtKey ?? 'iso');
   document.querySelectorAll('[data-ebene]').forEach((c) => {
@@ -139,15 +169,33 @@ export function starte(daten) {
   }
 
   function legende() {
-    const s = ansicht.plotSkala();
     const el = $('v-legende');
+    const lf = fall === 'huelle' ? 'umhüllend' : daten.faelle[Number(fall)]?.bez;
+    const z = ansicht.zustand;
+    if (z) {
+      const f = (v) => (z.k === 'eta' ? v.toFixed(3) : Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2));
+      const e = z.einheit ? ` ${z.einheit}` : '';
+      el.style.display = '';
+      el.innerHTML = `<b>Liniendiagramm ${esc(z.name)}</b>
+        ${z.mg ? `<div style="margin-top:4px"><b>${esc(f(z.mg.v) + e)}</b> · ${esc(ansicht.anzeigeText(z.mg.wo))}</div>` : ''}
+        ${z.gg ? `<div style="color:var(--dim)">Gegenwert ${esc(f(z.gg.v) + e)} · ${esc(ansicht.anzeigeText(z.gg.wo))}</div>` : ''}
+        <div style="color:var(--dim);margin-top:4px">rot positiv, blau negativ · ${esc(lf ?? '')}</div>`;
+      return;
+    }
+    const s = ansicht.plotSkala();
     if (!s) { el.style.display = 'none'; return; }
     el.style.display = '';
-    const stops = [0, 0.25, 0.5, 0.75, 1].map((t) => `${etaFarbe(t * 1.25)} ${t * 100}%`).join(',');
-    const lf = fall === 'huelle' ? 'umhüllend' : daten.faelle[Number(fall)]?.bez;
+    /*
+     * η: der Balken endet bei 1.0 (19. November, «die grenze bei der
+     * ausnutzung beim farbbalken bei 1.0 setezen nicht 1.25») - was darüber
+     * liegt, steht rot. Die Farben im Modell bleiben dieselben.
+     */
+    const bis = s.fest ? 1 : 1.25;
+    const stops = [0, 0.25, 0.5, 0.75, 1].map((t) => `${etaFarbe(t * bis)} ${t * 100}%`).join(',');
+    const max = s.fest ? 1 : s.max;
     el.innerHTML = `<b>${esc(s.label)}</b>${s.einheit && s.einheit !== '–' ? ` [${esc(s.einheit)}]` : ''}
       <div class="rampe" style="background:linear-gradient(90deg,${stops})"></div>
-      <div class="skala"><span>0</span><span>${zahl(s.max / 2, s.nk ?? 2)}</span><span>${zahl(s.max, s.nk ?? 2)}</span></div>
+      <div class="skala"><span>0</span><span>${zahl(max / 2, s.nk ?? 2)}</span><span>${s.fest ? '≥ 1.00' : zahl(max, s.nk ?? 2)}</span></div>
       <div style="color:var(--dim);margin-top:4px">${esc(lf ?? '')}</div>`;
   }
 
@@ -229,12 +277,30 @@ export function starte(daten) {
   // --- Bauteile und Massen -----------------------------------------------
   const m = daten.massen;
   const cm2 = (v) => zahl(v * 1e4, 2), cm4 = (v) => zahl(v * 1e8, 1);
+  const fu = daten.fundamente ?? [];
+  const STUFE = { basis: 'Basiswerte eingehalten', angepasst: 'zulässig mit abgeminderten Werten', nicht: 'grösseres Fundament nötig' };
+  const fundHtml = fu.length ? `<h3 id="v-fund">Fundamentnachweis - Zusammenfassung</h3>
+    <p class="notiz">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten des Fundamenttyps.
+      Grau: Anteile, die nur den Ablauf lenken (kein eigener Nachweis); massgebend ist der Weg des Ablaufs.</p>
+    ${fu.map((f) => `<div class="v-fund">
+      <div class="v-fund-kopf"><b>Fundament ${esc(ansicht.anzeigeText(f.mast))}</b> · ${esc(f.typ)}
+        <span class="z" style="color:var(--${ampel(f.eta) || 'dim'})">η ${zahl(f.eta, 3)}</span>
+        <span class="v-dim">${esc(STUFE[f.stufe] ?? '')}</span></div>
+      <p>${esc(ansicht.anzeigeText(f.text))}</p>
+      ${f.ablauf.length ? `<p class="v-dim">Ablauf: ${f.ablauf.map((r) => `${esc(r.richtung)} ${esc(STUFE[r.ergebnis] ?? r.ergebnis)}
+        (Schritt ${esc(r.schritt)}, η ${zahl(r.eta, 3)})`).join(' · ')}</p>` : ''}
+      <table><thead><tr><th>Prüfung</th><th>Einwirkung</th><th>zulässig</th><th>η</th><th>Lastfall</th></tr></thead><tbody>
+      ${f.zeilen.map((z) => `<tr${z.lenkt ? ' class="v-grau"' : ''}><td>${esc(z.was)}</td>
+        <td class="z">${zahl(z.wert, 2)} ${esc(z.einheit)}</td><td class="z">${zahl(z.zul, 2)}</td>
+        <td class="z"${z.lenkt ? '' : ` style="color:var(--${ampel(z.eta) || 'dim'})"`}>${zahl(z.eta, 3)}</td><td>${esc(z.bez ?? '')}</td></tr>`).join('')}
+      </tbody></table></div>`).join('')}` : '';
   $('v-bauteile').innerHTML = `
     <h3>Ausnutzung je Bauteil</h3>
     <table><thead><tr><th>Bauteil</th><th>η</th><th>massgebender Fall</th></tr></thead><tbody>
       ${(U.liste ?? []).map((x) => `<tr><td>${esc(ansicht.anzeigeText(x.name))}</td>
         <td class="z" style="color:var(--${ampel(x.eta) || 'dim'})">${zahl(x.eta, 3)}</td><td>${esc(x.bez ?? '')}</td></tr>`).join('')}
     </tbody></table>
+    ${fundHtml}
     ${m?.zeilen?.length ? `<h3>Tragwerksteile, Querschnitte und Massen</h3>
     <p class="notiz">Die Stäbe des Stabwerks (A · L · ρ, ρ = ${zahl(m.rho, 0)} kg/m³), dieselbe Masse wie das
       Eigengewicht der Rechnung. Ohne Anschlusswinkel, Laschen, Schrauben, Fussplatten und Anbauteile.
@@ -251,6 +317,16 @@ export function starte(daten) {
       <tr><td><b>Total</b></td><td class="z"><b>${zahl(m.total.laenge, 2)}</b></td><td class="z"><b>${zahl(m.total.kg, 1)}</b></td></tr>
     </tbody></table>` : '<p class="notiz">Kein Massenauszug.</p>'}`;
 
+  // Einzelne Ausnutzungen in der Leiste (19. November): je Bauteil ein Balken.
+  $('v-aus').innerHTML = (U.liste ?? []).slice().sort((a, b) => b.eta - a.eta).map((x) => {
+    const fund = /^Fundament/.test(x.name);
+    return `<button class="v-aus-z ${ampel(x.eta)}" title="${esc(x.bez ?? '')}"${fund ? ' data-fund' : ''}>
+      <span>${esc(ansicht.anzeigeText(x.name))}</span><b>${zahl(x.eta, 2)}</b>
+      <i style="width:${Math.min(100, Math.max(0, x.eta * 100)).toFixed(0)}%"></i></button>`;
+  }).join('') || '<div class="v-notiz">keine</div>';
+  document.querySelectorAll('[data-fund]').forEach((b) => {
+    b.onclick = () => { reiter('bauteile'); requestAnimationFrame(() => $('v-fund')?.scrollIntoView({ block: 'start' })); };
+  });
   window.addEventListener('resize', () => { ansicht.passeGroesseAn?.(); zeichne(); });
   requestAnimationFrame(() => { ansicht.passeGroesseAn?.(); blick('iso'); setzeModus('eta'); });
   return { ansicht, setzeFall, zeigeAnsicht };

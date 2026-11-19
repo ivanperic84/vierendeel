@@ -3113,7 +3113,8 @@ function viewerSzenen() {
       anzeigeKombi = l.key;
       try {
         const sz = blattSzene(kombi.ergebnisse?.[l.key] ?? erg);
-        faelle.push({ key: l.key, bez: l.bez, art: l.art ?? null, szene: sz });
+        faelle.push({ key: l.key, bez: l.bez, art: l.art ?? null, leit: l.leit ?? null,
+                      beiwerte: l.beiwerte ?? null, nachweis: l.nachweis === true, szene: sz });
       } catch (e) { console.warn('Viewer, Lastfall', l.key, e); }
     });
     return { szene, verformt, faelle, karte: [...anzeigeKarte.entries()] };
