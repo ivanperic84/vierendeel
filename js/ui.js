@@ -7251,13 +7251,18 @@ export function stabilitaetKacheln(opt = {}) {
   const zl = String.fromCharCode(10);
   const titel = `Kleinster Knick-Eigenwert über die Nachweis-Kombinationen (EN 1993-1-1, 5.2.1, aus den Normalkräften).${zl}`
     + (k.alle ?? []).slice(0, 3).map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(zl);
-  return [
-    kachel('α_cr Gesamtsystem', Number.isFinite(a) ? a.toFixed(2) : '∞', satz, zustand,
-      { titel, ...(k.bez ? { fall: fallKurz(k.bez) } : {}) }),
-    `<div class="kz sw-knick-k">${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
-      >${sw.knickZeigen ? 'Knickfigur aus' : 'Knickfigur'}</button>` : ''}
-      <button type="button" class="btn sw-knopf" data-knick-rechnen title="α_cr neu rechnen">neu</button></div>`,
-  ];
+  /*
+   * Die Knöpfe stehen IN der Kachel (19. November, «diese eingabe knickfigur
+   * sieht etwas verlohren aus inteligenter zuordnen»): als Fusszeile unter
+   * dem Lastfall statt als leere Nachbarkachel.
+   */
+  const knoepfe = `<div class="kz-knoepfe">${k.form ? `<button type="button" class="kz-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
+      title="Erste Knickfigur über das Modell legen">${sw.knickZeigen ? 'Figur aus' : 'Knickfigur'}</button>` : ''}<button type="button"
+      class="kz-knopf" data-knick-rechnen title="α_cr neu rechnen">↻ neu</button></div>`;
+  const kz = kachel('α_cr Gesamtsystem', Number.isFinite(a) ? a.toFixed(2) : '∞', satz, zustand,
+    { titel, ...(k.bez ? { fall: fallKurz(k.bez) } : {}) });
+  const ende = kz.lastIndexOf('</div>');
+  return [kz.slice(0, ende) + knoepfe + kz.slice(ende)];
 }
 
 /* ===========================================================================

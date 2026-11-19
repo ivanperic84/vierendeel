@@ -43033,10 +43033,20 @@ titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählba
        && LQ2.includes("(${Math.round(a * 100)} %)"));
   const R3b = await import(J('render.3d.js'));
   const ans = Object.create(R3b.Modellansicht.prototype);
-  ans.modus = 'N'; ans.zustand = { vmax: 1 }; ans.linienFarbe = 'nachweis';
+  // Seit dem 19. November («gemeint war nicht das man die linien des modells
+  // anpasst, sondern den plott und die farben dazu»): mit der Linie folgt das
+  // Modell der Plotgrösse; die Wahl im Balken gilt der Linie (zlFarbe).
+  ans.modus = 'N'; ans.zustand = { vmax: 1 }; ans.linienFarbe = 'frei';
+  const pL = ans._farbPlot();
+  ans.zustand = null; ans.linienFarbe = 'nachweis';
   const pN = ans._farbPlot(); ans.linienFarbe = 'frei'; const pF = ans._farbPlot(); ans.linienFarbe = 'resultat';
-  wahr('Farbe zur Linie: Nachweis = η, frei = keine Skala, Resultat = Grösse der Linie',
-       pN?.key === 'eta' && pF === null && ans._farbPlot()?.key === 'N');
+  wahr('Mit Linie Modell nach der Plotgrösse; ohne Linie Nachweis = η, frei = keine Skala, Resultat = Grösse',
+       pL?.key === 'N' && pN?.key === 'eta' && pF === null && ans._farbPlot()?.key === 'N');
+  wahr('Balken der Linie stellt die Linienfarbe ein (+ / −, Skala, eine Farbe), keine Knopfreihe darüber',
+       LQ2.includes('data-leg-zl=') && LQ2.includes('data-leg-zlfrei') && !LQ2.includes('data-zl-farbe')
+       && RQ2.includes("const zf = this.zlFarbe ?? 'vorzeichen';"));
+  const UQ3 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Knickfigur-Knöpfe als Fusszeile in der Kachel α_cr', UQ3.includes('kz-knoepfe') && UQ3.includes('data-knick-figur'));
 }
 
 titel('299  Dynamik: Figur schwingt, Δη nach Eingabe, Wert am Zeiger, Überblenden, Explosion auf/zu');

@@ -2542,6 +2542,11 @@ export class Modellansicht {
      */
     this.linienFarbe = 'resultat';
     this.linienFrei = '#8a93a6';
+    // Farbe der Zustandslinie selbst (19. November, «gemeint war nicht das
+    // man die linien des modells anpasst, sondern den plott und die farben
+    // dazu»): Vorzeichen (rot / blau), Skala (wie der Farbbalken), eine Farbe.
+    this.zlFarbe = 'vorzeichen';
+    this.zlFrei = '#e0a030';
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
     // der Voreinstellung 0.5 bleiben Schwerachsen und dahinterliegende
     // Bauteile sichtbar, ohne dass das Bild seine Körperlichkeit verliert.
@@ -2849,7 +2854,16 @@ export class Modellansicht {
     const s = this._s;
     const POS = [232, 96, 76], NEG = [74, 134, 232];
     const rgba = (f, a) => `rgba(${f.join(',')},${a})`;
+    const rgbAus = (str) => (String(str).match(/\d+/g) ?? [138, 147, 166]).slice(0, 3).map(Number);
+    const zf = this.zlFarbe ?? 'vorzeichen';
+    const frei = rgbAus(/^#/.test(this.zlFrei ?? '') ? [1, 3, 5].map((i) => parseInt(this.zlFrei.slice(i, i + 2), 16)).join(',') : '224,160,48');
+    const pSk = zf === 'skala' ? this.plotSkala() : null;
     const farbe = (v, a) => {
+      if (zf === 'frei') return rgba(frei, a);
+      if (zf === 'skala' && pSk) {
+        const e = pSk.fest ? Math.abs(v) : (Math.abs(v) / (pSk.max || 1)) * 1.25;
+        return rgba(rgbAus(etaFarbe(Math.min(1.25, e))), a);
+      }
       if (!z.spannung) return rgba(v >= 0 ? POS : NEG, a);
       const e = z.k === 'eta' ? v : v / (z.fyd || 1);
       return rgba(e < 0.6 ? [60, 190, 110] : e < 0.9 ? [235, 200, 60] : POS, a);
@@ -5457,6 +5471,8 @@ export class Modellansicht {
   _farbPlot() {
     // Seit dem 19. November für jeden Plot, nicht nur mit der Linie.
     const basis = PLOTS.find((x) => x.key === this.modus);
+    // Mit der Linie folgt das Modell der Plotgrösse; die Wahl gilt der Linie (zlFarbe).
+    if (basis && this.zustand) return basis;
     if (!basis || this.linienFarbe === 'frei') return null;
     return this.linienFarbe === 'nachweis' ? PLOTS.find((x) => x.key === 'eta') ?? basis : basis;
   }
@@ -5483,7 +5499,7 @@ export class Modellansicht {
      * anklickt.
      */
     const p = this._farbPlot();
-    if (this.linienFarbe === 'frei' && PLOTS.some((x) => x.key === this.modus) && f.werte && !f.passiv) return this.linienFrei;
+    if (!this.zustand && this.linienFarbe === 'frei' && PLOTS.some((x) => x.key === this.modus) && f.werte && !f.passiv) return this.linienFrei;
     /*
      * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
      * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine

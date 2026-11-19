@@ -800,8 +800,10 @@ function lastfallText(app) {
   const l = (app.letzte?.kombi?.lastfaelle ?? []).find((x) => x.key === k);
   return `Lastfall: ${l?.bez ?? k}`;
 }
-function balkenHtml(app, p) {
+function balkenHtml(app, p, linie = false) {
   const a = app.ansicht;
+  // Mit der Linie stellt der Balken die Farben der LINIE ein (19. November).
+  if (linie) return balkenLinieHtml(app, p);
   const lf = a.linienFarbe ?? 'resultat';
   const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
     : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
@@ -821,6 +823,26 @@ function balkenHtml(app, p) {
     </div>`;
   return `${bar}<div class="legende-fall">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</div>${einst}`;
 }
+function balkenLinieHtml(app, p) {
+  const a = app.ansicht;
+  const zf = a.zlFarbe ?? 'vorzeichen';
+  const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0'] : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
+  const name = { vorzeichen: 'Vorzeichen', skala: 'Skala', frei: 'eine Farbe' }[zf];
+  const bar = p ? `<button type="button" class="legende-balken" data-balken title="Farben der Linie einstellen">
+      <div class="legende-bar${p.fest ? ' bis1' : ''}"></div>
+      <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div></button>`
+    : `<button type="button" class="legende-balken leer" data-balken>Farbe der Linie: ${esc(name)} ▾</button>`;
+  const einst = !balkenOffen ? '' : `<div class="leg-einst">
+      <div class="leg-zeile"><span>Linie</span><div class="zl-reihe zl-klein">${[['vorzeichen', '+ / −'],
+        ['skala', 'Skala'], ['frei', 'eine Farbe']].map(([k, tx]) =>
+        `<button type="button" data-leg-zl="${k}" class="${zf === k ? 'an' : ''}">${tx}</button>`).join('')}</div></div>
+      ${zf === 'frei' ? `<div class="leg-zeile"><span>Farbton</span><input type="color" data-leg-zlfrei value="${esc(a.zlFrei ?? '#e0a030')}"></div>` : ''}
+      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
+          placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
+      <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
+    </div>`;
+  return `${bar}<div class="legende-fall">${esc(lastfallText(app))} · Linie ${esc(name)}</div>${einst}`;
+}
 function balkenVerdrahten(app, n) {
   const stopp = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const neu = () => { app.ansicht.zeichne(); zeichneLegende(app); };
@@ -828,6 +850,11 @@ function balkenVerdrahten(app, n) {
   n.querySelectorAll('[data-leg-farbe]').forEach((b) => {
     stopp(b); b.onclick = () => { app.ansicht.linienFarbe = b.dataset.legFarbe; neu(); };
   });
+  n.querySelectorAll('[data-leg-zl]').forEach((b) => {
+    stopp(b); b.onclick = () => { app.ansicht.zlFarbe = b.dataset.legZl; neu(); };
+  });
+  const zfr = n.querySelector('[data-leg-zlfrei]');
+  if (zfr) { stopp(zfr); zfr.oninput = () => { app.ansicht.zlFrei = zfr.value; app.ansicht.zeichne(); }; }
   const fr = n.querySelector('[data-leg-frei]');
   if (fr) { stopp(fr); fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); }; }
   const mx = n.querySelector('[data-leg-max]');
@@ -858,11 +885,13 @@ export function zeichneLegende(app) {
       : 'Zustandslinie';
     /*
      * Der Farbbalken bleibt (19. November, «bei der darstellungsart linie
-     * kann diese box bestehen bleiben und die farbe auch»), umschaltbar:
-     * Nachweis (η) / Resultat (die Grösse der Linie) / frei (eine Farbe).
+     * kann diese box bestehen bleiben und die farbe auch»). Ein Klick darauf
+     * stellt die Farben der LINIE ein - «gemeint war nicht das man die
+     * linien des modells anpasst, sondern den plott und die farben dazu»;
+     * das Modell folgt mit der Linie immer der Plotgrösse.
      */
     const pp = app.ansicht.plotSkala();
-    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${balkenHtml(app, pp)}${zlHtml}`;
+    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${balkenHtml(app, pp, true)}${zlHtml}`;
     balkenVerdrahten(app, n);
     if (legendeLage) {
       n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;

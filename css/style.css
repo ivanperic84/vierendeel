@@ -1281,8 +1281,6 @@ button.wz-haupt:hover { color: var(--on); }
 .wz-mini { font: inherit; font-size: 10px; padding: 0 6px; margin-left: 4px; border: 1px solid var(--ol); border-radius: 4px; background: var(--s2); color: var(--on); cursor: pointer; }
 .wz-mini:hover { border-color: var(--acc); }
 /* Farbe des Modells zur Linie (19. November) */
-.zl-farbe { margin: 4px 0 2px; }
-.zl-farbe input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
 .zl-klein { grid-auto-columns: auto; justify-content: space-between; }
 .zl-haken { display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; }
 .zl select { font: inherit; font-size: 11px; color: var(--on); background: var(--s1); border: 1px solid var(--ol);
@@ -3999,6 +3997,12 @@ html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: bloc
 .kz.sw-knick-k { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .kz.sw-knick-k .sw-knopf { font-size: 11px; padding: 2px 6px; }
 .kz.sw-knick-k .sw-knopf.an { border-color: var(--warn); color: var(--warn); }
+/* Knöpfe als Fusszeile einer Kachel (19. November, α_cr). */
+.kz .kz-knoepfe { display: flex; gap: 4px; margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--ol); }
+.kz .kz-knopf { flex: 1 1 auto; font: inherit; font-size: 10px; color: var(--on2); background: var(--s2);
+  border: 1px solid var(--ol); border-radius: 4px; padding: 2px 6px; cursor: pointer; white-space: nowrap; }
+.kz .kz-knopf:hover { border-color: var(--acc); color: var(--on); }
+.kz .kz-knopf.an { border-color: var(--warn); color: var(--warn); }
 
 /* Rechenhinweis (19. November): bis das Stabwerk steht. */
 body.sw-rechnet::after { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 9999;
