@@ -2832,8 +2832,26 @@ export class Modellansicht {
     const marken = [];
     c.save();
     c.lineJoin = 'round';
+    /*
+     * In der Explosion (19. November) mit dem Versatz ihres Bauteils: die
+     * erste Fläche des Stabes sagt, wohin er gerückt ist. Ohne Fläche (Stab
+     * ausgeblendet) und an Anbauteilen keine Linie; Reaktionen nicht.
+     */
+    const explodiert = (this.explosion ?? 0) > 0;
+    const versatzVon = new Map();
+    const versatz = (name) => {
+      if (!explodiert) return [0, 0, 0];
+      if (!versatzVon.has(name)) {
+        const f = this._stabFlaechen(name).find((g) => !g.passiv && this._flaecheAn(g));
+        versatzVon.set(name, !f || f.gruppe === 'anbau' ? null : (this._explosionsVersatz(f) ?? [0, 0, 0]));
+      }
+      return versatzVon.get(name);
+    };
     z.linien.forEach((l) => {
-      const q = l.pkt.map((x) => ({ x, P: proj(x.p), Q: proj([x.p[0] + x.o[0], x.p[1] + x.o[1], x.p[2] + x.o[2]]) }));
+      const d = versatz(l.name);
+      if (!d) return;
+      const plus = (p, o) => [p[0] + o[0] + d[0], p[1] + o[1] + d[1], p[2] + o[2] + d[2]];
+      const q = l.pkt.map((x) => ({ x, P: proj(plus(x.p, [0, 0, 0])), Q: proj(plus(x.p, x.o)) }));
       for (let i = 0; i < q.length - 1; i += 1) {
         const a = q[i], b = q[i + 1];
         if (a.x.leer || b.x.leer || !a.P || !a.Q || !b.P || !b.Q) continue;
@@ -2851,7 +2869,7 @@ export class Modellansicht {
         marken.push({ x: e.Q[0] + 6 * s, y: e.Q[1], text: fmt(e.x.v), farbe: farbe(e.x.v, 0.82), v: Math.abs(e.x.v) });
       }
     });
-    (z.reaktionen ?? []).forEach((r) => {
+    (explodiert ? [] : (z.reaktionen ?? [])).forEach((r) => {
       const A = proj(r.p);
       if (!A) return;
       const f = rgba(r.v >= 0 ? POS : NEG, 0.95);
@@ -4763,9 +4781,12 @@ export class Modellansicht {
      * Volumen. Sobald die Fahrt steht, kommt das volle Bild von selbst.
      */
     const liste = [];
+    const explodiertF = (this.explosion ?? 0) > 0;
     if (!this.sparsam) this.szene.flaechen.forEach((f) => {
       if (!this._flaecheAn(f)) return;
       if (!this._imFokus(f.xMitte)) return;
+      // In der Explosion ohne Anbauteile (19. November) - Übersicht.
+      if (explodiertF && f.gruppe === 'anbau' && !f.passiv) return;
       const v = this._explosionsVersatz(f);
       const pts = v ? f.punkte.map((p) => proj([p[0] + v[0], p[1] + v[1], p[2] + v[2]])) : f.punkte.map(proj);
       if (pts.some((p) => !p)) return;
@@ -4882,14 +4903,16 @@ export class Modellansicht {
     // der Fahrt - sie ist das, was man dabei ansehen will.
     // Seit dem 3. Oktober mit dem Plot «w» bzw. «η w», ohne eigenen Knopf.
     this._figurWerte = null;
-    // In der Explosion stehen nur die Körper: Achsen, Pfeile, Marken, Masse,
-    // Figur und Zustandslinie gehören zum zusammengesetzten Tragwerk.
+    // In der Explosion stehen nur die Körper: Achsen, Pfeile, Marken, Masse
+    // und Figur gehören zum zusammengesetzten Tragwerk. Die Zustandslinie
+    // zieht seit dem 19. November mit ihrem Bauteil mit («Zustandslinien in
+    // der Explosion»).
     const explodiert = (this.explosion ?? 0) > 0;
     if (!explodiert && this.gruppen.resultate && this.verformt
         && (FIGUR_MODI.includes(this.modus) || this.verformt.immer)) {
       this._verformtMalen(c, proj, t);
     }
-    if (!explodiert && this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
+    if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
@@ -5409,11 +5432,16 @@ export class Modellansicht {
      * zur Seite; die Anbauteile darum noch weiter hinaus (2.4), damit eine
      * Hängestütze nicht in der Ebene der unteren Bleche steht.
      */
+    /*
+     * 19. November: «die explosion weiter auseinanderziehen, die anbauteile
+     * können weggelassen werden» - alle Abstände verdoppelt; die Anbauteile
+     * stehen in der Explosion nicht mehr (Schleife der Flächen).
+     */
     switch (f.gruppe) {
-      case 'profil': return [0, sy * 0.6 * e, sz2 * 0.8 * e];
-      case 'blech': return blechLiegend(f) ? [0, 0, sz2 * 1.6 * e] : [0, sy * 1.2 * e, 0];
-      case 'mast': return [sx * 1.2 * e, 0, 0];
-      case 'anbau': return [0, 0, sz2 * 2.4 * e];
+      case 'profil': return [0, sy * 1.2 * e, sz2 * 1.6 * e];
+      case 'blech': return blechLiegend(f) ? [0, 0, sz2 * 3.2 * e] : [0, sy * 2.4 * e, 0];
+      case 'mast': return [sx * 2.4 * e, 0, 0];
+      case 'anbau': return [0, 0, sz2 * 4.8 * e];
       default: return null;
     }
   }

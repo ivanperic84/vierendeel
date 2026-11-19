@@ -42945,6 +42945,13 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
   wahr('Gespeicherte Stände: Knicken Joch einmal ein (Merker), danach bleibt die Wahl',
        m1.nachweise.knickenJoch === true && m1.weitere[0].nachweise.knickenJoch === true
        && m1.knickJochAb === true && m2.nachweise.knickenJoch === false);
+  // Explosion (19. November): weiter auseinander, ohne Anbauteile, mit Zustandslinien.
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Explosion: Abstände verdoppelt, Anbauteile ausgeblendet, Zustandslinie mit Versatz',
+       RQ.includes("case 'profil': return [0, sy * 1.2 * e, sz2 * 1.6 * e];")
+       && RQ.includes("if (explodiertF && f.gruppe === 'anbau' && !f.passiv) return;")
+       && RQ.includes('if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);')
+       && RQ.includes('const d = versatz(l.name);'));
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',
