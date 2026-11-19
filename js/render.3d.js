@@ -3029,6 +3029,16 @@ export class Modellansicht {
 
   /** Umrandet die Flächen des gezeigten Stabes und schreibt seinen Namen an. */
   _markierungMalen(c, t) {
+    // Vorschau beim Überfahren einer Kachel (19. November), schwächer.
+    if (this.vorschauStab && this.vorschauStab !== this.markierung?.name) {
+      const alt = this.markierung;
+      this.markierung = { name: this.vorschauStab, vorschau: true };
+      try { this._markierungEinzeln(c, t); } finally { this.markierung = alt; }
+    }
+    this._markierungEinzeln(c, t);
+  }
+
+  _markierungEinzeln(c, t) {
     const m = this.markierung;
     if (!m) return;
     const sichtbar = new Set(this._letzteFlaechen ?? []);
@@ -3037,7 +3047,8 @@ export class Modellansicht {
     const s = this._s;
     c.save();
     c.strokeStyle = t.acc ?? '#4aa3df';
-    c.lineWidth = 2.4 * s;
+    c.lineWidth = (m.vorschau ? 1.6 : 2.4) * s;
+    c.globalAlpha = m.vorschau ? 0.75 : 1;
     c.lineJoin = 'round';
     let oben = null;
     fl.forEach((f) => {
@@ -3050,7 +3061,7 @@ export class Modellansicht {
     c.restore();
     if (oben) {
       c.font = this._wertFont();
-      const text = `massgebend: ${m.name}`;
+      const text = `${m.vorschau ? '' : 'massgebend: '}${this.anzeigeText ? this.anzeigeText(m.name) : m.name}`;
       this._beschriftung(c, t, text, oben[0] + 8 * s, oben[1] - 8 * s, t.acc ?? '#4aa3df');
     }
   }
@@ -4845,7 +4856,7 @@ export class Modellansicht {
 
   get modus() { return this._modus; }
   set modus(v) {
-    if (this._modus !== undefined && v !== this._modus) this.ueberblenden();
+    if (this._modus !== undefined && v !== this._modus) { this.ueberblenden(); this.skalaMax = null; }
     this._modus = v;
   }
 
@@ -5444,9 +5455,10 @@ export class Modellansicht {
    */
   /** Der Plot, der die Farbe des Modells gibt (mit Linie nach `linienFarbe`). */
   _farbPlot() {
-    if (this.zustand && this.linienFarbe === 'frei') return null;
-    const key = this.zustand && this.linienFarbe === 'nachweis' ? 'eta' : this.modus;
-    return PLOTS.find((x) => x.key === key) ?? null;
+    // Seit dem 19. November für jeden Plot, nicht nur mit der Linie.
+    const basis = PLOTS.find((x) => x.key === this.modus);
+    if (!basis || this.linienFarbe === 'frei') return null;
+    return this.linienFarbe === 'nachweis' ? PLOTS.find((x) => x.key === 'eta') ?? basis : basis;
   }
 
   _unauffaellig(f) {
@@ -5471,7 +5483,7 @@ export class Modellansicht {
      * anklickt.
      */
     const p = this._farbPlot();
-    if (this.zustand && this.linienFarbe === 'frei' && f.werte && !f.passiv) return this.linienFrei;
+    if (this.linienFarbe === 'frei' && PLOTS.some((x) => x.key === this.modus) && f.werte && !f.passiv) return this.linienFrei;
     /*
      * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
      * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine
@@ -5485,8 +5497,8 @@ export class Modellansicht {
       // Fehlt der Wert an diesem Bauteil, bleibt es neutral - lieber eine
       // Lücke als eine Farbe, die eine Grösse vortäuscht.
       if (!Number.isFinite(v)) return t.xdim;
-      const max = p.fest ?? (this._bereichSichtbar(p.feld) || 1);
-      return etaFarbe((Math.abs(v) / (max || 1)) * (p.fest ?? 1.25));
+      const max = p.fest ?? (this.skalaMax > 0 && p.key === this.modus ? this.skalaMax : (this._bereichSichtbar(p.feld) || 1));
+      return etaFarbe(Math.min(1.25, (Math.abs(v) / (max || 1)) * (p.fest ?? 1.25)));
     }
     if (this.modus === 'positionen' && f.farbeBauteil) return f.farbeBauteil;
     // ANBAUTEILE EINFARBIG. Sie sind nicht der Gegenstand des Nachweises,
@@ -5546,7 +5558,7 @@ export class Modellansicht {
   plotSkala() {
     const p = this._farbPlot();
     if (!p) return null;
-    const max = p.fest ?? this._bereichSichtbar(p.feld);
+    const max = p.fest ?? (this.skalaMax > 0 && p.key === this.modus ? this.skalaMax : this._bereichSichtbar(p.feld));
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
     const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));
     const fall = p.key === 'w' ? null

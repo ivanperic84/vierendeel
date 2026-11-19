@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Farbbalken: Ausnutzung bis 1.0, Lastfall darunter, Klick auf den Balken für Farbe (Nachweis / Resultat / frei), Skala und Werte. Liniendiagramm: sehr kleine Werte werden nicht mehr gross gezeichnet. Kachel überfahren hebt den Stab hervor; Leiste oben, solange das Stabwerk rechnet. Knopf «Bauteil setzen» im 3D entfernt.' },
       { text: 'Neu im 3D: Figur schwingt (Knopf «Figur ▶»), Wert unter der Maus, weiche Übergänge bei Plot und Lastfall, Explosion «auf / zu»; nach einer Eingabe zeigen die Kacheln kurz die Änderung von η.' },
       { text: 'Linie im 3D: folgt den Ebenen der Werkzeugleiste (keine Teile-Auswahl mehr), N lotrecht, Modell farbig nach Nachweis / Resultat / frei wählbar; Schieber «Grenze» mit Wert und Einheit, auch für die Linie.' },
       { text: 'Theorie 2. Ordnung: auch Fundament und Anker, Masten knicken dann mit β = 1; Näherung 1/(1 − 1/α_cr) entfernt, Stabilitätsanzeige und Bericht gekürzt.', rechnung: true },

@@ -776,10 +776,16 @@ function planeStabwerk() {
   // Auf Knopfdruck (6. Oktober): die Leiste sagt «veraltet», gerechnet wird dort.
   if (stabwerkAuslosungVon(werte) === 'knopf') return;
   const st = stabwerkStand(app);
-  if (st !== 'fehlt' && st !== 'veraltet') return;
+  if (st !== 'fehlt' && st !== 'veraltet') { document.body?.classList.remove('sw-rechnet'); return; }
+  /*
+   * RECHENHINWEIS (19. November, aus dem Audit): bis das Stabwerk steht,
+   * läuft oben eine schmale Leiste, die Kacheln stehen gedämpft - die
+   * vorläufigen Zahlen sollen nicht wie das Ergebnis aussehen.
+   */
+  document.body?.classList.add('sw-rechnet');
   stabwerkUhr = setTimeout(() => {
     stabwerkUhr = null;
-    stabwerkRechnen();
+    try { stabwerkRechnen(); } finally { document.body?.classList.remove('sw-rechnet'); }
   }, STABWERK_VERZUG_MS);
 }
 
@@ -2272,7 +2278,7 @@ function zeichneAuswertung() {
         beiStabwerk: stabwerkRechnen,
         beiKnick: knickRechnen,
         beiKnickFigur: knickFigurSchalten,
-        beiStab: zeigeStab,
+        beiStab: zeigeStab, beiStabVorschau: stabVorschau,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
         // Die Referenzhöhe im GZG-Block (30. September).
@@ -2373,7 +2379,7 @@ function zeichneAuswertung() {
                            beiStabwerk: stabwerkRechnen,
                            beiKnick: knickRechnen,
                            beiKnickFigur: knickFigurSchalten,
-                           beiStab: zeigeStab,
+                           beiStab: zeigeStab, beiStabVorschau: stabVorschau,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
                            // Bügelschrauben (7. Oktober).
@@ -5993,6 +5999,13 @@ function waehleSchnittfeld(feld) {
  * Ersatzbalken zeigt -, sagt es die Meldung, statt dass der Klick
  * wortlos verpufft.
  */
+/** Kachel überfahren: Stab im 3D vorab hervorheben (19. November). */
+function stabVorschau(name) {
+  if (!ansicht) return;
+  ansicht.vorschauStab = name || null;
+  ansicht.zeichne();
+}
+
 function zeigeStab(name) {
   if (!name || !ansicht) return;
   if (!ansicht.zeigeStab(name)) {

@@ -167,19 +167,9 @@ export function baueModellWerkzeuge(app) {
    * Handlungsbalken, sobald man sie drückt; die laufende Handlung sagt die
    * Akzentfarbe (`laeuft`).
    */
-  ui.el('ansicht-tools').innerHTML =
-    `<button class="btn-icon btn-icon-acc v-handlung${
-         app.setzen ? ' laeuft' : ''}" id="v-setzen" type="button"
-       title="${app.setzen ? 'Setzen abbrechen'
-                       : 'Bauteil setzen, ins Modell klicken, wohin es gehört'}"
-       aria-label="${app.setzen ? 'Setzen abbrechen' : 'Bauteil setzen'}"
-       aria-pressed="${Boolean(app.setzen)}">${icon('anbau')}</button>`
-    /*
-     * ZWEITE HANDLUNG, ZURUECKHALTENDER GEZEICHNET. Ohne Akzentfarbe: das
-     * Setzen eines Bauteils ist der Weg, den man staendig geht, die
-     * Zeichnung legt man einmal ein. Zwei gleich laute Knoepfe nebeneinander
-     * heben einander auf.
-     */
+  // «Bauteil setzen» als Knopf entfernt (19. November, «nimm diesen button bauteil
+  // setzen weg»): gesetzt wird über die Kacheln, das Kontextmenü und Taste b.
+  ui.el('ansicht-tools').innerHTML = ''
     + `<button class="btn-icon v-handlung${
          app.zeichnungMenue || app.kalibrierung || app.bildSchieben || app.ausrichtung ? ' laeuft' : ''}" id="v-zeichnung"
        type="button" title="${app.ansicht.zeichnung
@@ -187,7 +177,7 @@ export function baueModellWerkzeuge(app) {
          : 'Querprofil-Zeichnung einlegen, auch mit Strg+V oder Hineinziehen'}"
        aria-label="Querprofil-Zeichnung"
        aria-pressed="${Boolean(app.zeichnungMenue)}">${icon('zeichnung')}</button>`;
-  ui.el('v-setzen').onclick = () => (app.setzen ? app.setzenEnde() : app.setzenStarten());
+  ui.el('v-setzen')?.addEventListener('click', () => (app.setzen ? app.setzenEnde() : app.setzenStarten()));
   ui.el('v-zeichnung').onclick = () => zeichnungMenueUmschalten(app);
   /*
    * >>> DIE BEIDEN SIND EIN PAAR: ALLES oder NUR DIESES. <<<
@@ -791,6 +781,67 @@ let posLegendeZu = null;
 /** Ab so vielen Einträgen steht die Positionsliste zugeklappt da. */
 const POS_LEGENDE_LANG = 8;
 
+/*
+ * >>> DER FARBBALKEN (19. November). <<< Weisungen, im Wortlaut: «hier
+ * überall auf den maximalwert 1.0 setzen und wenn man den balken anklickt
+ * dann kann man die farben und andere anpasungen für den plot vornehmen»,
+ * «den aktuellen lastfall sollte noch in der box unten rechts wo der balken
+ * ist aufführen. dafür die einstellung nachweis resultat und frei in einem
+ * modal oder durch ausfahren und in untermenues aufführen. dies bei allen
+ * abbildungen nachführen, auch wenn linien nicht aktiv ist.»
+ * Ein Balken für alle Plots: η endet bei 1.0 (darüber rot), unter dem
+ * Balken der Lastfall; ein Klick klappt die Einstellungen auf - Farbe des
+ * Modells (Nachweis / Resultat / frei) und der Höchstwert der Skala.
+ */
+let balkenOffen = false;
+function lastfallText(app) {
+  const k = app.anzeigeKombi;
+  if (!k || k === 'umhuellend') return 'Lastfall: umhüllend (alle Nachweisfälle)';
+  const l = (app.letzte?.kombi?.lastfaelle ?? []).find((x) => x.key === k);
+  return `Lastfall: ${l?.bez ?? k}`;
+}
+function balkenHtml(app, p) {
+  const a = app.ansicht;
+  const lf = a.linienFarbe ?? 'resultat';
+  const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
+    : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
+  const farbName = { nachweis: 'Nachweis η', resultat: 'Resultat', frei: 'frei' }[lf];
+  const bar = p ? `<button type="button" class="legende-balken" data-balken title="Einstellungen der Farbe">
+      <div class="legende-bar${p.fest ? ' bis1' : ''}"></div>
+      <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div></button>`
+    : `<button type="button" class="legende-balken leer" data-balken title="Einstellungen der Farbe">Farbe: ${esc(farbName)} ▾</button>`;
+  const einst = !balkenOffen ? '' : `<div class="leg-einst">
+      <div class="leg-zeile"><span>Farbe</span><div class="zl-reihe zl-klein">${[['nachweis', 'Nachweis'],
+        ['resultat', 'Resultat'], ['frei', 'frei']].map(([k, tx]) =>
+        `<button type="button" data-leg-farbe="${k}" class="${lf === k ? 'an' : ''}">${tx}</button>`).join('')}</div></div>
+      ${lf === 'frei' ? `<div class="leg-zeile"><span>Farbton</span><input type="color" data-leg-frei value="${esc(a.linienFrei ?? '#8a93a6')}"></div>` : ''}
+      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
+          placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
+      <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
+    </div>`;
+  return `${bar}<div class="legende-fall">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</div>${einst}`;
+}
+function balkenVerdrahten(app, n) {
+  const stopp = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  const neu = () => { app.ansicht.zeichne(); zeichneLegende(app); };
+  n.querySelectorAll('[data-balken]').forEach((b) => { stopp(b); b.onclick = () => { balkenOffen = !balkenOffen; zeichneLegende(app); }; });
+  n.querySelectorAll('[data-leg-farbe]').forEach((b) => {
+    stopp(b); b.onclick = () => { app.ansicht.linienFarbe = b.dataset.legFarbe; neu(); };
+  });
+  const fr = n.querySelector('[data-leg-frei]');
+  if (fr) { stopp(fr); fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); }; }
+  const mx = n.querySelector('[data-leg-max]');
+  if (mx) {
+    stopp(mx);
+    mx.onchange = () => { const v = Number(mx.value); app.ansicht.skalaMax = v > 0 ? v : null; neu(); };
+  }
+  const we = n.querySelector('[data-leg-werte]');
+  if (we) {
+    stopp(we);
+    we.onchange = () => { app.ansicht.werteAnschreiben = we.checked; app.ansicht.zeichne(); zeichneModellWerkzeuge(app); };
+  }
+}
+
 /** Legende passend zur gewählten Einfärbung. */
 export function zeichneLegende(app) {
   const n = ui.el('legende');
@@ -810,24 +861,9 @@ export function zeichneLegende(app) {
      * kann diese box bestehen bleiben und die farbe auch»), umschaltbar:
      * Nachweis (η) / Resultat (die Grösse der Linie) / frei (eine Farbe).
      */
-    const lf = app.ansicht.linienFarbe ?? 'resultat';
     const pp = app.ansicht.plotSkala();
-    const balken = pp ? `<div class="legende-bar"></div><div class="legende-skala">${(pp.fest
-      ? ['0', '0.6', '1.0', '1.25'] : [0, 0.33, 0.66, 1].map((f) => (pp.max * f).toFixed(pp.nk)))
-      .map((s) => `<span>${esc(s)}</span>`).join('')}</div>` : '';
-    const wahl = `<div class="zl-reihe zl-klein zl-farbe" title="Farbe des Modells zur Linie">${[['nachweis', 'Nachweis'],
-      ['resultat', 'Resultat'], ['frei', 'frei']].map(([k, tx]) => `<button type="button" data-zl-farbe="${k}" class="${lf === k ? 'an' : ''}">${tx}</button>`).join('')}${
-      lf === 'frei' ? `<input type="color" data-zl-frei value="${esc(app.ansicht.linienFrei ?? '#8a93a6')}" aria-label="Farbe">` : ''}</div>`;
-    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${wahl}${balken}${zlHtml}`;
-    n.querySelectorAll('[data-zl-farbe]').forEach((b) => {
-      b.addEventListener('pointerdown', (e) => e.stopPropagation());
-      b.onclick = () => { app.ansicht.linienFarbe = b.dataset.zlFarbe; app.ansicht.zeichne(); zeichneLegende(app); };
-    });
-    const fr = n.querySelector('[data-zl-frei]');
-    if (fr) {
-      fr.addEventListener('pointerdown', (e) => e.stopPropagation());
-      fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); };
-    }
+    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${balkenHtml(app, pp)}${zlHtml}`;
+    balkenVerdrahten(app, n);
     if (legendeLage) {
       n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;
     } else { n.classList.remove('gezogen'); n.style.left = ''; n.style.top = ''; }
@@ -859,16 +895,13 @@ export function zeichneLegende(app) {
      * 1.25, sonst kann das missverstanden werden vom user»): die Skala endet
      * bei 1.0, was darüber liegt, steht rot. Die Farben bleiben dieselben.
      */
-    const marken = p.fest && EINFACH ? ['0', '0.5', '1.0']
-      : p.fest
-      ? ['0', '0.6', '1.0', '1.25']
-      : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
+    // Seit dem 19. November überall bis 1.0 und mit Lastfall (balkenHtml).
     n.innerHTML =
       griff(`${p.label}${p.einheit === '–' ? '' : ` [${p.einheit}]`}`) +
-      '<div class="legende-bar"></div>' +
-      `<div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div>` +
-      (p.fussnote ? `<div class="legende-fuss">${esc(p.fussnote)}</div>` : '') +
+      balkenHtml(app, p) +
+      (p.fussnote && !p.fest ? `<div class="legende-fuss">${esc(p.fussnote)}</div>` : '') +
       (p.max > 0 || p.fest ? '' : '<div class="legende-fuss">keine Werte vorhanden</div>');
+    balkenVerdrahten(app, n);
     fertig();
     return;
   }

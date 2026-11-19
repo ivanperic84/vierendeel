@@ -74,6 +74,12 @@ export const ZL_NAME = { N: 'N', T: 'T', sig: 'σ_v', eta: 'η', Vx: 'V_x quer',
   My: 'M_y quer', Mx: 'M_x längs', Mz: 'M_z waagrecht', vy: 'V_y örtlich', vz: 'V_z örtlich',
   my: 'M_y örtlich', mz: 'M_z örtlich' };
 export const zlEinheit = (k) => (k === 'eta' ? '' : k === 'sig' ? 'N/mm²' : /^(T|M|m)/.test(k) ? 'kNm' : 'kN');
+/** Bezugsgrösse des Massstabs je Art (19. November): darunter wird nicht vergrössert. */
+export const ZL_BEZUG = { M: 10, V: 5, N: 10, T: 1, sig: 50, eta: 0.2 };
+export function zlBezug(k) {
+  if (k === 'sig' || k === 'eta' || k === 'N' || k === 'T') return ZL_BEZUG[k];
+  return /^[Mm]/.test(k) ? ZL_BEZUG.M : ZL_BEZUG.V;
+}
 /** Die Reaktion zum Diagramm: Index in [R_x, R_y, R_z, M_x, M_y, M_z]. */
 export const ZL_REAKTION = { N: 2, Vx: 0, Vy: 1, Vz: 2, My: 4, Mx: 3, Mz: 5, T: 5, sig: 2, eta: 2 };
 
@@ -242,7 +248,16 @@ export function zustandBauen(o) {
   // Massstab: der grösste Betrag wird 8 % der Modellgrösse.
   const xs = geo.flatMap((s) => [s.a[0], s.b[0]]), zs = geo.flatMap((s) => [s.a[2], s.b[2]]);
   const groesseM = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
-  const skal = vmax > 1e-9 ? 0.08 * groesseM / vmax : 0;
+  /*
+   * >>> KLEINE WERTE KLEIN ZEICHNEN (19. November). <<< Weisung: «es werden
+   * zum teil sehr kleine schnittkräfte beim liniendiagramm im 3d sehr gross
+   * dargestellt, dass sollte nicht sein, da diese zum teil praktisch null
+   * sind. man sollte hier einen grenzwert oder sowas einführen.» Der
+   * Massstab bezieht sich auf den grössten Wert, aber mindestens auf eine
+   * Bezugsgrösse je Art (ZL_BEZUG): 0.04 kNm stehen dann als Strich da.
+   */
+  const bezug = zlBezug(k);
+  const skal = vmax > 1e-9 ? 0.08 * groesseM / Math.max(vmax, bezug) : 0;
   const linien = reihen.map(({ s, r, i }) => ({
     name: s.n,
     pkt: r.map((x, p) => {
@@ -274,7 +289,7 @@ export function zustandBauen(o) {
   return {
     k, spannung, fyd, linien, reaktionen: [],
     name: ZL_NAME[k], einheit: zlEinheit(k), eb, ebAuto: !o.eb || o.eb === 'auto',
-    vmax, groesseM,
+    vmax, groesseM, bezug, klein: vmax < bezug,
     mg: mg ? { v: mg.v, wo: zustandWo(mg.s, mg.p, zFuss), f: mg.f } : null,
     // Bei σ_v und η gibt es keinen Gegenwert (immer positiv).
     gg: !spannung && gg && Math.abs(gg.v) > 1e-3 ? { v: gg.v, wo: zustandWo(gg.s, gg.p, zFuss) } : null,

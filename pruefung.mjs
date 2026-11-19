@@ -43027,7 +43027,7 @@ titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählba
   const LQ2 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
   const RQ2 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Legende der Linie: keine Teile-Auswahl, Farbbalken und Wahl Nachweis / Resultat / frei',
-       !ZQ2.includes('data-zl-teile aria-label') && LQ2.includes('data-zl-farbe') && LQ2.includes('data-zl-frei'));
+       !ZQ2.includes('data-zl-teile aria-label') && LQ2.includes('data-leg-farbe') && LQ2.includes('data-leg-frei'));
   wahr('Schieber heisst «Grenze», nimmt Linien zurück und nennt den Wert in der Einheit',
        LQ2.includes('<span>Grenze <b id="wz-auff-wert">') && RQ2.includes('const blass = grenze > 0 && lmax < grenze;')
        && LQ2.includes("(${Math.round(a * 100)} %)"));
@@ -43060,6 +43060,32 @@ titel('299  Dynamik: Figur schwingt, Δη nach Eingabe, Wert am Zeiger, Überble
   wahr('Knöpfe Explosion auf/zu und Figur schwingen; Δη an Kacheln und Hauptkachel',
        LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
        && AQ3.includes("document.querySelector('.urteil .urteil-zahl')"));
+}
+
+titel('300  Legende: η bis 1.0, Lastfall, Einstellungen am Balken; kleine Werte; Kachel-Vorschau; Rechenhinweis');
+{
+  const ZW = await import(J('core.zustandwerte.js'));
+  const s = { n: 'MAST_M1_S1', r: 'mast', a: [0, 0, -7], b: [0, 0, 0], ex: [0, 0, 1], ey: [0, 1, 0], ez: [1, 0, 0], dSig: [1, 0, 0] };
+  const q = (v) => Array.from({ length: 11 }, () => [0, 0, 0, 0, v, 0]);
+  const zk = ZW.zustandBauen({ geo: [s], aussen: [null], faelle: [{ key: 'a', bez: 'A', w: [q(0.04)], sig: null }], groesse: 'M', eb: 'auto' });
+  const zg = ZW.zustandBauen({ geo: [s], aussen: [null], faelle: [{ key: 'a', bez: 'A', w: [q(40)], sig: null }], groesse: 'M', eb: 'auto' });
+  const aus = (z) => Math.max(...z.linien[0].pkt.map((x) => Math.hypot(...x.o)));
+  wahr('0.04 kNm wird nicht auf volle Grösse gezogen (Bezug 10 kNm), 40 kNm schon',
+       zk.klein === true && aus(zk) < 0.01 * aus(zg) && zg.klein === false, `${aus(zk).toExponential(2)} / ${aus(zg).toFixed(3)}`);
+  const LQ4 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Balken: η bis «≥ 1.0», Lastfall darunter, Klick öffnet Farbe / Skala / Werte',
+       LQ4.includes("['0', '0.5', '≥ 1.0']") && LQ4.includes('function lastfallText(app)') && LQ4.includes('data-leg-max')
+       && LQ4.includes('data-leg-werte') && !LQ4.includes("? ['0', '0.6', '1.0', '1.25']"));
+  wahr('Knopf «Bauteil setzen» im 3D entfernt', !LQ4.includes('id="v-setzen"'));
+  const AQ4 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const UQ4 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Kachel überfahren hebt den Stab hervor; Rechenhinweis bis das Stabwerk steht',
+       UQ4.includes("opt.beiStabVorschau?.(k.dataset.kzStab)") && AQ4.includes('function stabVorschau(name)')
+       && AQ4.includes("classList.add('sw-rechnet')"));
+  const R3d = await import(J('render.3d.js'));
+  const an = Object.create(R3d.Modellansicht.prototype);
+  an._modus = 'M'; an.linienFarbe = 'nachweis'; an.zustand = null;
+  wahr('Farbe Nachweis gilt auch ohne Linie (Skala η)', an._farbPlot()?.key === 'eta');
 }
 
 console.log('\n' + '='.repeat(104));

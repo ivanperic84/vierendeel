@@ -7432,6 +7432,9 @@ export function verdrahteStabwerk(node, opt = {}) {
   if (typeof opt.beiStab === 'function') {
     node.querySelectorAll('[data-kz-stab]').forEach((k) => {
       k.addEventListener('click', () => opt.beiStab(k.dataset.kzStab));
+      // Überfahren hebt den Stab im 3D schon vor dem Klick hervor (19. November).
+      k.addEventListener('mouseenter', () => opt.beiStabVorschau?.(k.dataset.kzStab));
+      k.addEventListener('mouseleave', () => opt.beiStabVorschau?.(null));
     });
   }
   // Die Referenzhöhe im GZG-Block (30. September) - wie in den Optionen.

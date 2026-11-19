@@ -182,6 +182,7 @@ export function zustandLegendeHtml(app) {
         + (z.gg ? `<br><span class="zl-dim">Gegenwert ${esc(zahl(z.gg.v))} · ${esc(z.gg.wo)}</span>` : '')
         + (z.spannung ? `<br><span class="zl-dim">f_yd = ${z.fyd.toFixed(1)} N/mm²</span>` : '')
       : '<span class="zl-dim">an diesen Teilen nicht darstellbar oder null</span>'}</div>
+    ${z.klein && z.vmax > 1e-9 ? `<div class="zl-dim">klein (unter ${fmt(z, z.bezug)}${z.einheit ? ` ${z.einheit}` : ''}) - Massstab auf ${fmt(z, z.bezug)}${z.einheit ? ` ${z.einheit}` : ''} bezogen</div>` : ''}
     ${ebenen}
     <div class="zl-reihe zl-klein">
       <button type="button" data-zl-blick title="Dreht den Blick einmal so, dass die Linie flach vor einem liegt (leicht schräg)">Blick auf die Ebene</button>
