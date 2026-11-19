@@ -43113,8 +43113,12 @@ titel('301  Dimensionieren mit dem Stabwerk: Varianten, Einspannung, plastisch, 
        && v2.auflagerLinks && !v2.auflagerLinks.schraubenGrenze && DM.aktuelleEinspannung(v2) === 'voll'
        && DM.variante(w0, { einsp: 'gebaut' }).auflagerLinks === null && w0.auflagerLinks !== v1.auflagerLinks);
   const liste = DM.variantenListe(w0, { joch: true, mast: true, steg: true, plastisch: true, einspannung: true });
-  wahr('Varianten: je Einspannung Jochtypen und Profil × Steg × elastisch/plastisch',
-       liste.some((x) => x.art === 'joch' && x.einsp === 'voll') && liste.some((x) => x.art === 'mast' && x.plastisch === true && x.steg === 'quer'),
+  // Seit dem 19. November: nur heutiges Sortiment, ohne «voll eingespannt»
+  // (Bügelschrauben zählen hier nicht).
+  wahr('Varianten: gebaut / Grenze, nur neue Jochtypen, Profil × Steg × elastisch/plastisch',
+       !liste.some((x) => x.einsp === 'voll') && liste.some((x) => x.art === 'joch' && x.einsp === 'grenze')
+       && !liste.some((x) => x.art === 'joch' && /-alt|SIGNAL/.test(x.typ))
+       && liste.some((x) => x.art === 'mast' && x.plastisch === true && x.steg === 'quer'),
        `${liste.length} Varianten`);
   const erg = [{ art: 'joch', einsp: 'gebaut', typ: 'A', joch: 0.9, kg: 900 }, { art: 'joch', einsp: 'gebaut', typ: 'B', joch: 0.7, kg: 1100 },
                { art: 'mast', einsp: 'gebaut', profil: 'P1', steg: 'jochachse', plastisch: false, mast: 1.1, fund: 0.5, kg: 800 },

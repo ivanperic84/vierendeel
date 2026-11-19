@@ -27,7 +27,7 @@
  */
 import { esc, abschnitt } from './design.js';
 import { mastenFuer, setzeMastAngabe, tragwerksart } from './core.constants.js';
-import { tragjoche, laengenbereich, getTragjoch } from './data.tragjoche.js';
+import { tragjoche, laengenbereich, getTragjoch, bauweise } from './data.tragjoche.js';
 import { typUebernehmen } from './ui.schema.js';
 import { mastprofileWahl, fundamentKandidaten, STEGRICHTUNGEN } from './data.masten.js';
 import { JOCH_EINGESPANNT } from './core.auflager.js';
@@ -40,6 +40,15 @@ export const EINSPANNUNGEN = [
   { key: 'grenze', label: 'bis Grenze Hakenschrauben', farbe: '#d6a33c' },
   { key: 'voll', label: 'voll eingespannt', farbe: '#4bbf8a' },
 ];
+/*
+ * Variiert werden nur «wie gebaut» und «bis Grenze Hakenschrauben» (19.
+ * November, «wird bei der volleinspannung der nachweis für die schrauben
+ * geführt? falls nicht dann weglassen»): der Nachweis der Bügelschrauben
+ * zählt in der Dimensionierung nicht, voll eingespannt läge er weit über
+ * der Grenze. «voll» bleibt nur, wenn das Blatt selbst so steht und die
+ * Einspannung nicht variiert wird.
+ */
+const EINSPANNUNG_VARIIERT = ['gebaut', 'grenze'];
 const RESERVE = 'tragjoch-vorschlag-reserve';
 const kopie = (w) => JSON.parse(JSON.stringify(w));
 
@@ -95,9 +104,11 @@ export function rechneVariante(app, v) {
 /** Die Liste der Varianten, Stufe 1 und 2. */
 export function variantenListe(w, wahl) {
   const m0 = mastenFuer(w, w).filter(Boolean)[0];
-  const einsp = wahl.einspannung ? EINSPANNUNGEN.map((e) => e.key) : [aktuelleEinspannung(w)];
+  const einsp = wahl.einspannung ? EINSPANNUNG_VARIIERT : [aktuelleEinspannung(w)];
   const l = [];
+  // Nur das heutige Sortiment (19. November): keine Altbauweise, keine Vergleichsmodelle.
   const typen = wahl.joch ? tragjoche().filter((j) => {
+    if (bauweise(j) !== 'neu' || j.sortiment === false) return false;
     const b = laengenbereich(j);
     return w.L >= b.min - 1e-9 && w.L <= b.max + 1e-9;
   }) : [];
@@ -141,7 +152,7 @@ export function variantenText(v, w) {
   const e = EINSPANNUNGEN.find((x) => x.key === v.einsp)?.label ?? '';
   const teile = [];
   teile.push(v.typ ?? w?.typ ?? '');
-  if (v.profil) teile.push(`${v.profil} ${STEG_KURZ[v.steg] ?? ''}${v.plastisch ? ' pl' : ''}`);
+  if (v.profil) teile.push(`${v.profil} ${STEG_KURZ[v.steg] ?? ''}${v.plastisch ? ' (Mast plastisch)' : ''}`);
   return `${teile.filter(Boolean).join(' · ')} · ${e}`;
 }
 
@@ -162,11 +173,11 @@ export function dialogDimension(app) {
   const wahl = { joch: true, mast: true, steg: true, plastisch: true, einspannung: true };
   let ergebnis = [];
   let abbruch = false;
-  const schalter = (k, t) => `<label class="dm-wahl"><input type="checkbox" data-dm="${k}"${wahl[k] ? ' checked' : ''}> ${t}</label>`;
+  const schalter = (k, t, titel = '') => `<label class="dm-wahl"${titel ? ` title="${esc(titel)}"` : ''}><input type="checkbox" data-dm="${k}"${wahl[k] ? ' checked' : ''}> ${t}</label>`;
   app.dialog('Dimensionieren (Stabwerk)', `
     <div class="dm-kopf">
       ${schalter('joch', 'Jochtyp')}${schalter('mast', 'Mastprofil')}${schalter('steg', 'Mast gedreht')}
-      ${schalter('plastisch', 'elastisch / plastisch')}${schalter('einspannung', 'Einspannung')}
+      ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Mastprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Bügelschrauben zählt hier nicht.')}
       <label class="dm-wahl">Reserve <input type="number" id="dm-reserve" min="0" max="50" step="5" value="${reserve}"> %</label>
       <button class="btn" id="dm-los" type="button">Rechnen</button>
       <span class="ablage-meta" id="dm-zahl"></span>
@@ -239,7 +250,7 @@ export function dialogDimension(app) {
         : `<div class="dm-empf nok">Keine Variante hält mit η ≤ ${g.toFixed(2)}.</div>`}
       ${abschnitt('Ausnutzung und Materialmasse', `${ok.length} Varianten · Klick auf einen Punkt zeigt die Zeile`)}
       ${diagrammSvg(ok, g, best)}
-      <div class="dm-legende">${EINSPANNUNGEN.map((e) => `<span><i style="background:${e.farbe}"></i>${esc(e.label)}</span>`).join('')}
+      <div class="dm-legende">${EINSPANNUNGEN.filter((e) => ergebnis.some((x) => x.einsp === e.key)).map((e) => `<span><i style="background:${e.farbe}"></i>${esc(e.label)}</span>`).join('')}
         <span>○ Joch variiert</span><span>□ Mast variiert</span><span>◆ Kombination</span></div>
       ${abschnitt('Varianten', 'zuerst die, die halten, nach Masse')}
       <div class="tabellenrahmen dm-tabelle"><table class="dt">
