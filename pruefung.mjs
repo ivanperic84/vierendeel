@@ -38016,7 +38016,7 @@ titel('222  Nachbarn aus dem Stabwerk gefärbt; Masten am Abfangjoch ziehen');
   const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Der Renderer färbt eine passive Fläche mit Stabwerkswert, deckend wie das aktive Tragwerk',
        r3d.includes('if (this._passivGrau(f, p)) return t.xdim ?? t.dim;')
-       && r3d.includes('const durch = this._passivGrau(f) ? Math.max(klar, 0.72)'));
+       && r3d.includes('const durch0 = this._passivGrau(f) ? Math.max(klar, 0.72)'));
   wahr('Die Anwendung färbt jede Nachbarszene (`nachbarFaerben`)',
        APP_QUELLE().includes('return nachbarFaerben(szeneVonNebenanRoh(t, zeichnen), t);'));
 
@@ -42952,6 +42952,20 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
        && RQ.includes("if (explodiertF && f.gruppe === 'anbau' && !f.passiv) return;")
        && RQ.includes('if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);')
        && RQ.includes('const d = versatz(l.name);'));
+  // Nur auffällige Teile (19. November): Schieber und Abblendung.
+  {
+    const R3 = await import(J('render.3d.js'));
+    const ans = Object.create(R3.Modellansicht.prototype);
+    ans.modus = 'eta'; ans.auffaellig = 0.6; ans.zustand = null;
+    const unter = ans._unauffaellig({ werte: { eta: 0.4 } });
+    const ueber = ans._unauffaellig({ werte: { eta: 0.75 } });
+    const ohne = ans._unauffaellig({ werte: {} });
+    ans.auffaellig = 0;
+    wahr('Auffällig: η 0.40 unter der Schwelle 0.60 tritt zurück, 0.75 nicht, ohne Wert zurück, Schieber 0 wirkt nicht',
+         unter === true && ueber === false && ohne === true && ans._unauffaellig({ werte: { eta: 0.1 } }) === false);
+    const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+    wahr('… Schieber «Auffällig» in der Gruppe Resultate', LQ.includes('id="wz-auffaellig"') && LQ.includes('function auffText(app)'));
+  }
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',

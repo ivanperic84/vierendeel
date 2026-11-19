@@ -13,7 +13,7 @@ import { alleZeigen, nurDiesesZeigen } from './app.kontext.js';
 import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf } from './design.js';
-import { ANSICHTEN, LASTARTEN, MODI } from './render.3d.js';
+import { ANSICHTEN, LASTARTEN, MODI, PLOTS } from './render.3d.js';
 import { plotErlaubt, EINFACH } from './stufe.js';
 import * as ui from './ui.js';
 import { zl, zlSetzeAn, zlGroesse, zustandLegendeHtml, zustandLegendeVerdrahten } from './app.zustand.js';
@@ -305,6 +305,14 @@ function lastartenVorhanden(app) {
  */
 export const OHNE_KNOPF = new Set(['neutral', 'etaGzg']);
 
+/** Anschrift des Schiebers «Auffällig»: aus, «η ≥ 0.60» oder «≥ 60 %». */
+function auffText(app) {
+  const a = app.ansicht.auffaellig ?? 0;
+  if (!(a > 0)) return 'aus';
+  const p = PLOTS.find((x) => x.key === app.ansicht.modus);
+  return p?.fest ? `η ≥ ${a.toFixed(2)}` : `≥ ${Math.round(a * 100)} %`;
+}
+
 export function modiFuer(art = 'beide') {
   // Viewer (15. November): Ausnutzung und Verformung, Fokus aufs Abbilden.
   const alle = MODI.filter((m) => plotErlaubt(m.key) && !OHNE_KNOPF.has(m.key));
@@ -439,7 +447,18 @@ export function zeichneModellWerkzeuge(app) {
                app.ansicht.werteAnschreiben, !gR) +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
-             mo.label, mo.key === app.ansicht.modus, !gR)).join(''),
+             mo.label, mo.key === app.ansicht.modus, !gR)).join('')
+      /*
+       * >>> NUR AUFFÄLLIGE TEILE (19. November). <<< Weisung: «Nur
+       * auffällige Teile schieber für die darstellung im modell bei den
+       * resultatenplott. der rest wird stark transparent zurückgenommen.»
+       * Bei η die Schwelle in η (0 … 1.00), bei σ_v, σ, M, V, N, T, w in
+       * Prozent des grössten Werts im Bild. Nur das Bild, nicht gespeichert.
+       */
+      + `<label class="wz-explo wz-auff" title="Nur auffällige Teile: was unter der Schwelle liegt, wird stark durchsichtig (η: Ausnutzung; σ_v, M, V, N, T, w: Anteil am grössten Wert im Bild). Doppelklick: aus">
+           <span>Auffällig <b id="wz-auff-wert">${auffText(app)}</b></span><input type="range" id="wz-auffaellig" min="0" max="100" step="5"
+             value="${Math.round((app.ansicht.auffaellig ?? 0) * 100)}"${gR ? '' : ' disabled'}
+             aria-label="Nur auffällige Teile"></label>`,
       /*
        * WER EINEN KNOPF VERMISST, SOLL ERFAHREN WARUM. Die Wahl steht in
        * der Ergebnisleiste, nicht hier - ohne diesen Satz sieht die
@@ -493,6 +512,16 @@ export function zeichneModellWerkzeuge(app) {
       nach();
     };
   });
+  const au = ui.el('wz-auffaellig');
+  if (au) {
+    const setze = (v) => {
+      app.ansicht.auffaellig = v;
+      const w = ui.el('wz-auff-wert'); if (w) w.textContent = auffText(app);
+      app.ansicht.zeichne();
+    };
+    au.oninput = () => setze(Number(au.value) / 100);
+    au.ondblclick = () => { au.value = 0; setze(0); };
+  }
   const ex = ui.el('wz-explosion');
   if (ex) {
     ex.oninput = () => { app.ansicht.explosion = Number(ex.value) / 100; app.ansicht.zeichne(); };

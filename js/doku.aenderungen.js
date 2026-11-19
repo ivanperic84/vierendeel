@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Neu: Schieber «Auffällig» bei den Resultaten im 3D - was unter der Schwelle liegt (η bzw. Anteil am grössten Wert), tritt stark durchsichtig zurück.' },
       { text: 'Explosionsdarstellung: Zustandslinien werden mit den Teilen auseinandergezogen, die Abstände sind doppelt so gross, die Anbauteile stehen in der Explosion nicht.' },
       { text: 'Werkzeugleiste im 3D ohne «Teil» und «η w»; Erklärtexte unter den Feldern sind bei neuen Querprofilen voreingestellt aus.' },
       { text: 'Neu: Gruppe «Stabilität» in der Nachweiskarte - Kachel «α_cr Gesamtsystem» mit Bewertung (Knopf «α_cr rechnen», Knickfigur) und das Knicken der Masten. «Stabilität Joch» gilt mit α_cr ≥ 10 oder der Theorie 2. Ordnung als geführt, sonst steht sie unter «nicht geführt».' },

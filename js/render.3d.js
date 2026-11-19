@@ -4833,9 +4833,11 @@ export class Modellansicht {
       // Ein Nachbar mit Werten aus dem Stabwerk steht so deckend wie das
       // aktive Tragwerk da (4. Oktober, «alle stäbe färben») - mit 72 %
       // Durchsicht waren seine Farben nicht zu lesen.
-      const durch = this._passivGrau(f) ? Math.max(klar, 0.72)
+      const durch0 = this._passivGrau(f) ? Math.max(klar, 0.72)
                   : f.punkt ? Math.max(klarAT, 0.62)
                   : (f.gruppe === 'anbau' || f.gruppe === 'last') ? klarAT : klar;
+      // Nur auffällige Teile (19. November): unter der Schwelle stark durchsichtig.
+      const durch = this._unauffaellig(f) ? Math.max(durch0, 0.92) : durch0;
       let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
       c.beginPath();
       f._2d.forEach((p, i) => {
@@ -5197,6 +5199,24 @@ export class Modellansicht {
   /** Steht die Fläche grau im Hintergrund? (passiv und ohne Wert aus dem Stabwerk) */
   _passivGrau(f, p = PLOTS.find((x) => x.key === this.modus)) {
     return f.passiv === true && !(p && f.werte && (f.stabwerk || f.wegeStabwerk));
+  }
+
+  /*
+   * >>> NUR AUFFÄLLIGE TEILE (19. November). <<< Liegt der Plotwert einer
+   * Fläche unter der Schwelle des Schiebers, tritt sie stark zurück. Bei η
+   * ist die Schwelle eine Ausnutzung (0 … 1.00), sonst ein Anteil am
+   * grössten Wert im Bild. Flächen ohne Wert (Anbauteile, Lasten) treten
+   * mit zurück; ohne Plot oder mit «Linie» wirkt der Schieber nicht.
+   */
+  _unauffaellig(f) {
+    const a = this.auffaellig ?? 0;
+    if (!(a > 0) || this.zustand) return false;
+    const p = PLOTS.find((x) => x.key === this.modus);
+    if (!p) return false;
+    const v = f.werte?.[p.feld];
+    if (!Number.isFinite(v)) return true;
+    const schwelle = p.fest ? a : a * (this._bereichSichtbar(p.feld) || 1);
+    return Math.abs(v) < schwelle;
   }
 
   _grundfarbe(f, t) {
