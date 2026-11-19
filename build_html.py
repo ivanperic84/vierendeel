@@ -309,7 +309,7 @@ def schreibe_viewer_laufzeit():
     text = ("// Von build_html.py erzeugt (schreibe_viewer_laufzeit) - nicht von Hand aendern.\n"
             "// Die Vorlage der Viewer-Datei: js/viewer.js gebuendelt, dazu css/viewer.css.\n"
             f"// Module: {', '.join(reihenfolge)}\n"
-            "export const VIEWER_LAUFZEIT = " + json.dumps(html, ensure_ascii=True) + ";\n")
+            "export const VIEWER_LAUFZEIT = " + json.dumps(html, ensure_ascii=True).replace("</", "<\\/") + ";\n")
     alt = VIEWER_LAUFZEIT.read_text(encoding="utf-8") if VIEWER_LAUFZEIT.exists() else ""
     if alt != text:
         VIEWER_LAUFZEIT.write_text(text, encoding="utf-8")
@@ -427,6 +427,13 @@ def main(ohne_daten=False, stufe=None):
         bundle.append(umschreiben(name, module[name]))
     bundle.append("})();\n")
     js = "".join(bundle)
+    # >>> KEIN "</script" UND KEIN "<!--" IM EINGEBETTETEN CODE (19. November). <<<
+    # Die Viewer-Vorlage (js/viewer.laufzeit.js) traegt ein ganzes HTML-Dokument
+    # als Zeichenkette - mit "</script>". Der HTML-Parser beendete daran das
+    # Skript der Einzeldatei, der Rest stand als Text auf der Seite (gemeldet:
+    # «warum kann ich die html lokal nicht öffnen?»). "<\/" und "<\!--" sind in
+    # Zeichenketten, Vorlagen und Kommentaren gleichbedeutend.
+    js = re.sub(r"</(script)", r"<\\/\1", js, flags=re.I).replace("<!--", "<\\!--")
 
     html = QUELLE_HTML.read_text(encoding="utf-8")
     TAG_CSS = '<link rel="stylesheet" href="css/style.css">'
