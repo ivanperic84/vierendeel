@@ -4077,3 +4077,6 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .leg-farben { display: flex; align-items: center; gap: 6px; }
 .leg-farben input[type=color] { flex: 1 1 0; min-width: 0; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
 .leg-farben span { color: var(--dim); }
+
+/* Beim Setzen von Bauteilen keine Legende der Resultate (19. November). */
+body.setzen-an #legende { display: none; }

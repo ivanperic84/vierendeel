@@ -26,6 +26,10 @@ export function setzenStarten(app, vorwahl = null) {
   if (app.ausrichtung) ausrichtenEnde(app, false);
   app.setzen = { stelle: null, vorwahl };
   app.ansicht.beiStelle = (w) => stelleGewaehlt(app, w);
+  // Lasten und Resultate aus, solange gesetzt wird (19. November).
+  app.ansicht.setzModus = true;
+  document.body?.classList.add('setzen-an');
+  app.ansicht.zeichne();
   ui.el('canvas3d').style.cursor = 'crosshair';
   /*
    * Wo geklickt wurde - dort öffnet die Auswahl (3. Oktober). Der Klick
@@ -47,6 +51,9 @@ export function setzenStarten(app, vorwahl = null) {
 export function setzenEnde(app) {
   app.setzen = null;
   app.ansicht.beiStelle = null;
+  app.ansicht.setzModus = false;
+  document.body?.classList.remove('setzen-an');
+  app.ansicht.zeichne();
   if (app._setzZeiger) {
     ui.el('canvas3d')?.removeEventListener('pointerdown', app._setzZeiger);
     app._setzZeiger = null;

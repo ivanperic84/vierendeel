@@ -42955,7 +42955,7 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
   wahr('Explosion: Abstände verdoppelt, Anbauteile ausgeblendet, Zustandslinie mit Versatz',
        RQ.includes("case 'profil': return [0, sy * 1.2 * e, sz2 * 1.6 * e];")
        && RQ.includes("if (explodiertF && f.gruppe === 'anbau' && !f.passiv) return;")
-       && RQ.includes('if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);')
+       && RQ.includes('if (this.gruppen.resultate && !this.setzModus && this.zustand) this._zustandMalen(c, proj, t);')
        && RQ.includes('const d = versatz(l.name);'));
   // Nur auffällige Teile (19. November): Schieber und Abblendung.
   {

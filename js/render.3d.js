@@ -5189,11 +5189,11 @@ export class Modellansicht {
     // zieht seit dem 19. November mit ihrem Bauteil mit («Zustandslinien in
     // der Explosion»).
     const explodiert = (this.explosion ?? 0) > 0;
-    if (!explodiert && this.gruppen.resultate && this.verformt
+    if (!explodiert && this.gruppen.resultate && !this.setzModus && this.verformt
         && (FIGUR_MODI.includes(this.modus) || this.verformt.immer)) {
       this._verformtMalen(c, proj, t);
     }
-    if (this.gruppen.resultate && this.zustand) this._zustandMalen(c, proj, t);
+    if (this.gruppen.resultate && !this.setzModus && this.zustand) this._zustandMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
     if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     if (this._ziehMast) this._mastZiehMalen(c, proj, t);
@@ -5489,6 +5489,13 @@ export class Modellansicht {
    */
   /** Der Plot, der die Farbe des Modells gibt (mit Linie nach `linienFarbe`). */
   _farbPlot() {
+    /*
+     * >>> BEIM SETZEN NEUTRAL (19. November). <<< «wenn der befehl bauteile
+     * zuweisen ein ist, dann die lasten und resultat darstellung ausblenden
+     * um eine bessere übersicht zu haben.» Ohne Plot zeichnet das Modell in
+     * den Bauteilfarben; Lasten, Linie, Figur und Werte fallen weg.
+     */
+    if (this.setzModus) return null;
     // Seit dem 19. November für jeden Plot, nicht nur mit der Linie.
     const basis = PLOTS.find((x) => x.key === this.modus);
     // Mit der Linie folgt das Modell der Plotgrösse; die Wahl gilt der Linie (zlFarbe).
@@ -5498,6 +5505,7 @@ export class Modellansicht {
   }
 
   _unauffaellig(f) {
+    if (this.setzModus) return false;
     const a = this.auffaellig ?? 0;
     // Seit dem 19. November auch mit der Linie («für alle möglichen resultatplots»).
     if (!(a > 0)) return false;
@@ -5519,7 +5527,7 @@ export class Modellansicht {
      * anklickt.
      */
     const p = this._farbPlot();
-    if (!this.zustand && this.linienFarbe === 'frei' && PLOTS.some((x) => x.key === this.modus) && f.werte && !f.passiv) return this.linienFrei;
+    if (!this.setzModus && !this.zustand && this.linienFarbe === 'frei' && PLOTS.some((x) => x.key === this.modus) && f.werte && !f.passiv) return this.linienFrei;
     /*
      * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
      * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine
@@ -5761,6 +5769,8 @@ export class Modellansicht {
 
   _ebeneAn(key) {
     if (!this.ebenen[key]) return false;
+    // Beim Setzen von Bauteilen (19. November) keine Lasten und Resultate.
+    if (this.setzModus && (HAUPTSCHALTER[key] === 'lasten' || HAUPTSCHALTER[key] === 'resultate')) return false;
     // Im Stabwerk gibt es keinen Nachweisschnitt (app.js, ohneBalken).
     if (this.ohneBalken && (key === 'schnitt' || key === 'kraefte')) return false;
     const g = HAUPTSCHALTER[key];
@@ -5979,7 +5989,7 @@ export class Modellansicht {
       });
     // Im Plot «w» stehen die Werte an der verformten Figur - auch ohne den
     // Schalter «Werte anschreiben» (3. Oktober).
-    if (this.gruppen.resultate && (this.werteAnschreiben
+    if (this.gruppen.resultate && !this.setzModus && (this.werteAnschreiben
         || (this.modus === 'w' && this._figurWerte?.length))) this._werte(c, t);
   }
 
