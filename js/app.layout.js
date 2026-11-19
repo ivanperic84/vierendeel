@@ -806,7 +806,7 @@ function balkenHtml(app, p, linie = false) {
   if (linie) return balkenLinieHtml(app, p);
   const lf = a.linienFarbe ?? 'resultat';
   const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
-    : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
+    : [0, 0.33, 0.66, 1].map((f) => ((p.min ?? 0) + (p.max - (p.min ?? 0)) * f).toFixed(p.nk));
   const farbName = { nachweis: 'Nachweis η', resultat: 'Resultat', frei: 'frei' }[lf];
   const bar = p ? `<button type="button" class="legende-balken" data-balken title="Einstellungen der Farbe">
       <div class="legende-bar${p.fest ? ' bis1' : ''}"></div>
@@ -817,7 +817,9 @@ function balkenHtml(app, p, linie = false) {
         ['resultat', 'Resultat'], ['frei', 'frei']].map(([k, tx]) =>
         `<button type="button" data-leg-farbe="${k}" class="${lf === k ? 'an' : ''}">${tx}</button>`).join('')}</div></div>
       ${lf === 'frei' ? `<div class="leg-zeile"><span>Farbton</span><input type="color" data-leg-frei value="${esc(a.linienFrei ?? '#8a93a6')}"></div>` : ''}
-      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
+      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala von</span><input type="number" data-leg-min min="0" step="any"
+          placeholder="0" value="${a.skalaMin > 0 ? a.skalaMin : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>
+        <div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
@@ -826,18 +828,25 @@ function balkenHtml(app, p, linie = false) {
 function balkenLinieHtml(app, p) {
   const a = app.ansicht;
   const zf = a.zlFarbe ?? 'vorzeichen';
-  const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0'] : [0, 0.33, 0.66, 1].map((f) => (p.max * f).toFixed(p.nk));
-  const name = { vorzeichen: 'Vorzeichen', skala: 'Skala', frei: 'eine Farbe' }[zf];
+  const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
+    : [0, 0.33, 0.66, 1].map((f) => ((p.min ?? 0) + (p.max - (p.min ?? 0)) * f).toFixed(p.nk));
+  const name = { vorzeichen: 'Vorzeichen', skala: 'Skala', frei: 'Verlauf' }[zf];
+  // Mit «Verlauf» zeigt der Balken die beiden gewählten Farben.
+  const barStil = zf === 'frei' ? ` style="background:linear-gradient(90deg, ${esc(a.zlFreiVon ?? '#f3e2bd')}, ${esc(a.zlFrei ?? '#e0a030')})"` : '';
   const bar = p ? `<button type="button" class="legende-balken" data-balken title="Farben der Linie einstellen">
-      <div class="legende-bar${p.fest ? ' bis1' : ''}"></div>
+      <div class="legende-bar${p.fest ? ' bis1' : ''}"${barStil}></div>
       <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div></button>`
     : `<button type="button" class="legende-balken leer" data-balken>Farbe der Linie: ${esc(name)} ▾</button>`;
   const einst = !balkenOffen ? '' : `<div class="leg-einst">
       <div class="leg-zeile"><span>Linie</span><div class="zl-reihe zl-klein">${[['vorzeichen', '+ / −'],
-        ['skala', 'Skala'], ['frei', 'eine Farbe']].map(([k, tx]) =>
+        ['skala', 'Skala'], ['frei', 'Verlauf']].map(([k, tx]) =>
         `<button type="button" data-leg-zl="${k}" class="${zf === k ? 'an' : ''}">${tx}</button>`).join('')}</div></div>
-      ${zf === 'frei' ? `<div class="leg-zeile"><span>Farbton</span><input type="color" data-leg-zlfrei value="${esc(a.zlFrei ?? '#e0a030')}"></div>` : ''}
-      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
+      ${zf === 'frei' ? `<div class="leg-zeile"><span>Verlauf</span><div class="leg-farben"><input type="color" data-leg-zlvon
+          value="${esc(a.zlFreiVon ?? '#f3e2bd')}" title="Farbe für kleine Werte"><span>→</span><input type="color" data-leg-zlfrei
+          value="${esc(a.zlFrei ?? '#e0a030')}" title="Farbe für grosse Werte"></div></div>` : ''}
+      ${p && !p.fest ? `<div class="leg-zeile"><span>Skala von</span><input type="number" data-leg-min min="0" step="any"
+          placeholder="0" value="${a.skalaMin > 0 ? a.skalaMin : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>
+        <div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
@@ -854,7 +863,14 @@ function balkenVerdrahten(app, n) {
     stopp(b); b.onclick = () => { app.ansicht.zlFarbe = b.dataset.legZl; neu(); };
   });
   const zfr = n.querySelector('[data-leg-zlfrei]');
-  if (zfr) { stopp(zfr); zfr.oninput = () => { app.ansicht.zlFrei = zfr.value; app.ansicht.zeichne(); }; }
+  if (zfr) { stopp(zfr); zfr.oninput = () => { app.ansicht.zlFrei = zfr.value; app.ansicht.zeichne(); }; zfr.onchange = neu; }
+  const zvo = n.querySelector('[data-leg-zlvon]');
+  if (zvo) { stopp(zvo); zvo.oninput = () => { app.ansicht.zlFreiVon = zvo.value; app.ansicht.zeichne(); }; zvo.onchange = neu; }
+  const mn = n.querySelector('[data-leg-min]');
+  if (mn) {
+    stopp(mn);
+    mn.onchange = () => { const v = Number(mn.value); app.ansicht.skalaMin = v > 0 ? v : null; neu(); };
+  }
   const fr = n.querySelector('[data-leg-frei]');
   if (fr) { stopp(fr); fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); }; }
   const mx = n.querySelector('[data-leg-max]');

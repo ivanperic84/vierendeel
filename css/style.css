@@ -4072,3 +4072,8 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .stabwerk-leiste.kompakt .sw-reihe, .stabwerk-leiste.kompakt .sw-th2 { flex-basis: 100%; }
 .stabwerk-leiste.kompakt .notiz { font-size: 11px; color: var(--dim); flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stabwerk-leiste.kompakt .sw-knopf { margin-left: auto; min-width: 0; padding: 1px 8px; }
+
+/* Verlauf der Linie: zwei Farbwähler (19. November). */
+.leg-farben { display: flex; align-items: center; gap: 6px; }
+.leg-farben input[type=color] { flex: 1 1 0; min-width: 0; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
+.leg-farben span { color: var(--dim); }

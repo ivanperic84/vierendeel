@@ -2547,6 +2547,11 @@ export class Modellansicht {
     // dazu»): Vorzeichen (rot / blau), Skala (wie der Farbbalken), eine Farbe.
     this.zlFarbe = 'vorzeichen';
     this.zlFrei = '#e0a030';
+    // «eine Farbe» als Verlauf (19. November, «bei eine farbe ein spektrum
+    // angeben für farbverlauf»): von zlFreiVon (kleine Werte) bis zlFrei.
+    this.zlFreiVon = '#f3e2bd';
+    // «Skala von» (19. November): Untergrenze der Farbskala, sonst 0.
+    this.skalaMin = null;
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
     // der Voreinstellung 0.5 bleiben Schwerachsen und dahinterliegende
     // Bauteile sichtbar, ohne dass das Bild seine Körperlichkeit verliert.
@@ -2857,12 +2862,24 @@ export class Modellansicht {
     const rgba = (f, a) => `rgba(${f.join(',')},${a})`;
     const rgbAus = (str) => (String(str).match(/\d+/g) ?? [138, 147, 166]).slice(0, 3).map(Number);
     const zf = this.zlFarbe ?? 'vorzeichen';
-    const frei = rgbAus(/^#/.test(this.zlFrei ?? '') ? [1, 3, 5].map((i) => parseInt(this.zlFrei.slice(i, i + 2), 16)).join(',') : '224,160,48');
-    const pSk = zf === 'skala' ? this.plotSkala() : null;
+    const hex = (h, ers) => (/^#[0-9a-f]{6}$/i.test(h ?? '') ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : ers);
+    const frei = hex(this.zlFrei, [224, 160, 48]);
+    const freiVon = hex(this.zlFreiVon, frei);
+    const pSk = zf !== 'vorzeichen' ? this.plotSkala() : null;
+    // Lage eines Werts auf der Skala 0 … 1 (mit «Skala von» / «Skala bis»).
+    const lage = (v) => {
+      if (!pSk) return Math.min(1, Math.abs(v) / (z.vmax || 1));
+      if (pSk.fest) return Math.min(1.25, Math.abs(v)) / 1.25;
+      const lo = pSk.min ?? 0, hi = pSk.max || 1;
+      return Math.max(0, Math.min(1, (Math.abs(v) - lo) / ((hi - lo) || 1)));
+    };
     const farbe = (v, a) => {
-      if (zf === 'frei') return rgba(frei, a);
+      if (zf === 'frei') {
+        const f = lage(v);
+        return rgba(freiVon.map((x, i) => Math.round(x + (frei[i] - x) * f)), a);
+      }
       if (zf === 'skala' && pSk) {
-        const e = pSk.fest ? Math.abs(v) : (Math.abs(v) / (pSk.max || 1)) * 1.25;
+        const e = pSk.fest ? Math.abs(v) : lage(v) * 1.25;
         return rgba(rgbAus(etaFarbe(Math.min(1.25, e))), a);
       }
       if (!z.spannung) return rgba(v >= 0 ? POS : NEG, a);
@@ -4873,7 +4890,7 @@ export class Modellansicht {
 
   get modus() { return this._modus; }
   set modus(v) {
-    if (this._modus !== undefined && v !== this._modus) { this.ueberblenden(); this.skalaMax = null; }
+    if (this._modus !== undefined && v !== this._modus) { this.ueberblenden(); this.skalaMax = null; this.skalaMin = null; }
     this._modus = v;
   }
 
@@ -5517,7 +5534,8 @@ export class Modellansicht {
       // Lücke als eine Farbe, die eine Grösse vortäuscht.
       if (!Number.isFinite(v)) return t.xdim;
       const max = p.fest ?? (this.skalaMax > 0 && p.key === this.modus ? this.skalaMax : (this._bereichSichtbar(p.feld) || 1));
-      return etaFarbe(Math.min(1.25, (Math.abs(v) / (max || 1)) * (p.fest ?? 1.25)));
+      const min = !p.fest && this.skalaMin > 0 && p.key === this.modus && this.skalaMin < max ? this.skalaMin : 0;
+      return etaFarbe(Math.min(1.25, Math.max(0, (Math.abs(v) - min) / ((max - min) || 1)) * (p.fest ?? 1.25)));
     }
     if (this.modus === 'positionen' && f.farbeBauteil) return f.farbeBauteil;
     // ANBAUTEILE EINFARBIG. Sie sind nicht der Gegenstand des Nachweises,
@@ -5578,11 +5596,12 @@ export class Modellansicht {
     const p = this._farbPlot();
     if (!p) return null;
     const max = p.fest ?? (this.skalaMax > 0 && p.key === this.modus ? this.skalaMax : this._bereichSichtbar(p.feld));
+    const min = !p.fest && this.skalaMin > 0 && p.key === this.modus && this.skalaMin < max ? this.skalaMin : 0;
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
     const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));
     const fall = p.key === 'w' ? null
       : (this.szene?.flaechen ?? []).find((f) => f.stabwerkFall)?.stabwerkFall ?? null;
-    return { ...p, max, ...(sw && STABWERK_FUSSNOTE[p.key]
+    return { ...p, max, min, ...(sw && STABWERK_FUSSNOTE[p.key]
       ? { fussnote: stabwerkFussnoteFall(STABWERK_FUSSNOTE[p.key], fall) } : {}) };
   }
 
