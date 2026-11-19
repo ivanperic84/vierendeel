@@ -49,6 +49,14 @@ export const TEXTE = {
   "fr": "Flambage du joug",
   "it": "Instabilità del portale"
  },
+ "Stabilität Joch": {
+  "fr": "Stabilité du joug",
+  "it": "Stabilità del portale"
+ },
+ "Stabilität": {
+  "fr": "Stabilité",
+  "it": "Stabilità"
+ },
  "Blätter": {
   "fr": "Feuilles",
   "it": "Fogli"

@@ -6664,6 +6664,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     : (swH || vorlaeufig ? `Kontrollrechnung${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
     { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
+    { titel: 'Stabilität', kacheln: [...stabilitaetKacheln(opt), ...nwJeM.stabil] },
     { titel: 'Anker', kacheln: nwJeM.anker,
       rechts: quelleM(Object.keys(swH?.ankerJe ?? {}).length > 0) },
     { titel: 'Fundament', kacheln: nwJeM.fundament,
@@ -7197,7 +7198,6 @@ export function stabwerkLeiste(opt = {}) {
     <span class="notiz">${esc(text)}</span>
     ${reihe}
     ${stand === 'gueltig' ? theorie2Zeile(e?.zweite) : ''}
-    ${stand === 'gueltig' ? knickZeile(sw) : ''}
   </div>`;
 }
 
@@ -7238,6 +7238,46 @@ function theorie2Zeile(z) {
       (1/200 · α_h ${z.alphaH.toFixed(3)} · α_m, m = ${z.mMin === z.mMax ? z.mMin : `${z.mMin}-${z.mMax}`})
       in Windrichtung · ${z.faelle} Kombinationen · ${z.ms} ms${nk}${oi}</span>
   </div>`;
+}
+
+/*
+ * >>> STABILITÄT IN DER NACHWEISKARTE (19. November). <<< Auf Rückfrage
+ * «Eigene Gruppe in der Nachweiskarte»: die Kachel α_cr des Gesamtsystems
+ * (per Knopf gerechnet) mit der Bewertung nach EN 1993-1-1, 5.2.1, darunter
+ * die Knopfzeile (rechnen, Knickfigur). Ampel: ≥ 10 erfüllt; 3 bis 10 nur
+ * mit der Theorie 2. Ordnung erfüllt, sonst gelb; unter 3 rot.
+ */
+export function stabilitaetKacheln(opt = {}) {
+  const sw = opt.stabwerk;
+  if (!sw || sw.verfahren !== 'stabwerk' || sw.stand !== 'gueltig') return [];
+  const k = sw.knick;
+  const th2 = Boolean(sw.ergebnis?.zweite);
+  if (!k) {
+    return [`<div class="kz sw-knick-k"><button type="button" class="btn sw-knopf" data-knick-rechnen
+      title="Verzweigungslast des ganzen Stabwerks je Nachweis-Kombination (einige Sekunden)"
+      >α_cr rechnen</button><span class="notiz">Gesamtstabilität ${th2
+        ? '- Nachweise rechnen nach Theorie 2. Ordnung' : 'noch nicht gerechnet'}</span></div>`];
+  }
+  const a = k.alpha;
+  const zustand = !Number.isFinite(a) || a >= 10 ? 'ok' : a < 3 ? 'fail' : th2 ? 'ok' : 'warn';
+  const satz = !Number.isFinite(a) ? 'kein Druck'
+    : a >= 10 ? '≥ 10: Theorie 1. Ordnung genügt'
+    : a < 3 ? '< 3: nicht zulässig'
+    : th2 ? '< 10: nach Theorie 2. Ordnung gerechnet'
+    : '< 10: Theorie 2. Ordnung nötig (Optionen)';
+  const zl = String.fromCharCode(10);
+  const titel = `Kleinster Knick-Eigenwert des Stabwerks über die Nachweis-Kombinationen `
+    + `(EN 1993-1-1, 5.2.1).${zl}${(k.alle ?? []).slice(0, 5)
+      .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(zl)}`
+    + (k.zweite && !th2 ? `${zl}${zl}Näherung 1/(1 − 1/α_cr): η ${k.zweite.eta.toFixed(3)} statt ${k.zweite.etaLinear.toFixed(3)} (${k.zweite.name})` : '');
+  return [
+    kachel('α_cr Gesamtsystem', Number.isFinite(a) ? a.toFixed(2) : '∞', satz, zustand,
+      { titel, ...(k.bez ? { fall: fallKurz(k.bez) } : {}) }),
+    `<div class="kz sw-knick-k">${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
+      >${sw.knickZeigen ? 'Knickfigur aus' : 'Knickfigur'}</button>` : ''}
+      <button type="button" class="btn sw-knopf" data-knick-rechnen title="α_cr neu rechnen">neu</button>
+      ${k.zweite && !th2 ? `<span class="notiz">mit 2. Ordnung ≈ η ${k.zweite.eta.toFixed(3)}</span>` : ''}</div>`,
+  ];
 }
 
 function knickZeile(sw) {
@@ -7840,6 +7880,8 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   const mast = [];
   const anker = [];
   const fundament = [];
+  // Knicken der Masten in der Gruppe «Stabilität» (19. November).
+  const stabil = [];
   const fz = (key, bez) => fallZeile(erg, opt, key, bez);
   if (erg.mast && urteil.nachweise?.mast !== false) {
     /*
@@ -7955,7 +7997,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         const knA = opt.swH?.ausleger ? opt.swH.ausleger.knick
           : (opt.swH?.knick?.[name] ?? null);
         if (knA && Number.isFinite(knA.eta)) {
-          mast.push(kachel(`η Knicken ${name}`, f3(knA.eta),
+          stabil.push(kachel(`η Knicken ${name}`, f3(knA.eta),
             `${n.profil.name} · Stabwerk`, ampelU(knA.eta), {
               ...(knA.bez ? { fall: fallKurz(knA.bez) } : {}),
               titel: 'Knicken nach SIA 263 mit den Kräften des Stabwerks - '
@@ -7964,7 +8006,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
             }));
         } else if (!opt.swH?.ausleger && n.stabil && Number.isFinite(n.stabil.eta)) {
           const fK = fz(n.stabil.fall ?? n.fall);
-          mast.push(kachel(`η Knicken ${name}`, f3(n.stabil.eta),
+          stabil.push(kachel(`η Knicken ${name}`, f3(n.stabil.eta),
             `${n.profil.name} · Kontrollrechnung`, ampelU(n.stabil.eta), {
               ...(fK ? { fall: fK.kurz } : {}),
               titel: 'Knicken nach SIA 263 aus der Kontrollrechnung (Einzelfeld); '
@@ -8251,7 +8293,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         }));
     });
   }
-  return { mast, anker, fundament };
+  return { mast, anker, fundament, stabil };
 }
 
 /**
@@ -8259,7 +8301,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
  */
 export function bauteilKacheln(erg, urteil, ampelU) {
   const g = bauteilKachelnJe(erg, urteil, ampelU);
-  return [...g.mast, ...g.anker, ...g.fundament];
+  return [...g.mast, ...g.stabil, ...g.anker, ...g.fundament];
 }
 
 /**
@@ -8645,26 +8687,6 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
              + `Aus dem Stabwerk, Stab ${s.wo}.`,
       });
     }),
-    /*
-     * KNICKEN DER GURTWINKEL (18. November, core.stabgurtknick.js): das
-     * massgebende Gurtfeld, Ersatzstab mit dem Blechabstand um die Achse v.
-     */
-    ...(() => {
-      const gk = swH.gurtKnick?.[jochKey];
-      if (!gk) return [];
-      return [kachel('η Knicken Gurt', f3(gk.eta), `Feld ${gk.L.toFixed(2)} m · Achse v · Stabwerk`,
-        ampelU(gk.eta), {
-          ...(gk.bez ? { fall: fallKurz(gk.bez) } : {}),
-          ...(gk.stab ? { stab: gk.stab } : {}),
-          titel: `${gk.bez ? `Massgebende Kombination: ${gk.bez}
-
-` : ''}`
-            + `Ersatzstab je Gurtfeld (EN 1993-1-1, 6.3.1 / SIA 263), Knickspannungskurve ${gk.kurve}: `
-            + `L_cr ${gk.L.toFixed(3)} m (Blechabstand), i_v ${(gk.iv * 1000).toFixed(1)} mm, `
-            + `λ̄ ${gk.lq.toFixed(3)}, χ ${gk.chi.toFixed(3)}, N_b,Rd ${gk.NbRd.toFixed(1)} kN, `
-            + `N_Ed ${gk.NEd.toFixed(1)} kN (Stab ${gk.stab}). Biegung im Feld trägt der Querschnittsnachweis.`,
-        })];
-    })(),
   ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
            ampelU(erg.max.etaOG.og.eta),
@@ -8739,6 +8761,8 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
         ? ((bt?.liste ?? []).some((x) => x.key === 'knicken' && x.quelle === 'ersatzbalken')
             ? 'Stabwerk · Knicken Kontrollrechnung' : 'Stabwerk')
         : quelle(false) },
+    // Stabilität als eigene Gruppe (19. November): α_cr und Knicken der Masten.
+    { titel: 'Stabilität', kacheln: [...stabilitaetKacheln(opt), ...nwJe.stabil] },
     { titel: 'Anker', kacheln: nwJe.anker,
       rechts: quelle(Object.keys(swH?.ankerJe ?? {}).length > 0) },
     { titel: 'Fundament', kacheln: nwJe.fundament,

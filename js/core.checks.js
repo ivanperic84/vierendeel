@@ -113,20 +113,21 @@ export const NACHWEISGRUPPEN = [
    */
   /*
    * >>> SEIT DEM 18. NOVEMBER VORHANDEN (Tragjoch). <<< Gemeldet: «hier zeigt
-   * die app das das knicken noch offen ist obwohl berechnet»; auf Rückfrage
-   * «Gesamt über 2. Ordnung + Einzelwinkel neu». Einzelwinkel: Ersatzstab je
-   * Gurtfeld (core.stabgurtknick.js); Gesamtstab: geführt mit der Theorie
-   * 2. Ordnung oder α_cr ≥ 10 (app.js, `gesamtstabOffen`). Am Abfangjoch und
-   * am Tragausleger bleibt er «nicht enthalten» (`urteilKonstruktion`).
+   * die app das das knicken noch offen ist obwohl berechnet». Am 19. November
+   * auf Rückfrage: kein Einzelstabnachweis am Jochträger («aus meiner sicht
+   * macht es keinen sinnn beim jochträger einzelstäbe zu prüfen», «Entfernen»)
+   * - die Stabilität des Jochs gilt über das Gesamtsystem: geführt mit der
+   * Theorie 2. Ordnung oder α_cr ≥ 10 (app.js, `gesamtstabOffen`). Am
+   * Abfangjoch und am Tragausleger bleibt sie «nicht enthalten».
    */
-  { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: true, standard: true,
+  { key: 'knickenJoch', titel: 'Stabilität Joch', vorhanden: true, standard: true,
     was: (art) => (art === 'abfangjoch'
       ? 'Druckgurt des liegenden Trägers — die Knicklänge steht aus; der '
         + 'Bindeblechabstand wäre zu unkonservativ, weil sich der ganze '
         + 'Träger in beiden Ebenen biegt'
       : art === 'tragausleger' ? 'UPE-Gurte des Auslegers - nicht enthalten'
-      : 'Einzelwinkel je Gurtfeld (Ersatzstab, Knicklänge = Blechabstand, '
-        + 'Achse v); Gesamtstab über die Theorie 2. Ordnung oder α_cr ≥ 10') },
+      : 'Gesamtsystem über α_cr ≥ 10 oder die Theorie 2. Ordnung mit '
+        + 'Schiefstellung; kein Einzelstabnachweis der Gurte') },
   /*
    * SEIT DEM 28. AUGUST VORHANDEN (Weisung, auf ausdrückliche Nachfrage).
    *

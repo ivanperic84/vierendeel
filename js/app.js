@@ -694,7 +694,7 @@ function gesamtstabOffen(w) {
   if (g?.h?.zweite) return null;
   if (k && Number.isFinite(k.alpha) && k.alpha >= 10) return null;
   if (k && !Number.isFinite(k.alpha)) return null;          // kein Druck
-  return { key: 'knickenJochGesamt', titel: 'Knicken Joch, Gesamtstab',
+  return { key: 'knickenJochGesamt', titel: 'Stabilität Joch',
            grund: 'ausgeschaltet',
            was: k ? `α_cr ${k.alpha.toFixed(2)} < 10: Theorie 2. Ordnung einschalten (Optionen → Nachweise)`
                   : 'Stabilität (α_cr) rechnen (Stabwerksleiste) oder Theorie 2. Ordnung einschalten' };

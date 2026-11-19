@@ -42835,24 +42835,31 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
   wahr('Knickfigur: Eigenform über verformteFigur, gilt nur zum Stand des Stabwerks',
        AQ.includes("[{ lastfall: 'KNICK', faktor: 1 }]") && AQ.includes('knick.kennung === g.h.kennung'));
   const UI = await import(J('ui.js'));
-  const h = UI.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
-    ergebnis: { staebe: 1, freiheitsgrade: 6, faelle: 1, ms: 1 },
-    knick: { alpha: 7.996, bez: 'Schnee leitend, Wind +y', alle: [], ms: 1, form: [0] } } });
-  wahr('unter 10: «Theorie 2. Ordnung nötig» und Knopf Knickfigur',
-       h.includes('Theorie 2. Ordnung nötig') && h.includes('data-knick-figur') && h.includes('α_cr <b>8.00</b>'));
+  // Seit dem 19. November in der Gruppe «Stabilität» der Nachweiskarte.
+  const h = UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+    ergebnis: { staebe: 1 },
+    knick: { alpha: 7.996, bez: 'Schnee leitend, Wind +y', alle: [], ms: 1, form: [0] } } }).join('');
+  wahr('Stabilität: α_cr 8.00 gelb, «Theorie 2. Ordnung nötig», Knopf Knickfigur',
+       h.includes('Theorie 2. Ordnung nötig') && h.includes('data-knick-figur') && h.includes('8.00')
+       && h.includes('kz warn') && !UI.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+         ergebnis: { staebe: 1 }, knick: { alpha: 7.996, alle: [], ms: 1 } } }).includes('data-knick'));
   // Etappe A der Theorie 2. Ordnung (18. November): Faktor 1/(1 − 1/α_cr)
   // je Kombination, ohne Bauteilknicken, Auskunft.
   wahr('2. Ordnung A: Faktor je Kombination, Bauteilknicken ausgenommen',
        AQ.includes('const faktor = 1 / (1 - 1 / x.alpha);') && AQ.includes("b.key !== 'knicken'")
        && AQ.includes('knick.zweite = zweiteOrdnungNaeherung(g, knick)'));
-  const h2 = UI.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
-    ergebnis: { staebe: 1, freiheitsgrade: 6, faelle: 1, ms: 1 },
+  const h2 = UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+    ergebnis: { staebe: 1 },
     knick: { alpha: 2.5, bez: 'X', alle: [], ms: 1,
              zweite: { eta: 1.2, etaLinear: 0.72, faktor: 1 / (1 - 1 / 2.5), alpha: 2.5,
-                       name: 'Mast M1', bez: 'X', gueltig: false } } } });
-  wahr('2. Ordnung A in der Leiste: η mit und ohne, unter 3 «nicht zulässig»',
-       h2.includes('mit 2. Ordnung (Näherung)') && h2.includes('<b>1.200</b> statt 0.720')
-       && h2.includes('Näherung nicht zulässig'));
+                       name: 'Mast M1', bez: 'X', gueltig: false } } } }).join('');
+  const h3 = UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
+    ergebnis: { staebe: 1, zweite: { phi: 1 / 337 } }, knick: { alpha: 8, alle: [], ms: 1 } } }).join('');
+  wahr('Stabilität: unter 3 rot «nicht zulässig» mit Näherung; mit 2. Ordnung grün; ohne α_cr Knopf',
+       h2.includes('kz fail') && h2.includes('nicht zulässig') && h2.includes('η 1.200')
+       && h3.includes('kz ok') && h3.includes('nach Theorie 2. Ordnung')
+       && UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig', ergebnis: {} } })
+            .join('').includes('data-knick-rechnen'));
 }
 {
   // Etappe B (18. November): Theorie 2. Ordnung im Löser gegen die
@@ -42932,26 +42939,12 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
        && b1.includes('1.336 statt 1.169') && !b1.includes('α<sub>cr</sub> < 10'));
   wahr('Bericht ohne α_cr: sagt, dass er nicht gerechnet wurde',
        SB.zweiteOrdnungHtml({}, null).includes('nicht gerechnet'));
-  // Knicken der Gurtwinkel (18. November, core.stabgurtknick.js).
-  const GK = await import(J('core.stabgurtknick.js'));
-  const qL90 = { A: 0.001552, Iy: 1.15669e-6, Iz: 1.15669e-6, Iyz: -6.75943e-7 };
-  const iv = GK.ivAus(qL90);
-  const lq = 0.70 / iv / (Math.PI * Math.sqrt(210000 / 235));
-  wahr('Gurtknicken: i_v aus I_y, I_z, I_yz (L 90x90x9: 17.6 mm) und χ nach Kurve b',
-       Math.abs(iv * 1000 - 17.6) < 0.05 && Math.abs(lq - 0.424) < 0.002
-       && Math.abs(GK.chiKnick(lq) - 0.917) < 0.001 && GK.chiKnick(0.1) === 1,
-       `${(iv * 1000).toFixed(2)} mm, λ̄ ${lq.toFixed(3)}, χ ${GK.chiKnick(lq).toFixed(4)}`);
   const AB = await import(J('data.anbauteile.js'));
   const m1 = AB.standAnheben({ nachweise: { knickenJoch: false }, weitere: [{ id: 'T2', nachweise: { knickenJoch: false } }] });
   const m2 = AB.standAnheben({ ...m1, nachweise: { ...m1.nachweise, knickenJoch: false } });
   wahr('Gespeicherte Stände: Knicken Joch einmal ein (Merker), danach bleibt die Wahl',
        m1.nachweise.knickenJoch === true && m1.weitere[0].nachweise.knickenJoch === true
        && m1.knickJochAb === true && m2.nachweise.knickenJoch === false);
-  const hk = SB.gurtKnickHtml({ gurtKnick: { tragwerk: { stab: 'OGR_S41', L: 0.7, iv: 0.0176, lq: 0.424,
-    chi: 0.917, NEd: 83.7, NbRd: 318.4, eta: 0.263, bez: 'Wind −y', gammaM1: 1.05, fy: 235 } } });
-  wahr('Bericht: Knicken der Gurtwinkel mit L_cr, i_v, λ̄, χ, N_Ed, N_b,Rd und η',
-       hk.includes('Knicken der Gurtwinkel') && hk.includes('0.700') && hk.includes('17.6')
-       && hk.includes('318.4') && hk.includes('0.263') && SB.gurtKnickHtml({}) === '');
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',

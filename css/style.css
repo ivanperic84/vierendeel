@@ -3970,3 +3970,7 @@ html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: bloc
 .sw-knick.unter10 .notiz { color: var(--warn); }
 .sw-knick .sw-knopf.an { border-color: var(--warn); color: var(--warn); }
 .sw-knick .sw-zweite { flex: 1 1 100%; }
+/* Knopfzeile der Stabilität in der Nachweiskarte (19. November). */
+.kz.sw-knick-k { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.kz.sw-knick-k .sw-knopf { font-size: 11px; padding: 2px 6px; }
+.kz.sw-knick-k .sw-knopf.an { border-color: var(--warn); color: var(--warn); }

@@ -1102,12 +1102,6 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       if (t) {
         dazu({ key: 'joch', name: ta ? 'Tragausleger' : x.name, eta: t.eta,
                quelle: 'stabwerk', fall: t.fall, bez: t.bez, ueber: null });
-        // Knicken der Gurtwinkel je Feld (18. November, core.stabgurtknick.js).
-        const gk = h?.gurtKnick?.[o.jochKey ?? 'tragwerk'];
-        if (gk && Number.isFinite(gk.eta)) {
-          dazu({ key: 'knickenJoch', name: 'Knicken Gurt', eta: gk.eta, quelle: 'stabwerk',
-                 fall: gk.fall, bez: gk.bez, ueber: null });
-        }
         const a = ta?.aufhaengung;
         if (a) {
           dazu({ key: 'aufhaengung', name: 'Aufhängung', eta: a.eta, quelle: 'stabwerk',
