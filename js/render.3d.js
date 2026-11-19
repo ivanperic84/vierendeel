@@ -2568,8 +2568,9 @@ export class Modellansicht {
     this.blendeBeiSzene = true;
     this.figurSchwingt = false;
     this._schwingT0 = null;
-    // Wert unter der Maus (19. November) - an.
-    this.wertAmZeiger = true;
+    // Wert unter der Maus (19. November) - seit demselben Tag aus («diese automatische
+    // anzeige der schnittkräfte braucht es nicht»); der Code bleibt.
+    this.wertAmZeiger = false;
     // Angeklicktes Anbauteil - nur dessen Bemassung wird gezeigt.
     this.auswahlTeil = null;
     // Baugruppe, die gerade bearbeitet wird. Sie wird in der Einzelheit
