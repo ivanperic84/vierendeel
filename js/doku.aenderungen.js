@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Werkzeugleiste im 3D ohne «Teil» und «η w»; Erklärtexte unter den Feldern sind bei neuen Querprofilen voreingestellt aus.' },
       { text: 'Neu: «Knicken Joch» wird geführt (Vorgabe an) - Kachel «Knicken Gurt»: Ersatzstab je Gurtwinkel zwischen zwei Bindeblechen (Knicklänge = Blechabstand, schwächste Achse); der Gesamtstab gilt mit der Theorie 2. Ordnung oder α_cr ≥ 10 als geführt, sonst steht er unter «nicht geführt».', rechnung: true },
       { text: 'Nachweisbericht: in den Grundlagen der Abschnitt «Theorie 2. Ordnung und Stabilität» - gerechnetes Verfahren, Schiefstellung mit allen Grössen und, wenn gerechnet, α_cr mit Bewertung.' },
       { text: 'Neu: Optionen → Nachweise «Theorie 2. Ordnung» - jede Nachweis-Kombination am verformten System mit Schiefstellung der Masten nach EN 1993-1-1, 5.3.2; Nachweise und Urteil lesen dann diese Schnittgrössen (Vorgabe aus, der Knicknachweis der Masten bleibt). Gegen AxisVM nichtlinear nachgerechnet: Wege und Stabkräfte auf 0.5-3 %.', rechnung: true },

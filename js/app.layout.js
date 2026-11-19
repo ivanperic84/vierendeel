@@ -297,9 +297,17 @@ function lastartenVorhanden(app) {
  * Die Bauteilmodi (Positionen, Bauteile) tragen keine Grösse und bleiben
  * immer da - sie zeigen das Modell, nicht ein Ergebnis.
  * ========================================================================= */
+/*
+ * Nicht mehr in der Leiste (19. November, Weisung «den layerbutton Teil /
+ * ausnutzung gebrauchstauglichkeit wegnehmen»): «Teil» (Bauteile neutral)
+ * und «η w». Die Gebrauchstauglichkeit zeigt weiter «w» mit der verformten
+ * Figur; ihre Ausnutzung steht in den Kacheln.
+ */
+export const OHNE_KNOPF = new Set(['neutral', 'etaGzg']);
+
 export function modiFuer(art = 'beide') {
   // Viewer (15. November): Ausnutzung und Verformung, Fokus aufs Abbilden.
-  const alle = MODI.filter((m) => plotErlaubt(m.key));
+  const alle = MODI.filter((m) => plotErlaubt(m.key) && !OHNE_KNOPF.has(m.key));
   if (art !== 'trag' && art !== 'gzg') return alle;
   return alle.filter((m) => m.art !== 'plot' || (m.nachweisart ?? 'trag') === art);
 }

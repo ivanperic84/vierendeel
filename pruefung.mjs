@@ -25744,8 +25744,9 @@ titel('92  Erklaertexte abschaltbar (U4)');
 // Entscheid vom 19. September: Schalter in den Optionen, Vorgabe ein.
 {
   const f92 = FELDER.find((f) => f.key === 'erklaertexte');
-  wahr('Der Schalter «Erklaertexte» steht in den Optionen, Vorgabe ein',
-       f92?.optionenDialog === true && f92.typ === 'schalter' && f92.standard === true);
+  // Vorgabe aus seit dem 19. November («als startwert erklärtexte weglassen»).
+  wahr('Der Schalter «Erklaertexte» steht in den Optionen, Vorgabe aus',
+       f92?.optionenDialog === true && f92.typ === 'schalter' && f92.standard === false);
   const css92 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('… die Stilregel blendet nur die Erklaertexte der Seitenleisten aus',
        css92.includes('body.ohne-erklaertexte .panel .feld > small.hinweis')
@@ -28654,22 +28655,23 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     const alle = LY115.modiFuer('beide').map((m) => m.key);
     const trag = LY115.modiFuer('trag').map((m) => m.key);
     const gzg = LY115.modiFuer('gzg').map((m) => m.key);
-    wahr('«beide» zeigt alles', alle.length === R115.MODI.length);
+    // Seit dem 19. November ohne «Teil» und «η w» in der Leiste.
+    wahr('«beide» zeigt alles ausser «Teil» und «η w»',
+         alle.length === R115.MODI.length - 2 && !alle.includes('neutral') && !alle.includes('etaGzg'));
     wahr('«Tragsicherheit» nimmt Verformung und η_w weg',
          !trag.includes('w') && !trag.includes('etaGzg') && trag.includes('eta'),
          trag.join(' '));
     wahr('«Gebrauchstauglichkeit» laesst nur diese beiden stehen',
          gzg.filter((k) => R115.MODI.find((m) => m.key === k)?.art === 'plot')
-           .join(' ') === 'w etaGzg',
+           .join(' ') === 'w',
          gzg.join(' '));
     /*
      * DIE BAUTEILMODI BLEIBEN IMMER. Sie zeigen das Modell, nicht ein
      * Ergebnis - waeren sie weg, liesse sich der Plot bei «nur
      * Gebrauchstauglichkeit» nicht mehr abschalten.
      */
-    wahr('Die Bauteilmodi stehen in jeder Stellung',
-         ['neutral', 'positionen'].every(
-           (k) => trag.includes(k) && gzg.includes(k)));
+    wahr('Die Positionen stehen in jeder Stellung (Teil seit 19. November weg)',
+         trag.includes('positionen') && gzg.includes('positionen') && !trag.includes('neutral'));
   }
 
   // --- d) Was weggefiltert wird, darf nicht aufgetragen bleiben ----------
@@ -41217,9 +41219,9 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
        q.includes("{ id: 'rechnen', taste: 'r'") && /function nachrechnen\(\) \{\s*if \(verfahrenVon\(werte\) === 'stabwerk'\) \{\s*stabwerkRechnen\(\);/.test(q));
   wahr('… die Ziffern zählen in der sichtbaren Plotleiste, bis 9; Positionen und Bauteile mit eigener Taste',
        q.includes("const mo = plotListe()[n - 1];") && q.includes("e.key >= '1' && e.key <= '9'")
-       && q.includes("{ id: 'positionen', taste: 'x'") && q.includes("{ id: 'neutral', taste: 'c'") && !q.includes("taste: '1 … 7'"));
+       && q.includes("{ id: 'positionen', taste: 'x'") && !q.includes("{ id: 'neutral', taste: 'c'") && !q.includes("taste: '1 … 7'"));
   const tasten = [...q.matchAll(/\{ id: '(\w+)', taste: '(.)'/g)].map((m) => m[2]);
-  wahr('… keine Taste doppelt vergeben', new Set(tasten).size === tasten.length && tasten.length >= 17, tasten.join(' '));
+  wahr('… keine Taste doppelt vergeben', new Set(tasten).size === tasten.length && tasten.length >= 16, tasten.join(' '));
 }
 
 /*

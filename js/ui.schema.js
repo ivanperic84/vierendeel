@@ -2550,7 +2550,8 @@ export const FELDER = [
    */
   { key: 'erklaertexte', gruppe: 'ansicht', optionenDialog: true,
     typ: 'schalter', label: 'Erklärtexte unter den Feldern',
-    standard: true,
+    // Vorgabe aus seit dem 19. November («als startwert erklärtexte weglassen»).
+    standard: false,
     hinweis: 'Aus: die Seitenleisten zeigen nur Feld, Wert und gerechnete '
            + 'Notizen - kürzer, für den, der die Eingaben kennt. Der Titel '
            + 'am Feld bleibt.' },

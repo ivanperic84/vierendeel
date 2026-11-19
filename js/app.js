@@ -6285,7 +6285,6 @@ const TASTEN = [
   { taste: '1 … 9', still: true,
     get text() { return plotListe().slice(0, 9).map((m) => m.kurz).join(' · '); } },
   { id: 'positionen', taste: 'x', text: 'Positionen (Farbe je Teil)', tun: () => plotWahl('positionen') },
-  { id: 'neutral', taste: 'c', text: 'Bauteile neutral', tun: () => plotWahl('neutral') },
 
   { gruppe: 'Rechnen' },
   /*
