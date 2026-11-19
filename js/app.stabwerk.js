@@ -452,7 +452,24 @@ export function rechneStabwerk(app, aufruf = {}) {
    * mit Schiefstellung (core.stabtheorie2.js) - NACH Halt, Schrauben und
    * Seilausfall, deren Faktoren sie übernimmt; alles Folgende liest sie.
    */
-  const zweite = satz.theorie2 === true ? zweiteOrdnungEinsetzen(dat, lsg, faelle) : null;
+  /*
+   * 19. November («vorschläge für das umbauen der stabilitätsnachweise
+   * umsetzen»): auch die charakteristischen Fälle mit ständiger und
+   * veränderlicher Last (Fundament, Anker) nach Theorie 2. Ordnung - bei
+   * α_cr < 10 fehlte dort sonst der Zuwachs (unsichere Seite). Die halben
+   * Fälle von G und Wind allein bleiben linear.
+   */
+  const zweiteFaelle = faelle.concat(alleFaelleS.filter((l) => l.art === 'charakteristisch'
+    && Number(l.beiwerte?.G) && (Number(l.beiwerte?.WindX) || Number(l.beiwerte?.WindY) || Number(l.beiwerte?.Schnee))
+    && !faelle.some((x) => x.key === l.key)));
+  const zweite = satz.theorie2 === true ? zweiteOrdnungEinsetzen(dat, lsg, zweiteFaelle) : null;
+  /*
+   * Knicklänge der Masten (19. November): mit Theorie 2. Ordnung samt
+   * Schiefstellung ist das Ausweichen des Systems in den Schnittgrössen
+   * erfasst - der Mast wird dann mit β = 1 nachgewiesen statt als Kragarm
+   * mit β = 2 (EN 1993-1-1, 5.2.2(8)). Ein kleinerer eingetragener Beiwert gilt.
+   */
+  const betaMast = (b) => (zweite ? Math.min(b > 0 ? b : 1, 1) : b > 0 ? b : undefined);
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).
   // Der Gurt am Anschnitt oder in der Blechachse (4. Oktober) - dieselbe
@@ -501,7 +518,7 @@ export function rechneStabwerk(app, aufruf = {}) {
       laengsankerX: bau.tragausleger.laengsverankerung,
       knick: nwA.knickenMast && basis.profil
         ? knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
-                             { beta: beta > 0 ? beta : undefined }) : null,
+                             { beta: betaMast(beta) }) : null,
       fundament: nwA.fundament && basis.profil && !(dat.unterbau ?? []).length
         ? fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis, satz) : null,
     };
@@ -554,9 +571,9 @@ export function rechneStabwerk(app, aufruf = {}) {
       } catch { return; }
       if (knick && !zugM.gespreizt) {
         const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
-                                     { beta: beta > 0 ? beta : undefined });
+                                     { beta: betaMast(beta) });
         if (k && Number.isFinite(k.eta)) knick[id] = k;
-        knickBasis.push({ id, basis, beta: beta > 0 ? beta : undefined });
+        knickBasis.push({ id, basis, beta: betaMast(beta) });
       }
       if (nwK.fundament && !aufUnterbau.has(id)) {
         const f = fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis,
@@ -786,7 +803,7 @@ export function rechneStabwerk(app, aufruf = {}) {
       const basis = { profil: erg.mast?.A?.profil, stegrichtung: erg.mast?.A?.stegrichtung };
       const beta = Number(satz.knickBeiwert);
       au = { ...ausleger, knick: knickenAusStabwerk(dat, lsg, [lf], id, basis, erg.modell,
-                                                    { beta: beta > 0 ? beta : undefined }) };
+                                                    { beta: betaMast(beta) }) };
     } else if (ausleger?.imBlatt && kn) {
       const id = ausleger.name.replace(/^Mast\s*/, '');
       au = { ...ausleger, knick: kn[id] ?? null };

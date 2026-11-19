@@ -42847,9 +42847,8 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
          ergebnis: { staebe: 1 }, knick: { alpha: 7.996, alle: [], ms: 1 } } }).includes('data-knick'));
   // Etappe A der Theorie 2. Ordnung (18. November): Faktor 1/(1 − 1/α_cr)
   // je Kombination, ohne Bauteilknicken, Auskunft.
-  wahr('2. Ordnung A: Faktor je Kombination, Bauteilknicken ausgenommen',
-       AQ.includes('const faktor = 1 / (1 - 1 / x.alpha);') && AQ.includes("b.key !== 'knicken'")
-       && AQ.includes('knick.zweite = zweiteOrdnungNaeherung(g, knick)'));
+  // Seit dem 19. November entfallen (genau rechnet der Schalter Theorie 2. Ordnung).
+  wahr('2. Ordnung A (Näherung 1/(1 − 1/α_cr)) ist entfallen', !AQ.includes('zweiteOrdnungNaeherung'));
   const h2 = UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
     ergebnis: { staebe: 1 },
     knick: { alpha: 2.5, bez: 'X', alle: [], ms: 1,
@@ -42857,8 +42856,8 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
                        name: 'Mast M1', bez: 'X', gueltig: false } } } }).join('');
   const h3 = UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig',
     ergebnis: { staebe: 1, zweite: { phi: 1 / 337 } }, knick: { alpha: 8, alle: [], ms: 1 } } }).join('');
-  wahr('Stabilität: unter 3 rot «nicht zulässig» mit Näherung; mit 2. Ordnung grün; ohne α_cr Knopf',
-       h2.includes('kz fail') && h2.includes('nicht zulässig') && h2.includes('η 1.200')
+  wahr('Stabilität: unter 3 rot «nicht zulässig» ohne Näherung; mit 2. Ordnung grün; ohne α_cr Knopf',
+       h2.includes('kz fail') && h2.includes('nicht zulässig') && !h2.includes('η 1.200')
        && h3.includes('kz ok') && h3.includes('nach Theorie 2. Ordnung')
        && UI.stabilitaetKacheln({ stabwerk: { verfahren: 'stabwerk', stand: 'gueltig', ergebnis: {} } })
             .join('').includes('data-knick-rechnen'));
@@ -42933,12 +42932,12 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
                nichtKonvergiert: [], ohneImperfektion: [] };
   const b2 = SB.zweiteOrdnungHtml({ zweite: zw }, { alpha: 7.996, bez: 'Schnee leitend, Wind +y' });
   const b1 = SB.zweiteOrdnungHtml({}, { alpha: 7.996, bez: 'X', zweite: { eta: 1.336, etaLinear: 1.169, name: 'Mast M1' } });
-  wahr('Bericht: Theorie 2. Ordnung mit Schiefstellung (φ, α_h, α_m) und α_cr',
-       b2.includes('Theorie 2. Ordnung</b>') && b2.includes('1/337') && b2.includes('0.866')
-       && b2.includes('so gerechnet') && b2.includes('Normalkräfte nach Theorie 2. Ordnung'));
-  wahr('Bericht: 1. Ordnung bei α_cr < 10 sagt «nicht gerechnet» und nennt die Näherung',
-       b1.includes('Theorie 1. Ordnung</b>') && b1.includes('in diesem Bericht nicht gerechnet')
-       && b1.includes('1.336 statt 1.169') && !b1.includes('α<sub>cr</sub> < 10'));
+  // Gekürzt am 19. November: eine Angabentabelle.
+  wahr('Bericht: Theorie 2. Ordnung mit Schiefstellung φ, Fundament/Anker, β = 1 und α_cr',
+       b2.includes('Theorie 2. Ordnung') && b2.includes('1/337') && b2.includes('Fundament, Anker')
+       && b2.includes('β = 1') && b2.includes('so gerechnet') && b2.includes('aus den Normalkräften'));
+  wahr('Bericht: 1. Ordnung bei α_cr < 10 sagt «nicht gerechnet», ohne Näherung',
+       b1.includes('Theorie 1. Ordnung') && b1.includes('hier nicht gerechnet') && !b1.includes('1.336'));
   wahr('Bericht ohne α_cr: sagt, dass er nicht gerechnet wurde',
        SB.zweiteOrdnungHtml({}, null).includes('nicht gerechnet'));
   const AB = await import(J('data.anbauteile.js'));
@@ -42971,7 +42970,7 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',
-       KQ.includes("'theorie2'") && SQ.indexOf('zweiteOrdnungEinsetzen(dat, lsg, faelle)') > SQ.indexOf('seilAusfall(dat, lsg, seile, alleFaelleS)'));
+       KQ.includes("'theorie2'") && SQ.indexOf('zweiteOrdnungEinsetzen(dat, lsg, zweiteFaelle)') > SQ.indexOf('seilAusfall(dat, lsg, seile, alleFaelleS)'));
 }
 
 titel('297  Viewer: massgebende Fälle je Richtung, Liniendiagramm, Fundament, Kennwerte, Skala 1.0, Titelbild');

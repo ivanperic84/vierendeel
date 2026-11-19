@@ -7212,32 +7212,12 @@ export function stabwerkLeiste(opt = {}) {
  * Ohne Ampel, ohne Anteil am Urteil - die Theorie 2. Ordnung, die ein
  * alpha_cr unter 10 verlangt, ist nicht gebaut.
  */
-/* Etappe A der Theorie 2. Ordnung (18. November): die Ausnutzung mit dem
-   Vergroesserungsfaktor je Kombination, als Auskunft. */
-function zweiteZeile(z) {
-  if (!z) return '';
-  const titel = `Näherung nach EN 1993-1-1, 5.2.2(5)B: je Kombination η des Stabwerks `
-    + `× 1/(1 − 1/α_cr) dieser Kombination, auf alle Schnittgrössen (sichere Seite), `
-    + `ohne Schiefstellung, ohne Bauteilknicken. Linear ${z.etaLinear.toFixed(3)} × `
-    + `${z.faktor.toFixed(3)} (α_cr ${z.alpha.toFixed(2)}).`;
-  return `<span class="notiz sw-zweite" title="${esc(titel)}">mit 2. Ordnung (Näherung):
-    η <b>${z.eta.toFixed(3)}</b> statt ${z.etaLinear.toFixed(3)} · ${esc(z.name ?? '')}
-    · ${esc(z.bez ?? '')}${z.gueltig ? '' : ' · α_cr < 3: Näherung nicht zulässig'}</span>`;
-}
-
 /* Theorie 2. Ordnung (18. November, Etappe B): was gerechnet wurde. */
 function theorie2Zeile(z) {
   if (!z) return '';
-  const nk = z.nichtKonvergiert?.length
-    ? ` · ⚠ ${z.nichtKonvergiert.length} Kombination(en) nicht konvergiert (α_cr nahe 1?)` : '';
-  const oi = z.ohneImperfektion?.length
-    ? ` · ohne Schiefstellung: ${z.ohneImperfektion.join(', ')} (Gittermast / gespreizt)` : '';
-  return `<div class="sw-knick sw-th2">
-    <span class="sw-marke ok">2. Ordnung</span>
-    <span class="notiz">Nachweise nach Theorie 2. Ordnung · Schiefstellung φ = 1/${Math.round(1 / z.phi)}
-      (1/200 · α_h ${z.alphaH.toFixed(3)} · α_m, m = ${z.mMin === z.mMax ? z.mMin : `${z.mMin}-${z.mMax}`})
-      in Windrichtung · ${z.faelle} Kombinationen · ${z.ms} ms${nk}${oi}</span>
-  </div>`;
+  const nk = z.nichtKonvergiert?.length ? ` · ⚠ ${z.nichtKonvergiert.length} nicht konvergiert` : '';
+  return `<div class="sw-knick sw-th2"><span class="sw-marke ok">2. Ordnung</span>
+    <span class="notiz" title="Schiefstellung EN 1993-1-1, 5.3.2: 1/200 · α_h ${z.alphaH.toFixed(3)} · α_m; ${z.faelle} Kombinationen, ${z.ms} ms">φ = 1/${Math.round(1 / z.phi)}${nk}</span></div>`;
 }
 
 /*
@@ -7266,46 +7246,15 @@ export function stabilitaetKacheln(opt = {}) {
     : th2 ? '< 10: nach Theorie 2. Ordnung gerechnet'
     : '< 10: Theorie 2. Ordnung nötig (Optionen)';
   const zl = String.fromCharCode(10);
-  const titel = `Kleinster Knick-Eigenwert des Stabwerks über die Nachweis-Kombinationen `
-    + `(EN 1993-1-1, 5.2.1).${zl}${(k.alle ?? []).slice(0, 5)
-      .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(zl)}`
-    + (k.zweite && !th2 ? `${zl}${zl}Näherung 1/(1 − 1/α_cr): η ${k.zweite.eta.toFixed(3)} statt ${k.zweite.etaLinear.toFixed(3)} (${k.zweite.name})` : '');
+  const titel = `Kleinster Knick-Eigenwert über die Nachweis-Kombinationen (EN 1993-1-1, 5.2.1, aus den Normalkräften).${zl}`
+    + (k.alle ?? []).slice(0, 3).map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(zl);
   return [
     kachel('α_cr Gesamtsystem', Number.isFinite(a) ? a.toFixed(2) : '∞', satz, zustand,
       { titel, ...(k.bez ? { fall: fallKurz(k.bez) } : {}) }),
     `<div class="kz sw-knick-k">${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
       >${sw.knickZeigen ? 'Knickfigur aus' : 'Knickfigur'}</button>` : ''}
-      <button type="button" class="btn sw-knopf" data-knick-rechnen title="α_cr neu rechnen">neu</button>
-      ${k.zweite && !th2 ? `<span class="notiz">mit 2. Ordnung ≈ η ${k.zweite.eta.toFixed(3)}</span>` : ''}</div>`,
+      <button type="button" class="btn sw-knopf" data-knick-rechnen title="α_cr neu rechnen">neu</button></div>`,
   ];
-}
-
-function knickZeile(sw) {
-  const k = sw.knick;
-  if (!k) {
-    return `<div class="sw-knick">
-      <button type="button" class="btn sw-knopf" data-knick-rechnen
-        title="Verzweigungslast des ganzen Stabwerks je Nachweis-Kombination (einige Sekunden)"
-        >Stabilität (α_cr) rechnen</button>
-      <span class="notiz">Knick-Eigenwert des räumlichen Stabwerks - Auskunft, kein Nachweis.</span>
-    </div>`;
-  }
-  const a = k.alpha;
-  const satz = !Number.isFinite(a) ? 'kein Druck - kein Knicken'
-    : a >= 10 ? 'α_cr ≥ 10: Theorie 1. Ordnung genügt (EN 1993-1-1, 5.2.1)'
-    : sw.ergebnis?.zweite ? 'α_cr < 10: Theorie 2. Ordnung nötig - die Nachweise rechnen so (Optionen)'
-    : 'α_cr < 10: Theorie 2. Ordnung nötig - hier näherungsweise mit 1/(1 − 1/α_cr), genau mit dem Schalter in Optionen → Nachweise';
-  const titel = (k.alle ?? []).slice(0, 5)
-    .map((x) => `${Number.isFinite(x.alpha) ? x.alpha.toFixed(2) : '∞'}  ${x.bez}`).join(' · ');
-  return `<div class="sw-knick${Number.isFinite(a) && a < 10 ? ' unter10' : ''}">
-    <span class="sw-marke">Stabilität</span>
-    <span title="${esc(titel)}">α_cr <b>${Number.isFinite(a) ? a.toFixed(2) : '∞'}</b>
-      · ${esc(k.bez ?? '')}</span>
-    <span class="notiz">${esc(satz)} · ${(k.alle ?? []).length} Kombinationen · ${k.ms} ms</span>
-    ${zweiteZeile(k.zweite)}
-    ${k.form ? `<button type="button" class="btn sw-knopf${sw.knickZeigen ? ' an' : ''}" data-knick-figur
-      >${sw.knickZeigen ? 'Knickfigur ausblenden' : 'Knickfigur zeigen'}</button>` : ''}
-  </div>`;
 }
 
 /* ===========================================================================
@@ -11034,11 +10983,9 @@ function theorie2Html(werte) {
         <input type="checkbox" data-theorie2${werte?.theorie2 === true ? ' checked' : ''}>
         <span class="nw-titel">Theorie 2. Ordnung</span>
       </label>
-      <p class="notiz">Jede Nachweis-Kombination am verformten System, mit
-        Schiefstellung der Masten nach EN 1993-1-1, 5.3.2 (φ₀ = 1/200 · α_h · α_m,
-        in Richtung des leitenden Winds). Die Nachweise und das Urteil lesen dann
-        diese Schnittgrössen; der Knicknachweis der Masten nach SIA 263 bleibt.
-        Fundament, Anker und Gebrauchstauglichkeit bleiben nach Theorie 1. Ordnung.</p>
+      <p class="notiz">Nur nötig bei α_cr &lt; 10. Rechnet am verformten System mit
+        Schiefstellung (EN 1993-1-1, 5.3.2) - Nachweise, Fundament und Anker; die Masten
+        knicken dann mit β = 1.</p>
     </div>`;
 }
 

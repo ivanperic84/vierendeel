@@ -2492,7 +2492,8 @@ export const FELDER = [
     hinweis: 'L_cr = β · Mastlänge. Vorgabe 2.0 — Kragarm, unten '
            + 'eingespannt, oben frei. Gerechnet wird mit der GESAMTLÄNGE, '
            + 'nicht mit der Höhe bis zur Jochachse: über dem Anschluss läuft '
-           + 'der Mast weiter, und dieser Teil knickt mit.' },
+           + 'der Mast weiter, und dieser Teil knickt mit. Mit Theorie 2. Ordnung '
+           + 'gilt höchstens β = 1 (das Ausweichen steckt dann in den Schnittgrössen).' },
 
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,

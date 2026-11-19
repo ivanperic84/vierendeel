@@ -297,52 +297,27 @@ function deckblatt(d, U) {
  * Abschnitt es und nennt die Näherung mit dem Vergrösserungsfaktor.
  */
 export function zweiteOrdnungHtml(sw, knick = null) {
+  // Gekürzt am 19. November («so weit wie möglich vereinfachen und kürzen»).
   const z = sw?.zweite ?? null;
   const a = knick && Number.isFinite(knick.alpha) ? knick.alpha : null;
-  const am = (m) => Math.sqrt(0.5 * (1 + 1 / Math.max(1, m)));
-  const teile = [];
+  const zeilen = [];
   if (z) {
-    const m = z.mMin === z.mMax ? String(z.mMin) : `${z.mMin}-${z.mMax}`;
-    teile.push(`<p>Die Nachweise rechnen nach <b>Theorie 2. Ordnung</b>: jede
-      Nachweis-Kombination am verformten System, (K + K<sub>G</sub>) · u = P,
-      iterativ gelöst (Normalkräfte und Endmomente aus u, bis sich die Wege um
-      weniger als 10<sup>-5</sup> ändern). Die geometrische Steifigkeit K<sub>G</sub>
-      enthält Normalkraft und Endmomente (ohne Wölbkraft), auch an den
-      Starrelementen. Dazu die <b>Schiefstellung</b> der Masten nach
-      EN 1993-1-1, 5.3.2 als Ersatz-Horizontallast φ · ΔN an jedem Mastknoten,
-      in Richtung des leitenden Winds (bei Schnee leitend des Begleitwinds).
-      Fundament, Anker und Gebrauchstauglichkeit bleiben nach Theorie
-      1. Ordnung; der Knicknachweis der Masten nach SIA 263 bleibt.</p>`);
-    teile.push(angaben([
-      ['φ<sub>0</sub>', '1/200'],
-      ['h (grösste Mastlänge) · α<sub>h</sub> = 2/√h', `${zahl(z.h, 2)} m · ${zahl(z.alphaH, 3)}`],
-      ['m (Masten ≥ halbe mittlere Druckkraft) · α<sub>m</sub> = √(0.5 (1 + 1/m))',
-        `${esc(m)} · ${zahl(am(z.mMin), 3)}${z.mMin !== z.mMax ? ` bis ${zahl(am(z.mMax), 3)}` : ''}`],
-      ['φ = φ<sub>0</sub> · α<sub>h</sub> · α<sub>m</sub>', `1/${Math.round(1 / z.phi)} (${zahl(z.phi * 1000, 3)} ‰)`],
-      ['Kombinationen · grösste Iterationszahl', `${z.faelle} · ${z.iterationen}`],
-      z.nichtKonvergiert?.length ? ['⚠ nicht konvergiert', esc(z.nichtKonvergiert.join(', '))] : null,
-      z.ohneImperfektion?.length ? ['ohne Schiefstellung (Gittermast / gespreizt)', esc(z.ohneImperfektion.join(', '))] : null,
-    ]));
+    zeilen.push(['Rechnung', `Theorie 2. Ordnung ((K + K<sub>G</sub>) · u = P, iterativ), Schiefstellung
+      φ = 1/${Math.round(1 / z.phi)} nach EN 1993-1-1, 5.3.2 in Windrichtung; Nachweis- und
+      charakteristische Kombinationen (Fundament, Anker), ${z.faelle} Fälle; Knicken der Masten mit β = 1`]);
+    if (z.nichtKonvergiert?.length) zeilen.push(['⚠ nicht konvergiert', esc(z.nichtKonvergiert.join(', '))]);
+    if (z.ohneImperfektion?.length) zeilen.push(['ohne Schiefstellung', esc(z.ohneImperfektion.join(', '))]);
   } else {
-    teile.push(`<p>Die Nachweise rechnen nach <b>Theorie 1. Ordnung</b>
-      (Gleichgewicht am unverformten System, ohne Schiefstellung).</p>`);
+    zeilen.push(['Rechnung', 'Theorie 1. Ordnung']);
   }
   if (a !== null) {
-    const satz = a >= 10
-      ? 'α<sub>cr</sub> ≥ 10: Theorie 1. Ordnung genügt (EN 1993-1-1, 5.2.1).'
-      : z ? 'α<sub>cr</sub> &lt; 10: Theorie 2. Ordnung nötig - so gerechnet.'
-        : '<b>α<sub>cr</sub> &lt; 10: Theorie 2. Ordnung nötig (EN 1993-1-1, 5.2.1) - in diesem Bericht nicht gerechnet.</b>';
-    teile.push(angaben([
-      ['Knick-Eigenwert α<sub>cr</sub> des Stabwerks (kleinster)', `${zahl(a, 2)} · ${esc(knick.bez ?? '')}${z
-        ? ' (Normalkräfte nach Theorie 2. Ordnung)' : ''}`],
-      ['Bewertung', satz],
-      !z && knick.zweite ? ['Näherung 1/(1 − 1/α<sub>cr</sub>) je Kombination (EN 5.2.2(5)B, ohne Schiefstellung)',
-        `η ${zahl(knick.zweite.eta, 3)} statt ${zahl(knick.zweite.etaLinear, 3)} · ${esc(knick.zweite.name ?? '')}`] : null,
-    ]));
+    zeilen.push(['α<sub>cr</sub> (aus den Normalkräften)', `${zahl(a, 2)} · ${esc(knick.bez ?? '')} - ${a >= 10
+      ? 'Theorie 1. Ordnung genügt (5.2.1)' : z ? 'Theorie 2. Ordnung nötig, so gerechnet'
+      : '<b>Theorie 2. Ordnung nötig, hier nicht gerechnet</b>'}`]);
   } else {
-    teile.push('<p class="klein">Der Knick-Eigenwert α<sub>cr</sub> wurde zu diesem Stand nicht gerechnet.</p>');
+    zeilen.push(['α<sub>cr</sub>', 'nicht gerechnet']);
   }
-  return `<h3>§.4 Theorie 2. Ordnung und Stabilität</h3>${teile.join('')}`;
+  return `<h3>§.4 Theorie 2. Ordnung und Stabilität</h3>${angaben(zeilen)}`;
 }
 
 function grundlagen(d) {

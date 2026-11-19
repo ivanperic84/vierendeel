@@ -33,8 +33,9 @@
  * WAS ES NICHT ERFASST: Gittermasten und gespreizte Masten tragen keine
  * Ersatzlast (kein Stabzug auf der Achse) - sie stehen in `ohneImperfektion`.
  * Seilausfall, Rückhalt und Hakenschrauben bleiben mit ihren Faktoren aus
- * der Rechnung 1. Ordnung. Charakteristische Fälle (Fundament, Anker) und
- * die Gebrauchstauglichkeit bleiben nach Theorie 1. Ordnung.
+ * der Rechnung 1. Ordnung. Seit dem 19. November auch die charakteristischen
+ * Fälle mit ständiger und veränderlicher Last (Fundament, Anker); die
+ * Gebrauchstauglichkeit bleibt nach Theorie 1. Ordnung.
  * ========================================================================= */
 import { anteileFuer, kraefteAusAnteilen } from './core.stabnachweis.js';
 
