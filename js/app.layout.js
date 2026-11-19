@@ -13,7 +13,7 @@ import { alleZeigen, nurDiesesZeigen } from './app.kontext.js';
 import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf } from './design.js';
-import { ANSICHTEN, LASTARTEN, MODI, PLOTS } from './render.3d.js';
+import { ANSICHTEN, LASTARTEN, MODI, PLOTS, FIGUR_MODI } from './render.3d.js';
 import { plotErlaubt, EINFACH } from './stufe.js';
 import * as ui from './ui.js';
 import { zl, zlSetzeAn, zlGroesse, zustandLegendeHtml, zustandLegendeVerdrahten } from './app.zustand.js';
@@ -421,7 +421,7 @@ export function zeichneModellWerkzeuge(app) {
     }).join('')
       // Explosionsdarstellung (17. November): Teile auseinanderziehen.
       + `<label class="wz-explo" title="Explosionsdarstellung: Gurte, Bleche, Masten und Anbauteile auseinanderziehen (nur das Bild)">
-           <span>Explosion</span><input type="range" id="wz-explosion" min="0" max="100" step="5"
+           <span>Explosion <button type="button" class="wz-mini" id="wz-explo-fahren" title="Explosion weich auf- bzw. zufahren"${gM ? '' : ' disabled'}>${(app.ansicht.explosion ?? 0) > 0.5 ? 'zu' : 'auf'}</button></span><input type="range" id="wz-explosion" min="0" max="100" step="5"
              value="${Math.round((app.ansicht.explosion ?? 0) * 100)}"${gM ? '' : ' disabled'}
              aria-label="Explosionsdarstellung"></label>`) +
     gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG(app).map((s) => {
@@ -453,6 +453,9 @@ export function zeichneModellWerkzeuge(app) {
         schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR)) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
+      // Die Figur schwingt (19. November) - verformte Figur bzw. Knickfigur.
+      (app.ansicht.verformt && (app.ansicht.verformt.immer || FIGUR_MODI.includes(app.ansicht.modus)) ? text('wz-r-schwingen', app.ansicht.figurSchwingt ? 'Figur ■' : 'Figur ▶',
+        'Verformte Figur bzw. Knickfigur langsam hin und her schwingen lassen', app.ansicht.figurSchwingt, !gR) : '') +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
              mo.label, mo.key === app.ansicht.modus, !gR)).join('')
@@ -531,6 +534,20 @@ export function zeichneModellWerkzeuge(app) {
     };
     au.oninput = () => setze(Number(au.value) / 100);
     au.ondblclick = () => { au.value = 0; setze(0); };
+  }
+  const ef = ui.el('wz-explo-fahren');
+  if (ef) {
+    ef.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const ziel = (app.ansicht.explosion ?? 0) > 0.5 ? 0 : 1;
+      const sl = ui.el('wz-explosion');
+      app.ansicht.explosionFahren(ziel, 650, (v) => { if (sl) sl.value = Math.round(v * 100); });
+      ef.textContent = ziel ? 'zu' : 'auf';
+    };
+  }
+  const sw = ui.el('wz-r-schwingen');
+  if (sw) {
+    sw.onclick = () => { app.ansicht.schwingen(!app.ansicht.figurSchwingt); zeichneModellWerkzeuge(app); };
   }
   const ex = ui.el('wz-explosion');
   if (ex) {

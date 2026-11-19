@@ -2432,6 +2432,18 @@ function blechLiegend(f) {
   return /^H_|(^|_)BH_|^BL_(O|U)|^DECK_/.test(t);
 }
 
+/** Stabname des Stabwerks in Worten, für den Wert am Zeiger (19. November). */
+function stabWort(n) {
+  const s = String(n ?? '');
+  const tw = /^((?:MT|[TA])\d+)_/.exec(s)?.[1];
+  const m = /MAST_([^_]+)_/.exec(s);
+  if (m) return `Mast ${m[1]}`;
+  const g = /(?:^|_)(OG|UG)([LR])_/.exec(s);
+  if (g) return `${g[1] === 'OG' ? 'Obergurt' : 'Untergurt'} ${g[2] === 'L' ? 'vorn' : 'hinten'}${tw ? ` · ${tw}` : ''}`;
+  if (/(?:^|_)B[VH]_/.test(s)) return `Bindeblech${tw ? ` · ${tw}` : ''}`;
+  return s;
+}
+
 export class Modellansicht {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -2546,7 +2558,13 @@ export class Modellansicht {
     // stehen kleiner als alles übrige und treten damit hinter die Werte
     // zurück, die man wirklich liest.
     this.schriftAnbau = 8.5;
-    this.modus = 'eta';
+    this._modus = 'eta';
+    // Weiche Übergänge beim Neusetzen der Szene (Lastfall, Eingabe) - an.
+    this.blendeBeiSzene = true;
+    this.figurSchwingt = false;
+    this._schwingT0 = null;
+    // Wert unter der Maus (19. November) - an.
+    this.wertAmZeiger = true;
     // Angeklicktes Anbauteil - nur dessen Bemassung wird gezeigt.
     this.auswahlTeil = null;
     // Baugruppe, die gerade bearbeitet wird. Sie wird in der Einzelheit
@@ -2571,6 +2589,7 @@ export class Modellansicht {
 
   setzeSzene(szene, behalteKamera = true) {
     const alt = this.szene;
+    if (alt && behalteKamera && this.blendeBeiSzene) this.ueberblenden();
     this.szene = szene;
     if (!alt || !behalteKamera) this.ansichtZuruecksetzen();
     this.zeichne();
@@ -2859,6 +2878,8 @@ export class Modellansicht {
     const aG = this.auffaellig ?? 0;
     const pG = PLOTS.find((x) => x.key === this.modus);
     const grenze = aG > 0 ? (pG?.fest ? aG : aG * (z.vmax || 0)) : 0;
+    const zlPunkte = [];
+    this._zlPunkte = zlPunkte;
     z.linien.forEach((l) => {
       const d = versatz(l.name);
       if (!d) return;
@@ -2867,6 +2888,7 @@ export class Modellansicht {
       c.globalAlpha = blass ? 0.12 : 1;
       const plus = (p, o) => [p[0] + o[0] + d[0], p[1] + o[1] + d[1], p[2] + o[2] + d[2]];
       const q = l.pkt.map((x) => ({ x, P: proj(plus(x.p, [0, 0, 0])), Q: proj(plus(x.p, x.o)) }));
+      if (!blass) q.forEach((x) => { if (x.Q && !x.x.leer) zlPunkte.push({ x: x.Q[0], y: x.Q[1], v: x.x.v, name: l.name }); });
       for (let i = 0; i < q.length - 1; i += 1) {
         const a = q[i], b = q[i + 1];
         if (a.x.leer || b.x.leer || !a.P || !a.Q || !b.P || !b.Q) continue;
@@ -2935,7 +2957,9 @@ export class Modellansicht {
   }
 
   _verformtMalen(c, proj, t) {
-    const v = this.verformt;
+    const v0 = this.verformt;
+    const sf = this._schwingFaktor(v0.immer === true);
+    const v = sf === 1 ? v0 : { ...v0, faktor: v0.faktor * sf };
     const s = this._s;
     // Die Werte an der Figur (3. Oktober): je Punkt der Betrag des Wegs in
     // mm, an der VERFORMTEN Lage - `_werte` schreibt sie im Plot «w» an.
@@ -3686,6 +3710,18 @@ export class Modellansicht {
          * Akzentfarbe und ein kurzer Satz am Zeiger. Nur mit der Maus und
          * ohne gedrückte Taste; einmal je Bild, nicht je Ereignis.
          */
+        if (this.wertAmZeiger && !zeiger.size && e.pointerType === 'mouse' && !this._wertPlan) {
+          this._wertPlan = true;
+          const ev = e;
+          requestAnimationFrame(() => {
+            this._wertPlan = false;
+            const alt = this._mausWert;
+            let neu = null;
+            try { neu = this._wertAmZeiger(ev); } catch { neu = null; }
+            this._mausWert = neu;
+            if (neu || alt) this.zeichne();
+          });
+        }
         if (!treffer && !zeiger.size && e.pointerType === 'mouse' && !this._hoverPlan) {
           this._hoverPlan = true;
           const ev = e;
@@ -3901,6 +3937,7 @@ export class Modellansicht {
       if (this._fadenkreuz) { this._fadenkreuz = null; this.zeichne(); }
       // Die Anzeige «hier lässt sich ziehen» geht mit dem Zeiger (2. Oktober).
       if (this._hoverZiel) { this._hoverZiel = null; this.cv.style.cursor = ''; this.zeichne(); }
+      if (this._mausWert) { this._mausWert = null; this.zeichne(); }
     });
 
     /*
@@ -4788,7 +4825,149 @@ export class Modellansicht {
     this._male();
   }
 
+  /*
+   * >>> DYNAMISCHE ELEMENTE (19. November). <<< Auf das Audit, im Wortlaut:
+   * «Empfohlene vier bauen»: (1) verformte Figur und Knickfigur schwingen,
+   * (2) Unterschied nach einer Eingabe (app.js), (3) Wert unter der Maus,
+   * (4) weiche Übergänge beim Wechsel von Lastfall und Plot, Explosion per
+   * Knopf. Gezeichnet wird zuerst das Bild, darüber die Überblendung und der
+   * Wert am Zeiger. Mit «weniger Bewegung» im System keine Bewegung.
+   */
   _male() {
+    this._maleInhalt();
+    try { this._ueberlagerung(); } catch { /* nur Zugabe */ }
+  }
+
+  static get wenigBewegung() {
+    try { return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    catch { return false; }
+  }
+
+  get modus() { return this._modus; }
+  set modus(v) {
+    if (this._modus !== undefined && v !== this._modus) this.ueberblenden();
+    this._modus = v;
+  }
+
+  /** Das jetzige Bild festhalten und über 300 ms ausblenden (Plot, Lastfall). */
+  ueberblenden(ms = 300) {
+    if (!this.cv || !this.cv.width || Modellansicht.wenigBewegung || typeof document === 'undefined') return;
+    try {
+      const b = document.createElement('canvas');
+      b.width = this.cv.width; b.height = this.cv.height;
+      b.getContext('2d').drawImage(this.cv, 0, 0);
+      this._blende = { bild: b, t0: performance.now(), ms };
+    } catch { this._blende = null; }
+  }
+
+  _ueberlagerung() {
+    const c = this.ctx;
+    const b = this._blende;
+    if (b) {
+      const f = (performance.now() - b.t0) / b.ms;
+      if (f >= 1 || b.bild.width !== this.cv.width || b.bild.height !== this.cv.height) this._blende = null;
+      else {
+        c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
+        c.globalAlpha = 1 - f * f * (3 - 2 * f);
+        c.drawImage(b.bild, 0, 0);
+        c.restore();
+        this.zeichne();
+      }
+    }
+    const m = this._mausWert;
+    if (m && !this._zieh && !this._ziehMast && !this._ziehPunkt) {
+      const s = this._s || 1;
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
+      c.font = this._wertFont();
+      const zeilen = [m.text, m.unter].filter(Boolean);
+      const w = Math.max(...zeilen.map((z) => c.measureText(z).width)) + 12 * s;
+      const h = zeilen.length * 14 * s + 8 * s;
+      let x = m.x + 14 * s, y = m.y + 14 * s;
+      if (x + w > this.cv.width) x = m.x - w - 8 * s;
+      if (y + h > this.cv.height) y = m.y - h - 8 * s;
+      const tk = tokens();
+      c.globalAlpha = 0.94;
+      c.fillStyle = tk.s1 ?? tk.viewerBg ?? '#fff';
+      c.strokeStyle = tk.ol ?? '#999';
+      c.lineWidth = 1;
+      c.beginPath(); c.rect(x, y, w, h); c.fill(); c.stroke();
+      c.globalAlpha = 1;
+      c.textBaseline = 'top';
+      zeilen.forEach((z, i) => {
+        c.fillStyle = i ? (tk.dim ?? '#777') : (m.farbe ?? tk.on ?? '#222');
+        c.fillText(z, x + 6 * s, y + 4 * s + i * 14 * s);
+      });
+      c.restore();
+    }
+  }
+
+  /** Der Wert der gezeigten Grösse unter dem Zeiger, oder null (Stabname in Worten: `stabWort`). */
+  _wertAmZeiger(e) {
+    const p = PLOTS.find((x) => x.key === this.modus);
+    if (!p?.feld) return null;
+    const [px, py] = this._geraetePunkt(e);
+    const z = this.zustand;
+    const fmt = (v, nk) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(nk ?? 2));
+    if (z && this._zlPunkte?.length) {
+      let best = null, d2 = (16 * (this._s || 1)) ** 2;
+      this._zlPunkte.forEach((q) => {
+        const d = (q.x - px) ** 2 + (q.y - py) ** 2;
+        if (d < d2) { d2 = d; best = q; }
+      });
+      if (best) {
+        return { x: px, y: py, text: `${z.name} ${z.k === 'eta' ? best.v.toFixed(3) : fmt(best.v, 2)}${z.einheit ? ` ${z.einheit}` : ''}`,
+                 unter: this.anzeigeText(stabWort(best.name)), farbe: best.v >= 0 ? '#c8503c' : '#3a72c8' };
+      }
+    }
+    const tr = this._treffer(e)?.flaeche;
+    const v = tr?.werte?.[p.feld];
+    if (!tr || !Number.isFinite(v)) return null;
+    const e2 = p.einheit && p.einheit !== '–' ? ` ${p.einheit}` : '';
+    return { x: px, y: py, text: `${p.kurz ?? p.label} ${p.fest ? v.toFixed(3) : fmt(v, p.nk)}${e2}`,
+             unter: this.anzeigeText(String(tr.label ?? tr.teil ?? '').split(' · ').slice(0, 2).join(' · ')),
+             farbe: p.fest ? etaFarbe(v) : null };
+  }
+
+  /*
+   * >>> DIE FIGUR SCHWINGT (19. November). <<< Die verformte Figur geht
+   * langsam zwischen Ruhelage und voller Verformung hin und her, die
+   * Knickfigur (normiert) zwischen −1 und +1 - so sieht man die Richtung.
+   */
+  schwingen(an) {
+    this.figurSchwingt = an === true && !Modellansicht.wenigBewegung;
+    if (!this.figurSchwingt) { this._schwingT0 = null; this.zeichne(); return; }
+    this._schwingT0 = performance.now();
+    const schritt = () => {
+      if (!this.figurSchwingt) return;
+      this.zeichne();
+      requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+  }
+
+  _schwingFaktor(knick) {
+    if (!this.figurSchwingt || this._schwingT0 === null) return 1;
+    const ph = ((performance.now() - this._schwingT0) / 2400) * 2 * Math.PI;
+    return knick ? Math.sin(ph) : (1 - Math.cos(ph)) / 2;
+  }
+
+  /** Die Explosion weich auf einen Wert fahren (0 … 1). */
+  explosionFahren(ziel, ms = 650, beiJedemBild = null) {
+    const von = this.explosion ?? 0;
+    if (Modellansicht.wenigBewegung) { this.explosion = ziel; beiJedemBild?.(ziel); this.zeichne(); return; }
+    const t0 = performance.now();
+    const schritt = () => {
+      const f = Math.min(1, (performance.now() - t0) / ms);
+      const e = f * f * (3 - 2 * f);
+      this.explosion = von + (ziel - von) * e;
+      beiJedemBild?.(this.explosion);
+      this.zeichne();
+      if (f < 1) requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+  }
+
+  _maleInhalt() {
     const c = this.ctx, cv = this.cv;
     const t = tokens();
     const w = cv.width, h = cv.height;

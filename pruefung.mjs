@@ -43039,6 +43039,29 @@ titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählba
        pN?.key === 'eta' && pF === null && ans._farbPlot()?.key === 'N');
 }
 
+titel('299  Dynamik: Figur schwingt, Δη nach Eingabe, Wert am Zeiger, Überblenden, Explosion auf/zu');
+{
+  const R3c = await import(J('render.3d.js'));
+  const ans = Object.create(R3c.Modellansicht.prototype);
+  ans.figurSchwingt = false; ans._schwingT0 = null;
+  wahr('Ohne Schwingen ist der Faktor 1', ans._schwingFaktor(false) === 1 && ans._schwingFaktor(true) === 1);
+  ans.figurSchwingt = true; ans._schwingT0 = performance.now() - 600;   // Viertelperiode
+  const fv = ans._schwingFaktor(false), fk = ans._schwingFaktor(true);
+  wahr('Schwingen: Figur zwischen 0 und 1, Knickfigur zwischen −1 und 1 (Viertelperiode: 0.5 bzw. 1)',
+       Math.abs(fv - 0.5) < 0.05 && Math.abs(fk - 1) < 0.05, `${fv.toFixed(3)} / ${fk.toFixed(3)}`);
+  ans._modus = 'eta'; let geblendet = 0; ans.ueberblenden = () => { geblendet += 1; };
+  ans.modus = 'M'; ans.modus = 'M';
+  wahr('Plotwechsel blendet über (einmal je Wechsel)', geblendet === 1 && ans.modus === 'M');
+  const RQ3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const LQ3 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const AQ3 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Wert am Zeiger (Fläche oder Linie), mit «weniger Bewegung» keine Animation',
+       RQ3.includes('_wertAmZeiger(e)') && RQ3.includes('this._zlPunkte') && RQ3.includes("prefers-reduced-motion: reduce"));
+  wahr('Knöpfe Explosion auf/zu und Figur schwingen; Δη an Kacheln und Hauptkachel',
+       LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
+       && AQ3.includes("document.querySelector('.urteil .urteil-zahl')"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

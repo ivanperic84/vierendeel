@@ -325,6 +325,7 @@ if (typeof document !== 'undefined') {
       geplant = false;
       ui.schieberFuellenAlle();
       ui.mastAnzeigeAnwenden(document.body, anzeigeKarte);
+      try { deltaMarken(); } catch { /* nur Zugabe */ }
     });
   }).observe(document.documentElement, { childList: true, subtree: true });
 }
@@ -633,6 +634,64 @@ function wiederherstellen() {
 function knickGilt() {
   const g = stabwerkGilt();
   return g && knick && knick.kennung === g.h.kennung ? knick : null;
+}
+
+/*
+ * >>> DER UNTERSCHIED NACH EINER EINGABE (19. November). <<< Auf das Audit
+ * («Empfohlene vier bauen»): ändert eine Eingabe das Stabwerk, steht für
+ * acht Sekunden an der Hauptkachel und an jeder Nachweiskachel die
+ * Änderung von η gegenüber dem vorigen gültigen Stand («↑ +0.04»). Nur
+ * beim selben Tragwerk; verglichen werden Kacheln gleichen Titels.
+ */
+let deltaAlt = null;
+let deltaNeu = null;
+const DELTA_MS = 8000;
+function deltaLesen() {
+  const m = new Map();
+  document.querySelectorAll('.kz').forEach((el) => {
+    const k = el.querySelector('.kz-t')?.textContent?.trim();
+    let v = el.dataset.eta !== undefined ? Number(el.dataset.eta) : NaN;
+    if (!Number.isFinite(v) && /η/.test(k ?? '')) v = parseFloat((el.querySelector('.kz-w')?.textContent ?? '').split(/[↑↓]/)[0]);
+    if (k && Number.isFinite(v) && !m.has(k)) m.set(k, v);
+  });
+  const h = parseFloat((document.querySelector('.urteil .urteil-zahl')?.textContent ?? '').split(/[↑↓]/)[0].replace(/[^0-9.\-]/g, ''));
+  if (Number.isFinite(h)) m.set('__haupt', h);
+  return m;
+}
+function deltaSpan(d) {
+  const auf = d > 0;
+  return `<span class="kz-delta ${auf ? 'auf' : 'ab'}" title="Änderung gegenüber dem vorigen Stand">${auf ? '↑ +' : '↓ −'}${Math.abs(d).toFixed(3)}</span>`;
+}
+function deltaMarken() {
+  const g = stabwerkGilt();
+  const kenn = g?.h?.kennung;
+  if (!kenn) return;
+  const tw = werte?.twId ?? '';
+  if (!deltaAlt || deltaAlt.kenn !== kenn) {
+    const jetzt = deltaLesen();
+    if (!jetzt.size) return;
+    deltaNeu = deltaAlt && deltaAlt.tw === tw ? { kenn, bis: Date.now() + DELTA_MS, alt: deltaAlt.werte } : null;
+    deltaAlt = { kenn, tw, werte: jetzt };
+    if (deltaNeu) {
+      setTimeout(() => document.querySelectorAll('.kz-delta').forEach((x) => x.remove()), DELTA_MS + 50);
+    }
+  }
+  if (!deltaNeu || deltaNeu.kenn !== kenn || Date.now() > deltaNeu.bis) return;
+  const alt = deltaNeu.alt;
+  document.querySelectorAll('.kz').forEach((el) => {
+    if (el.querySelector('.kz-delta')) return;
+    const k = el.querySelector('.kz-t')?.textContent?.trim();
+    const v = deltaAlt.werte.get(k);
+    if (!k || !alt.has(k) || !Number.isFinite(v)) return;
+    const d = v - alt.get(k);
+    if (Math.abs(d) < 0.0005) return;
+    el.querySelector('.kz-w')?.insertAdjacentHTML('beforeend', deltaSpan(d));
+  });
+  const hz = document.querySelector('.urteil .urteil-zahl');
+  if (hz && !hz.querySelector('.kz-delta') && alt.has('__haupt') && deltaAlt.werte.has('__haupt')) {
+    const d = deltaAlt.werte.get('__haupt') - alt.get('__haupt');
+    if (Math.abs(d) >= 0.0005) hz.insertAdjacentHTML('beforeend', deltaSpan(d));
+  }
 }
 
 /** alpha_cr über alle Nachweis-Kombinationen rechnen (Knopf, 18. November). */
