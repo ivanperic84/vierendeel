@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Neu: «Dimensionieren» rechnet Jochtyp, Mastprofil, Stegrichtung, elastisch/plastisch und Einspannung mit dem Stabwerk durch, mit Diagramm Ausnutzung gegen Materialmasse. «Mast plastisch» gilt jetzt auch im Stabwerk.', rechnung: true },
       { text: 'Knicken Mast (SIA 263) ist bei neuen Querprofilen wieder voreingestellt eingeschaltet.', rechnung: true },
       { text: 'Farbbalken: Ausnutzung bis 1.0, Lastfall darunter, Klick auf den Balken für Farbe (Nachweis / Resultat / frei), Skala und Werte. Liniendiagramm: sehr kleine Werte werden nicht mehr gross gezeichnet. Kachel überfahren hebt den Stab hervor; Leiste oben, solange das Stabwerk rechnet. Knopf «Bauteil setzen» im 3D entfernt.' },
       { text: 'Neu im 3D: Figur schwingt (Knopf «Figur ▶»), Wert unter der Maus, weiche Übergänge bei Plot und Lastfall, Explosion «auf / zu»; nach einer Eingabe zeigen die Kacheln kurz die Änderung von η.' },

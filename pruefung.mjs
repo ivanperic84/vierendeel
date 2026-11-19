@@ -43088,6 +43088,37 @@ titel('300  Legende: η bis 1.0, Lastfall, Einstellungen am Balken; kleine Werte
   wahr('Farbe Nachweis gilt auch ohne Linie (Skala η)', an._farbPlot()?.key === 'eta');
 }
 
+titel('301  Dimensionieren mit dem Stabwerk: Varianten, Einspannung, plastisch, Diagramm');
+{
+  const DM = await import(J('app.dimension.js'));
+  const SN5 = await import(J('core.stabnachweis.js'));
+  const w0 = standardwerteApp();
+  const v1 = DM.variante(w0, { einsp: 'grenze', plastisch: true, profil: 'HEB 240', steg: 'quer' });
+  const v2 = DM.variante(w0, { einsp: 'voll' });
+  wahr('Variante: Einspannung bis Grenze / voll, plastisch, Profil und Steg an beiden Masten',
+       v1.auflagerLinks?.schraubenGrenze === true && v1.schraubenGrenze === true && v1.mastPlastisch === true
+       && v2.auflagerLinks && !v2.auflagerLinks.schraubenGrenze && DM.aktuelleEinspannung(v2) === 'voll'
+       && DM.variante(w0, { einsp: 'gebaut' }).auflagerLinks === null && w0.auflagerLinks !== v1.auflagerLinks);
+  const liste = DM.variantenListe(w0, { joch: true, mast: true, steg: true, plastisch: true, einspannung: true });
+  wahr('Varianten: je Einspannung Jochtypen und Profil × Steg × elastisch/plastisch',
+       liste.some((x) => x.art === 'joch' && x.einsp === 'voll') && liste.some((x) => x.art === 'mast' && x.plastisch === true && x.steg === 'quer'),
+       `${liste.length} Varianten`);
+  const erg = [{ art: 'joch', einsp: 'gebaut', typ: 'A', joch: 0.9, kg: 900 }, { art: 'joch', einsp: 'gebaut', typ: 'B', joch: 0.7, kg: 1100 },
+               { art: 'mast', einsp: 'gebaut', profil: 'P1', steg: 'jochachse', plastisch: false, mast: 1.1, fund: 0.5, kg: 800 },
+               { art: 'mast', einsp: 'gebaut', profil: 'P2', steg: 'jochachse', plastisch: true, mast: 0.8, fund: 0.5, kg: 950 }];
+  const k = DM.kombinationen(erg, 1);
+  wahr('Kombination: leichtestes Joch und leichtester Mast, die halten',
+       k.length === 1 && k[0].typ === 'A' && k[0].profil === 'P2' && k[0].plastisch === true);
+  const svg = DM.diagrammSvg([{ art: 'joch', einsp: 'gebaut', gesamt: 0.8, kg: 1000 }, { art: 'kombi', einsp: 'voll', gesamt: 1.1, kg: 1200 }], 0.9);
+  wahr('Diagramm: Punkte je Variante, Linie η = 1, Achse Masse', (svg.match(/data-dm-punkt/g) ?? []).length === 2
+       && svg.includes('class="dm-eins"') && svg.includes('Materialmasse'));
+  const pw = SN5.mastPlastischW({ form: 'I', parameter: [260, 260, 10, 17.5] }, 10, 235);
+  wahr('Mast plastisch im Stabwerk: W_pl,y des HEB 260 aus der Geometrie (ohne Ausrundung)',
+       pw && Math.abs(pw.Wy * 1e6 - (10 * 225 * 225 / 4 + 260 * 17.5 * 242.5) / 1000) < 0.1, pw && (pw.Wy * 1e6).toFixed(1));
+  const AQ5 = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
+  wahr('Der Schalter «Mast plastisch» erreicht das Stabwerk', AQ5.includes('const mastPlastisch = satz.mastPlastisch === true;'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

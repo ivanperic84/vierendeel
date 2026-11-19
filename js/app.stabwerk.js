@@ -477,8 +477,11 @@ export function rechneStabwerk(app, aufruf = {}) {
   const knotenbereich = satz.knotenbereich ?? 'anschnitt';
   // Stehende Bleche plastisch (10. Oktober) - ein Schalter des Blattes.
   const blechPlastisch = satz.blechPlastisch === true;
+  // Mast plastisch auch im Stabwerk (19. November, Dimensionierung): der Schalter des Kerns.
+  const mastPlastisch = satz.mastPlastisch === true;
+  const fyMast = stahlM?.fy ?? 235;
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
-    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch });
+    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch, mastPlastisch, fyMast });
   /*
    * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
    * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
@@ -714,7 +717,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   // mit AxisVM wertet fremde Schnittgrössen genau so aus (core.axisvergleich.js).
   Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo,
     ausleger: Boolean(bau?.tragausleger),
-    auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch } } },
+    auswertung: { faelle, fyd, opt: { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch, mastPlastisch, fyMast } } },
                                           enumerable: false });
   /*
    * >>> DIE AUSWERTUNG IM GEWÄHLTEN LASTFALL (4. Oktober). <<<
@@ -788,7 +791,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   Object.defineProperty(ergebnis, 'imFall', { enumerable: false, value: (key) => {
     const lf = alleFaelleS.find((l) => l.key === key);
     if (!lf) return null;
-    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich, fydMast, blechPlastisch });
+    const hu = stabwerkHuelle(dat, lsg, [lf], fyd, { torsion, knotenbereich, fydMast, blechPlastisch, mastPlastisch, fyMast });
     let kn = null;
     if (knick) {
       kn = {};

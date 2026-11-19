@@ -6,6 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { dialogDimension } from './app.dimension.js';
 import { viewerAusleiten } from './app.viewer.js';
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
@@ -7901,6 +7902,7 @@ export async function start() {
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
   // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.
   ui.setzeSortimentSuche(() => dialogSortiment(app));
+  ui.setzeDimension(() => dialogDimension(app));
   // Drahtwerke nach Typ (7. Oktober): die Teile im 3D hervorheben.
   ui.setzeDrahtwerkWahl((teile) => {
     if (!ansicht) return;

@@ -6503,6 +6503,9 @@ function pruefungenHtml(urteil) {
 /** Rückruf für die Sortimentssuche; app.js setzt ihn beim Start. */
 let beiSortiment = null;
 export function setzeSortimentSuche(fn) { beiSortiment = fn; }
+// Dimensionieren mit dem Stabwerk (19. November, app.dimension.js).
+let beiDimension = null;
+export function setzeDimension(fn) { beiDimension = fn; }
 
 /**
  * DIE WARNUNG AM GETEILTEN MASTEN.
@@ -8935,6 +8938,9 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
          type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
 diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
          >Sortiment durchrechnen</button>` : ''}
+      ${beiDimension && opt.stabwerk?.verfahren === 'stabwerk' ? `<button class="btn btn-mini" data-dimension type="button"
+         title="Jochtyp, Mastprofil, Stegrichtung, elastisch / plastisch und Einspannung mit dem Stabwerk durchrechnen - mit Diagramm Ausnutzung gegen Masse"
+         >Dimensionieren</button>` : ''}
     </div>
     ${/*
        * >>> DIE NACHWEISE ZUERST. <<<
@@ -9034,6 +9040,8 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
   });
   const so = node.querySelector('[data-sortiment]');
   if (so && beiSortiment) so.addEventListener('click', () => beiSortiment());
+  const dm = node.querySelector('[data-dimension]');
+  if (dm && beiDimension) dm.addEventListener('click', () => beiDimension());
   verdrahteKlapp(node);
   verdrahteStabwerk(node, opt);
   verdrahtePlastisch(node, opt);

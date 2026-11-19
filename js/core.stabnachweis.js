@@ -29,7 +29,7 @@
 
 import { randspannung, winkelwerteFuer, winkelGetauscht } from './core.winkel.js';
 import { getProfil, getGurtprofil } from './data.profiles.js';
-import { woelbtorsion } from './core.mast.js';
+import { woelbtorsion, mastKlasse, plastischeWiderstaende } from './core.mast.js';
 import { LEICHT } from './stufe.js';
 
 /** Welche Rolle spielt dieser Stab im Tragwerk? */
@@ -204,13 +204,32 @@ function widerstand(qs) {
 }
 
 /**
+ * >>> MAST PLASTISCH IM STABWERK (19. November). <<< Zur Dimensionierung,
+ * im Wortlaut: «bei den masten müsste man noch die möglichkeit aufführen
+ * wenn sie gedreht werden. und zudem noch die plastische
+ * widerstandsbetrachtung», dann «dimensionierung mit dem stabwerk
+ * vornehmen». Dieselbe Regel wie der Kern (`mastNachweise`, Schalter «Mast
+ * plastisch»): bei Querschnittsklasse 1 oder 2 W_pl statt W_el, die Anteile
+ * linear addiert (σ_N + M_y/W_pl,y + M_z/W_pl,z + σ_ω). Nur I-Profile.
+ */
+export function mastPlastischW(qs, nDruck, fy) {
+  if (qs?.form !== 'I' || !Array.isArray(qs.parameter) || qs.parameter.length < 4) return null;
+  const [h, b, tw, tf] = qs.parameter;       // mm
+  if (!(h > 0 && b > 0 && tw > 0 && tf > 0)) return null;
+  const kl = mastKlasse({ h, b, tw, tf }, fy > 0 ? fy : 235, Math.max(0, nDruck));
+  if (kl.klasse > 2) return null;
+  const pw = plastischeWiderstaende({ h, b, tw, tf });   // cm³, ohne Ausrundung (sichere Seite)
+  return { Wy: pw.Wply / 1e6, Wz: pw.Wplz / 1e6, klasse: kl.klasse };
+}
+
+/**
  * Spannung eines Stabes aus seinen lokalen Endkraeften.
  *
  * @param {object} qs  Querschnitt aus der Datei (stabmodellJson)
  * @param {Float64Array} f  12 Endkraefte, wie `stabkraft()` sie gibt
  * @returns {{sig:number, ende:string}|null}  groesste Randspannung [N/mm²]
  */
-export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null) {
+export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null, plW = null) {
   if (!qs || !f) return null;
 
   /*
@@ -262,8 +281,10 @@ export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null) {
     return best;
   }
 
-  const wd = widerstand(qs);
-  if (!wd) return null;
+  const wd0 = widerstand(qs);
+  if (!wd0) return null;
+  // Mast plastisch (19. November): plastische statt elastische Widerstandsmomente.
+  const wd = plW ? { ...wd0, Wy: plW.Wy, Wz: plW.Wz, plastisch: true } : wd0;
   /*
    * >>> DIE WÖLBSPANNUNG DES MASTEN (28. September). <<<
    *
@@ -557,8 +578,10 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     const torsion = mh ? { z_i: (knZ.get(st.von) ?? mh.fuss) - mh.fuss,
                            z_j: (knZ.get(st.bis) ?? mh.fuss) - mh.fuss,
                            zO: mh.kopf - mh.fuss } : null;
+    const plW = opt.mastPlastisch === true && rolle === 'mast'
+      ? mastPlastischW(qsMap.get(st.querschnitt), Math.max(f[0], -f[6]), opt.fyMast) : null;
     let s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion,
-                         knotenEnde.get(st.name) ?? null);
+                         knotenEnde.get(st.name) ?? null, plW);
     if (!s) { ohneWert += 1; return; }
     if (gitterAnschnitt.size && rolle === 'gurt'
         && (gitterAnschnitt.has(st.von) || gitterAnschnitt.has(st.bis))) {
@@ -608,7 +631,7 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
           const fx = schnittImStab(f, L, xi);
           const zx = torsion ? torsion.z_i + (torsion.z_j - torsion.z_i) * xi : 0;
           const sx = stabSpannung(qsMap.get(st.querschnitt), fx, rolle,
-                                  torsion ? { z_i: zx, z_j: zx, zO: torsion.zO } : null);
+                                  torsion ? { z_i: zx, z_j: zx, zO: torsion.zO } : null, null, plW);
           if (!sx) continue;
           verlauf.push({ xi, sig: sx.sig, N: Math.abs(fx[0]),
                          V: Math.max(Math.abs(fx[1]), Math.abs(fx[2])),

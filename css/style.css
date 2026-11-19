@@ -4007,3 +4007,29 @@ body.sw-rechnet::after { content: ""; position: fixed; left: 0; right: 0; top: 0
 @keyframes swRechnet { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 @media (prefers-reduced-motion: reduce) { body.sw-rechnet::after { animation: none; background-size: 100% 100%; } }
+
+/* Dimensionieren (19. November, app.dimension.js) */
+.dm-kopf { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-bottom: 8px; }
+.dm-wahl { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
+.dm-wahl input[type=number] { width: 52px; }
+.dm-fort { position: relative; display: flex; gap: 10px; align-items: center; height: 26px; margin: 6px 0;
+  border: 1px solid var(--ol); border-radius: 4px; padding: 0 8px; overflow: hidden; font-size: 11px; }
+.dm-fort[hidden] { display: none; }
+.dm-fort #dm-balken { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--acc-s); transition: width var(--t-schnell); z-index: 0; }
+.dm-fort span, .dm-fort button { position: relative; z-index: 1; }
+.dm-fort span { flex: 1; }
+.dm-empf { padding: 8px 10px; border: 1px solid var(--ok); border-radius: 6px; margin: 8px 0; font-size: 12px; }
+.dm-empf.nok { border-color: var(--fail); }
+.dm-diagramm { width: 100%; max-width: 680px; height: auto; display: block; color: var(--on); }
+.dm-diagramm .dm-gitter { stroke: var(--ol); stroke-width: .5; }
+.dm-diagramm .dm-eins { stroke: var(--fail); stroke-width: 1; stroke-dasharray: 5 3; }
+.dm-diagramm .dm-grenze { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 2 3; }
+.dm-diagramm .dm-achse { fill: var(--dim); font-size: 10px; }
+.dm-diagramm .dm-punkt { cursor: pointer; }
+.dm-diagramm .dm-punkt:hover > * { stroke: currentColor; stroke-width: 2; }
+.dm-legende { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--dim); margin: 4px 0 10px; }
+.dm-legende i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.dm-tabelle { max-height: 320px; overflow: auto; }
+.dm-tabelle td.ok { color: var(--ok); } .dm-tabelle td.warn { color: var(--warn); } .dm-tabelle td.fail { color: var(--fail); }
+.dm-tabelle tr.dm-best td { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.dm-tabelle tr.dm-gewaehlt td { background: var(--acc-s); }
