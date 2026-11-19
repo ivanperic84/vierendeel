@@ -4080,3 +4080,26 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 
 /* Beim Setzen von Bauteilen keine Legende der Resultate (19. November). */
 body.setzen-an #legende { display: none; }
+
+/* Plastisch-Schalter bei der Gruppe, Erklärung hinter ⓘ (19. November). */
+.nw-pl { display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; margin: 2px 0 8px; }
+.nw-pl .schalter { margin: 0; }
+.nw-erkl { font-size: 11px; color: var(--dim); }
+.nw-erkl summary { cursor: pointer; list-style: none; padding: 0 4px; color: var(--dim); }
+.nw-erkl summary::-webkit-details-marker { display: none; }
+.nw-erkl[open] { flex-basis: 100%; }
+.nw-erkl p { margin: 2px 0 0 26px; line-height: 1.4; }
+/* Fundament: Auswertung beim Klick (19. November). */
+.kz.kz-auf { cursor: pointer; }
+.nw-zeilen .kz.kz-auf:hover { background: var(--s2); }
+.kz .kz-detail { grid-column: 1 / -1; margin-top: 6px; padding: 6px 8px; border-left: 2px solid var(--ol);
+  font-size: 11px; color: var(--on2); cursor: default; }
+.kz .kz-detail p { margin: 0 0 4px; line-height: 1.4; }
+.kz .kz-detail .warn { color: var(--warn); }
+.kzd-ablauf { margin: 2px 0; }
+.kzd-tab { width: 100%; border-collapse: collapse; margin: 4px 0; font-family: var(--f-mono); font-size: 10.5px; }
+.kzd-tab td { padding: 1px 4px 1px 0; border-bottom: 1px solid var(--ol); }
+.kzd-tab td.num { text-align: right; white-space: nowrap; }
+.kzd-tab tr.lenkt td { color: var(--dim); }
+.kzd-tab tr.nok td { color: var(--fail); }
+.kzd-fuss { color: var(--dim); }

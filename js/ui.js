@@ -6417,25 +6417,27 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
 function plastischHtml(opt, mitMast, mitBlech = false) {
   if ((!mitMast && !mitBlech) || typeof opt?.beiFeld !== 'function') return '';
   /*
-   * STEHENDE BLECHE PLASTISCH (10. Oktober, Weisung: «schalter wie mast
-   * plastisch, entscheid beim user ob bei alten jochen angesetzt wird»).
-   * Ein Schalter; ist das Joch alter Bauweise, sagt ein Hinweis, dass der
-   * Entscheid beim Anwender liegt (Rückfrage «Ein Schalter + Hinweis»).
+   * >>> KURZ, ERKLÄRUNG ZUM AUFKLAPPEN, BEI DER GRUPPE (19. November). <<<
+   * «diese texte zusammenkürzen oder per klick ausfahren. die option jeweils
+   * bei der gruppe selbst aufführen.» Der Schalter steht unter seiner
+   * Gruppe (Mast bzw. Joch, `plastischSchalter`), die Erklärung hinter «ⓘ».
    */
-  const blech = mitBlech ? `
-    <label class="schalter"><input type="checkbox" data-nw-blechplastisch${
-      opt.blechPlastisch ? ' checked' : ''}><span>Stehende Bleche plastisch nachweisen</span></label>
-    <p class="notiz">Am Anschnitt W_pl = 1.5 · W_el mit t = min(Blech, Gurtschenkel),
-      Stumpfnaht durchgeschweisst (EXC 2); Interaktion linear N/N_pl + M_y/M_pl,y + M_z/M_pl,z,
-      Schub nach EN 1993-1-1, 6.2.8. Liegende Bleche bleiben elastisch. Gilt im Stabwerk.</p>${
-      opt.blechPlastisch && opt.jochAlt ? `
-    <p class="notiz warn">Joch alter Bauweise: Nahtgüte und Werkstoff des Bestands sind nicht
-      belegt - ob die plastische Reserve hier angesetzt wird, entscheidet der Anwender.</p>` : ''}` : '';
-  return `<div class="nw-plastisch">${mitMast ? `
-    <label class="schalter"><input type="checkbox" data-nw-plastisch${
-      opt.plastisch ? ' checked' : ''}><span>Mast plastisch nachweisen</span></label>
-    <p class="notiz">W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2.
-      Interaktion linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.</p>` : ''}${blech}</div>`;
+  return `${mitMast ? plastischSchalter(opt, 'mast') : ''}${mitBlech ? plastischSchalter(opt, 'blech') : ''}`;
+}
+
+/** Ein Schalter «plastisch» mit aufklappbarer Erklärung. */
+function plastischSchalter(opt, art) {
+  if (typeof opt?.beiFeld !== 'function') return '';
+  const mast = art === 'mast';
+  const an = mast ? opt.plastisch : opt.blechPlastisch;
+  const erkl = mast
+    ? 'W_pl statt W_el, nur Querschnittsklasse 1 oder 2; Interaktion linear N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.'
+    : 'Stehende Bleche am Anschnitt mit W_pl = 1.5 · W_el, t = min(Blech, Gurtschenkel), Stumpfnaht durchgeschweisst (EXC 2); '
+      + 'Interaktion linear, Schub nach EN 1993-1-1, 6.2.8. Liegende Bleche bleiben elastisch.';
+  const warn = !mast && opt.blechPlastisch && opt.jochAlt
+    ? '<p class="notiz warn">Joch alter Bauweise: ob die plastische Reserve angesetzt wird, entscheidet der Anwender.</p>' : '';
+  return `<div class="nw-pl"><label class="schalter"><input type="checkbox" ${mast ? 'data-nw-plastisch' : 'data-nw-blechplastisch'}${
+    an ? ' checked' : ''}><span>${mast ? 'Mast plastisch' : 'Stehende Bleche plastisch'}</span></label><details class="nw-erkl"><summary title="Erklärung">ⓘ</summary><p>${esc(erkl)}</p></details></div>${warn}`;
 }
 
 function verdrahtePlastisch(node, opt) {
@@ -6666,7 +6668,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
       ? 'Stabwerk · Knicken Kontrollrechnung' : 'Stabwerk')
     : (swH || vorlaeufig ? `Kontrollrechnung${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
-    { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
+    { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw), zusatz: plastischSchalter(opt, 'mast') },
     { titel: 'Stabilität', kacheln: [...stabilitaetKacheln(opt), ...nwJeM.stabil] },
     { titel: 'Anker', kacheln: nwJeM.anker,
       rechts: quelleM(Object.keys(swH?.ankerJe ?? {}).length > 0) },
@@ -6721,8 +6723,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${nachweisartLeiste(nwArt)}
     ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
-      ${nachweisGruppenHtml(nwGruppenMast)}
-      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle, opt.gzg ?? null) : ''}${
+      ${nachweisGruppenHtml(nwGruppenMast)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle, opt.gzg ?? null) : ''}${
       zeigtTrag ? bestandBlockHtml(stabwerkFuehrt(opt, false)) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
@@ -7449,6 +7450,17 @@ export function verdrahteStabwerk(node, opt = {}) {
     opt.beiBuegelGrenze?.();
   });
   node.querySelector('[data-buegel-uebernehmen]')?.addEventListener('click', () => opt.beiBuegelUebernehmen?.());
+  // Fundament (19. November): Klick klappt die Auswertung auf.
+  node.querySelectorAll('[data-kz-auf]').forEach((k) => {
+    k.addEventListener('click', (e) => {
+      if (e.target.closest('.kz-detail')) return;
+      const d = k.querySelector('.kz-detail');
+      if (!d) return;
+      d.hidden = !d.hidden;
+      const n = k.dataset.kzAuf;
+      if (d.hidden) FUND_OFFEN.delete(n); else FUND_OFFEN.add(n);
+    });
+  });
   // Kacheln aus dem Stabwerk: Klick zeigt den massgebenden Stab im Modell.
   if (typeof opt.beiStab === 'function') {
     node.querySelectorAll('[data-kz-stab]').forEach((k) => {
@@ -7832,6 +7844,9 @@ export function fundamentNachweisKurz(q) {
   const grenze = / gegen Grenze$/.test(rest) ? ',max' : '';
   return `massgebend: ${code}${grenze}${tr ? ` ${tr[1]}` : ''} ${m.wert.toFixed(2)} / ${m.zul.toFixed(2)} ${m.einheit ?? ''}`.trim();
 }
+
+/** Welche Fundament-Auswertungen aufgeklappt sind (bleibt beim Neuzeichnen). */
+const FUND_OFFEN = new Set();
 
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   /*
@@ -8241,11 +8256,29 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        * Zahlen wie η, nichts neu gerechnet.
        */
       const nwText = fundamentNachweisText(q, name, fF);
-      fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
+      /*
+       * >>> AUSWERTUNG BEIM ANKLICKEN (19. November). <<< «wenn man die
+       * fundamente anklickt dann die detailierte auswertung anzeigen. den
+       * infotext beim überfahren nur aufs nötigste kürzen.» Der Satz, der
+       * Ablauf je Richtung und alle Prüfungen stehen in einem Teil, der
+       * beim Klick aufklappt; der Titel sagt nur noch, was die Zahl ist.
+       */
+      const detail = `<div class="kz-detail"${FUND_OFFEN.has(name) ? '' : ' hidden'}>
+        <p>${esc(nwText)}</p>
+        ${Object.values(q.ablauf ?? {}).map((r) => `<div class="kzd-ablauf"><b>${esc(r.richtung)}:</b> ${esc(
+          r.ergebnis === 'basis' ? 'alle Basiswerte eingehalten'
+            : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
+            : `nicht zulässig, grösseres Fundament (Schritt ${r.schritt})`)}</div>`).join('')}
+        <table class="kzd-tab"><tbody>${q.nachweise.map((x) => `<tr class="${x.lenkt ? 'lenkt' : x.eta > 1 ? 'nok' : ''}"
+          title="${esc(x.bez ?? '')}${x.lenkt ? ' · lenkt den Ablauf, kein Nachweis' : ''}"><td>${esc(x.was)}</td>
+          <td class="num">${x.wert.toFixed(2)} / ${esc(String(x.zul))} ${esc(x.einheit ?? '')}</td>
+          <td class="num">${x.lenkt ? '–' : f3(x.eta)}</td></tr>`).join('')}</tbody></table>
+        ${q.abheben ? `<p class="warn">Abheben: ${q.abheben.wert.toFixed(1)} kN in «${esc(q.abheben.bez)}» - die Tabelle gilt für V 0 … 150 kN.</p>` : ''}
+        ${Number.isFinite(q.etaBasis) ? `<p class="kzd-fuss">Grösster Basiswert ${f3(q.etaBasis)} (für den Bestandesschutz). Gelände ${esc(gelaendeVon(q.gelaende).text)}.</p>` : ''}
+      </div>`;
+      let kzHtml = kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'}${q.gelaende && q.gelaende !== 'bis14'
           ? ` · ${gelaendeVon(q.gelaende).kurz}` : ''}`
-          // Die Prüfung steht seit dem 17. November in der Zeile «massgebend»;
-          // hier nur noch der Weg des Ablaufs in Worten (statt «Schritt 1»).
           + (q.stufe === 'angepasst'
             ? ` · abgemindert (Schritt ${Object.values(q.ablauf ?? {}).find((r) => r.ergebnis === 'angepasst')?.schritt ?? '?'})`
             : q.stufe === 'nicht' ? ' · grösseres Fundament nötig'
@@ -8256,21 +8289,12 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
           ...(fF ? { fall: fF.kurz } : {}),
           nachweis: nwText,
           nachweisKurz: fundamentNachweisKurz(q),
-          titel: `${fF ? `Massgebende Kombination: ${fF.voll}
-
-` : ''}`
-               + `Charakteristische Einwirkung am Fundamentkopf gegen die `
-               + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
-               + `beim Anker. Quer und längs zum Gleis werden EINZELN `
-               + `nachgewiesen, nicht überlagert. Gelände ${gelaendeVon(q.gelaende).text}.`
-               + `\n\nη ist das grösste Verhältnis der Prüfungen, die der Ablauf auf seinem Weg `
-               + `verlangt (über 1.00 nur, wenn das Fundament nicht zulässig ist).`
-               + `${Number.isFinite(q.etaBasis) ? ` Grösster Basiswert ${f3(q.etaBasis)}`
-                 + `${q.massgebendBasis ? ` (${q.massgebendBasis.was ?? q.massgebendBasis.key})` : ''}`
-                 + ' - er gilt für den Vergleich des Bestandesschutzes.' : ''}`
-               + `${abl ? `\n\nAblauf der Fundamentbestimmung:\n${abl}` : ''}`
-               + `\n\nBasiswerte:\n${alle}${hebt}`,
-        }));
+          titel: `Charakteristisch gegen die zulässige Last, quer und längs einzeln.${
+            fF ? ` Lastfall: ${fF.voll}.` : ''} Klick: Auswertung${hebt ? ' · ABHEBEN' : ''}`,
+        });
+      kzHtml = kzHtml.replace('<div class="kz', `<div data-kz-auf="${esc(name)}" class="kz kz-auf`);
+      const endeKz = kzHtml.lastIndexOf("</div>");
+      fundament.push(kzHtml.slice(0, endeKz) + detail + kzHtml.slice(endeKz));
     });
   }
   return { mast, anker, fundament, stabil };
@@ -8303,11 +8327,11 @@ export function nachweisGruppenHtml(gruppen) {
   const voll = (gruppen ?? []).filter((g) => g?.kacheln?.length);
   if (!voll.length) return '';
   if (voll.length === 1) {
-    return `<div class="kennzahlen nw-zeilen">${voll[0].kacheln.join('')}</div>`;
+    return `<div class="kennzahlen nw-zeilen">${voll[0].kacheln.join('')}</div>${voll[0].zusatz ?? ''}`;
   }
   return voll.map((g) => `<div class="sec-klein">${esc(g.titel)}${
     g.rechts ? `<span class="sec-r">${esc(g.rechts)}</span>` : ''}</div>
-    <div class="kennzahlen nw-zeilen">${g.kacheln.join('')}</div>`).join('');
+    <div class="kennzahlen nw-zeilen">${g.kacheln.join('')}</div>${g.zusatz ?? ''}`).join('');
 }
 
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
@@ -8732,7 +8756,8 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
   const nwGruppen = [
     { titel: ab ? 'Abfangjoch'
         : (swH?.ausleger || taK || erg.ausleger?.fehler ? 'Tragausleger' : 'Joch'),
-      kacheln: kz, rechts: quelle(jochAusSw) },
+      kacheln: kz, rechts: quelle(jochAusSw),
+      zusatz: opt.blechSchalter === true ? plastischSchalter(opt, 'blech') : '' },
     // «Knicken Ersatzbalken» nur, wenn das Knicken auch gefuehrt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
       // Seit dem 28. September kann das Knicken am Tragjoch aus dem
@@ -8740,7 +8765,8 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
       rechts: mastAusSw
         ? ((bt?.liste ?? []).some((x) => x.key === 'knicken' && x.quelle === 'ersatzbalken')
             ? 'Stabwerk · Knicken Kontrollrechnung' : 'Stabwerk')
-        : quelle(false) },
+        : quelle(false),
+      zusatz: erg.mast ? plastischSchalter(opt, 'mast') : '' },
     // Stabilität als eigene Gruppe (19. November): α_cr und Knicken der Masten.
     { titel: 'Stabilität', kacheln: [...stabilitaetKacheln(opt), ...nwJe.stabil] },
     { titel: 'Anker', kacheln: nwJe.anker,
@@ -8987,7 +9013,6 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${stabwerkLeiste(opt)}
     ${zeigtTrag ? `${abschnitt('Nachweise')}
     ${nachweisGruppenHtml(nwGruppen)}
-    ${plastischHtml(opt, Boolean(erg.mast), opt.blechSchalter === true)}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
     ${zeigtTrag ? rueckhaltInfoHtml(swG) : ''}
