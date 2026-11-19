@@ -39035,8 +39035,9 @@ titel('235  Signalbauer: Bildkacheln und «Signal zusammenstellen»');
          ZL.zustandBlick('Mx', a14.geo, 'mast') === 'quer' && ZL.zustandBlick('My', a14.geo, 'mast') === 'laengs');
     const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
     const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
-    wahr('… im 3D gezeichnet (Modell dann neutral) und über den Schalter «Linie» in den Resultaten',
-         r3d.includes('_zustandMalen(c, proj, t)') && r3d.includes('const p = this.zustand ? null : PLOTS.find')
+    // Seit dem 19. November trägt das Modell zur Linie eine Farbe nach Wahl (Nachweis / Resultat / frei).
+    wahr('… im 3D gezeichnet (Modellfarbe nach `linienFarbe`) und über den Schalter «Linie» in den Resultaten',
+         r3d.includes('_zustandMalen(c, proj, t)') && r3d.includes("this.linienFarbe === 'frei') return null")
          && lay.includes("text('wz-r-linie', 'Linie'") && lay.includes('zustandLegendeHtml(app)'));
   {
     const lay2 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
@@ -43007,6 +43008,35 @@ titel('297  Viewer: massgebende Fälle je Richtung, Liniendiagramm, Fundament, K
   wahr('Momentaufnahme: festes Format 2:1, an den projizierten Ecken nachgeführt, Schrift fest',
        RQ.includes('opt.breite ?? 900') && RQ.includes('const pk = ecken.map(proj)') && RQ.includes('this._pxFest = dpr'));
   wahr('core.zustandwerte.js kommt ohne Importe aus (Viewer bündelt keinen Löser)', !/^import /m.test(ZWQ));
+}
+
+titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählbar, Grenze für alle Plots');
+{
+  const ZW = await import(J('core.zustandwerte.js'));
+  // Ein liegender Gurt mit gedrehtem Dreibein (Winkel): örtlich z schräg.
+  const s = { n: 'OGL_S0', r: 'gurt', a: [0, 0, 0.2], b: [1, 0, 0.2], ex: [1, 0, 0], ey: [0, 0.7071, 0.7071], ez: [0, -0.7071, 0.7071], dSig: [0, 0, -1] };
+  const [, dN] = ZW.zustandWert('N', s, [5, 0, 0, 0, 0, 0]);
+  wahr('N in der lotrechten Ebene (dSig), nicht örtlich z', JSON.stringify(dN) === JSON.stringify([0, 0, -1]));
+  const q = (v) => Array.from({ length: 11 }, () => [v, 0, 0, 0, 0, 0]);
+  const geo = [s, { ...s, n: 'MAST_M1_S1', r: 'mast', a: [0, 0, -7], b: [0, 0, 0], ex: [0, 0, 1], dSig: [1, 0, 0] }];
+  const f = [{ key: 'a', bez: 'A', w: [q(9), q(-4)], sig: null }];
+  const ohneGurt = ZW.zustandBauen({ geo, aussen: ZW.zustandAussen(geo), faelle: f, groesse: 'N', sicht: (x) => x.r !== 'gurt' });
+  wahr('Ausgeblendete Ebene (Gurte) ohne Linie, massgebend dann der Mast',
+       ohneGurt.linien.length === 1 && ohneGurt.linien[0].name === 'MAST_M1_S1' && Math.abs(ohneGurt.mg.v + 4) < 1e-9);
+  const ZQ2 = readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8');
+  const LQ2 = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const RQ2 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Legende der Linie: keine Teile-Auswahl, Farbbalken und Wahl Nachweis / Resultat / frei',
+       !ZQ2.includes('data-zl-teile aria-label') && LQ2.includes('data-zl-farbe') && LQ2.includes('data-zl-frei'));
+  wahr('Schieber heisst «Grenze», nimmt Linien zurück und nennt den Wert in der Einheit',
+       LQ2.includes('<span>Grenze <b id="wz-auff-wert">') && RQ2.includes('const blass = grenze > 0 && lmax < grenze;')
+       && LQ2.includes("(${Math.round(a * 100)} %)"));
+  const R3b = await import(J('render.3d.js'));
+  const ans = Object.create(R3b.Modellansicht.prototype);
+  ans.modus = 'N'; ans.zustand = { vmax: 1 }; ans.linienFarbe = 'nachweis';
+  const pN = ans._farbPlot(); ans.linienFarbe = 'frei'; const pF = ans._farbPlot(); ans.linienFarbe = 'resultat';
+  wahr('Farbe zur Linie: Nachweis = η, frei = keine Skala, Resultat = Grösse der Linie',
+       pN?.key === 'eta' && pF === null && ans._farbPlot()?.key === 'N');
 }
 
 console.log('\n' + '='.repeat(104));

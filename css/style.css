@@ -1270,6 +1270,9 @@ button.wz-haupt:hover { color: var(--on); }
   background: var(--s2, rgba(255,255,255,.04)); border: 1px solid var(--ol); border-radius: 4px; cursor: pointer; }
 .zl-reihe button.an { border-color: var(--acc); background: var(--acc-s); }
 .zl-reihe button:disabled { opacity: .35; cursor: default; }
+/* Farbe des Modells zur Linie (19. November) */
+.zl-farbe { margin: 4px 0 2px; }
+.zl-farbe input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
 .zl-klein { grid-auto-columns: auto; justify-content: space-between; }
 .zl-haken { display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; }
 .zl select { font: inherit; font-size: 11px; color: var(--on); background: var(--s1); border: 1px solid var(--ol);

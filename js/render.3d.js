@@ -2519,9 +2519,17 @@ export class Modellansicht {
     this.werteAnschreiben = false;
     // Die verformte Figur (30. September) - von app.js gesetzt, sonst null.
     this.verformt = null;
-    // Die Zustandslinien (14. November, app.zustand.js) - sonst null. Steht
-    // eine, bleibt das Modell neutral: die Linie ist dann die Aussage.
+    // Die Zustandslinien (14. November, app.zustand.js) - sonst null.
     this.zustand = null;
+    /*
+     * >>> DIE FARBE DES MODELLS ZUR LINIE (19. November). <<< Weisung: «bei
+     * der darstellungsart linie kann diese box bestehen bleiben und die farbe
+     * auch. die farbe kann durch einen kleinen button einstellbar gemacht
+     * werden -> nachweis / resultat / frei wählbar». 'resultat' = die
+     * Plotgrösse der Linie als Farbe, 'nachweis' = η, 'frei' = eine Farbe.
+     */
+    this.linienFarbe = 'resultat';
+    this.linienFrei = '#8a93a6';
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
     // der Voreinstellung 0.5 bleiben Schwerachsen und dahinterliegende
     // Bauteile sichtbar, ohne dass das Bild seine Körperlichkeit verliert.
@@ -2847,9 +2855,16 @@ export class Modellansicht {
       }
       return versatzVon.get(name);
     };
+    // Die Grenze (Schieber, 19. November) nimmt auch Linien zurück.
+    const aG = this.auffaellig ?? 0;
+    const pG = PLOTS.find((x) => x.key === this.modus);
+    const grenze = aG > 0 ? (pG?.fest ? aG : aG * (z.vmax || 0)) : 0;
     z.linien.forEach((l) => {
       const d = versatz(l.name);
       if (!d) return;
+      const lmax = Math.max(0, ...l.pkt.map((x) => (x.leer ? 0 : Math.abs(x.v))));
+      const blass = grenze > 0 && lmax < grenze;
+      c.globalAlpha = blass ? 0.12 : 1;
       const plus = (p, o) => [p[0] + o[0] + d[0], p[1] + o[1] + d[1], p[2] + o[2] + d[2]];
       const q = l.pkt.map((x) => ({ x, P: proj(plus(x.p, [0, 0, 0])), Q: proj(plus(x.p, x.o)) }));
       for (let i = 0; i < q.length - 1; i += 1) {
@@ -2862,8 +2877,9 @@ export class Modellansicht {
         c.strokeStyle = farbe(vm, 0.95); c.lineWidth = 1.3 * s;
         c.beginPath(); c.moveTo(a.Q[0], a.Q[1]); c.lineTo(b.Q[0], b.Q[1]); c.stroke();
       }
+      c.globalAlpha = 1;
       const ok = q.filter((x) => !x.x.leer && x.Q);
-      if (!ok.length) return;
+      if (!ok.length || blass) return;
       const e = ok.reduce((x, y) => (Math.abs(y.x.v) > Math.abs(x.x.v) ? y : x));
       if (Math.abs(e.x.v) >= 0.25 * z.vmax && Math.abs(e.x.v) > 1e-3) {
         marken.push({ x: e.Q[0] + 6 * s, y: e.Q[1], text: fmt(e.x.v), farbe: farbe(e.x.v, 0.82), v: Math.abs(e.x.v) });
@@ -5247,9 +5263,17 @@ export class Modellansicht {
    * grössten Wert im Bild. Flächen ohne Wert (Anbauteile, Lasten) treten
    * mit zurück; ohne Plot oder mit «Linie» wirkt der Schieber nicht.
    */
+  /** Der Plot, der die Farbe des Modells gibt (mit Linie nach `linienFarbe`). */
+  _farbPlot() {
+    if (this.zustand && this.linienFarbe === 'frei') return null;
+    const key = this.zustand && this.linienFarbe === 'nachweis' ? 'eta' : this.modus;
+    return PLOTS.find((x) => x.key === key) ?? null;
+  }
+
   _unauffaellig(f) {
     const a = this.auffaellig ?? 0;
-    if (!(a > 0) || this.zustand) return false;
+    // Seit dem 19. November auch mit der Linie («für alle möglichen resultatplots»).
+    if (!(a > 0)) return false;
     const p = PLOTS.find((x) => x.key === this.modus);
     if (!p) return false;
     const v = f.werte?.[p.feld];
@@ -5267,7 +5291,8 @@ export class Modellansicht {
      * steht und dass es dazugehoert; alles Weitere sagt es, sobald man es
      * anklickt.
      */
-    const p = this.zustand ? null : PLOTS.find((x) => x.key === this.modus);
+    const p = this._farbPlot();
+    if (this.zustand && this.linienFarbe === 'frei' && f.werte && !f.passiv) return this.linienFrei;
     /*
      * >>> AUSSER ES STEHT IM STABWERK (4. Oktober). <<< Weisung: «umhüllen
      * alle stäbe färben». Das Stabwerk rechnet die Nachbarn mit; trägt eine
@@ -5340,8 +5365,8 @@ export class Modellansicht {
 
   /** Skala der aktuellen Einfärbung, für die Legende. */
   plotSkala() {
-    const p = PLOTS.find((x) => x.key === this.modus);
-    if (!p || this.zustand) return null;
+    const p = this._farbPlot();
+    if (!p) return null;
     const max = p.fest ?? this._bereichSichtbar(p.feld);
     // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
     const sw = (this.szene?.flaechen ?? []).some((f) => (p.key === 'w' ? f.wegeStabwerk : f.stabwerk));

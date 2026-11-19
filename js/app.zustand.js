@@ -96,7 +96,23 @@ export function zustandSetzen(app, g) {
   const { dx, dz } = versatz(app, roh);
   // Der Aufbau der Linien steht seit dem 19. November in core.zustandwerte.js
   // (zustandBauen) - derselbe Weg wie in der Viewer-Datei.
-  const z0 = zustandBauen({ geo, aussen, faelle, groesse, eb: zl.eb, teile: zl.teile, ax: zl.ax, dx, dz, fyd });
+  /*
+   * WELCHE TEILE: die Ebenen der Werkzeugleiste (19. November, «das ein und
+   * ausblenden der bauteile über diese darstellung braucht es nicht, diese
+   * kann über die layersteuerung erfolgen, das abbilden der einzelnen gurte
+   * braucht es nicht») - Gurte, stehende / liegende Bleche, Masten.
+   */
+  const e = ansicht.ebenen ?? {};
+  const sicht = (s) => {
+    if (s.r === 'mast') return e.mast !== false;
+    if (/^gurt/.test(s.r ?? '')) return e.profil !== false;
+    if (s.r === 'blech') {
+      const steh = Math.abs(s.b[2] - s.a[2]) > 0.7 * (Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]) || 1);
+      return steh ? e.blechSteh !== false : e.blechLieg !== false;
+    }
+    return true;
+  };
+  const z0 = zustandBauen({ geo, aussen, faelle, groesse, eb: zl.eb, sicht, ax: zl.ax, dx, dz, fyd });
   if (!z0) { ansicht.zustand = null; return; }
   const { k, huelle, groesseM } = z0;
   // Reaktionen zum Diagramm.
@@ -159,8 +175,6 @@ export function zustandLegendeHtml(app) {
          title="die Ebene mit dem grössten Wert">auto</button>`,
        ...ZL_EBENEN[zl.ax].map((eb) => `<button type="button" data-zl-eb="${eb}" class="${zl.eb === eb ? 'an' : ''}"${
          zustandDarstellbar(zustandIntern(groesse, eb, zl.ax), geo, zl.teile) ? '' : ' disabled title="an diesen Teilen kein Bild"'}>${titel[eb]}</button>`)].join('')}</div>` : '';
-  const teile = [['alle', 'ganzes Tragwerk'], ['mast', 'Masten'], ['gurt', 'Gurte, alle'], ['gurt:OGL', 'Obergurt vorn'],
-    ['gurt:OGR', 'Obergurt hinten'], ['gurt:UGL', 'Untergurt vorn'], ['gurt:UGR', 'Untergurt hinten'], ['blech', 'Bleche']];
   const zahl = (v) => `${fmt(z, v)}${z.einheit ? ` ${z.einheit}` : ''}`;
   return `<div class="zl">
     <div class="zl-wert">${z.vmax > 1e-9 && z.mg
@@ -169,8 +183,6 @@ export function zustandLegendeHtml(app) {
         + (z.spannung ? `<br><span class="zl-dim">f_yd = ${z.fyd.toFixed(1)} N/mm²</span>` : '')
       : '<span class="zl-dim">an diesen Teilen nicht darstellbar oder null</span>'}</div>
     ${ebenen}
-    <select data-zl-teile aria-label="Teile">${teile.map(([v, t]) =>
-      `<option value="${v}"${zl.teile === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>
     <div class="zl-reihe zl-klein">
       <button type="button" data-zl-blick title="Dreht den Blick einmal so, dass die Linie flach vor einem liegt (leicht schräg)">Blick auf die Ebene</button>
       <button type="button" data-zl-ax="${zl.ax === 'global' ? 'lokal' : 'global'}"

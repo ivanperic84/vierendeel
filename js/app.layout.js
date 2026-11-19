@@ -305,12 +305,20 @@ function lastartenVorhanden(app) {
  */
 export const OHNE_KNOPF = new Set(['neutral', 'etaGzg']);
 
-/** Anschrift des Schiebers «Auffällig»: aus, «η ≥ 0.60» oder «≥ 60 %». */
+/*
+ * Anschrift des Schiebers «Grenze» (19. November, «dies als Grenze anschreiben
+ * und für alle möglichen resultatplots ermöglichen»): aus, «η ≥ 0.60» oder
+ * der Wert in der Einheit der Plotgrösse mit dem Anteil am grössten Wert.
+ */
 function auffText(app) {
   const a = app.ansicht.auffaellig ?? 0;
   if (!(a > 0)) return 'aus';
   const p = PLOTS.find((x) => x.key === app.ansicht.modus);
-  return p?.fest ? `η ≥ ${a.toFixed(2)}` : `≥ ${Math.round(a * 100)} %`;
+  if (!p) return `${Math.round(a * 100)} %`;
+  if (p.fest) return `η ≥ ${a.toFixed(2)}`;
+  const max = app.ansicht.zustand?.vmax || app.ansicht._bereichSichtbar?.(p.feld) || 0;
+  const e = p.einheit && p.einheit !== '–' ? ` ${p.einheit}` : '';
+  return max > 0 ? `≥ ${(a * max).toFixed(p.nk ?? 1)}${e} (${Math.round(a * 100)} %)` : `≥ ${Math.round(a * 100)} %`;
 }
 
 export function modiFuer(art = 'beide') {
@@ -455,10 +463,10 @@ export function zeichneModellWerkzeuge(app) {
        * Bei η die Schwelle in η (0 … 1.00), bei σ_v, σ, M, V, N, T, w in
        * Prozent des grössten Werts im Bild. Nur das Bild, nicht gespeichert.
        */
-      + `<label class="wz-explo wz-auff" title="Nur auffällige Teile: was unter der Schwelle liegt, wird stark durchsichtig (η: Ausnutzung; σ_v, M, V, N, T, w: Anteil am grössten Wert im Bild). Doppelklick: aus">
-           <span>Auffällig <b id="wz-auff-wert">${auffText(app)}</b></span><input type="range" id="wz-auffaellig" min="0" max="100" step="5"
+      + `<label class="wz-explo wz-auff" title="Grenze: was darunter liegt, wird stark durchsichtig - Flächen und Linien (η: Ausnutzung; σ_v, σ, M, V, N, T, w: Anteil am grössten Wert im Bild). Doppelklick: aus">
+           <span>Grenze <b id="wz-auff-wert">${auffText(app)}</b></span><input type="range" id="wz-auffaellig" min="0" max="100" step="5"
              value="${Math.round((app.ansicht.auffaellig ?? 0) * 100)}"${gR ? '' : ' disabled'}
-             aria-label="Nur auffällige Teile"></label>`,
+             aria-label="Grenze"></label>`,
       /*
        * WER EINEN KNOPF VERMISST, SOLL ERFAHREN WARUM. Die Wahl steht in
        * der Ergebnisleiste, nicht hier - ohne diesen Satz sieht die
@@ -479,7 +487,9 @@ export function zeichneModellWerkzeuge(app) {
    * Ebene gar nicht neu gezeichnet und behauptete weiter den alten Endwert.
    */
   const nach = () => {
-    app.ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
+    // Mit der Linie folgen ihre Teile den Ebenen (19. November).
+    if (zl.an) app.zustandNeu(); else app.ansicht.zeichne();
+    zeichneLegende(app); zeichneModellWerkzeuge(app);
   };
   ui.el('wz-zu').onclick = () => { wzSetzen(true); zeichneModellWerkzeuge(app); };
   ['modell', 'zeichnung', 'lasten', 'resultate'].forEach((g) => {
@@ -778,7 +788,29 @@ export function zeichneLegende(app) {
     const z = app.ansicht.zustand;
     const titel = z ? `${z.name}${z.einheit ? ` [${z.einheit}]` : ''}${z.ebAuto && zlGroesse(app.ansicht.modus) && 'VM'.includes(zlGroesse(app.ansicht.modus)) ? ' · Ebene auto' : ''}`
       : 'Zustandslinie';
-    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${zlHtml}`;
+    /*
+     * Der Farbbalken bleibt (19. November, «bei der darstellungsart linie
+     * kann diese box bestehen bleiben und die farbe auch»), umschaltbar:
+     * Nachweis (η) / Resultat (die Grösse der Linie) / frei (eine Farbe).
+     */
+    const lf = app.ansicht.linienFarbe ?? 'resultat';
+    const pp = app.ansicht.plotSkala();
+    const balken = pp ? `<div class="legende-bar"></div><div class="legende-skala">${(pp.fest
+      ? ['0', '0.6', '1.0', '1.25'] : [0, 0.33, 0.66, 1].map((f) => (pp.max * f).toFixed(pp.nk)))
+      .map((s) => `<span>${esc(s)}</span>`).join('')}</div>` : '';
+    const wahl = `<div class="zl-reihe zl-klein zl-farbe" title="Farbe des Modells zur Linie">${[['nachweis', 'Nachweis'],
+      ['resultat', 'Resultat'], ['frei', 'frei']].map(([k, tx]) => `<button type="button" data-zl-farbe="${k}" class="${lf === k ? 'an' : ''}">${tx}</button>`).join('')}${
+      lf === 'frei' ? `<input type="color" data-zl-frei value="${esc(app.ansicht.linienFrei ?? '#8a93a6')}" aria-label="Farbe">` : ''}</div>`;
+    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${wahl}${balken}${zlHtml}`;
+    n.querySelectorAll('[data-zl-farbe]').forEach((b) => {
+      b.addEventListener('pointerdown', (e) => e.stopPropagation());
+      b.onclick = () => { app.ansicht.linienFarbe = b.dataset.zlFarbe; app.ansicht.zeichne(); zeichneLegende(app); };
+    });
+    const fr = n.querySelector('[data-zl-frei]');
+    if (fr) {
+      fr.addEventListener('pointerdown', (e) => e.stopPropagation());
+      fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); };
+    }
     if (legendeLage) {
       n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;
     } else { n.classList.remove('gezogen'); n.style.left = ''; n.style.top = ''; }

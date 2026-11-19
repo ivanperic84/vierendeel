@@ -86,7 +86,9 @@ export const ZL_REAKTION = { N: 2, Vx: 0, Vy: 1, Vz: 2, My: 4, Mx: 3, Mz: 5, T: 
  */
 export function zustandWert(k, s, q, sig = null, fyd = 1) {
   if (k === 'sig' || k === 'eta') return sig === null ? [null, null] : [k === 'eta' ? sig / fyd : sig, s.dSig];
-  const lok = { N: [0, s.ez], T: [3, s.ez], vy: [1, s.ey], vz: [2, s.ez], my: [4, s.ez], mz: [5, s.ey] }[k];
+  // N und T in der lotrechten Ebene wie σ_v (19. November, «diese liniendiagramme
+  // normalkraft vertikal ausrichten») - örtlich z lag an den Winkeln schräg.
+  const lok = { N: [0, s.dSig ?? s.ez], T: [3, s.dSig ?? s.ez], vy: [1, s.ey], vz: [2, s.ez], my: [4, s.ez], mz: [5, s.ey] }[k];
   if (lok) return [q[lok[0]], lok[1]];
   const a = ACHSE[k[1].toLowerCase()];
   // Liegt die Achse fast in Stabrichtung (unter 10°), ist die Grösse dort N
@@ -105,6 +107,7 @@ export function zustandWert(k, s, q, sig = null, fyd = 1) {
 
 /** Gehört der Stab zu den gewählten Teilen? 'alle' | 'mast' | 'blech' | 'gurt' | 'gurt:OGL' … */
 export function zustandSicht(s, teile = 'alle') {
+  if (s.r === '__aus') return false;   // über die Ebenen ausgeblendet (zustandBauen)
   if (teile === 'alle') return true;
   // Mehrere Gruppen mit «|» (Bericht: «gurt:OGL,UGL|mast»).
   if (teile.includes('|')) return teile.split('|').some((t) => zustandSicht(s, t));
@@ -212,7 +215,8 @@ export function zustandBauen(o) {
   const dx = o.dx ?? 0, dz = o.dz ?? 0, fyd = o.fyd ?? 1;
   if (!faelle?.length || !groesse) return null;
   const spannung = groesse === 'sig' || groesse === 'eta';
-  const ebAuto = zustandEbeneAuto(groesse, faelle, geo, teile, ax);
+  const geoS = o.sicht ? geo.map((s) => (o.sicht(s) ? s : { ...s, r: '__aus' })) : geo;
+  const ebAuto = zustandEbeneAuto(groesse, faelle, geoS, teile, ax);
   const eb = (o.eb && o.eb !== 'auto' && ZL_EBENEN[ax].includes(o.eb)) ? o.eb : ebAuto;
   const k = zustandIntern(groesse, eb, ax);
   const huelle = faelle.length > 1;
@@ -222,7 +226,7 @@ export function zustandBauen(o) {
   const reihen = [];
   let vmax = 0, gmax = null, gmin = null;
   geo.forEach((s, i) => {
-    if (!zustandSicht(s, teile)) return;
+    if (!zustandSicht(s, teile) || (o.sicht && !o.sicht(s))) return;
     arten.forEach((art) => {
       const r = zustandReihe(k, faelle, i, s, art, fyd);
       if (!r.some((x) => x.d && x.v !== null)) return;

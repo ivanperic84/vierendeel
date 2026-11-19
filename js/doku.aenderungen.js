@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Linie im 3D: folgt den Ebenen der Werkzeugleiste (keine Teile-Auswahl mehr), N lotrecht, Modell farbig nach Nachweis / Resultat / frei wählbar; Schieber «Grenze» mit Wert und Einheit, auch für die Linie.' },
       { text: 'Theorie 2. Ordnung: auch Fundament und Anker, Masten knicken dann mit β = 1; Näherung 1/(1 − 1/α_cr) entfernt, Stabilitätsanzeige und Bericht gekürzt.', rechnung: true },
       { text: 'Viewer: Liniendiagramm (auch in der Explosion), Ausnutzung je Bauteil in der Leiste, Lastfälle nur der massgebende je Einwirkungsrichtung, Zusammenfassung des Fundamentnachweises, Hauptkennwerte (EK, Trasse, Reduktion) im Kopf, Lasten voreingestellt aus, Farbbalken der Ausnutzung bis 1.0.' },
       { text: 'Nachweisbericht: das 3D-Bild auf dem Deckblatt wird nicht mehr abgeschnitten (festes Format, an der Szene eingepasst).' },
