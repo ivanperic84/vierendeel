@@ -10486,8 +10486,8 @@ titel('41  Welche Nachweise gefuehrt werden');
          grp('knickenMast')?.vorhanden === true);
     // Seit dem 28. September voreingestellt AUS (\u00abden knicknachweis
     // deaktiviern beim start\u00bb); vorher an, als der strengere Fall.
-    wahr('\u2026 und voreingestellt NICHT gefuehrt (Weisung 28. September)',
-         grp('knickenMast')?.standard === false);
+    wahr('\u2026 und voreingestellt gefuehrt (Weisung 19. November, «Ja, wieder an»)',
+         grp('knickenMast')?.standard === true);
     wahr('\u2026 der Mast selbst nennt es nicht mehr',
          !/Biegeknicken/.test(grp('mast').was));
     wahr('\u2026 dafuer die eigene Gruppe',
@@ -10580,10 +10580,10 @@ titel('41  Welche Nachweise gefuehrt werden');
     // Der Bestandesschutz (4. Oktober, Vorgabe aus) zählt nicht mit: er ist
     // ein Vergleich, kein Nachweis des Tragwerks (`vergleich`).
     // Seit dem 18. November ZWEI: «Knicken Joch» ist enthalten und an.
-    wahr('Voreingestellt sind ZWEI Nachweise nicht gefuehrt (der Bestandesschutz zählt nicht)',
-         std.nichtGefuehrt.length === 2
+    wahr('Voreingestellt ist EIN Nachweis nicht gefuehrt (seit 19. November Knicken Mast an)',
+         std.nichtGefuehrt.length === 1
          && !std.nichtGefuehrt.some((g) => g.key === 'bestandesschutz')
-         && std.nichtGefuehrt.some((g) => g.key === 'knickenMast'),
+         && !std.nichtGefuehrt.some((g) => g.key === 'knickenMast'),
          std.nichtGefuehrt.map((g) => `${g.titel} (${g.grund})`).join(', '));
     /*
      * DER GRUND MUSS STIMMEN. «Abgewaehlt» stand hier zuerst - es behauptet,
@@ -10607,8 +10607,8 @@ titel('41  Welche Nachweise gefuehrt werden');
          ab.nichtGefuehrt.find((g) => g.key === 'jochtragwerk')?.grund === 'ausgeschaltet');
     wahr('Und das Urteil weiss, dass eta keines mehr ist',
          ab.tragwerkGefuehrt === false);
-    wahr('Dann sind es drei - der Mast bleibt gefuehrt',
-         ab.nichtGefuehrt.length === 3,
+    wahr('Dann sind es zwei - der Mast bleibt gefuehrt',
+         ab.nichtGefuehrt.length === 2,
          ab.nichtGefuehrt.map((g) => g.key).join(','));
 
     /*
@@ -31983,14 +31983,14 @@ titel('135  Knicken Mast: voreingestellt aus (28. September)');
   const SN135 = await import(J('core.stabnachweis.js'));
   const UI135 = await import(J('ui.js'));
   const w0 = standardwerteApp();
-  wahr('>>> Ein neues Dokument startet OHNE Knicken Mast <<<',
-       w0.nachweise?.knickenMast === false);
+  wahr('>>> Ein neues Dokument startet MIT Knicken Mast (wieder seit 19. November) <<<',
+       w0.nachweise?.knickenMast === true);
   wahr('… und traegt die Wahl ausdruecklich (ein spaeterer Wechsel der Vorgabe aendert es nicht)',
        Object.prototype.hasOwnProperty.call(w0.nachweise ?? {}, 'knickenMast'));
   wahr('Ein gespeicherter Stand mit Knicken rechnet weiter damit',
        CH135.nachweiseAuswahl({ ...w0.nachweise, knickenMast: true }).knickenMast === true);
   wahr('Nicht gefuehrt heisst: steht unter «nicht gefuehrt»',
-       CH135.urteilKonstruktion([], w0.nachweise).nichtGefuehrt
+       CH135.urteilKonstruktion([], { ...w0.nachweise, knickenMast: false }).nichtGefuehrt
          .some((g) => g.key === 'knickenMast' && g.grund === 'ausgeschaltet'));
   /*
    * IM STABWERKSWEG: ohne Knicken steht keine Knickzeile im Urteil - der

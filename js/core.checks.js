@@ -189,8 +189,13 @@ export const NACHWEISGRUPPEN = [
    * standardwerte) und rechnen weiter, wie sie gespeichert wurden. Nicht
    * geführt heisst wie überall: er zählt nie als erfüllt und steht unter
    * «nicht geführt» - im Urteil, in der Fussleiste und im Bericht.
+   *
+   * >>> SEIT DEM 19. NOVEMBER WIEDER VOREINGESTELLT AN. <<< Auf die Frage,
+   * ob «Knicken Mast» wieder voreingestellt an sein soll (α_cr ersetzt den
+   * Knicknachweis der Stäbe nicht): «Ja, wieder an». Gilt für neue
+   * Dokumente; gespeicherte Stände behalten ihre Wahl.
    * ======================================================================= */
-  { key: 'knickenMast', titel: 'Knicken Mast', vorhanden: true, standard: false,
+  { key: 'knickenMast', titel: 'Knicken Mast', vorhanden: true, standard: true,
     was: 'Biegeknicken nach SIA 263, Ziffer 4.5.1 und 5.1.10.1 — '
        + 'L_cr = β · Ersatzhöhe, β in den Optionen (Vorgabe 2.0, Kragarm). '
        + 'Abschaltbar: halten die Leiter den Masten — Rückleiter am Masten, '
