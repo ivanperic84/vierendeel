@@ -62,6 +62,7 @@ import { rechensatzMitNachbarn, kernArgumente } from './core.nachbarn.js';
 import { berechne } from './core.vierendeel.js';
 import { loese } from './core.stabwerk.js';
 import { zweiteOrdnungEinsetzen } from './core.stabtheorie2.js';
+import { gurtKnicken } from './core.stabgurtknick.js';
 import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
@@ -460,6 +461,16 @@ export function rechneStabwerk(app, aufruf = {}) {
   const knotenbereich = satz.knotenbereich ?? 'anschnitt';
   // Stehende Bleche plastisch (10. Oktober) - ein Schalter des Blattes.
   const blechPlastisch = satz.blechPlastisch === true;
+  /*
+   * >>> KNICKEN DER GURTWINKEL (18. November, core.stabgurtknick.js). <<<
+   * Je Tragjoch das massgebende Gurtfeld, nur wenn «Knicken Joch» geführt
+   * wird. Schlüssel wie die Teile der Hülle ('tragwerk' bzw. 'tragwerk:T1').
+   */
+  const gurtKnick = {};
+  if (nachweiseAuswahl(satz.nachweise).knickenJoch) {
+    const g = gurtKnicken(dat, lsg, faelle, stahl?.fy ?? 235, gammaM0);
+    g.forEach((v, praefix) => { gurtKnick[praefix ? `tragwerk:${praefix.slice(0, -1)}` : 'tragwerk'] = v; });
+  }
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
     { torsion: nachweiseAuswahl(satz.nachweise).torsionMast, knotenbereich, fydMast, blechPlastisch });
   /*
@@ -674,6 +685,7 @@ export function rechneStabwerk(app, aufruf = {}) {
     ankerJe,
     seile: seile.length,
     zweite,
+    gurtKnick,
     kennung: eingabeKennung(app.werte),
     fyd, fydMast,
     knoten: dat.knoten.length,

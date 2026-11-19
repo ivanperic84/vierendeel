@@ -10454,14 +10454,16 @@ titel('41  Welche Nachweise gefuehrt werden');
                        + 'spitzeMast,verdrehungMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Elf davon gibt es',
-         da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
+    // Seit dem 18. November auch «Knicken Joch» (Einzelwinkel, Gesamtstab).
+    wahr('Zwölf davon gibt es',
+         da.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,knickenMast,'
                         + 'fundament,torsionMast,bestandesschutz,gebrauch,fahrdrahtQuer,spitzeMast,verdrehungMast',
          da.join(','));
     wahr('Das Fundament ist voreingestellt an - es gehoert zum Tragwerk',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'fundament')?.standard === true);
-    wahr('Knicken ist nicht enthalten',
-         CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === false);
+    wahr('Knicken Joch ist enthalten und voreingestellt an (18. November)',
+         CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === true
+         && CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').standard === true);
     // Der Mast seit dem 28. August schon - und sein `was` sagt, was FEHLT.
     wahr('Der Mast ist enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').vorhanden === true);
@@ -10508,9 +10510,11 @@ titel('41  Welche Nachweise gefuehrt werden');
    * den Knicknachweis gaebe, darf hier nicht behaupten, er sei gefuehrt.
    */
   {
-    const a = CH.nachweiseAuswahl({ knickenJoch: true });
-    wahr('Ein gespeichertes true macht keinen Nachweis',
-         a.knickenJoch === false, JSON.stringify(a));
+    // Seit dem 18. November gibt es «Knicken Joch»; die Regel prüft jetzt
+    // eine erfundene Gruppe, die nicht vorhanden ist.
+    const a = CH.nachweiseAuswahl({ knickenJoch: false, gibtEsNicht: true });
+    wahr('Ein gespeichertes true macht keinen Nachweis (unbekannte Gruppe fällt weg)',
+         a.knickenJoch === false && !('gibtEsNicht' in a), JSON.stringify(a));
     wahr('Ohne Angabe gilt die Voreinstellung der Gruppe',
          CH.nachweiseAuswahl(undefined).jochtragwerk === true
          && CH.nachweiseAuswahl(undefined).auflagerJoch === false);
@@ -10573,8 +10577,9 @@ titel('41  Welche Nachweise gefuehrt werden');
     // voreingestellt aus ist («den knicknachweis deaktiviern beim start»).
     // Der Bestandesschutz (4. Oktober, Vorgabe aus) zählt nicht mit: er ist
     // ein Vergleich, kein Nachweis des Tragwerks (`vergleich`).
-    wahr('Voreingestellt sind DREI Nachweise nicht gefuehrt (der Bestandesschutz zählt nicht)',
-         std.nichtGefuehrt.length === 3
+    // Seit dem 18. November ZWEI: «Knicken Joch» ist enthalten und an.
+    wahr('Voreingestellt sind ZWEI Nachweise nicht gefuehrt (der Bestandesschutz zählt nicht)',
+         std.nichtGefuehrt.length === 2
          && !std.nichtGefuehrt.some((g) => g.key === 'bestandesschutz')
          && std.nichtGefuehrt.some((g) => g.key === 'knickenMast'),
          std.nichtGefuehrt.map((g) => `${g.titel} (${g.grund})`).join(', '));
@@ -10586,9 +10591,11 @@ titel('41  Welche Nachweise gefuehrt werden');
      */
     wahr('Das Auflager ist ausgeschaltet, nicht fehlend',
          std.nichtGefuehrt.find((g) => g.key === 'auflagerJoch').grund === 'ausgeschaltet');
-    wahr('Knicken ist nicht enthalten',
-         std.nichtGefuehrt.filter((g) => g.grund === 'nicht enthalten')
-           .map((g) => g.key).join(',') === 'knickenJoch');
+    wahr('Am Tragjoch ist nichts «nicht enthalten» (18. November)',
+         std.nichtGefuehrt.filter((g) => g.grund === 'nicht enthalten').length === 0);
+    wahr('Am Abfangjoch bleibt Knicken Joch «nicht enthalten»',
+         CH.urteilKonstruktion([], undefined, 'abfangjoch').nichtGefuehrt
+           .some((g) => g.key === 'knickenJoch' && g.grund === 'nicht enthalten'));
     wahr('Der Mast steht nicht mehr darunter',
          !std.nichtGefuehrt.some((g) => g.key === 'mast'));
     wahr('Das Jochtragwerk gilt als gefuehrt', std.tragwerkGefuehrt === true);
@@ -10598,8 +10605,8 @@ titel('41  Welche Nachweise gefuehrt werden');
          ab.nichtGefuehrt.find((g) => g.key === 'jochtragwerk')?.grund === 'ausgeschaltet');
     wahr('Und das Urteil weiss, dass eta keines mehr ist',
          ab.tragwerkGefuehrt === false);
-    wahr('Dann sind es vier - der Mast bleibt gefuehrt',
-         ab.nichtGefuehrt.length === 4,
+    wahr('Dann sind es drei - der Mast bleibt gefuehrt',
+         ab.nichtGefuehrt.length === 3,
          ab.nichtGefuehrt.map((g) => g.key).join(','));
 
     /*
@@ -42923,6 +42930,26 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
        && b1.includes('1.336 statt 1.169') && !b1.includes('α<sub>cr</sub> < 10'));
   wahr('Bericht ohne α_cr: sagt, dass er nicht gerechnet wurde',
        SB.zweiteOrdnungHtml({}, null).includes('nicht gerechnet'));
+  // Knicken der Gurtwinkel (18. November, core.stabgurtknick.js).
+  const GK = await import(J('core.stabgurtknick.js'));
+  const qL90 = { A: 0.001552, Iy: 1.15669e-6, Iz: 1.15669e-6, Iyz: -6.75943e-7 };
+  const iv = GK.ivAus(qL90);
+  const lq = 0.70 / iv / (Math.PI * Math.sqrt(210000 / 235));
+  wahr('Gurtknicken: i_v aus I_y, I_z, I_yz (L 90x90x9: 17.6 mm) und χ nach Kurve b',
+       Math.abs(iv * 1000 - 17.6) < 0.05 && Math.abs(lq - 0.424) < 0.002
+       && Math.abs(GK.chiKnick(lq) - 0.917) < 0.001 && GK.chiKnick(0.1) === 1,
+       `${(iv * 1000).toFixed(2)} mm, λ̄ ${lq.toFixed(3)}, χ ${GK.chiKnick(lq).toFixed(4)}`);
+  const AB = await import(J('data.anbauteile.js'));
+  const m1 = AB.standAnheben({ nachweise: { knickenJoch: false }, weitere: [{ id: 'T2', nachweise: { knickenJoch: false } }] });
+  const m2 = AB.standAnheben({ ...m1, nachweise: { ...m1.nachweise, knickenJoch: false } });
+  wahr('Gespeicherte Stände: Knicken Joch einmal ein (Merker), danach bleibt die Wahl',
+       m1.nachweise.knickenJoch === true && m1.weitere[0].nachweise.knickenJoch === true
+       && m1.knickJochAb === true && m2.nachweise.knickenJoch === false);
+  const hk = SB.gurtKnickHtml({ gurtKnick: { tragwerk: { stab: 'OGR_S41', L: 0.7, iv: 0.0176, lq: 0.424,
+    chi: 0.917, NEd: 83.7, NbRd: 318.4, eta: 0.263, bez: 'Wind −y', gammaM1: 1.05, fy: 235 } } });
+  wahr('Bericht: Knicken der Gurtwinkel mit L_cr, i_v, λ̄, χ, N_Ed, N_b,Rd und η',
+       hk.includes('Knicken der Gurtwinkel') && hk.includes('0.700') && hk.includes('17.6')
+       && hk.includes('318.4') && hk.includes('0.263') && SB.gurtKnickHtml({}) === '');
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Schalter theorie2 gilt dem Blatt und wird nach Halt, Schrauben, Seilen eingesetzt',

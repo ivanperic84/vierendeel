@@ -220,6 +220,8 @@ export const BLATT_FELDER = [
   'torsionModell', 'torsionsverteilung', 'gurtaufteilung', 'knotenbereich',
   'endfeldZuschlag', 'schiefeBiegung', 'spannungsmodell', 'ebenenUeberlagerung',
   'mastPlastisch', 'knickenJoch', 'schraubenGrenze',
+  // Einmalige Umstellung «Knicken Joch» ein (18. November, data.anbauteile.js).
+  'knickJochAb',
   // Stehende Bleche plastisch (10. Oktober) - eine Art des Nachweises.
   'blechPlastisch',
   /*

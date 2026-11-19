@@ -686,6 +686,20 @@ function zweiteOrdnungNaeherung(g, k) {
   return best;
 }
 
+/** Der Gesamtstab des Tragjochs - offen (Eintrag) oder geführt (null). */
+function gesamtstabOffen(w) {
+  if (tragwerksart(w).key !== 'joch' || !nachweiseAuswahl(w.nachweise).knickenJoch) return null;
+  const g = stabwerkGilt();
+  const k = knickGilt();
+  if (g?.h?.zweite) return null;
+  if (k && Number.isFinite(k.alpha) && k.alpha >= 10) return null;
+  if (k && !Number.isFinite(k.alpha)) return null;          // kein Druck
+  return { key: 'knickenJochGesamt', titel: 'Knicken Joch, Gesamtstab',
+           grund: 'ausgeschaltet',
+           was: k ? `α_cr ${k.alpha.toFixed(2)} < 10: Theorie 2. Ordnung einschalten (Optionen → Nachweise)`
+                  : 'Stabilität (α_cr) rechnen (Stabwerksleiste) oder Theorie 2. Ordnung einschalten' };
+}
+
 function knickFigurSchalten() {
   knickZeigen = !knickZeigen;
   verformtMerk = null;
@@ -1574,6 +1588,14 @@ function rechneTragwerk(werte, joch) {
   }
   const urteil = urteilKonstruktion(checks, werte.nachweise,
                                     tragwerksart(werte).key);
+  /*
+   * >>> GESAMTSTAB DES JOCHS (18. November). <<< Entscheid «Gesamt über
+   * 2. Ordnung + Einzelwinkel neu»: der Gesamtstab gilt als geführt, wenn
+   * die Nachweise nach Theorie 2. Ordnung rechnen oder α_cr ≥ 10 zum Stand
+   * gerechnet ist. Sonst steht er unter «nicht geführt», mit dem Weg dorthin.
+   */
+  const gso = gesamtstabOffen(werte);
+  if (gso) urteil.nichtGefuehrt = [...(urteil.nichtGefuehrt ?? []), gso];
   const kl = mitJoch ? klassifizierung(erg.modell) : null;
 
   // Für Modell und Auswertung gilt die gewählte Anzeigequelle

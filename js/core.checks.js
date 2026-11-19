@@ -111,13 +111,22 @@ export const NACHWEISGRUPPEN = [
    * und Einzelwinkel, beim Abfangjoch fuer den DRUCKGURT, und dort steht
    * ausserdem die Knicklaenge aus.
    */
-  { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: false, standard: false,
+  /*
+   * >>> SEIT DEM 18. NOVEMBER VORHANDEN (Tragjoch). <<< Gemeldet: «hier zeigt
+   * die app das das knicken noch offen ist obwohl berechnet»; auf Rückfrage
+   * «Gesamt über 2. Ordnung + Einzelwinkel neu». Einzelwinkel: Ersatzstab je
+   * Gurtfeld (core.stabgurtknick.js); Gesamtstab: geführt mit der Theorie
+   * 2. Ordnung oder α_cr ≥ 10 (app.js, `gesamtstabOffen`). Am Abfangjoch und
+   * am Tragausleger bleibt er «nicht enthalten» (`urteilKonstruktion`).
+   */
+  { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: true, standard: true,
     was: (art) => (art === 'abfangjoch'
       ? 'Druckgurt des liegenden Trägers — die Knicklänge steht aus; der '
         + 'Bindeblechabstand wäre zu unkonservativ, weil sich der ganze '
         + 'Träger in beiden Ebenen biegt'
-      : 'Gesamtstab und Einzelwinkel, in diesem Werkzeug nicht enthalten, '
-        + 'separat zu führen') },
+      : art === 'tragausleger' ? 'UPE-Gurte des Auslegers - nicht enthalten'
+      : 'Einzelwinkel je Gurtfeld (Ersatzstab, Knicklänge = Blechabstand, '
+        + 'Achse v); Gesamtstab über die Theorie 2. Ordnung oder α_cr ≥ 10') },
   /*
    * SEIT DEM 28. AUGUST VORHANDEN (Weisung, auf ausdrückliche Nachfrage).
    *
@@ -1832,7 +1841,10 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
     || !['jochtragwerk', 'auflagerJoch', 'knickenJoch'].includes(g.key);
   // Ein Vergleich (`vergleich`, der Bestandesschutz) ist kein Nachweis des
   // Tragwerks - ausgeschaltet zählt er nicht unter «nicht geführt» (4. Oktober).
-  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && !nw[g.key] && !g.vergleich)
+  // Knicken Joch gibt es nur am Tragjoch (18. November).
+  const enthalten = (g) => g.vorhanden
+    && !(g.key === 'knickenJoch' && ['abfangjoch', 'tragausleger'].includes(art));
+  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && (!nw[g.key] || !enthalten(g)) && !g.vergleich)
     .map((g) => ({ key: g.key, titel: g.titel,
                    // `was` darf von der Tragwerksart abhaengen - siehe
                    // `knickenJoch` in NACHWEISGRUPPEN.
@@ -1845,7 +1857,7 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
                     * entschieden, und das stimmt beim Auflagernachweis
                     * nicht: der ist ab Werk aus.
                     */
-                   grund: g.vorhanden ? 'ausgeschaltet' : 'nicht enthalten' }));
+                   grund: enthalten(g) ? 'ausgeschaltet' : 'nicht enthalten' }));
   /*
    * >>> DER TRAGAUSLEGER IST NICHT NACHGEWIESEN (Entscheid vom 18. Sept.). <<<
    *

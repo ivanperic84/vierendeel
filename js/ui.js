@@ -8645,6 +8645,26 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
              + `Aus dem Stabwerk, Stab ${s.wo}.`,
       });
     }),
+    /*
+     * KNICKEN DER GURTWINKEL (18. November, core.stabgurtknick.js): das
+     * massgebende Gurtfeld, Ersatzstab mit dem Blechabstand um die Achse v.
+     */
+    ...(() => {
+      const gk = swH.gurtKnick?.[jochKey];
+      if (!gk) return [];
+      return [kachel('η Knicken Gurt', f3(gk.eta), `Feld ${gk.L.toFixed(2)} m · Achse v · Stabwerk`,
+        ampelU(gk.eta), {
+          ...(gk.bez ? { fall: fallKurz(gk.bez) } : {}),
+          ...(gk.stab ? { stab: gk.stab } : {}),
+          titel: `${gk.bez ? `Massgebende Kombination: ${gk.bez}
+
+` : ''}`
+            + `Ersatzstab je Gurtfeld (EN 1993-1-1, 6.3.1 / SIA 263), Knickspannungskurve ${gk.kurve}: `
+            + `L_cr ${gk.L.toFixed(3)} m (Blechabstand), i_v ${(gk.iv * 1000).toFixed(1)} mm, `
+            + `λ̄ ${gk.lq.toFixed(3)}, χ ${gk.chi.toFixed(3)}, N_b,Rd ${gk.NbRd.toFixed(1)} kN, `
+            + `N_Ed ${gk.NEd.toFixed(1)} kN (Stab ${gk.stab}). Biegung im Feld trägt der Querschnittsnachweis.`,
+        })];
+    })(),
   ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
            ampelU(erg.max.etaOG.og.eta),

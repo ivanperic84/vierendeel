@@ -598,8 +598,30 @@ function nachweise(d, U) {
     eingesetzten Spannungsformel; darunter die zehn höchstbeanspruchten
     Stäbe des Teils. Das Urteil des Blattes: η = <b>${zahl(U.eta, 3)}</b>${
       U.massgebend ? ` (${esc(U.massgebend.name)})` : ''}.</p>
-    ${tw}${masten}${ankerBlock}${fundBlock}
+    ${tw}${gurtKnickHtml(sw)}${masten}${ankerBlock}${fundBlock}
   </section>`;
+}
+
+/*
+ * Knicken der Gurtwinkel (18. November, core.stabgurtknick.js): je Tragjoch
+ * das massgebende Gurtfeld mit den eingesetzten Werten.
+ */
+export function gurtKnickHtml(sw) {
+  const e = Object.entries(sw?.gurtKnick ?? {});
+  if (!e.length) return '';
+  return `<h3>Knicken der Gurtwinkel (Einzelwinkel)</h3>
+    <p>Ersatzstab je Gurtfeld zwischen zwei Bindeblechen (EN 1993-1-1, 6.3.1 und
+    6.4.3.1 / SIA 263): Knicklänge = Achsabstand der Bleche, Ausweichen um die
+    schwächste Achse v des Winkels, Knickspannungskurve b; N<sub>Ed</sub> ist die
+    grösste Druckkraft im Feld über die Nachweis-Kombinationen aus dem Stabwerk.
+    Die Biegung im Feld trägt der Querschnittsnachweis.</p>
+    ${tabelle(['Tragwerk', 'Feld', 'L<sub>cr</sub> [m]', 'i<sub>v</sub> [mm]', 'λ̄', 'χ',
+               'N<sub>Ed</sub> [kN]', 'N<sub>b,Rd</sub> [kN]', 'η', 'Kombination'],
+      e.map(([k, g]) => [esc(k === 'tragwerk' ? 'Joch' : k.replace('tragwerk:', '')), esc(g.stab),
+        zahl(g.L, 3), zahl(g.iv * 1000, 1), zahl(g.lq, 3), zahl(g.chi, 3), zahl(g.NEd, 1),
+        zahl(g.NbRd, 1), `${zahl(g.eta, 3)} ${urteilMarke(g.eta, g.eta > 1)}`, esc(g.bez ?? '')]))}
+    <p class="klein">N<sub>b,Rd</sub> = χ · A · f<sub>y</sub> / γ<sub>M1</sub>, γ<sub>M1</sub> = ${
+      zahl(e[0][1].gammaM1, 2)}, f<sub>y</sub> = ${zahl(e[0][1].fy, 0)} N/mm².</p>`;
 }
 
 function gebrauch(d) {

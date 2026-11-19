@@ -1253,6 +1253,18 @@ export function standAnheben(w) {
   // Bestandesschutz in jedem Tragwerk gleich (11. Oktober, core.bestand.js).
   erg = bestandAufsBlatt(erg);
   /*
+   * >>> «KNICKEN JOCH» EINMAL EINSCHALTEN (18. November). <<< Bis dahin gab
+   * es den Nachweis nicht; gespeicherte Stände tragen deshalb «aus» - keine
+   * Wahl des Anwenders, sondern die Vorgabe von damals. Einmal eingeschaltet
+   * (Merker `knickJochAb`); danach gilt, was der Anwender wählt.
+   */
+  if (!erg.knickJochAb) {
+    const ein = (t) => (t?.nachweise && t.nachweise.knickenJoch === false
+      ? { ...t, nachweise: { ...t.nachweise, knickenJoch: true } } : t);
+    erg = { ...ein(erg), knickJochAb: true };
+    if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(ein);
+  }
+  /*
    * >>> TEILE AM MASTEN IN DIE BLATTLISTE, SOFORT (29. September). <<<
    *
    * Seit dem 18. September haengen Teile am Masten an der Blattliste
