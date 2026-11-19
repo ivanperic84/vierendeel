@@ -4037,3 +4037,38 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .dm-tabelle td.ok { color: var(--ok); } .dm-tabelle td.warn { color: var(--warn); } .dm-tabelle td.fail { color: var(--fail); }
 .dm-tabelle tr.dm-best td { background: color-mix(in srgb, var(--ok) 10%, transparent); }
 .dm-tabelle tr.dm-gewaehlt td { background: var(--acc-s); }
+
+/* >>> NACHWEISE ALS ZEILEN (19. November). <<< «für mich wirkt die
+   schulungsdarstellung deutlich angenehmer und ruhiger als die wir in der
+   vollversion haben, können wir hier einen kompromiss finden», auf Rückfrage
+   «Zeilen statt Kacheln»: je Nachweis eine Zeile - Name und η, darunter
+   Profil und Lastfall klein, ein dünner Balken bis η = 1.0. Farbe nur an
+   Zahl und Balken. */
+.kennzahlen.nw-zeilen { display: block; }
+.nw-zeilen .kz { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px;
+  grid-template-areas: "t w" "e f" "b b" "n n" "k k";
+  background: none; border: 0; border-radius: 4px; padding: 5px 4px 6px; margin: 0 -4px; }
+.nw-zeilen .kz.ok, .nw-zeilen .kz.warn, .nw-zeilen .kz.fail { background: none; }
+.nw-zeilen .kz.klick:hover { background: var(--s2); }
+.nw-zeilen .kz.klick::after { display: none; }
+.nw-zeilen .kz-t { grid-area: t; font-size: 12.5px; color: var(--on); letter-spacing: 0; align-self: baseline; }
+.nw-zeilen .kz-w { grid-area: w; font-size: 13px; margin: 0; text-align: right; align-self: baseline; }
+.nw-zeilen .kz.warn .kz-w { color: var(--warn); }
+.nw-zeilen .kz.fail .kz-w { color: var(--fail); }
+.nw-zeilen .kz-e { grid-area: e; margin-top: 1px; }
+.nw-zeilen .kz-f { grid-area: f; border-top: 0; margin: 1px 0 0; padding: 0; text-align: right; white-space: nowrap; }
+.nw-zeilen .kz-n { grid-area: n; }
+.nw-zeilen .kz-knoepfe { grid-area: k; border-top: 0; padding-top: 2px; justify-content: flex-start; }
+.nw-zeilen .kz-knoepfe .kz-knopf { flex: 0 0 auto; }
+.nw-zeilen .kz[style*="--eta"]::before { content: ""; grid-area: b; height: 4px; margin-top: 4px; border-radius: 2px;
+  --kzf: var(--ok);
+  background: linear-gradient(90deg, var(--kzf) 0 calc(min(var(--eta), 1) * 100%), var(--s3) 0); }
+.nw-zeilen .kz.warn[style*="--eta"]::before { --kzf: var(--warn); }
+.nw-zeilen .kz.fail[style*="--eta"]::before { --kzf: var(--fail); }
+.nw-zeilen .kz:not(.ok):not(.warn):not(.fail)[style*="--eta"]::before { --kzf: var(--dim); }
+.nw-zeilen .kz.sw-knick-k { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+/* Stabwerksleiste, wenn gültig: eine Zeile. */
+.stabwerk-leiste.kompakt { padding: 4px 8px; gap: 8px; background: none; border-color: transparent; border-left-color: var(--ok); }
+.stabwerk-leiste.kompakt .sw-reihe, .stabwerk-leiste.kompakt .sw-th2 { flex-basis: 100%; }
+.stabwerk-leiste.kompakt .notiz { font-size: 11px; color: var(--dim); flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stabwerk-leiste.kompakt .sw-knopf { margin-left: auto; min-width: 0; padding: 1px 8px; }

@@ -18,6 +18,7 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-18',
     punkte: [
+      { text: 'Übersicht ruhiger: die Nachweise stehen als Zeilen mit dünnem Balken statt als Kacheln, die Stabwerksleiste in einer Zeile; die Schalter Tragsicherheit / Gebrauchstauglichkeit sind weg (Nachweise ein- und ausschalten unter Optionen → Nachweise).' },
       { text: 'Linie im 3D: ein Klick auf den Farbbalken stellt die Farben der Linie ein (+ / −, Skala, eine Farbe); das Modell folgt der Plotgrösse. Die Knöpfe zur Knickfigur stehen in der Kachel α_cr.' },
       { text: 'Neu: «Dimensionieren» rechnet Jochtyp, Mastprofil, Stegrichtung, elastisch/plastisch und Einspannung mit dem Stabwerk durch, mit Diagramm Ausnutzung gegen Materialmasse. «Mast plastisch» gilt jetzt auch im Stabwerk.', rechnung: true },
       { text: 'Knicken Mast (SIA 263) ist bei neuen Querprofilen wieder voreingestellt eingeschaltet.', rechnung: true },

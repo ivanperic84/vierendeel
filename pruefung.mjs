@@ -28739,7 +28739,10 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     wahr('Die Leiste hat keine Knoepfe mehr',
          !/<button[^>]*data-nwart/.test(UI115.nachweisartLeiste('beide')));
     {
-      const kasten = (a) => [...UI115.nachweisartLeiste(a)
+      // Seit dem 19. November steht die Leiste nicht mehr in der Übersicht
+      // (Optionen); geprüft wird ihr Aufbau mit `zeigen`.
+      wahr('Die Übersicht zeigt die Leiste nicht mehr', UI115.nachweisartLeiste('beide') === '');
+      const kasten = (a) => [...UI115.nachweisartLeiste(a, true)
         .matchAll(/data-nwart="(\w+)"([^>]*)>/g)]
         .map((m) => ({ key: m[1], an: /checked/.test(m[2]),
                        gesperrt: /disabled/.test(m[2]) }));
@@ -30530,7 +30533,7 @@ titel('125  Die Stabwerksleiste: Knopf und Rueckmeldung');
   wahr('… und traegt die Warnklasse fuer den Farbbalken',
        /class="stabwerk-leiste veraltet"/.test(bau('veraltet')));
   wahr('«gueltig» traegt die ruhige Klasse',
-       /class="stabwerk-leiste gueltig"/.test(bau('gueltig')));
+       /class="stabwerk-leiste gueltig( kompakt)?"/.test(bau('gueltig')));
 
   // --- d) Die Klassen stehen auch im Stilblatt --------------------------
   /*

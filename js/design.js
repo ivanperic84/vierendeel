@@ -322,10 +322,17 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
   // η als Attribut (15. November): das einfache Ergebnisfeld der Schulung
   // liest die Kacheln - eine Quelle für beide Darstellungen.
   const etaAttr = Number.isFinite(ziel?.eta) ? ` data-eta="${ziel.eta}"` : '';
+  /*
+   * Der Balken der Zeilenansicht (19. November): η als Stil. Ohne
+   * mitgegebenes η gilt die Zahl einer Kachel, deren Titel mit «η» beginnt.
+   */
+  const etaBalken = Number.isFinite(ziel?.eta) ? ziel.eta
+    : /^η/.test(String(titel)) && Number.isFinite(Number(wert)) ? Number(wert) : null;
+  const stil = etaBalken !== null ? ` style="--eta:${Math.max(0, etaBalken)}"` : '';
   // Der massgebende Nachweis in Worten (17. November, Fundament): das
   // einfache Ergebnisfeld zeigt ihn beim Anklicken.
   const nwAttr = ziel?.nachweis ? ` data-nachweis="${esc(ziel.nachweis)}"` : '';
-  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}"${etaAttr}${nwAttr}>
+  return `<div class="kz${zustand ? ' ' + zustand : ''}${k}"${etaAttr}${nwAttr}${stil}>
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>
     ${einheit ? `<div class="kz-e">${esc(einheit)}</div>` : ''}

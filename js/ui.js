@@ -7193,6 +7193,19 @@ export function stabwerkLeiste(opt = {}) {
   const beschriftung = stand === 'fehlt' ? 'Stabwerk berechnen'
     : stand === 'veraltet' ? 'Neu berechnen' : 'Nochmals rechnen';
 
+  /*
+   * Gültig: eine ruhige Zeile (19. November, «die schulungsdarstellung
+   * deutlich angenehmer und ruhiger») - Marke, Kennzahlen klein, Knopf rechts.
+   */
+  if (stand === 'gueltig') {
+    const kurz = e ? `${e.staebe} Stäbe · ${e.faelle} Kombinationen · ${e.ms} ms` : '';
+    return `<div class="stabwerk-leiste gueltig kompakt">
+      ${marke}<span class="notiz" title="${esc(text)}">${esc(kurz)}</span>
+      <button type="button" class="btn btn-mini sw-knopf" data-stabwerk-rechnen title="Stabwerk nochmals rechnen">↻</button>
+      ${reihe}
+      ${theorie2Zeile(e?.zweite)}
+    </div>`;
+  }
   return `<div class="stabwerk-leiste ${esc(stand)}">
     <button type="button" class="btn${dringend ? ' btn-acc' : ''} sw-knopf"
       data-stabwerk-rechnen>${beschriftung}</button>
@@ -7477,7 +7490,14 @@ export function verdrahteStabwerk(node, opt = {}) {
   };
 }
 
-export function nachweisartLeiste(jetzt = 'beide') {
+export function nachweisartLeiste(jetzt = 'beide', zeigen = false) {
+  /*
+   * Seit dem 19. November nicht mehr in der Übersicht («Die buttons
+   * tragsicherheit und gebrauchstautlichkeit würde ich weglassen, diese kann
+   * man unter den optionen aktiv passiv schalten»): es gilt immer «beide»;
+   * ein- und ausgeschaltet wird je Nachweis unter Optionen → Nachweise.
+   */
+  if (!zeigen) return '';
   const an = kastenAn(jetzt);
   /*
    * >>> DAS LETZTE KAESTCHEN LAESST SICH NICHT ABWAEHLEN. <<<
@@ -7609,7 +7629,7 @@ export function buegelBlockHtml(opt, urteil) {
     : vorschlag?.grund ? `<p class="notiz" style="margin:4px 0 0">${esc(vorschlag.grund)}</p>` : '';
   const aus = urteil?.nichtGefuehrt?.some?.((g) => g.key === 'auflagerJoch');
   return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Kontrollrechnung')}
-    <div class="kennzahlen">${k}</div>
+    <div class="kennzahlen nw-zeilen">${k}</div>
     ${ueber ? `<p class="notiz" style="margin:4px 0 0"><b>Grenzlast überschritten</b> mit
       der eingestellten Auflagerbedingung. ${knopf}</p>` : ''}
     ${vor}
@@ -7643,7 +7663,7 @@ export function bestandBlockHtml(sw) {
     + `<td class="num">${z.alt.toFixed(3)}</td><td class="num">${z.neu.toFixed(3)}</td>`
     + `<td class="num">${z.d >= 0 ? '+' : '−'}${Math.abs(z.d).toFixed(3)}</td>`
     + `<td class="num">${Number.isFinite(z.zul) ? z.zul.toFixed(3) : '–'}</td></tr>`).join('');
-  return `${kopf}<div class="kennzahlen">${k}</div>
+  return `${kopf}<div class="kennzahlen nw-zeilen">${k}</div>
     <button class="btn btn-mini btn-acc" type="button" data-bestand-blatt
       title="Blatt Bestandesschutz: Übersicht mit den neuen Bauteilen in Rot, Ausnutzung im Bestand und mit den neuen Teilen">Blatt
       Bestandesschutz …</button>
@@ -7682,7 +7702,7 @@ export function gzgBlockHtml(erg, quelle = '', gzg = null) {
       : 'nicht gefuehrt (Optionen → Nachweise)') : '', quelle]
       .filter(Boolean).join(' · '))}
     ${referenz}${nurSw}
-    ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
+    ${g.length ? `<div class="kennzahlen nw-zeilen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
         /*
          * >>> OHNE MESSSTELLE KEIN NACHWEIS - MIT GRUND (26. September). <<<
@@ -8283,11 +8303,11 @@ export function nachweisGruppenHtml(gruppen) {
   const voll = (gruppen ?? []).filter((g) => g?.kacheln?.length);
   if (!voll.length) return '';
   if (voll.length === 1) {
-    return `<div class="kennzahlen">${voll[0].kacheln.join('')}</div>`;
+    return `<div class="kennzahlen nw-zeilen">${voll[0].kacheln.join('')}</div>`;
   }
   return voll.map((g) => `<div class="sec-klein">${esc(g.titel)}${
     g.rechts ? `<span class="sec-r">${esc(g.rechts)}</span>` : ''}</div>
-    <div class="kennzahlen">${g.kacheln.join('')}</div>`).join('');
+    <div class="kennzahlen nw-zeilen">${g.kacheln.join('')}</div>`).join('');
 }
 
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
