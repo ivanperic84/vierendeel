@@ -1383,6 +1383,14 @@ function einzelmastFussAnheben(roh) {
  * fest haengt und welcher nicht (`havarieFest` am aufgeloesten Teil).
  * Der Beiwert bleibt +1.
  * ========================================================================= */
+/** x der Hängestütze eines Teils mit Ausleger (sonst 0 = Anschluss); null ohne Ausleger. */
+export function auslegerTraegerX(a) {
+  const mods = (a?.module ?? []).filter((m) => m && m.aktiv !== false);
+  if (!mods.some((m) => /ausleger-typ/.test(String(m.bauteil ?? '')))) return null;
+  const st = mods.find((m) => /haengestuetze/.test(String(m.bauteil ?? '')));
+  return Number(st?.x) || 0;
+}
+
 export function havarieEinsetzen(flach, lf) {
   // Nur im Havariefall - sonst traegt HavarieY ohnehin den Beiwert 0.
   if (!lf || lf.leit !== 'HavarieY') return flach;
@@ -1734,6 +1742,16 @@ export function expandiereAnbauteile(liste, o = {}) {
         ...(drahtwerk && festeRichtung ? { havarieFest: true } : {}),
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
+        /*
+         * >>> HAVARIE AM AUSLEGER IN DER ACHSE DES TRÄGERS (20. November). <<<
+         * Weisung: «bei den auslegern die havarielast auf die hängestütze wo
+         * der ausleger angebracht ist oder den masten projezieren in x
+         * richtung schieben.» Hängt der Leiter an einem Ausleger, greifen
+         * seine Havariekräfte auf der x der Hängestütze an (ohne Stütze: am
+         * Anschluss, am Masten die Mastachse) - auf seiner Höhe, ohne den
+         * Hebel des Auslegers in x.
+         */
+        ...(drahtwerk && auslegerTraegerX(a) !== null ? { havarieX: a.x + auslegerTraegerX(a) } : {}),
         // In welcher Folge die Kette die drei Achsen abfaehrt: die
         // Reihenfolge der Eingabe (Weisung, 24. September). Steht sie
         // nicht da - alter Stand -, gilt die Vorgabe z, y, x.

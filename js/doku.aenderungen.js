@@ -25,6 +25,10 @@ export const AENDERUNGEN = [
       { text: 'Kettenwerk über zwei Joche (Tragseil oben, Fahrdraht unten, gleicher Kettenwerk-Name an derselben Stelle): Havarie «ganzes Kettenwerk», «nur Tragseil», «nur Fahrdraht»; die Wahl gilt allen Tragwerken des Blattes.', rechnung: true },
       { text: 'Abfangjoche übereinander: die Übersicht zeigt jedes Joch am Mastpaar mit eigenen Zeilen (Gurt, Bindeblech), das Urteil nimmt das grösste - nicht mehr nur das gewählte.' },
       { text: 'Abfangjoch: ein Leiter «Mitte Träger, durchgehend» brach das Stabwerk ab; er hängt jetzt an beiden Gurten.' },
+      { text: 'Abfangjoch: die Abfangung steht nur noch am Leiter (Feld «Verlauf des Leiters» entfällt); beidseitig und durchgehend hängt der Leiter an beiden Gurten, einseitig am gezogenen. Im 3D unterscheidbar: einseitig ein Ende, beidseitig zwei Enden, durchgehend ohne Ende.', rechnung: true },
+      { text: 'Havarie am Ausleger: die Kraft greift in der Achse der Hängestütze bzw. des Masten an (in x geschoben), ohne den Hebel des Auslegers.', rechnung: true },
+      { text: 'Im 3D neue Lastart «Havarie (Leiterriss)»: beim gewählten Havariefall erscheinen die Kräfte des Risses.' },
+      { text: 'Schiene rechts: je Tragwerkselement eine Zahl (Joch, Mast mit Knicken, Anker, Fundament) statt jedes Einzelwerts. Explosion: Knopf «auf» weg, Rechtsklick auf den Schieber fährt auf bzw. zu.' },
     ],
   },
   {

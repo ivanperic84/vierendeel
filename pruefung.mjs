@@ -2134,7 +2134,8 @@ titel('26  Lastarten im Modell und Vorlagen ganzer Tragwerke');
   const U = await import(J('ui.js'));
 
   // --- Lastarten -----------------------------------------------------------
-  pruef('Fünf Lastarten', R.LASTARTEN.length, 5, 1e-12, 'Stk');
+  // Sechs seit dem 20. November: dazu «Havarie (Leiterriss)».
+  pruef('Sechs Lastarten', R.LASTARTEN.length, 6, 1e-12, 'Stk');
   wahr('Jede Einwirkungsgruppe hat eine Lastart',
        ['G', 'WindX', 'WindY', 'Schnee'].every(
          (g) => R.LASTARTEN.some((l) => l.key === R.LASTART_VON_GRUPPE[g])));
@@ -39404,8 +39405,11 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
     return an.reduce((s, x) => s + x.faktor * (L.auflagerkraefte(x.lastfall).find((q) => q.knoten === 'MAST_M1_F')?.fiz ?? 0), 0);
   };
   const aus = mz(false), ein = mz(true);
-  wahr('Havarie am Leiter des NT-Auslegers: ohne Schalter Torsion am Mastfuss (Hebel des Auslegers)',
-       Math.abs(aus) > 0.1, `${aus.toFixed(3)} kNm`);
+  // Seit dem 20. November greift die Havarie am Ausleger in der Mastachse an
+  // («havarielast … auf den masten projezieren in x richtung») - auch ohne
+  // Schalter keine Torsion aus dem Hebel des Auslegers (vorher > 0.1 kNm).
+  wahr('Havarie am Leiter des NT-Auslegers: in die Mastachse geschoben, keine Torsion am Mastfuss',
+       Math.abs(aus) < 0.05, `${aus.toFixed(3)} kNm`);
   wahr('… mit «Last aufs Tragwerk» praktisch keine (die Kraft greift in der Achse an)',
        Math.abs(ein) < 0.05, `${ein.toFixed(3)} kNm`);
 }
@@ -43100,7 +43104,7 @@ titel('299  Dynamik: Figur schwingt, Δη nach Eingabe, Wert am Zeiger, Überble
   wahr('Wert am Zeiger (Fläche oder Linie), mit «weniger Bewegung» keine Animation',
        RQ3.includes('_wertAmZeiger(e)') && RQ3.includes('this._zlPunkte') && RQ3.includes("prefers-reduced-motion: reduce"));
   wahr('Knöpfe Explosion auf/zu und Figur schwingen; Δη an Kacheln und Hauptkachel',
-       LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
+       LQ3.includes('ef.oncontextmenu') && !LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
        && AQ3.includes("document.querySelector('.urteil .urteil-zahl')"));
 }
 
@@ -43210,8 +43214,11 @@ titel('302  Abfangjoch: Havarie der Leiter an Teilen am Masten, Leiternamen, fes
   wahr('Teil am Masten: Riss durchgehend = 10 % · Z(−20 °C), in +y und −y',
        soll > 0 && Math.abs(Math.abs(Fy) - soll) < 1e-6 && Math.abs(Fy + FyM) < 1e-6,
        `F_y ${Fy.toFixed(3)} / ${FyM.toFixed(3)} kN, soll ${soll.toFixed(3)}`);
-  wahr('… mit dem Hebel des Auslegers: M_z = x · F_y', Math.abs(xMod) > 0.5 && Math.abs(Fy) > 0 && Math.abs(Mz - xMod * Fy) < 1e-6,
-       `M_z ${Mz.toFixed(3)} kNm = ${xMod.toFixed(2)} m · ${Fy.toFixed(3)} kN`);
+  // Seit dem 20. November in die Mastachse geschoben («die havarielast auf
+  // die hängestütze … oder den masten projezieren in x richtung»): kein
+  // Hebel des Auslegers in x, also kein M_z (vorher x · F_y = 4.2 kNm).
+  wahr('… am Ausleger in die Mastachse geschoben: kein M_z aus dem Hebel x', Math.abs(xMod) > 0.5 && Math.abs(Fy) > 0 && Math.abs(Mz) < 1e-9,
+       `M_z ${Mz.toFixed(3)} kNm (Ausleger x ${xMod.toFixed(2)} m, F_y ${Fy.toFixed(3)} kN)`);
   // Anteil einstellbar (Weisung «10 % einstellbar», 20. November).
   {
     const w20 = { ...wh, havarieLaengszug: 20 };

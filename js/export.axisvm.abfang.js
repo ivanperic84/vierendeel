@@ -63,7 +63,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
          abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
-         abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
+         abfangAnbindung, abfangAnbauLasten, abfangLeiterWahl } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
 import { uKontur } from './core.profilgeometrie.js';
 import { linkBedingung, konsolLaenge } from './core.auflager.js';
@@ -1382,7 +1382,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     // «Mitte Träger, durchgehend» hat keine Seite (20. November, Befund im
     // Testprojekt: der Arm ging zum Knoten «null», das Stabwerk brach ab) -
     // er hängt wie ein senkrechtes Teil an beiden Gurten.
-    const seiten = an.art === 'mitte' && an.seite ? [an.seite] : ['V', 'H'];
+    // Seit dem 20. November vom Leiter: einseitig am gezogenen Gurt,
+    // beidseitig und durchgehend an beiden (`abfangLeiterWahl`).
+    const seiten = abfangLeiterWahl(t2, opt.havarie ?? null).seiten;
     seiten.forEach((g) => {
       staebe.push({
         // Ein Anbauteil im Gabelbereich greift an der Gabel an.

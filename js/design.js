@@ -225,6 +225,8 @@ export const ICONS = {
   wind: 'M3 7h9a2 2 0 10-2-2M3 11h11a2 2 0 11-2 2M3 15h6',
   leiterzug: 'M2 6h16M4 6c3 4 9 4 12 0M10 8v8M8 16h4',
   schnee: 'M10 3v14M4 6.5l12 7M16 6.5l-12 7',
+  // Leiterriss: ein Draht mit Bruch (20. November).
+  riss: 'M2 10h6l1.5-3M18 10h-6l-1.5 3',
   gewicht: 'M10 3a2 2 0 100 4 2 2 0 000-4zM6 8h8l2 9H4z',
   /*
    * DIE GRUPPEN DER BAUTEILAUSWAHL (Weisung, 3. September: «eventuell macht

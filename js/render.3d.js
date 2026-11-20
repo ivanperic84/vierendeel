@@ -104,6 +104,10 @@ export const LASTARTEN = [
     hinweis: 'Windkraft in Gleisrichtung, dazu die Laufmeterlast auf das Joch.' },
   { key: 'schnee',    label: 'Schnee',           farbe: 'warn',
     hinweis: 'Schnee und veränderliche Vertikallasten der Anbauteile.' },
+  // Havarie (20. November, «die havarielasten anzeigen im 3d wenn man den
+  // lastfall auswählt»): die Kräfte des Leiterrisses im gewählten Fall.
+  { key: 'havarie',   label: 'Havarie (Leiterriss)', farbe: 'fail',
+    hinweis: 'Änderung der Leiterkräfte im gewählten Havariefall: Längszug des gerissenen Leiters, −20 °C an den übrigen.' },
 ];
 
 /** Einwirkungsgruppe der Rechnung -> Lastart der Darstellung. */
@@ -123,6 +127,7 @@ export function haltVektor(halt, p, teil, name, laenge) {
 
 export const LASTART_VON_GRUPPE = {
   G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee',
+  HavarieX: 'havarie', HavarieY: 'havarie',
 };
 
 // --- Vektorrechnung ---------------------------------------------------------

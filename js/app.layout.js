@@ -95,6 +95,7 @@ const WZ_LASTEN = (app) => [
   { key: 'windX', icon: 'wind', text: 'Wind in x (quer zum Gleis)' },
   { key: 'windY', icon: 'wind', text: 'Wind in y (längs zum Gleis)' },
   { key: 'schnee', icon: 'schnee', text: 'Schnee und veränderlich vertikal' },
+  { key: 'havarie', icon: 'riss', text: 'Havarie (Leiterriss) - erscheint, wenn ein Havariefall gewählt ist' },
 ];
 
 /**
@@ -410,8 +411,10 @@ export function zeichneModellWerkzeuge(app) {
                       app.ansicht.ebenen[s.key], !gM || leer);
     }).join('')
       // Explosionsdarstellung (17. November): Teile auseinanderziehen.
-      + `<label class="wz-explo" title="Explosionsdarstellung: Gurte, Bleche, Masten und Anbauteile auseinanderziehen (nur das Bild)">
-           <span>Explosion <button type="button" class="wz-mini" id="wz-explo-fahren" title="Explosion weich auf- bzw. zufahren"${gM ? '' : ' disabled'}>${(app.ansicht.explosion ?? 0) > 0.5 ? 'zu' : 'auf'}</button></span><input type="range" id="wz-explosion" min="0" max="100" step="5"
+      // Knopf «auf / zu» weg (20. November, «diesen auf button entfernen, wenn
+      // man auf den slider mit rechtsklick drückt dann die funtion ausführen»).
+      + `<label class="wz-explo" title="Explosionsdarstellung: Gurte, Bleche, Masten und Anbauteile auseinanderziehen (nur das Bild). Rechtsklick auf den Schieber: weich auf- bzw. zufahren. Doppelklick: zurück.">
+           <span>Explosion</span><input type="range" id="wz-explosion" min="0" max="100" step="5"
              value="${Math.round((app.ansicht.explosion ?? 0) * 100)}"${gM ? '' : ' disabled'}
              aria-label="Explosionsdarstellung"></label>`) +
     gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG(app).map((s) => {
@@ -525,14 +528,13 @@ export function zeichneModellWerkzeuge(app) {
     au.oninput = () => setze(Number(au.value) / 100);
     au.ondblclick = () => { au.value = 0; setze(0); };
   }
-  const ef = ui.el('wz-explo-fahren');
+  const ef = ui.el('wz-explosion');
   if (ef) {
-    ef.onclick = (e) => {
+    // Rechtsklick fährt die Explosion weich auf bzw. zu (20. November).
+    ef.oncontextmenu = (e) => {
       e.preventDefault(); e.stopPropagation();
       const ziel = (app.ansicht.explosion ?? 0) > 0.5 ? 0 : 1;
-      const sl = ui.el('wz-explosion');
-      app.ansicht.explosionFahren(ziel, 650, (v) => { if (sl) sl.value = Math.round(v * 100); });
-      ef.textContent = ziel ? 'zu' : 'auf';
+      app.ansicht.explosionFahren(ziel, 650, (v) => { ef.value = Math.round(v * 100); });
     };
   }
   const sw = ui.el('wz-r-schwingen');
@@ -1573,6 +1575,31 @@ export function zeichneSchienen(app) {
       if (teile.length) gruppen.push({ titel: 'Fundament · char.', teile });
     }
   }
+
+  /*
+   * >>> JE TRAGWERKSELEMENT EINE PILLE (20. November). <<< Weisung mit Bild
+   * der Schiene: «hier die auswertung je tragwerkselement aufführen und
+   * nicht jeden einzelnen erfüllungswert auflisten.» Ein Joch (Gurte und
+   * Bindeblech) ist eine Pille, ein Mast (Querschnitt und Knicken) eine;
+   * Anker und Fundament bleiben eigene Elemente. Die Zahl ist das Grösste,
+   * die Einzelwerte stehen im Titel.
+   */
+  const jeElement = (g) => {
+    const el = new Map();
+    g.teile.forEach(([k, v, titel]) => {
+      let name = k;
+      const jm = /^Abfangjoch(?: ([A-Z]+\d+))?/.exec(g.titel) ?? /^(?:Joch|Tragausleger)/.exec(g.titel);
+      if (jm) name = jm[1] ?? (g.titel.startsWith('Tragausleger') ? 'TA' : 'Joch');
+      // Knicken «K<Mast>» gehört zum Masten.
+      else if (g.titel === 'Masten' && /^K/.test(k) && g.teile.some(([k2]) => k2 === k.slice(1))) name = k.slice(1);
+      const e = el.get(name) ?? { v: null, teil: [] };
+      if (Number.isFinite(v) && (e.v === null || v > e.v)) e.v = v;
+      e.teil.push(`${titel}: ${Number.isFinite(v) ? v.toFixed(3) : '–'}`);
+      el.set(name, e);
+    });
+    return { ...g, teile: [...el.entries()].map(([n, e]) => [n, e.v, e.teil.join(' · ')]) };
+  };
+  gruppen.splice(0, gruppen.length, ...gruppen.map(jeElement));
 
   // Die Reiter stehen oben, die Nachweise darunter: oben sucht man den Weg
   // zurück in die Auswertung, unten liest man ab. Die Pillen füllen die

@@ -39,7 +39,8 @@
  */
 
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
-         abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
+         abfangAnbindung, abfangAnbauLasten, abfangLeiterWahl } from './core.abfangjoch.js';
+import { abfangart } from './core.lasten.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife,
          abfangKroepfung, abfangLichteWeite,
@@ -525,16 +526,17 @@ export function abfangSzene(typ, jt, opt = {}) {
     if ((at.ort ?? 'joch') !== 'joch') return;
     const x = Math.min(Math.max(Number(at.x) || 0, 0), jt);
     const an = abfangAnbindung(at);
+    // Art und Richtung vom Leiter (20. November, `abfangLeiterWahl`).
+    const lwa = abfangLeiterWahl(at, opt.havarie ?? null);
     const fb = at.farbe || farbeFuer(`anbau|${at.vorlage ?? at.name}`,
                          at.name ?? 'Anbauteil', 'anbau');
     const teil = `AT_${j + 1}`;
     // `anbauteil`: daran erkennt das 3D die Fläche als greifbares Teil (Ziehen).
     const opt2 = { gruppe: 'anbau', teil, farbeBauteil: fb, anbauteil: at,
                    label: `${at.name ?? 'Anbauteil'} · ${an.art === 'mitte'
-                     ? `Mitte Träger (${an.seite === 'H' ? 'hinten' : 'vorn'})`
-                     : 'über beide Gurte'}` };
+                     ? 'Mitte Träger' : 'über beide Gurte'}` };
     // Die Arme zu den Gurten - dieselbe Wahl wie im Stabmodell.
-    const seiten = an.art === 'mitte' ? [an.seite === 'H' ? -1 : 1] : [1, -1];
+    const seiten = lwa.seiten.map((s) => (s === 'H' ? -1 : 1));
     seiten.forEach((sg) => {
       flaechen.push(...stab([x, 0, 0], [x, sg * yAchse(x), 0], 0.035, opt2));
     });
@@ -614,25 +616,32 @@ export function abfangSzene(typ, jt, opt = {}) {
      * ein Strich nach vorn, nach hinten oder nach beiden Seiten.
      */
     let abspannung = null;                // wo der Leiter endet
-    if (an.art === 'mitte') {
+    /*
+     * >>> DREI ARTEN, DREI BILDER (20. November). <<< Weisung: «die
+     * darstellung leiter abgefangen beidseitig und durchgehend [sollte]
+     * unterscheidbar sein im 3d.»
+     *   einseitig    Strich zur Seite, in die er zieht, Klotz am Ende
+     *   beidseitig   Strich nach beiden Seiten, Klotz an beiden Enden (Fixpunkt)
+     *   durchgehend  langer dünner Strich nach beiden Seiten, ohne Klotz
+     */
+    if (an.art === 'mitte' && lwa.leiter) {
       const zL = zs.length ? Math.min(...zs) : -0.35;
-      const richtungen = an.verlauf === 'durchgehend' ? [1, -1]
-        : [an.seite === 'H' ? -1 : 1];
+      const durch = lwa.art === 'durchgehend';
+      const richtungen = lwa.art === 'einseitig' ? [lwa.vz] : [1, -1];
+      const lang = durch ? 1.8 : 1.1;
+      const text = `${at.name ?? 'Leiter'} · ${abfangart(lwa.art).label}${lwa.art === 'einseitig'
+        ? `, zieht ${lwa.vz < 0 ? '−' : '+'}y` : ''}`;
       richtungen.forEach((sy) => {
-        flaechen.push(...stab([x, 0, zL], [x, sy * 1.1, zL], 0.03, {
-          ...opt2, teil: `${teil}_L`,
-          label: `${at.name ?? 'Leiter'} · ${an.verlauf === 'durchgehend'
-            ? 'durchgehend, keine Abfangkraft'
-            : `${an.verlauf === 'hinten' ? 'hinten' : 'vorn'} abgefangen`}`,
+        flaechen.push(...stab([x, 0, zL], [x, sy * lang, zL], durch ? 0.015 : 0.03, {
+          ...opt2, teil: `${teil}_L`, label: text,
         }));
+        // Das ENDE bekommt einen Klotz - dort sitzt die Abspannung.
+        if (!durch) {
+          const p = [x, sy * lang, zL];
+          abspannung = abspannung ?? p;
+          flaechen.push(...quader(p, [0.10, 0.14, 0.10], { ...opt2, teil: `${teil}_A`, label: text }));
+        }
       });
-      // Das ENDE bekommt einen Klotz - dort sitzt die Abspannung.
-      if (an.verlauf !== 'durchgehend') {
-        const sy = an.seite === 'H' ? -1 : 1;
-        abspannung = [x, sy * 1.1, zL];
-        flaechen.push(...quader(abspannung, [0.10, 0.14, 0.10],
-                                { ...opt2, teil: `${teil}_A` }));
-      }
     }
     /*
      * DIE KRAEFTE DES BAUTEILS greifen am Knoten auf der Jochachse an -
@@ -670,6 +679,13 @@ export function abfangSzene(typ, jt, opt = {}) {
     };
     // G und Wind stehen seit dem 6. Oktober je Modul an seinem Punkt (oben).
     pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab', abspannung ?? pAn);
+    // Im gewählten Havariefall die Änderung des Längszugs (20. November).
+    if (opt.havarieFall) {
+      const kalt = abfangAnbauLasten(at, {
+        ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL, tempFall: 'havarie',
+        havarie: opt.havarie ?? null, bruch: opt.havarieFall.key, bruchVz: opt.havarieFall.vz });
+      pfeil('havarie', [0, 1, 0], (kalt.Z ?? 0) - (lw.Z ?? 0), 'ΔZ Havarie', abspannung ?? pAn);
+    }
 
     marken.push({ gruppe: 'anbau', art: 'anbau', teil,
                   p: [x, 0, zTief < -0.01 ? zTief - 0.12 : hG / 2 + 0.12],

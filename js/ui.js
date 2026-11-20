@@ -3452,8 +3452,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
              * abgefangen.» Die Leiterzugkraefte folgen dann aus den
              * Kennwerten der Bauteile - sie stehen nirgends als Eingabe.
              */''}
-          ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
-            && abfangAnbindung(a).art === 'mitte'
+          ${/* Entfällt seit dem 20. November - die Abfangung steht nur noch am
+               Leiter («man kann hier zweimal die abfangung eingeben»). */''}
+          ${false
             ? atWahl(i, 'verlauf', 'Verlauf des Leiters',
                      abfangAnbindung(a).verlauf, ABFANG_VERLAEUFE,
                      ABFANG_VERLAEUFE.find(
@@ -5303,9 +5304,7 @@ function anbauteilSkizzeAbfang(a, werte) {
     </g>
     <text class="sk-notiz" x="186" y="140">vorn oben · 0 … ${L.toFixed(1)} m</text>
     <text class="sk-notiz" x="186" y="152">${esc(
-      an.art === 'gurte' ? 'über beide Gurte'
-        : `Mitte Träger · ${ABFANG_VERLAEUFE.find(
-             (v) => v.key === an.verlauf)?.label ?? ''}`)}</text>
+      an.art === 'gurte' ? 'über beide Gurte' : 'Mitte Träger')}</text>
   </svg>`;
 }
 

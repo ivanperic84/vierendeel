@@ -3616,9 +3616,15 @@ function abfangLastAngaben(satz) {
   // Mit Art und Richtung je Leiter (29. September) - das Bild zeigt den
   // Zug, den der Nachweis ansetzt.
   satz = mitTrasse(satz);
+  // Der gewählte Havariefall (20. November, «die havarielasten anzeigen im
+  // 3d wenn man den lastfall auswählt»): das Bild zeigt die Änderung ΔZ.
+  const lf = anzeigeKombi === 'umhuellend' ? null
+    : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
+  const havarieFall = lf?.leit === 'HavarieY'
+    ? { key: lf.bruchLeiter ?? null, vz: (lf.vorzeichen ?? 1) < 0 ? -1 : 1 } : null;
   return { ek: satz?.ek, L_FL: Number(satz?.L_FL) || 0,
            R: Number(satz?.R) || 0, tempFall: satz?.tempFall,
-           havarie: satz?.havarie ?? null };
+           havarie: satz?.havarie ?? null, havarieFall };
 }
 
 function abfangNaechsteLaenge(typ, jt) {

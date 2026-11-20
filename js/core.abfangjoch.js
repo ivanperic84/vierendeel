@@ -1230,6 +1230,35 @@ export function abfangAnbauLasten(at, opt = {}) {
  * @param {object} opt      {tempFall}
  * @returns {{name:string, x:number}[]} Teile mit Zugkraft ohne Abfangwirkung
  */
+/*
+ * >>> DIE ABFANGUNG STEHT NUR NOCH AM LEITER (20. November). <<< Weisung:
+ * «was noch verwirrend ist, man kann hier zweimal die abfangung eingeben
+ * als anbauteil und als leiter selbst.» Das Feld «Verlauf des Leiters»
+ * (vorn / hinten / durchgehend) am Anbauteil entfällt; Art und Richtung
+ * kommen vom Leiter (`havarie[leiterKennung]`). Ein alter Stand mit Verlauf
+ * gilt weiter, solange am Leiter nichts steht. Daraus auch, an welchem Gurt
+ * ein Leiter «Mitte Träger» hängt: einseitig am gezogenen, beidseitig und
+ * durchgehend an beiden.
+ */
+export function abfangLeiterWahl(at, havarie = null) {
+  const an = abfangAnbindung(at);
+  let key = null;
+  (Array.isArray(at?.module) ? at.module : []).some((m, i) => {
+    if (!m || m.aktiv === false || !m.bauteil) return false;
+    let z = 0;
+    try { z = abfangkraft(m.bauteil, {}).Z; } catch { z = 0; }
+    if (!z) return false;
+    key = leiterKennung(at, m, i);
+    return true;
+  });
+  const e = (key && havarie?.[key]) || {};
+  const art = e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
+    ? 'durchgehend' : ABFANGJOCH_ART_VORGABE);
+  const vz = e.richtung === '-y' ? -1 : e.richtung === '+y' ? 1 : (an.seite === 'H' ? -1 : 1);
+  const seiten = an.art !== 'mitte' ? ['V', 'H'] : art === 'einseitig' ? [vz < 0 ? 'H' : 'V'] : ['V', 'H'];
+  return { art, vz, seiten, key, leiter: Boolean(key) };
+}
+
 export function abfangZugOhneWirkung(teile, opt = {}) {
   return (teile ?? [])
     .filter((t2) => t2 && t2.aktiv !== false && (t2.ort ?? 'joch') === 'joch')

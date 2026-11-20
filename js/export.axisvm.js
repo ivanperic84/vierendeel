@@ -1649,7 +1649,9 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
      */
     const havK = satz.havarieAus === true ? [] : havarieKandidaten(havQ);
     expandiereAnbauteile([{ ...a, aktiv: true }], eo).forEach((tp) => {
-      const r = [(Number(tp.x) || 0) - (Number(a.x) || 0), Number(tp.y) || 0, Number(tp.z) || 0];
+      const r0 = [(Number(tp.x) || 0) - (Number(a.x) || 0), Number(tp.y) || 0, Number(tp.z) || 0];
+      // Havarie am Ausleger in der Mastachse (20. November, `havarieX`).
+      const r = Number.isFinite(tp.havarieX) ? [tp.havarieX - (Number(a.x) || 0), r0[1], r0[2]] : r0;
       const kraft = (fall, F) => [0, 1, 2].forEach((j) => {
         if (!F[j]) return;
         const Fj = [0, 0, 0]; Fj[j] = F[j];
@@ -1673,6 +1675,7 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
         if (ew.key === 'HavarieX' || ew.key === 'HavarieY') return;
         const q = tp.kraefte?.[ew.key];
         if (!q) return;
+        const r = r0;   // alle übrigen Lasten am Leiterpunkt
         const F = [q.Fx ?? 0, q.Fy ?? 0, -(q.Fz ?? 0)];
         [0, 1, 2].forEach((j) => {
           if (!F[j]) return;
@@ -4473,6 +4476,16 @@ export function lasten(m, bau, opt = {}) {
       const paare = [
         ['X', kr.Fx ?? 0], ['Y', kr.Fy ?? 0], ['Z', -(kr.Fz ?? 0)],
       ];
+      // Havarie am Ausleger in der Achse des Trägers (20. November,
+      // `havarieX`): die Kraft greift dort an - als Moment am Leiterpunkt
+      // (Kette starr): ΔM_z = (x_Träger − x) · F_y.
+      if (e.key === 'HavarieY' && havKn === arm.knoten) {
+        const dM = (arm.teil.teile ?? [arm.teil]).reduce((s2, t) => s2
+          + (Number.isFinite(t?.havarieX) ? (t.havarieX - t.x) * (t.kraefte?.HavarieY?.Fy ?? 0) : 0), 0);
+        if (Math.abs(dM) > 1e-12) {
+          moment.push({ name: `MH${k}_HavarieY_Mz`, knoten: havKn, richtung: 'Mz', wert: r6(dM), lastfall: 'HavarieY' });
+        }
+      }
       paare.forEach(([richtung, wert]) => {
         if (!wert) return;
         // Unter G wird getrennt: was in der JOCHACHSE zieht, ist die
@@ -4507,7 +4520,8 @@ export function lasten(m, bau, opt = {}) {
       const je = (arm.teil.teile ?? [arm.teil])
         .filter((t) => t.havarieJe?.[c.key])
         .map((t) => ({ ...t.havarieJe[c.key], basisX: t.kraefte?.HavarieX?.Fx ?? 0,
-                       fest: t.havarieFest === true }));
+                       fest: t.havarieFest === true,
+                       dx: Number.isFinite(t.havarieX) && havKn === arm.knoten ? t.havarieX - t.x : 0 }));
       if (!je.length) return;
       const s2 = (f) => je.reduce((a2, x) => a2 + f(x), 0);
       /*
@@ -4528,6 +4542,12 @@ export function lasten(m, bau, opt = {}) {
         if (!wert) return;
         punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: havKn,
                      richtung, wert: r6(wert), lastfall: fall });
+      });
+      // In der Achse des Trägers (Ausleger, 20. November).
+      [[`HavarieY|${c.key}|p`, s2((x) => x.dx * x.p.Fy)],
+       [`HavarieY|${c.key}|m`, s2((x) => x.dx * (x.fest ? 1 : -1) * x.m.Fy)]].forEach(([fall, wert]) => {
+        if (Math.abs(wert) < 1e-12) return;
+        moment.push({ name: `MH${k}_${fall}_Mz`, knoten: havKn, richtung: 'Mz', wert: r6(wert), lastfall: fall });
       });
     });
   });
