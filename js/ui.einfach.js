@@ -346,7 +346,17 @@ export function begriffeVerdrahten() {
 export function lastfallEinfach(bez) {
   const b = String(bez ?? '');
   const seite = /\+/.test(b) ? 1 : (/[−-]\s*[xy]/.test(b) ? -1 : 0);
-  if (/Havarie|bruch|reisst/i.test(b)) return { gruppe: 'weitere', text: 'Leiterbruch (ein Leiter reisst)' };
+  /*
+   * >>> JEDER HAVARIEFALL NENNT SEINEN LEITER (21. November). <<< Weisung:
+   * «beim aufführen der lastfälle der havarie ist es nicht ganz
+   * nachvollziehbar» - alle hiessen «Leiterbruch (ein Leiter reisst)».
+   */
+  if (/Havarie|bruch|reisst/i.test(b)) {
+    if (/ohne Leiterbruch/i.test(b)) return { gruppe: 'havarie', text: 'ohne Leiterbruch, alle Leiter bei −20 °C' };
+    const m = /Havarie:\s*(.+?)\s+reisst(?:,\s*Längszug\s*([+−-]y))?/i.exec(b);
+    if (m) return { gruppe: 'havarie', text: `${m[1]} reisst${m[2] ? ` → Zug ${m[2].replace('-', '−')}` : ''}` };
+    return { gruppe: 'havarie', text: b.replace(/^Havarie:?\s*/, '') };
+  }
   // Betriebswind (ψ 0.70) der Gebrauchstauglichkeit (16. November).
   if (/Betriebswind/i.test(b)) {
     const quer = /Wind\s*[+−-]?\s*x|quer zum Gleis/i.test(b);
@@ -424,7 +434,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
   const faelle = (kombi?.lastfaelle ?? []).filter((k) => k.nachweis);
   if (!faelle.length) return '';
   const eta = (k) => (etaJe?.[k.key]?.eta ?? k.eta);
-  const je = { quer: [], laengs: [], weitere: [] };
+  const je = { quer: [], laengs: [], weitere: [], havarie: [] };
   faelle.forEach((k) => {
     const e = lastfallEinfach(k.bez);
     je[e.gruppe].push({ k, text: e.text });
@@ -446,6 +456,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
     ${block('Quer zum Gleis', je.quer)}
     ${block('Längs zum Gleis', je.laengs)}
     ${block('Weitere', je.weitere)}
+    ${block('Havarie (Leiterriss)', je.havarie)}
     ${gzgEinfachHtml(gzg, gewaehlt)}
     ${einzelLastenHtml(kombi, gewaehlt)}
     <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster

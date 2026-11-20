@@ -825,7 +825,7 @@ function balkenHtml(app, p, linie = false) {
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  return `${bar}<div class="legende-fall">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</div>${einst}`;
+  return `${bar}<button type="button" class="legende-fall" data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</button>${einst}`;
 }
 function balkenLinieHtml(app, p) {
   const a = app.ansicht;
@@ -852,9 +852,14 @@ function balkenLinieHtml(app, p) {
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  return `${bar}<div class="legende-fall">${esc(lastfallText(app))} · Linie ${esc(name)}</div>${einst}`;
+  return `${bar}<button type="button" class="legende-fall" data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))} · Linie ${esc(name)}</button>${einst}`;
 }
 function balkenVerdrahten(app, n) {
+  // Die Lastfallzeile führt zu den Lastfällen (21. November).
+  n.querySelectorAll('[data-lf-link]').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); app.zeigeLastfaelle?.(); };
+  });
   const stopp = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const neu = () => { app.ansicht.zeichne(); zeichneLegende(app); };
   n.querySelectorAll('[data-balken]').forEach((b) => { stopp(b); b.onclick = () => { balkenOffen = !balkenOffen; zeichneLegende(app); }; });

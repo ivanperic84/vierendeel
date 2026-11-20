@@ -4315,7 +4315,18 @@ export function lasten(m, bau, opt = {}) {
     if (!opt.eigengewicht) return bau.eigeneLasten;
     return { ...bau.eigeneLasten,
              strecke: [...(bau.eigeneLasten.strecke ?? []),
-                       ...eigengewichtAus(bau, (st) => (st.artFest ?? 'stab') === 'stab')] };
+                       /*
+                        * >>> NUR ECHTE STÄBE (21. November). <<< Befund bei der
+                        * Prüfung der Abfangjoch-Reaktionen («die auswertung bei
+                        * den abfangjochen für die reaktionen nochmals checken»):
+                        * die Hilfsglieder der Druckstütze (Stiel, Kante, Kopf,
+                        * Konsole), nachträglich angebaut und ohne `artFest`,
+                        * zählten als Stab mit dem Ersatzquerschnitt STARR
+                        * (500 × 500 mm, 19.3 kN/m). Gemessen Testprojekt Gr. A:
+                        * ständig Σ 122 kN statt rund 20 kN.
+                        */
+                       ...eigengewichtAus(bau, (st) => (st.artFest ?? starrArt(st, 'koerper').art) === 'stab'
+                         && !new RegExp(`(^|_)${STARR.name}$`).test(String(st.qs ?? st.querschnitt ?? '')))] };
   }
   // Die Untergruppen der ständigen Last führt nur die COM-Ausleitung. Die
   // SAF-Mappe und die DXF-Zuordnung schreiben ihre Lastfallliste selbst;
@@ -4432,7 +4443,16 @@ export function lasten(m, bau, opt = {}) {
     const sm = opt.starrModell ?? 'koerper';
     const steif = (st) => st.starrRolle === 'gurtabschnitt' && sm !== 'staebe';
     strecke.push(...eigengewichtAus(bau,
-      (st) => steif(st) || (starrArt(st, sm).art === 'stab' && rohQs(st) !== STARR.name),
+      /*
+       * >>> AUCH MIT PRÄFIX STARR (21. November). <<< Befund bei der Prüfung
+       * der Abfangjoch-Reaktionen: im Blatt (mehrere Tragwerke) tragen die
+       * Hilfsglieder der Druckstütze den Querschnitt «T2_STARR», ohne dass
+       * `praefix` am Stab steht - `rohQs` erkannte ihn nicht, sie wogen wie
+       * ein Stab 500 × 500 mm (Gr. A: rund 90 kN zu viel im ständigen Fall).
+       */
+      (st) => steif(st) || (starrArt(st, sm).art === 'stab' && rohQs(st) !== STARR.name
+        && !new RegExp(`(^|_)${STARR.name}$`).test(String(st.qs ?? st.querschnitt ?? ''))
+        && st.art !== 'starr' && st.art !== 'link'),
       (st) => (steif(st) ? gurtSteif(st, sm).querschnitt : st.qs ?? st.querschnitt)));
   } else if (opt.eigengewicht && mastStaebe.length) {
     strecke.push(...eigengewichtAus(bau, (st) => mastStaebe.includes(st)));

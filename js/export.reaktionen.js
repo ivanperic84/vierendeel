@@ -244,14 +244,17 @@ export function reaktionenKurzHtml(daten) {
 export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false, bestandGrau = false } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
+  // Mitte des Tragwerks - umgeklappte Anker zeigen von ihr weg (21. November).
+  const mitte = (g.x0 + g.x1) / 2;
   // Platz für die Titel über dem höchsten Bauteil.
   if ((daten?.titel ?? []).length) g.z1 += Math.max(1.2, (g.z1 - g.z0) * 0.12);
   const liste = zeilen ?? [];
   // Umgeklappte Anker brauchen Platz neben dem Masten.
   liste.filter((z) => z.art === 'anker').forEach((z) => {
     const a = Number(z.anker?.a) || 0;
-    g.x1 = Math.max(g.x1, (z.xModell ?? z.x) + a);
-    g.x0 = Math.min(g.x0, (z.xModell ?? z.x) - a);
+    // Mit Platz für die Anschrift neben dem Fuss (21. November).
+    g.x1 = Math.max(g.x1, (z.xModell ?? z.x) + a * 1.45);
+    g.x0 = Math.min(g.x0, (z.xModell ?? z.x) - a * 1.45);
   });
   const rand = 26;
   const sx = (breite - 2 * rand) / Math.max(g.x1 - g.x0, 1e-6);
@@ -319,15 +322,21 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       const a = Number(z.anker?.a) || 0;
       const xf = z.xModell ?? z.x;
       const laengs = Math.abs(xf - xm) < 0.1;
-      // Längs: zur Seite mit mehr Platz umgeklappt, gestrichelt.
-      const seite = xm - g.x0 > g.x1 - xm ? -1 : 1;
+      /*
+       * Längs: NACH AUSSEN umgeklappt, gestrichelt (21. November: «bei
+       * kurzen jochen und wie druckstützen überdecken sich die elemente bei
+       * der ausleitung der reaktionskräfte bei der skizze» - zur Seite mit
+       * mehr Platz klappten beide Stützen eines kurzen Jochs nach innen und
+       * kreuzten sich samt Anschrift).
+       */
+      const seite = xm < mitte ? -1 : 1;
       const xZiel = laengs ? xm + seite * a : xf;
       const p0 = [X(xm), Z(zf + h)], p1 = [X(xZiel), Z(zf)];
       return `<line class="sk-anker${laengs ? ' sk-umgeklappt' : ''}" x1="${r1(p0[0])}" y1="${r1(p0[1])}" x2="${r1(p1[0])}" y2="${r1(p1[1])}"/>`
         + gelenk(p1[0], p1[1])
         // Die Anschrift weg vom Masten, damit sie nicht an seine stösst.
         + `<text x="${r1(p1[0] + (p1[0] < p0[0] ? -6 : 6))}" y="${r1(p1[1] + 18)}" text-anchor="${
-          p1[0] < p0[0] ? 'end' : 'start'}">${esc(z.name)}${laengs ? ' (längs, umgeklappt)' : ''}</text>`;
+          p1[0] < p0[0] ? 'end' : 'start'}">${esc(z.name)}${laengs ? ' (längs)' : ''}</text>`;
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
   }).join('');

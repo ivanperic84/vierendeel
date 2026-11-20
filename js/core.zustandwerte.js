@@ -263,7 +263,14 @@ export function zustandBauen(o) {
     pkt: r.map((x, p) => {
       const t = p / (ZL_PUNKTE - 1);
       const P = [s.a[0] + (s.b[0] - s.a[0]) * t + dx, s.a[1] + (s.b[1] - s.a[1]) * t, s.a[2] + (s.b[2] - s.a[2]) * t + dz];
-      const v = x.v ?? 0, d = x.d ?? s.ez;
+      /*
+       * NAHE NULL IST NULL (21. November, «wenn spannungen nahe null, bei
+       * der liniendiagramm darstellung berücksichtigen»): unter 2 % der
+       * Bezugsgrösse zeichnet die Linie auf der Stabachse (σ_v: 1 N/mm²).
+       */
+      const v0 = x.v ?? 0;
+      const v = Math.abs(v0) < 0.02 * bezug ? 0 : v0;
+      const d = x.d ?? s.ez;
       /*
        * >>> OBERGURT NACH OBEN, UNTERGURT NACH UNTEN (17. November). <<<
        * «die diagramm auswertung bei den ober und untergurten nach oben und
@@ -281,7 +288,7 @@ export function zustandBauen(o) {
       // Bindebleche IMMER nach aussen, in jeder Ebene: ihr Diagramm liegt sonst
       // oft in Jochachse (Ebene «quer») und überdeckt das des Nachbarblechs.
       else if (au && s.r === 'blech') off = au.map((c) => c * Math.abs(v) * skal);
-      return { p: P, o: off, v, leer: x.v === null || !x.d };
+      return { p: P, o: off, v: v0, leer: x.v === null || !x.d };
     }),
   }));
   const mg = gmax && gmin ? (Math.abs(gmin.v) > Math.abs(gmax.v) ? gmin : gmax) : gmax;

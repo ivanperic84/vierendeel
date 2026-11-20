@@ -263,6 +263,7 @@ const app = {
   setzenStarten: (...a) => setzenStarten(app, ...a),
   zeichneAuswertung: (...a) => zeichneAuswertung(...a),
   zeigeAnbauteil: (...a) => zeigeAnbauteil(...a),
+  zeigeLastfaelle: () => zeigeLastfaelle(),
   zeigeFeld: (...a) => zeigeFeld(app, ...a),
   zoomAufTragwerk: (...a) => zoomAufTragwerk(...a),
   ankerRichtungVor: (...a) => ankerRichtungVor(...a),
@@ -3263,6 +3264,20 @@ function aktualisiereModell(erg) {
    * Eingabe. Angehaengt an die Schnittangabe las sie sich wie eine Eigenschaft
    * des Schnitts; sie gilt aber fuer das ganze Tragwerk.
    */
+  // Der gewählte Lastfall oben in der Mitte (21. November); Klick führt zu
+  // den Lastfällen in der Seitenleiste.
+  if (ui.el('pos-lf')) {
+    const lfEl = ui.el('pos-lf');
+    const lf = anzeigeKombi === 'umhuellend' ? null
+      : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
+    lfEl.textContent = `Lastfall: ${lf ? lf.bez : 'umhüllend'}`;
+    lfEl.classList.toggle('einzel', !!lf);
+    lfEl.title = 'Lastfall wählen - führt zu den Lastfällen in der Seitenleiste';
+    if (!lfEl.dataset.verdrahtet) {
+      lfEl.dataset.verdrahtet = '1';
+      lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });
+    }
+  }
   if (ui.el('pos-ek')) {
     /*
      * Mit den Grundwerten der Trasse (7. Oktober, «hier unten die globalen
@@ -5700,6 +5715,28 @@ function zoomAufAnbauteil(i, sanft = false) {
  * und falls die Schublade eingeklappt war, fährt sie aus. Man sieht danach
  * genau das eine Teil, das man angefasst hat.
  */
+/*
+ * >>> ZU DEN LASTFÄLLEN IN DER SEITENLEISTE (21. November). <<< Weisung:
+ * «Lastfallauswahl im 3d ermöglichen am besten über die box mit der zeile
+ * lastfall unterhalb des farbbalkens diese als link für die sidebar
+ * lastfall nehmen» und «den aktuellen lastfall aufführen oben in der mitte
+ * beim 3d, wenn man draufdrückt gelangt man in die sidebar lasten bei den
+ * lastfällen».
+ */
+function zeigeLastfaelle() {
+  tabEingabe = 'lasten';
+  ui.setzeKlapp('grp-komb', true);
+  neuRechnen();
+  if (zuSeite.links) seiteAusklappen('links');
+  maskenAnkerLoesen();
+  requestAnimationFrame(() => {
+    const k = ui.el('maske')?.querySelector('[data-grp="komb"]');
+    k?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    k?.classList.add('blitz');
+    setTimeout(() => k?.classList.remove('blitz'), 1400);
+  });
+}
+
 function zeigeAnbauteil(i) {
   if (i === null || i === undefined) return;
   const a = (werte.anbauteile ?? [])[i];

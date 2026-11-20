@@ -4120,3 +4120,10 @@ body.setzen-an #legende { display: none; }
 .dm-sp-grenze { fill: none; stroke: var(--warn); stroke-width: 1; stroke-dasharray: 2 3; }
 /* Anschrift der Spinne (20. November): die Regel stand nur am Streudiagramm, die Achsen der Spinne standen schwarz auf dunkel. */
 .dm-spinne .dm-achse { fill: var(--on2); font-size: 12px; font-family: var(--f-ui); }
+
+/* Lastfall oben im 3D und in der Legende als Verweis (21. November). */
+.viewer-lf { cursor: pointer; border: 1px solid var(--ol); background: var(--s1); color: var(--on2); font: inherit; margin-left: 6px; }
+.viewer-lf.einzel { color: var(--acc); border-color: var(--acc); }
+.viewer-lf:hover { color: var(--on); }
+button.legende-fall { display: block; width: 100%; background: none; border: 0; padding: 0; margin: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+button.legende-fall:hover { color: var(--acc); text-decoration: underline; }

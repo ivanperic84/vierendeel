@@ -34386,7 +34386,8 @@ titel('169 b  Reaktionskräfte: Köpfe nach dem Achssystem, Anker A14, Skizze');
        !/>LA</.test(svg) && svg.includes('class="sk-seil"'));
   wahr('Einspannung am Mastfuss (Schraffur), Gelenk und Strebe am Anker',
        svg.includes('sk-schraffur') && svg.includes('sk-gelenk') && svg.includes('sk-anker sk-umgeklappt')
-       && svg.includes('A14 (längs, umgeklappt)'));
+       // Seit dem 21. November kürzer «(längs)» (nach aussen umgeklappt, gestrichelt).
+       && svg.includes('A14 (längs)'));
   wahr('Die Skizze nimmt lange Starrglieder (Anbauteile) und Seile mit',
        /anbau = s\.art === 'starr' && laenge > 0\.4/.test(
          readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8')));
@@ -43309,6 +43310,46 @@ titel('304  Abfangjoch: Leiter «Mitte Träger, durchgehend» hängt an beiden G
   wahr('… der durchgehende Leiter hängt an beiden Gurten',
        dat.staebe.filter((s) => /^ATARM_1/.test(s.name)).length === 2);
   void C304;
+}
+
+titel('305  Eigengewicht nur an echten Stäben - auch mit Druckstütze im Blatt');
+/*
+ * Befund 21. November bei der Prüfung der Abfangjoch-Reaktionen: die
+ * Hilfsglieder der Druckstütze (Querschnitt «T2_STARR», 500 × 500 mm)
+ * trugen ein Eigengewicht von 19.3 kN/m - Testprojekt Gr. A ständig
+ * Σ 122 kN statt 24 kN. Kein Stab mit Ersatzquerschnitt STARR darf eine
+ * Eigengewichtslast tragen, weder am Abfangjoch noch in einer Jochreihe.
+ */
+{
+  const C305 = await import(J('core.constants.js'));
+  const N305 = await import(J('core.nachbarn.js'));
+  const V305 = await import(J('core.vierendeel.js'));
+  const AS305 = await import(J('app.stabwerk.js'));
+  const pruefeEG = (w, titelText) => {
+    const satz = N305.rechensatzMitNachbarn(w);
+    const erg = V305.berechne(satz, ...N305.kernArgumente(satz));
+    const h = AS305.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    const d = h?.roh?.dat;
+    if (!d) { wahr(titelText, false, h?.ohneModell ?? h?.fehler ?? 'kein Modell'); return; }
+    const qs = new Map(d.staebe.map((s) => [s.name, s.querschnitt]));
+    const starr = d.lasten.strecke.filter((s) => s.lastfall === 'G' && /(^|_)STARR$/.test(qs.get(s.stab) ?? ''));
+    const ankerStab = d.staebe.filter((s) => /ANKER/.test(s.name)).length;
+    wahr(titelText, ankerStab > 0 && starr.length === 0,
+         `${ankerStab} Ankerstäbe, ${starr.length} Starrglieder mit Eigengewicht${starr[0] ? ` (${starr[0].stab})` : ''}`);
+  };
+  // Zwei Abfangjoche übereinander mit Druckstützen längs.
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 7.5; w.xLage = 0; w.mastVorhanden = true; w.anbauteile = [];
+  w = C305.tragwerkWeg(C305.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 7.5, abfangTyp: 'A160', mastH: 7.5 }), 'T1');
+  w = C305.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 7.5, abfangTyp: 'A160', mastH: 6 });
+  C305.mastenVon(w).forEach((m, i) => { w = C305.setzeMastAnker(w, m.id, { typ: 'U12', h: 6, a: 4.5, richtung: 'y', befestigung: 'ankerplatte', seite: i ? 'plus' : 'minus' }); });
+  pruefeEG(w, 'Abfangjoche übereinander mit Druckstützen: kein Starrglied mit Eigengewicht');
+  // Jochreihe mit Druckstütze am Mittelmasten.
+  let r = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  r.L = 20; r.xLage = 0; r.mastVorhanden = true; r.anbauteile = [];
+  r = C305.tragwerkHinzu(r, 'joch', { L: 15, xLage: 20 });
+  r = C305.setzeMastAnker(r, C305.mastenVon(r)[1].id, { typ: 'U12', h: 6, a: 4.5, richtung: 'y', befestigung: 'ankerplatte', seite: 'plus' });
+  pruefeEG(r, 'Jochreihe mit Druckstütze: kein Starrglied mit Eigengewicht');
 }
 
 console.log('\n' + '='.repeat(104));
