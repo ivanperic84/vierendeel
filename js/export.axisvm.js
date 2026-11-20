@@ -1608,8 +1608,16 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
     && (a.ort === 'mastA' || a.ort === 'mastB'));
   if (!teile.length || !bau?.staebe) return bau;
   const praefix = opt.praefix ?? '';
+  /*
+   * Die Wahl je Leiter (Art, «kann reissen») kann an einem ANDEREN
+   * Tragwerk desselben Masten stehen: die Teile am Masten baut das erste
+   * Tragwerk, das ihn trägt, gewählt wurde vielleicht am zweiten
+   * (Testprojekt: zwei Abfangjoche übereinander). `havarieBlatt` ist die
+   * Vereinigung über das Blatt; der eigene Satz geht vor.
+   */
+  const havQ = { ...(opt.havarieBlatt ?? {}), ...(satz.havarie ?? {}) };
   const eo = { ek: ekVonWindklasse(satz.windKlasse), R: satz.trasseRadius,
-               spannweite: satz.flSpannweite, havarie: satz.havarie };
+               spannweite: satz.flSpannweite, havarie: havQ };
   bau.eigeneLasten = bau.eigeneLasten ?? { punkt: [], moment: [], strecke: [] };
   bau.eigeneLasten.punkt = bau.eigeneLasten.punkt ?? [];
   bau.eigeneLasten.moment = bau.eigeneLasten.moment ?? [];
@@ -1630,8 +1638,37 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
       const sm = summen[fall] ?? (summen[fall] = { F: [0, 0, 0], M: [0, 0, 0] });
       v.forEach((w, j) => { sm[art][j] += w; });
     };
+    /*
+     * >>> AUCH DER HAVARIEFALL (20. November). <<< Befund aus dem
+     * Testprojekt: Leiter an einem NT-Ausleger am Masten eines Abfangjochs
+     * bekamen keinen Havarie-Lastfall - die Wahl «kann reissen» blieb ohne
+     * Wirkung. Jetzt wie am Tragjoch (`lasten`): der gemeinsame Fall
+     * (HavarieX/Y, ohne Bruch) und je reissendem Leiter seine Korrektur
+     * HavarieX|… sowie HavarieY|…|p und …|m (die feste Richtung der
+     * einseitigen Abfangung dreht nicht).
+     */
+    const havK = satz.havarieAus === true ? [] : havarieKandidaten(havQ);
     expandiereAnbauteile([{ ...a, aktiv: true }], eo).forEach((tp) => {
       const r = [(Number(tp.x) || 0) - (Number(a.x) || 0), Number(tp.y) || 0, Number(tp.z) || 0];
+      const kraft = (fall, F) => [0, 1, 2].forEach((j) => {
+        if (!F[j]) return;
+        const Fj = [0, 0, 0]; Fj[j] = F[j];
+        add(fall, 'F', Fj);
+        add(fall, 'M', [r[1] * Fj[2] - r[2] * Fj[1], r[2] * Fj[0] - r[0] * Fj[2],
+                        r[0] * Fj[1] - r[1] * Fj[0]]);
+      });
+      if (satz.havarieAus !== true) {
+        kraft('HavarieX', [tp.kraefte?.HavarieX?.Fx ?? 0, 0, 0]);
+        kraft('HavarieY', [0, tp.kraefte?.HavarieY?.Fy ?? 0, 0]);
+      }
+      havK.forEach((c) => {
+        const je = tp.havarieJe?.[c.key];
+        if (!je) return;
+        const fest = tp.havarieFest === true;
+        kraft(`HavarieX|${c.key}`, [(je.p.dFx ?? 0) - (tp.kraefte?.HavarieX?.Fx ?? 0), 0, 0]);
+        kraft(`HavarieY|${c.key}|p`, [0, je.p.Fy ?? 0, 0]);
+        kraft(`HavarieY|${c.key}|m`, [0, (fest ? 1 : -1) * (je.m.Fy ?? 0), 0]);
+      });
       EINWIRKUNGEN.forEach((ew) => {
         if (ew.key === 'HavarieX' || ew.key === 'HavarieY') return;
         const q = tp.kraefte?.[ew.key];
@@ -2251,6 +2288,8 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * warum.
    */
   const alle = sichtbareTragwerke(werte);
+  // Die Havarie-Wahl aller Tragwerke - für die Teile am geteilten Masten.
+  opt = { ...opt, havarieBlatt: Object.assign({}, ...alle.map((t) => tragwerkSatz(werte, t.id)?.havarie ?? {})) };
   const ausgeblendet = tragwerkeSortiert(werte).filter(
     (t) => !alle.some((x) => x.id === t.id));
   if (alle.length < 2) {
@@ -5225,7 +5264,10 @@ export function stabmodellJson(m, opt = {}) {
   const havAus = (q) => (eingaben.length ? q.havarieAus : m.havarieAus) === true;
   const havarieGanzAus = havarieQuellen.every(havAus);
   const havKandidaten = [];
-  havarieQuellen.forEach((q) => {
+  // In der Reihenfolge der Tragwerke (T1, T2 …), nicht des gewählten zuerst -
+  // sonst wechselt die Nummer L1 … mit dem aktiven Tragwerk (20. November).
+  const twNr = (q) => Number(String(q?.twId ?? '').replace(/\D/g, '')) || 0;
+  [...havarieQuellen].sort((a, b) => twNr(a) - twNr(b)).forEach((q) => {
     (havAus(q) ? [] : havarieKandidaten(q.havarie)).forEach((c) => {
       if (!havKandidaten.some((x) => x.key === c.key)) havKandidaten.push(c);
     });

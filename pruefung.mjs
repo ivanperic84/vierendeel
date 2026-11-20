@@ -26662,7 +26662,7 @@ titel('102  Havariefall abschaltbar (Nachweis und Ausleitung)');
   wahr('Abfangjoch: abgeschaltet ohne den Fall «havarie» und ohne Laeufe je Leiter',
        ab102.includes("!(o.ohneHavarie === true && f.key === 'havarie')")
        && nb102.includes('ohneHavarie: satzA.havarieAus === true')
-       && nb102.includes('satzA.havarieAus === true ? [] : havarieKandidaten'));
+       && /satzA\.havarieAus === true \? \[\]\s*:\s*havarieKandidaten/.test(nb102));
 }
 
 titel('103  Einzelmast: Ausleitung baut das Mastmodell, nicht den Jochweg');
@@ -26972,8 +26972,9 @@ titel('106  Abfangjoch-Ausleitung: Havarie je Leiter');
     .reduce((a, p) => a + p.wert, 0);
 
   wahr('Je angehaktem Leiter ein Lastfall und eine Kombination',
-       leiter.every((l) => dat.lastfaelle.some((x) => x.key === `HavarieY|${l.key}`)
-         && dat.kombinationen.some((k) => k.key === `havarie|${l.key}`)),
+       // Seit dem 20. November je Richtung (+y / −y) ein Lastfall.
+       leiter.every((l) => ['p', 'm'].every((v) => dat.lastfaelle.some((x) => x.key === `HavarieY|${l.key}|${v}`)
+         && dat.kombinationen.some((k) => k.key === `havarie|${l.key}|${v}`))),
        dat.lastfaelle.filter((x) => /^HavarieY/.test(x.key)).map((x) => x.label).join(' · '));
   wahr('… die Havariekombination ist aussergewoehnlich, ohne veraenderliche Lasten',
        dat.kombinationen.filter((k) => /^havarie/.test(k.key)).every((k) => k.art === 'aussergewoehnlich'
@@ -26981,9 +26982,11 @@ titel('106  Abfangjoch-Ausleitung: Havarie je Leiter');
          && !k.anteile.some((an) => /Wind|Schnee/.test(an.lastfall))));
 
   // In jedem Fall zieht nur noch der andere Leiter - und der bei -20 °C.
-  const gesamt = (key) => {
-    const k = dat.kombinationen.find((x) => x.key === `havarie|${key}`);
-    return k.anteile.reduce((a, an) => a + an.faktor * zug(an.lastfall), 0);
+  const gesamt = (key, v = 'p', d = dat) => {
+    const zugD = (fall) => d.lasten.punkt
+      .filter((p) => p.lastfall === fall && p.richtung === 'Y').reduce((a, p) => a + p.wert, 0);
+    const k = d.kombinationen.find((x) => x.key === `havarie|${key}|${v}`);
+    return k.anteile.reduce((a, an) => a + an.faktor * zugD(an.lastfall), 0);
   };
   const staendig = zug('Leiterzug');
   const soll = leiter.map((l) => l.zug20 ?? 0);
@@ -26998,10 +27001,35 @@ titel('106  Abfangjoch-Ausleitung: Havarie je Leiter');
   const je = (ende) => Object.fromEntries(
     (erg?.auflager?.[ende]?.faelle ?? []).map((f) => [f.key, f.Fy ?? 0]));
   const fa = je('A'), fb = je('B');
-  const paare = leiter.map((l) => [gesamt(l.key), (fa[`havarie|${l.key}`] ?? 0) + (fb[`havarie|${l.key}`] ?? 0)]);
+  const paare = leiter.map((l) => [gesamt(l.key), (fa[`havarie|${l.key}|p`] ?? 0) + (fb[`havarie|${l.key}|p`] ?? 0)]);
   wahr('Datei und Rechenkern tragen denselben Laengszug',
        paare.every(([datei, kern]) => Math.abs(datei - kern) < 1e-6),
        paare.map(([a2, b2]) => `${a2.toFixed(3)}/${b2.toFixed(3)}`).join(' · '));
+
+  /*
+   * >>> BEIDSEITIG ABGEFANGEN: DER RISS IN BEIDE RICHTUNGEN (20. November). <<<
+   * Befund aus dem Testprojekt: `…|p` und `…|m` trugen dieselbe Last. Bei
+   * beidseitiger Abfangung kann jede Seite reissen - der Zug des
+   * gerissenen Leiters kehrt um, die Temperaturänderung der übrigen nicht.
+   * Einseitig bleibt die Richtung fest (oben: p = m).
+   */
+  {
+    const wahlB = Object.fromEntries(leiter.map((l) => [l.key, { reisst: true, name: l.name, art: 'beidseitig' }]));
+    const datB = bauen(wahlB);
+    const k0 = leiter[0].key, z0 = leiter[0].zug20 ?? 0;
+    const p0 = gesamt(k0, 'p', datB), m0 = gesamt(k0, 'm', datB);
+    wahr('Beidseitig: +y und −y kehren den Zug des gerissenen Leiters um',
+         z0 > 0 && Math.abs(p0 + m0) < 1e-6 && Math.abs(Math.abs(p0) - z0) < 1e-6,
+         `+y ${p0.toFixed(2)} · −y ${m0.toFixed(2)} kN (Z(−20) ${z0.toFixed(2)})`);
+    wahr('Einseitig (Vorgabe): +y und −y gleich, die Richtung steht fest',
+         Math.abs(gesamt(k0, 'p') - gesamt(k0, 'm')) < 1e-9);
+    const ergB = N106.abfangAuswertungFuer({ ...w, havarie: wahlB }, getStahl(w.stahl));
+    const sum = (v) => ['A', 'B'].reduce((a, e) => a + ((ergB?.auflager?.[e]?.faelle ?? [])
+      .find((f) => f.key === `havarie|${k0}|${v}`)?.Fy ?? 0), 0);
+    wahr('… und der Rechenkern rechnet beide Richtungen wie die Datei',
+         Math.abs(sum('p') - p0) < 1e-6 && Math.abs(sum('m') - m0) < 1e-6,
+         `Kern ${sum('p').toFixed(2)} / ${sum('m').toFixed(2)} kN`);
+  }
 
   // Auch ohne Reglagetabelle (Zug temperaturunabhaengig) muss die
   // Kombination dastehen - sie unterscheidet sich in den Beiwerten.
@@ -43134,6 +43162,58 @@ titel('301  Dimensionieren mit dem Stabwerk: Varianten, Einspannung, plastisch, 
        pw && Math.abs(pw.Wy * 1e6 - (10 * 225 * 225 / 4 + 260 * 17.5 * 242.5) / 1000) < 0.1, pw && (pw.Wy * 1e6).toFixed(1));
   const AQ5 = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
   wahr('Der Schalter «Mast plastisch» erreicht das Stabwerk', AQ5.includes('const mastPlastisch = satz.mastPlastisch === true;'));
+}
+
+titel('302  Abfangjoch: Havarie der Leiter an Teilen am Masten, Leiternamen, feste Nummern');
+/*
+ * Befund aus dem Testprojekt (20. November, «Havariefall am Abfangjoch»):
+ * Leiter an einem NT-Ausleger am Masten eines Abfangjochs bekamen keinen
+ * Havarie-Lastfall; die Lastfälle hiessen nach der internen Kennung.
+ * Handrechnung: durchgehend, Riss = 10 % · Z(−20 °C) am Leiterpunkt;
+ * Moment um die Mastachse M_z = x · F_y.
+ */
+{
+  const C302 = await import(J('core.constants.js'));
+  const A302 = await import(J('data.anbauteile.js'));
+  const N302 = await import(J('core.nachbarn.js'));
+  const V302 = await import(J('core.vierendeel.js'));
+  const L302 = await import(J('core.lasten.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 12.5; w.xLage = 0; w.mastVorhanden = true; w.anbauteile = [];
+  w = C302.tragwerkWeg(C302.tragwerkHinzu(w, 'abfangjoch',
+    { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7 }), 'T1');
+  const nt = { ...A302.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: 6.5, name: 'NT am Mast' };
+  w = C302.setzeAnbauteileAn(w, [nt]);
+  const s0 = C302.rechensatz(w);
+  const leiter = A302.leiterListe(s0.anbauteile).filter((l) => (l.teile[0]?.zug20 ?? 0) > 0);
+  const l1 = leiter[0];
+  const wh = { ...w, havarie: { [l1.key]: { reisst: true, art: 'durchgehend' } } };
+  const s = C302.rechensatz(wh);
+  wahr('Der Leiter heisst nach Anbauteil und Bauteil, nicht nach der Kennung',
+       !!s.havarie[l1.key].name && !s.havarie[l1.key].name.includes('#')
+       && s.havarie[l1.key].name.includes('NT am Mast'), s.havarie[l1.key].name);
+  const lf = L302.lastfaelle(s).find((x) => x.bruchLeiter === l1.key);
+  wahr('… auch im Namen des Lastfalls', !!lf && lf.bez.includes('NT am Mast') && !lf.bez.includes(l1.key), lf?.bez);
+  const erg = V302.berechne(s, ...N302.kernArgumente(s));
+  // Der Weg der Anwendung (mit Masten), wie der Knopf «Stabwerk».
+  const AS302 = await import(J('app.stabwerk.js'));
+  const { dat } = AS302.stabwerkModell(wh, erg, s, null, {});
+  const last = (fall, r) => [...dat.lasten.punkt, ...dat.lasten.moment]
+    .filter((p) => p.lastfall === fall && p.richtung === r).reduce((a, p) => a + p.wert, 0);
+  const Fy = last(`HavarieY|${l1.key}|p`, 'Y');
+  const FyM = last(`HavarieY|${l1.key}|m`, 'Y');
+  const Mz = last(`HavarieY|${l1.key}|p`, 'Mz');
+  const soll = 0.10 * l1.teile[0].zug20;
+  const mod = s.anbauteile.find((a) => a.ort === 'mastA')?.module?.[Number(l1.key.split('#')[1])];
+  const xMod = Number(mod?.x) || 0;
+  wahr('Teil am Masten: Riss durchgehend = 10 % · Z(−20 °C), in +y und −y',
+       soll > 0 && Math.abs(Math.abs(Fy) - soll) < 1e-6 && Math.abs(Fy + FyM) < 1e-6,
+       `F_y ${Fy.toFixed(3)} / ${FyM.toFixed(3)} kN, soll ${soll.toFixed(3)}`);
+  wahr('… mit dem Hebel des Auslegers: M_z = x · F_y', Math.abs(xMod) > 0.5 && Math.abs(Fy) > 0 && Math.abs(Mz - xMod * Fy) < 1e-6,
+       `M_z ${Mz.toFixed(3)} kNm = ${xMod.toFixed(2)} m · ${Fy.toFixed(3)} kN`);
+  const q302 = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('Die Nummern L1 … folgen den Tragwerken, nicht dem gewählten',
+       q302.includes('.sort((a, b) => twNr(a) - twNr(b))'));
 }
 
 console.log('\n' + '='.repeat(104));

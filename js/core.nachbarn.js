@@ -33,7 +33,7 @@
  */
 
 import { abfangLaufmeter } from './data.abfangjoche.js';
-import { tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
+import { havarieMitNamen, tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
          versteckt, tragwerkSatz, tragwerkPos } from './core.constants.js';
 import { berechne } from './core.vierendeel.js';
 import { mastLasten } from './core.mast.js';
@@ -72,22 +72,27 @@ export function abfangAuswertungFuer(w, stahl) {
    * die Havariefaelle aller Laeufe gehen in den Mast.
    */
   // Abgeschaltet: kein Havarielauf, kein Havariefall (`ohneHavarie`).
-  const kandidaten = satzA.havarieAus === true ? [] : havarieKandidaten(satzA.havarie);
+  const kandidaten = satzA.havarieAus === true ? []
+    : havarieKandidaten(havarieMitNamen(satzA.havarie, satzA.anbauteile));
   if (kandidaten.length) {
     // Mit dem LEITER, der reisst (29. September): ein Anbauteil kann mehrere
     // Leiter tragen, und nur einer reisst (Weisung vom 19. September).
-    const mitBruch = (key) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
+    // Je Kandidat beide Richtungen (20. November, Befund Testprojekt): bei
+    // beidseitiger oder durchgehender Abfangung kann jede Seite reissen.
+    const mitBruch = (key, vz) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
       bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key),
-      bruchLeiter: key }));
-    const lauf = (key) => { try { return abfangEinmal(w, satzA, stahl, mitBruch(key)); } catch { return null; } };
+      bruchLeiter: key, bruchVz: vz }));
+    const lauf = (key, vz = 1) => { try { return abfangEinmal(w, satzA, stahl, mitBruch(key, vz)); } catch { return null; } };
     const basis = lauf(null);
-    const laeufe = kandidaten.map((c) => ({ c, r: lauf(c.key) })).filter((x) => x.r);
+    const laeufe = kandidaten.flatMap((c) => [1, -1].map((vz) => ({
+      c: { ...c, key: c.key, vz, name: `${c.name}, Längszug ${vz < 0 ? '−' : '+'}y` },
+      r: lauf(c.key, vz) }))).filter((x) => x.r);
     if (!basis) return null;
     const alle = [basis, ...laeufe.map((x) => x.r)];
     const haupt = alle.reduce((a2, b2) => ((b2.max?.eta ?? 0) > (a2.max?.eta ?? 0) ? b2 : a2));
     const zusatz = (ende) => laeufe.flatMap(({ c, r }) => (r.auflager?.[ende]?.faelle ?? [])
       .filter((f) => f.fall === 'havarie')
-      .map((f) => ({ ...f, key: `havarie|${c.key}`, label: `Havarie: ${c.name} reisst` })));
+      .map((f) => ({ ...f, key: `havarie|${c.key}|${c.vz < 0 ? 'm' : 'p'}`, label: `Havarie: ${c.name} reisst` })));
     const ohneHav = (ende) => (basis.auflager?.[ende]?.faelle ?? []);
     const auflager = { ...haupt.auflager };
     ['A', 'B'].forEach((ende) => {
@@ -95,7 +100,7 @@ export function abfangAuswertungFuer(w, stahl) {
       auflager[ende] = { ...auflager[ende], faelle: [...ohneHav(ende), ...zusatz(ende)] };
     });
     return { ...haupt, auflager,
-             havarieLaeufe: laeufe.map(({ c, r }) => ({ key: c.key, name: c.name, eta: r.max?.eta ?? null })) };
+             havarieLaeufe: laeufe.map(({ c, r }) => ({ key: c.key, vz: c.vz, name: c.name, eta: r.max?.eta ?? null })) };
   }
   return abfangEinmal(w, satzA, stahl, satzA.anbauteile ?? []);
 }

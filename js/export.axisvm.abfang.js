@@ -1526,8 +1526,14 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    */
   const havKandidaten = havarieKandidaten(opt.havarie);
   /** Legt den Aenderungs-Lastfall fuer einen Kandidaten an. Gibt es Zug? */
-  const havarieLastfall = (key) => {
-    const fall = key ? `HavarieY|${key}` : 'HavarieY';
+  /*
+   * >>> JE KANDIDAT ZWEI RICHTUNGEN (20. November). <<< Befund aus dem
+   * Testprojekt: die Fälle `…|p` und `…|m` trugen dieselbe Last. Bei
+   * beidseitiger oder durchgehender Abfangung kann jede Seite reissen -
+   * `vz` = −1 kehrt den Zug des gerissenen Leiters um (Kern: `bruchVz`).
+   */
+  const havarieLastfall = (key, vz = 1) => {
+    const fall = key ? `HavarieY|${key}|${vz < 0 ? 'm' : 'p'}` : 'HavarieY';
     let etwas = false;
     anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
       const basis = abfangAnbauLasten(t2, lastOpt).Z ?? 0;
@@ -1535,11 +1541,11 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       // Leiter nach seiner (einseitig: fällt weg; beidseitig: voller Zug;
       // durchgehend: 10 %), die übrigen nach ihrer.
       const kalt = abfangAnbauLasten(t2, { ...lastOpt, tempFall: 'havarie',
-                                           bruch: key ?? null }).Z ?? 0;
+                                           bruch: key ?? null, bruchVz: vz }).Z ?? 0;
       const dZ = kalt - basis;
       if (Math.abs(dZ) < 1e-9) return;
       etwas = true;
-      punkt.push({ name: `HAV_AT${j + 1}${key ? `_${key}` : ''}`, knoten: knA,
+      punkt.push({ name: `HAV_AT${j + 1}${key ? `_${key}_${vz < 0 ? 'm' : 'p'}` : ''}`, knoten: knA,
                    richtung: 'Y', wert: dZ, lastfall: fall });
     });
     return etwas;
@@ -1561,8 +1567,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const havFaelle = [];
   if (havKandidaten.length) {
     havKandidaten.forEach((c, i) => {
-      havFaelle.push({ key: c.key, name: c.name, nr: i + 1,
-                       mitLast: havarieLastfall(c.key) });
+      [1, -1].forEach((vz) => havFaelle.push({ key: c.key, vz, name: c.name, nr: i + 1,
+                                              mitLast: havarieLastfall(c.key, vz) }));
     });
   } else if (hatZug) {
     // Ohne Auswahl: der Fall ohne Leiterbruch, alle Leiter bei -20 °C.
@@ -1745,8 +1751,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       // Je reissendem Leiter die AENDERUNG des Leiterzugs (siehe oben).
       // Kurze Namen - AxisVM legt den Lastfall unter `label` an.
       ...havFaelle.filter((h) => h.mitLast).map((h) => ({
-        key: h.key ? `HavarieY|${h.key}` : 'HavarieY',
-        label: h.key ? `Havarie L${h.nr} Zug` : 'Havarie Zug (-20 C)',
+        key: h.key ? `HavarieY|${h.key}|${h.vz < 0 ? 'm' : 'p'}` : 'HavarieY',
+        label: h.key ? `Havarie L${h.nr} Zug ${h.vz < 0 ? '-y' : '+y'}` : 'Havarie Zug (-20 C)',
         art: 'Others', leiter: h.name })),
     ],
     kombinationen: [
@@ -1766,8 +1772,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
        * core.abfangjoch.js). Dazu die Aenderung des Leiterzugs.
        */
       ...havFaelle.map((h) => ({
-        key: h.key ? `havarie|${h.key}` : 'havarie',
-        bez: h.key ? `Havarie L${h.nr}: ${h.name} reisst`
+        key: h.key ? `havarie|${h.key}|${h.vz < 0 ? 'm' : 'p'}` : 'havarie',
+        bez: h.key ? `Havarie L${h.nr} ${h.vz < 0 ? '-y' : '+y'}: ${h.name} reisst`
                    : 'Havarie (-20 C), ohne Leiterbruch',
         art: 'aussergewoehnlich', nachweis: true,
         ...(h.key ? { leiter: h.name } : {}),
@@ -1778,7 +1784,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                   // fuer diesen Leiter keine Zeile fuehrt - dann steht er
                   // hier auch nicht.
                   ...(h.mitLast
-                    ? [{ lastfall: h.key ? `HavarieY|${h.key}` : 'HavarieY', faktor: 1 }]
+                    ? [{ lastfall: h.key ? `HavarieY|${h.key}|${h.vz < 0 ? 'm' : 'p'}` : 'HavarieY', faktor: 1 }]
                     : [])] })),
     ],
     lasten: { punkt, moment, strecke },

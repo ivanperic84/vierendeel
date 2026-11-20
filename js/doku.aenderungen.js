@@ -16,6 +16,14 @@
  */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-20',
+    punkte: [
+      { text: 'Havarie am Abfangjoch: bei beidseitig abgefangenen und durchgehenden Leitern wird der Riss jetzt in beiden Richtungen (+y / −y) gerechnet, im Kern und im Stabwerk; einseitig bleibt die Richtung fest.', rechnung: true },
+      { text: 'Havarie am Abfangjoch: Leiter an Teilen am Masten (z. B. NT-Ausleger) bekommen ihren Havariefall auch im Stabwerk; «kann reissen» wirkt jetzt dort.', rechnung: true },
+      { text: 'Havariefälle heissen nach Anbauteil und Leiter statt nach der internen Kennung; die Nummern L1 … folgen den Tragwerken und wechseln nicht mehr mit dem gewählten.' },
+    ],
+  },
+  {
     datum: '2026-11-18',
     punkte: [
       { text: 'Übersicht ruhiger: die Nachweise stehen als Zeilen mit dünnem Balken statt als Kacheln, die Stabwerksleiste in einer Zeile; die Schalter Tragsicherheit / Gebrauchstauglichkeit sind weg (Nachweise ein- und ausschalten unter Optionen → Nachweise).' },

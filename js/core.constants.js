@@ -13,6 +13,7 @@
 import { einzelmastLaenge, mastLaengeFuer } from './core.auflager.js';
 import { abfangJsIst } from './data.abfangjoche.js';
 import { istGittermast, getMastprofil } from './data.masten.js';
+import { getFlBauteil } from './data.fl.js';
 
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
 export const U = {
@@ -2264,7 +2265,10 @@ export function tragwerkSatz(w, id = null, opt = {}) {
    * dranhaengen. Im Nachweis dagegen gehoert sie in BEIDE Rechnungen.
    */
   satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
-  if (satz.havarie) satz.havarie = havarieOhneAbzug(satz.havarie, anbauteileFuer(w, t));
+  if (satz.havarie) {
+    const alleTeile = anbauteileFuer(w, t);
+    satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, alleTeile), alleTeile);
+  }
   // Wo dieses Joch an ein anderes stösst (2. Oktober) - gekürzt wird im Kern.
   satz.stossEnden = stossEnden(w, t);
   // Der Kern liest die Mastangaben flach - er bekommt sie flach.
@@ -2319,6 +2323,35 @@ export function havarieOhneAbzug(havarie, anbauteile) {
   return h ?? havarie;
 }
 
+/*
+ * >>> DER LEITER BEIM NAMEN (20. November). <<< Befund aus dem Testprojekt:
+ * Lastfälle und Ergebnisse hiessen «Havarie: AT-emkm2b#0 reisst» - die
+ * interne Kennung. Der Name kommt jetzt bei jeder Rechnung aus dem
+ * Anbauteil und dem Leiter (ein umbenanntes Teil zieht nach), ein
+ * Kettenwerk heisst nach seinem Namen.
+ */
+export function havarieMitNamen(havarie, anbauteile) {
+  const keys = Object.keys(havarie ?? {});
+  if (!keys.length) return havarie;
+  const namen = new Map();
+  (anbauteile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => {
+    const k = leiterKennung(a, m, i);
+    if (namen.has(k) || !m?.bauteil) return;
+    const kw = String(m.kettenwerk ?? '').trim();
+    let b = m.bauteil;
+    try { b = getFlBauteil(m.bauteil)?.name ?? m.bauteil; } catch { /* ohne Tabelle */ }
+    namen.set(k, kw ? `Kettenwerk ${kw}` : `${a.name ?? a.id} · ${b}`);
+  }));
+  let h = null;
+  keys.forEach((k) => {
+    const n = namen.get(k);
+    if (!n || havarie[k]?.name === n) return;
+    h = h ?? { ...havarie };
+    h[k] = { ...h[k], name: n };
+  });
+  return h ?? havarie;
+}
+
 export function rechensatz(w) {
   const t = tragwerkeVon(w)[0];
   /*
@@ -2328,7 +2361,7 @@ export function rechensatz(w) {
    * würde das Joch mit jeder Eingabe um weitere 5 cm kürzer.
    */
   const satz = { ...w, anbauteile: anbauteileFuer(w, t), stossEnden: stossEnden(w, t) };
-  if (satz.havarie) satz.havarie = havarieOhneAbzug(satz.havarie, satz.anbauteile);
+  if (satz.havarie) satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, satz.anbauteile), satz.anbauteile);
   return mastenProjizieren(satz, w, t);
 }
 

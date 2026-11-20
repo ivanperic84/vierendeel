@@ -9,6 +9,15 @@
       ],
       "port": 8731,
       "autoPort": true
+    },
+    {
+      "name": "pruef",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "serve.py",
+        "8741"
+      ],
+      "port": 8741
     }
   ]
 }

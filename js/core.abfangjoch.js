@@ -1175,7 +1175,16 @@ export function abfangAnbauLasten(at, opt = {}) {
     const art = e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
       ? 'durchgehend' : ABFANGJOCH_ART_VORGABE);
     const bricht = havarieFall && (opt.bruch === '*' || opt.bruch === key);
-    const zug = abfangZugNachArt(art, voll, bricht);
+    /*
+     * >>> BEIM RISS ZIEHT DER REST IN BEIDE RICHTUNGEN (20. November). <<<
+     * Befund aus dem Testprojekt («Havariefall am Abfangjoch»): der Riss
+     * wurde nur in der Richtung der Anbindung gerechnet. Bei beidseitiger
+     * Abfangung und beim durchgehenden Leiter kann jede Seite reissen -
+     * `opt.bruchVz` = −1 kehrt den Zug des gerissenen Leiters um. Einseitig
+     * bleibt die Richtung fest (der ständige Zug fällt weg).
+     */
+    const dreh = bricht && art !== 'einseitig' && opt.bruchVz === -1 ? -1 : 1;
+    const zug = dreh * abfangZugNachArt(art, voll, bricht);
     leiter.push({ key, art, voll, zug, bricht });
     Z += zug;
     temperaturabhaengig = temperaturabhaengig || k.temperaturabhaengig;
@@ -1524,7 +1533,8 @@ export function abfangAuswertung(o = {}) {
       // Die Regel der Abfangart steht seit dem 29. September je Leiter in
       // `abfangAnbauLasten` - hier nur, wer reisst.
       const lw = abfangAnbauLasten(t, { ...lastOpt, havarie: o.havarie,
-                                        bruch: bricht ? (t.bruchLeiter ?? '*') : null });
+                                        bruch: bricht ? (t.bruchLeiter ?? '*') : null,
+                                        bruchVz: t.bruchVz ?? 1 });
       return { t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt), bricht,
                art: lw.leiter[0]?.art ?? ABFANGJOCH_ART_VORGABE, lw };
     });
