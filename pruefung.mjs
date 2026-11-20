@@ -43231,6 +43231,55 @@ titel('302  Abfangjoch: Havarie der Leiter an Teilen am Masten, Leiternamen, fes
        q302.includes('.sort((a, b) => twNr(a) - twNr(b))'));
 }
 
+titel('303  Kettenwerk über zwei Abfangjoche: ganz, nur Tragseil, nur Fahrdraht');
+/*
+ * Weisung vom 20. November auf Vorschlag 3 des Testprojekts: «Ja, koppeln».
+ * Tragseil am oberen, Fahrdraht am unteren Abfangjoch tragen denselben
+ * Kettenwerk-Namen an derselben Stelle. Fall «ganz»: beide reissen; die
+ * Teilfälle |ts und |fd nur der eine. Die Wahl steht nur am gewählten
+ * Tragwerk und gilt trotzdem dem anderen.
+ */
+{
+  const C303 = await import(J('core.constants.js'));
+  const A303 = await import(J('data.anbauteile.js'));
+  const N303 = await import(J('core.nachbarn.js'));
+  const V303 = await import(J('core.vierendeel.js'));
+  const AS303 = await import(J('app.stabwerk.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 7.5; w.xLage = 0; w.mastVorhanden = true; w.anbauteile = [];
+  w = C303.tragwerkWeg(C303.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 7.5, abfangTyp: 'A160', mastH: 7.5 }), 'T1');
+  w = C303.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 7.5, abfangTyp: 'A160', mastH: 6 });
+  const ids = C303.tragwerkeVon(w).map((t) => t.id);
+  const mitKw = (vorlage) => {
+    const a = A303.neuesAnbauteil(vorlage, 3.5);
+    return { ...a, module: a.module.map((m) => ({ ...m, kettenwerk: 'KW1' })) };
+  };
+  w = C303.setzeAnbauteileAn(w, [mitKw('leiter-fd-rfl-abf')]);                 // aktives (unten): Fahrdraht
+  const anderes = ids.find((id) => id !== w.twId);
+  w = C303.tauscheAktives(w, anderes);
+  w = C303.setzeAnbauteileAn(w, [mitKw('leiter-ts-rfl-abf')]);                 // oben: Tragseil
+  w = C303.tauscheAktives(w, ids.find((id) => id !== anderes));
+  const K = 'kw:KW1@joch:3.50';
+  w = C303.havarieKwAufsBlatt({ ...w, havarie: { [K]: { art: 'beidseitig', reisst: true },
+    [`${K}|ts`]: { reisst: true }, [`${K}|fd`]: { reisst: true } } });
+  wahr('Die Wahl am gewählten Tragwerk steht auch am anderen',
+       Object.keys(C303.tragwerkSatz(w, anderes).havarie ?? {}).filter((k) => k.startsWith(K)).length === 3);
+  const satz = N303.rechensatzMitNachbarn(w);
+  const erg = V303.berechne(satz, ...N303.kernArgumente(satz));
+  const { dat } = AS303.stabwerkModell(w, erg, satz, null, {});
+  const an = (fall) => new Set(dat.lasten.punkt.filter((p) => p.lastfall === fall && Math.abs(p.wert) > 1e-9)
+    .map((p) => p.knoten.split('_')[0]));
+  const ganz = an(`HavarieY|${K}|p`), ts = an(`HavarieY|${K}|ts|p`), fd = an(`HavarieY|${K}|fd|p`);
+  wahr('Ganzes Kettenwerk: beide Joche bekommen den Riss', ganz.size === 2, [...ganz].join(', '));
+  wahr('Nur Tragseil bzw. nur Fahrdraht: je ein Joch, nicht dasselbe',
+       ts.size === 1 && fd.size === 1 && [...ts][0] !== [...fd][0], `${[...ts]} / ${[...fd]}`);
+  wahr('Je Fall eine Kombination +y und −y',
+       ['', '|ts', '|fd'].every((s) => ['p', 'm'].every((v) => dat.kombinationen.some((k) => k.key === `havarie|${K}${s}|${v}`))));
+  const lf = C303.havarieMitNamen({ [`${K}|ts`]: { reisst: true } }, satz.anbauteile.length ? satz.anbauteile : []);
+  wahr('Der Teilfall heisst nach dem Kettenwerk und «nur Tragseil»',
+       lf[`${K}|ts`]?.name === 'Kettenwerk KW1 · nur Tragseil', lf[`${K}|ts`]?.name);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

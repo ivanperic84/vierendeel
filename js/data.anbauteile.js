@@ -51,7 +51,8 @@ import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT, achsfolge } from './core.anbauteile.js';
-import { mastAnbauVon, mastenVon, einzelmastenAufgehen, leiterKennung, nurAbgezogen } from './core.constants.js';
+import { mastAnbauVon, mastenVon, einzelmastenAufgehen, leiterKennung, nurAbgezogen,
+         leiterTrifft } from './core.constants.js';
 import { einzelmastLaenge } from './core.auflager.js';
 
 let DB = null;
@@ -1712,13 +1713,14 @@ export function expandiereAnbauteile(liste, o = {}) {
         kraefte.G.Fy = h.Gy;
         kraefte.HavarieX.Fx = h.dFx;
         kraefte.HavarieY.Fy = h.Fy;
-        const eigen = kandidaten.find((c) => c.key === leiter);
-        if (eigen) {
+        // Jeder Kandidat, der dieses Modul trifft: der Leiter selbst oder,
+        // bei einem Kettenwerk, auch sein Teilfall (|ts, |fd; 20. November).
+        kandidaten.filter((c) => leiterTrifft(c.key, a, m, i)).forEach((eigen) => {
           const hP = havarieAnteile({ ...basis, bruch: true, zug20: eigen.zugP });
           const hM = havarieAnteile({ ...basis, bruch: true, zug20: eigen.zugM });
-          havarieJe = { [leiter]: { p: { dFx: hP.dFx, Fy: hP.Fy },
-                                    m: { dFx: hM.dFx, Fy: hM.Fy } } };
-        }
+          havarieJe = { ...(havarieJe ?? {}), [eigen.key]: { p: { dFx: hP.dFx, Fy: hP.Fy },
+                                                            m: { dFx: hM.dFx, Fy: hM.Fy } } };
+        });
       }
 
       const z = m.z ?? 0, y = m.y ?? 0;

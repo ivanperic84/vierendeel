@@ -2268,6 +2268,8 @@ export function tragwerkSatz(w, id = null, opt = {}) {
    * dranhaengen. Im Nachweis dagegen gehoert sie in BEIDE Rechnungen.
    */
   satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
+  satz.havarie = havarieKwVomBlatt(w, t, satz.havarie, satz.anbauteile);
+  if (satz.havarie && !Object.keys(satz.havarie).length) delete satz.havarie;
   if (satz.havarie) {
     const alleTeile = anbauteileFuer(w, t);
     satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, alleTeile), alleTeile, w.havarieLaengszug ?? null);
@@ -2308,6 +2310,58 @@ const kwStelle = (a) => {
 export function leiterKennung(a, m, i) {
   const kw = String(m?.kettenwerk ?? '').trim();
   return kw ? `kw:${kw}@${kwStelle(a)}` : `${a?.id}#${i}`;
+}
+
+/*
+ * >>> KETTENWERK: GANZ, NUR TRAGSEIL, NUR FAHRDRAHT (20. November). <<<
+ * Vorschlag 3 aus dem Testprojekt, Weisung «Ja, koppeln»: Tragseil am
+ * oberen, Fahrdraht am unteren Abfangjoch tragen denselben Kettenwerk-Namen
+ * an derselben Stelle - damit dieselbe Kennung `kw:…`. Zur ganzen
+ * Kennung (beide reissen) kommen die Teilfälle `kw:…|ts` und `kw:…|fd`.
+ * Art und Richtung stehen an der ganzen Kennung.
+ */
+export const KW_TEILE = { ts: 'nur Tragseil', fd: 'nur Fahrdraht' };
+/** Ganze Kennung ohne den Teilfall. */
+export const havarieBasis = (key) => String(key ?? '').replace(/\|(ts|fd)$/, '');
+/** Tragseil oder Fahrdraht eines Kettenwerk-Moduls. */
+export function kwTeil(m) {
+  const id = String(m?.bauteil ?? '');
+  if (/-ts-|stcu|tragseil/i.test(id)) return 'ts';
+  return /(^|-)cu-1\d\d|fahrdraht/i.test(id) ? 'fd' : 'ts';
+}
+/** Reisst dieses Modul im Fall `key` (ganze Kennung oder sein Teilfall)? */
+export function leiterTrifft(key, a, m, i) {
+  if (!key) return false;
+  const k = leiterKennung(a, m, i);
+  if (key === k) return true;
+  return k.startsWith('kw:') && key === `${k}|${kwTeil(m)}`;
+}
+/*
+ * Die Wahl eines Kettenwerks gilt dem ganzen Blatt: steht dieselbe Kennung
+ * an mehreren Tragwerken, reisst sie überall gleich. `havarieKwAufsBlatt`
+ * schreibt die Einträge `kw:…` des gewählten Tragwerks in alle übrigen,
+ * `havarieKwVomBlatt` holt beim Rechnen die der übrigen dazu (alte Stände).
+ */
+export function havarieKwAufsBlatt(w) {
+  if (!w || !Array.isArray(w.weitere) || !w.weitere.length) return w;
+  const kw = Object.fromEntries(Object.entries(w.havarie ?? {}).filter(([k]) => k.startsWith('kw:')));
+  if (!Object.keys(kw).length) return w;
+  return { ...w, weitere: w.weitere.map((t) => (t ? { ...t, havarie: { ...(t.havarie ?? {}), ...kw } } : t)) };
+}
+function havarieKwVomBlatt(w, t, eigene, teile) {
+  // Nur Kettenwerke, die dieses Tragwerk selbst trägt - sonst stünden
+  // fremde Fälle ohne Wirkung in seiner Lastfallliste.
+  const hier = new Set();
+  (teile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => hier.add(leiterKennung(a, m, i))));
+  const fremd = {};
+  tragwerkeVon(w).forEach((x) => {
+    if (!x || x.id === t?.id) return;
+    Object.entries(x.havarie ?? {}).forEach(([k, v]) => {
+      if (k.startsWith('kw:') && hier.has(havarieBasis(k))) fremd[k] = v;
+    });
+  });
+  if (!Object.keys(fremd).length) return eigene;
+  return { ...fremd, ...(eigene ?? {}) };
 }
 export function havarieOhneAbzug(havarie, anbauteile) {
   const an = Object.keys(havarie ?? {}).filter((k) => havarie[k]?.reisst === true);
@@ -2352,7 +2406,9 @@ export function havarieMitNamen(havarie, anbauteile, prozent = null) {
   }));
   let h = null;
   keys.forEach((k) => {
-    const n = namen.get(k) ?? havarie[k]?.name;
+    const basis = havarieBasis(k);
+    const teil = k !== basis ? KW_TEILE[k.slice(basis.length + 1)] : null;
+    const n = (teil && namen.get(basis) ? `${namen.get(basis)} · ${teil}` : namen.get(k)) ?? havarie[k]?.name;
     const neu = { ...havarie[k], ...(n ? { name: n } : {}) };
     if (anteil !== null) neu.laengszug = anteil; else delete neu.laengszug;
     if (neu.name === havarie[k]?.name && neu.laengszug === havarie[k]?.laengszug) return;
@@ -2371,6 +2427,8 @@ export function rechensatz(w) {
    * würde das Joch mit jeder Eingabe um weitere 5 cm kürzer.
    */
   const satz = { ...w, anbauteile: anbauteileFuer(w, t), stossEnden: stossEnden(w, t) };
+  satz.havarie = havarieKwVomBlatt(w, t, satz.havarie, satz.anbauteile);
+  if (satz.havarie && !Object.keys(satz.havarie).length) delete satz.havarie;
   if (satz.havarie) satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, satz.anbauteile), satz.anbauteile, w.havarieLaengszug ?? null);
   return mastenProjizieren(satz, w, t);
 }

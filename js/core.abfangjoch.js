@@ -56,6 +56,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { abfangkraft } from './data.fl.js';
 import { baugruppeSumme, leiterKennung } from './data.anbauteile.js';
+import { leiterTrifft } from './core.constants.js';
 import { HAVARIE_LAENGSZUG,
          abfangVorgabeFuer } from './core.lasten.js';
 
@@ -1174,7 +1175,7 @@ export function abfangAnbauLasten(at, opt = {}) {
     // keine Art steht; so behält ein gespeicherter Stand seine Aussage.
     const art = e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
       ? 'durchgehend' : ABFANGJOCH_ART_VORGABE);
-    const bricht = havarieFall && (opt.bruch === '*' || opt.bruch === key);
+    const bricht = havarieFall && (opt.bruch === '*' || leiterTrifft(opt.bruch, at, m, i));
     /*
      * >>> BEIM RISS ZIEHT DER REST IN BEIDE RICHTUNGEN (20. November). <<<
      * Befund aus dem Testprojekt («Havariefall am Abfangjoch»): der Riss

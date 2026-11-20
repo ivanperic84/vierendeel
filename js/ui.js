@@ -53,7 +53,7 @@ import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGeset
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
          abfangart, mitTrasse } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette, rechensatz, kragarme, stossEnden,
-         abfangUeberstand } from './core.constants.js';
+         abfangUeberstand, KW_TEILE } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -546,7 +546,8 @@ function havarieHtml(g, werte) {
       return k >= 0 ? `A${k + 1}.${t.modul + 1}` : '';
     }).filter(Boolean))].map((s, j) => (j === 0 && l.kettenwerk ? ` · ${s}` : (j ? ` ${s}` : s))).join('');
   const wahl = werte.havarie ?? {};
-  const n = leiter.filter((l) => wahl[l.key]?.reisst === true).length;
+  const n = leiter.filter((l) => wahl[l.key]?.reisst === true
+    || Object.keys(KW_TEILE).some((s) => wahl[`${l.key}|${s}`]?.reisst === true)).length;
   const t0 = tragwerkeVon(werte)[0];
   const wo = (t) => (t.ort === 'joch' ? `x = ${f2(t.x ?? 0)} m`
     : `${mastNameAmEnde(werte, t0, t.ort === 'mastB' ? 'B' : 'A') || 'Mast'} · h = ${f2(t.hMast ?? 0)} m`);
@@ -616,7 +617,21 @@ function havarieHtml(g, werte) {
       <td class="num" title="Ständiger Längszug an diesem Tragwerk">${kraft(ff?.Gy)}</td>
       <td class="num" title="Änderung in Gleisrichtung, wenn dieser Leiter reisst">${kraft(ff?.riss)}</td>
       ${zahl('zugP')}${zahl('zugM')}
-    </tr>`;
+    </tr>${l.kettenwerk ? Object.entries(KW_TEILE).map(([s, txt]) => {
+      /*
+       * >>> TEILFÄLLE DES KETTENWERKS (20. November, «Ja, koppeln»). <<<
+       * Die Zeile darüber lässt das ganze Kettenwerk reissen (Tragseil und
+       * Fahrdraht zugleich). Darunter je ein eigener Fall, in dem nur das
+       * Tragseil bzw. nur der Fahrdraht reisst. Dieselbe Wahl gilt allen
+       * Tragwerken des Blattes, die dieses Kettenwerk an derselben Stelle
+       * tragen (Tragseil am oberen, Fahrdraht am unteren Abfangjoch).
+       */
+      const ks = `${l.key}|${s}`;
+      return `<tr class="hav-teil"><td><input type="checkbox" data-hav-key="${esc(ks)}" data-hav="reisst"
+        data-hav-name="${esc(`${l.name} · ${txt}`)}"${wahl[ks]?.reisst === true ? ' checked' : ''}
+        title="Eigener Havariefall: nur ${s === 'ts' ? 'das Tragseil' : 'der Fahrdraht'} reisst"></td>
+        <td class="hav-name" colspan="9">↳ ${esc(txt)} reisst <span class="dim">(gilt allen Tragwerken mit diesem Kettenwerk)</span></td></tr>`;
+    }).join('') : ''}`;
   }).join('');
   /*
    * Weisung vom 19. September: «den havarielastfall deaktivierbar machen

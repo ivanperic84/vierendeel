@@ -61,7 +61,7 @@ import { APP_NAME, verortung, dateiStamm, fangeAufMasskette,
          TRAGWERKSARTEN,
          mastZeichenplan,
          gewaehlterMast,
-         gitterLaengenFest } from './core.constants.js';
+         gitterLaengenFest, havarieKwAufsBlatt } from './core.constants.js';
 import { passeTraegerAn, hatTraeger, achsfolge, befestigungsArt } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -3697,6 +3697,11 @@ function aendern(key, wert) {
   // wer ihn hier schaltet, schaltet ihn in jedem Tragwerk.
   if (key === 'nachweise') {
     werte = bestandAufsBlatt(werte, nachweiseAuswahl(wert).bestandesschutz === true);
+  }
+  // Die Wahl eines Kettenwerks gilt allen Tragwerken des Blattes (20.
+  // November, «Ja, koppeln»): Tragseil oben, Fahrdraht unten reissen gemeinsam.
+  if (key === 'havarie') {
+    werte = havarieKwAufsBlatt({ ...werte, havarie: wert });
   }
   if (key === 'L' && tragwerksart(werte).key === 'abfangjoch') {
     const nah = abfangNaechsteLaenge(werte.abfangTyp, wert);

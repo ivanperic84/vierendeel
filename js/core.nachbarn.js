@@ -33,7 +33,7 @@
  */
 
 import { abfangLaufmeter } from './data.abfangjoche.js';
-import { havarieMitNamen, tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
+import { havarieMitNamen, leiterTrifft, tragwerkeVon, mastenFuer, tauscheAktives, rechensatz, tragwerksart,
          versteckt, tragwerkSatz, tragwerkPos } from './core.constants.js';
 import { berechne } from './core.vierendeel.js';
 import { mastLasten } from './core.mast.js';
@@ -80,7 +80,7 @@ export function abfangAuswertungFuer(w, stahl) {
     // Je Kandidat beide Richtungen (20. November, Befund Testprojekt): bei
     // beidseitiger oder durchgehender Abfangung kann jede Seite reissen.
     const mitBruch = (key, vz) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
-      bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key),
+      bruch: key !== null && (a.module ?? []).some((m, i) => leiterTrifft(key, a, m, i)),
       bruchLeiter: key, bruchVz: vz }));
     const lauf = (key, vz = 1) => { try { return abfangEinmal(w, satzA, stahl, mitBruch(key, vz)); } catch { return null; } };
     const basis = lauf(null);
