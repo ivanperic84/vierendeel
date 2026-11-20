@@ -16,6 +16,16 @@
  */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-21',
+    punkte: [
+      { text: 'Abfangjoch und Tragausleger mit Druckstütze: die Hilfsglieder der Stütze trugen fälschlich ein Eigengewicht (rund 19 kN je Meter) - behoben; Mastfuss- und Ankerreaktionen sinken deutlich.', rechnung: true },
+      { text: 'Im gewählten Lastfall zeigt das 3D nur dessen Lasten (Havarie ohne Wind und Schnee); Havariepfeile auf der Seite, zu der sie ziehen; Leiter werden nur beim Überfahren oder im gewählten Havariefall hervorgehoben.' },
+      { text: 'Lastfall oben in der Mitte des 3D und in der Legende anklickbar - führt zu den Lastfällen in der Seitenleiste; Havariefälle mit Leiter und Richtung in eigenem Block.' },
+      { text: 'Liniendiagramm: ausgeblendete Masten nehmen ihre Druckstütze mit; Werte nahe null liegen auf der Stabachse. Reaktionsblatt: umgeklappte Druckstützen nach aussen.' },
+      { text: 'Viewer: Lastarten einzeln, Explosion im 3D-Fenster, Teilmodell Jochträger / Masten (wirkt auf Skala und Linie), Fall der Gebrauchstauglichkeit mit Figur, Klick auf eine Ausnutzung hebt das Bauteil hervor, Positionen mit Legende, Blickrichtungen eingepasst.' },
+    ],
+  },
+  {
     datum: '2026-11-20',
     punkte: [
       { text: 'Havarie am Abfangjoch: bei beidseitig abgefangenen und durchgehenden Leitern wird der Riss jetzt in beiden Richtungen (+y / −y) gerechnet, im Kern und im Stabwerk; einseitig bleibt die Richtung fest.', rechnung: true },

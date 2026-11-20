@@ -14,7 +14,7 @@
  * mit dem Renderer der Anwendung, und tauscht je Lastfall die Werte der
  * Flächen aus. Drei Reiter: Modell, Bericht, Bauteile.
  */
-import { Modellansicht, PLOTS, ANSICHTEN } from './render.3d.js';
+import { Modellansicht, PLOTS, ANSICHTEN, LASTARTEN } from './render.3d.js';
 import { etaFarbe } from './design.js';
 import { zustandBauen, ZL_AUS_MODUS } from './core.zustandwerte.js';
 
@@ -56,7 +56,7 @@ export function starte(daten) {
       <button class="v-knopf" id="v-thema" title="Hell / dunkel">◐</button>
     </header>
     ${(daten.kennwerte ?? []).length ? `<div class="v-kennwerte" title="Grundwerte des Querprofils">${
-      daten.kennwerte.map((k) => `<span>${esc(k)}</span>`).join('')}</div>` : ''}
+      esc(daten.kennwerte.join(' · '))}</div>` : ''}
     <main class="v-seite an" id="seite-modell">
       <aside class="v-leiste" id="v-leiste"></aside>
       <div class="v-buehne">
@@ -64,6 +64,8 @@ export function starte(daten) {
         <div class="v-info" id="v-info"></div>
         <button class="v-zurueck" id="v-zurueck">‹ zurück zum Bericht</button>
         <div class="v-legende" id="v-legende"></div>
+        <label class="v-explo" title="Explosion: Teile auseinanderziehen (nur das Bild)">Explosion
+          <input type="range" id="v-explosion" min="0" max="100" step="5" value="0"></label>
         <div class="v-hinweis">Ziehen dreht, rechte Taste oder zwei Finger schieben, Rad oder Spreizen zoomt.
           Klick auf ein Bauteil zeigt seine Werte.</div>
       </div>
@@ -91,8 +93,9 @@ export function starte(daten) {
   // Voreinstellung ohne Lasten (19. November).
   ansicht.ebenen.last = false;
 
+  // «Bauteile (ohne Werte)» weg (21. November); Positionen mit Legende.
   const plots = [...PLOTS.filter((p) => szene.flaechen.some((f) => Number.isFinite(f.werte?.[p.feld]))),
-    { key: 'positionen', label: 'Positionen' }, { key: 'neutral', label: 'Bauteile (ohne Werte)' }];
+    { key: 'positionen', label: 'Positionen' }];
   let fall = 'huelle';
   /*
    * DIE ZUSTANDSLINIE (19. November, «darstellungsbutton liniendiagramm / bei
@@ -120,9 +123,14 @@ export function starte(daten) {
       ${(daten.faelle ?? []).map((l, i) => `<option value="${i}">${esc(l.gruppe ? `${l.gruppe}: ` : '')}${esc(l.bez)}${
         Number.isFinite(l.eta) ? ` · η ${zahl(l.eta, 2)}` : ''}</option>`).join('')}</select>
       <div class="v-notiz">je Einwirkungsrichtung der massgebende Fall</div></div>
+    <div class="v-gruppe"><h4>Teilmodell</h4><div class="v-blicke">
+      ${[['alles', 'Alles'], ['joch', 'Jochträger'], ['mast', 'Masten']].map(([k, t]) =>
+        `<button data-teilmodell="${k}"${k === 'alles' ? ' class="an"' : ''}>${t}</button>`).join('')}</div>
+      <div class="v-notiz">wirkt auf Farben, Skala und Liniendiagramm</div></div>
     <div class="v-gruppe"><h4>Ebenen</h4>${EBENEN.map(([k, t]) =>
-      `<label class="v-schalter"><input type="checkbox" data-ebene="${k}"${k === 'last' ? '' : ' checked'}> ${t}</label>`).join('')}</div>
-    <div class="v-gruppe"><h4>Explosion</h4><input type="range" id="v-explosion" min="0" max="100" step="5" value="0"></div>
+      `<label class="v-schalter"><input type="checkbox" data-ebene="${k}"${k === 'last' ? '' : ' checked'}> ${t}</label>`).join('')}
+      <div class="v-lastarten" id="v-lastarten">${LASTARTEN.map((l) =>
+        `<label class="v-schalter v-lastart"><input type="checkbox" data-lastart="${l.key}" checked> ${esc(l.label)}</label>`).join('')}</div></div>
     <div class="v-gruppe"><button class="v-knopf" id="v-ganz" style="width:100%">Ganzes Modell</button></div>`;
 
   function zustandNeu() {
@@ -130,12 +138,22 @@ export function starte(daten) {
     if (!linie || !zDaten || !g) { ansicht.zustand = null; return; }
     const l = fall === 'huelle' ? null : daten.faelle[Number(fall)];
     const fs = l ? zFaelle.filter((f) => f.key === l.key) : zFaelle;
+    // Die Linie folgt den Ebenen bzw. dem Teilmodell (21. November).
+    const e = ansicht.ebenen;
+    const sicht = (s) => {
+      if (s.r === 'mast' || /(^|_)(ANKER|SEILKOPF|ANKERGELENK)/.test(s.n ?? '')) return e.mast !== false;
+      if (/^gurt/.test(s.r ?? '')) return e.profil !== false;
+      if (s.r === 'blech') return e.blechSteh !== false || e.blechLieg !== false;
+      return true;
+    };
     ansicht.zustand = fs.length ? zustandBauen({ geo: zDaten.geo, aussen: zDaten.aussen, faelle: fs, groesse: g,
-      eb: 'auto', dx: zDaten.versatz?.dx ?? 0, dz: zDaten.versatz?.dz ?? 0, fyd: zDaten.fyd }) : null;
+      eb: 'auto', sicht, dx: zDaten.versatz?.dx ?? 0, dz: zDaten.versatz?.dz ?? 0, fyd: zDaten.fyd }) : null;
   }
   const zeichne = () => { zustandNeu(); ansicht._bereichCache = null; ansicht.zeichne(); legende(); };
+  // Eingepasst auf das ganze Modell (21. November, «die blickrichtungen sind
+  // nicht sauber ausgerichtet»): derselbe Schwenk wie «Ganzes Modell».
   const blick = (k) => {
-    ansicht.blickrichtung(k);
+    if (ansicht.schwenkeAufsGanze) ansicht.schwenkeAufsGanze(k); else ansicht.blickrichtung(k);
     document.querySelectorAll('[data-blick]').forEach((b) => b.classList.toggle('an', b.dataset.blick === k));
   };
   document.querySelectorAll('[data-blick]').forEach((b) => { b.onclick = () => blick(b.dataset.blick); });
@@ -145,8 +163,32 @@ export function starte(daten) {
   if ($('v-linie')) $('v-linie').onchange = (e) => { linie = e.target.checked; zeichne(); };
   $('v-explosion').oninput = (e) => { ansicht.explosion = Number(e.target.value) / 100; zeichne(); };
   $('v-ganz').onclick = () => ansicht.schwenkeAufsGanze?.(ansicht.ansichtKey ?? 'iso');
+  const lastartenZeigen = () => { $('v-lastarten').style.display = ansicht.ebenen.last ? '' : 'none'; };
   document.querySelectorAll('[data-ebene]').forEach((c) => {
-    c.onchange = () => { ansicht.ebenen[c.dataset.ebene] = c.checked; zeichne(); };
+    c.onchange = () => { ansicht.ebenen[c.dataset.ebene] = c.checked; lastartenZeigen(); zeichne(); };
+  });
+  // Lastarten einzeln (21. November, «lasten darstellung auswählbar machen»).
+  document.querySelectorAll('[data-lastart]').forEach((c) => {
+    c.onchange = () => { ansicht.lastarten[c.dataset.lastart] = c.checked; zeichne(); };
+  });
+  lastartenZeigen();
+  /*
+   * >>> TEILMODELL (21. November). <<< «Teilmodelle auswahl (masten /
+   * jochträger) sollte sich auf die plots der spannungen und deren massstab
+   * auswirken.» Schaltet die Ebenen; Skala und Linie rechnen nur mit dem,
+   * was zu sehen ist.
+   */
+  const TEIL_EBENEN = { alles: { profil: true, blechSteh: true, blechLieg: true, mast: true },
+    joch: { profil: true, blechSteh: true, blechLieg: true, mast: false },
+    mast: { profil: false, blechSteh: false, blechLieg: false, mast: true } };
+  document.querySelectorAll('[data-teilmodell]').forEach((b) => {
+    b.onclick = () => {
+      Object.assign(ansicht.ebenen, TEIL_EBENEN[b.dataset.teilmodell]);
+      document.querySelectorAll('[data-teilmodell]').forEach((x) => x.classList.toggle('an', x === b));
+      document.querySelectorAll('[data-ebene]').forEach((c) => { c.checked = ansicht.ebenen[c.dataset.ebene] !== false; });
+      ansicht._bereichCache = null;
+      zeichne();
+    };
   });
   $('v-fall').onchange = (e) => setzeFall(e.target.value);
 
@@ -162,9 +204,11 @@ export function starte(daten) {
       daten.felder.forEach((feld, k) => { w[feld] = a ? a[k] : null; });
       f.werte = w;
     });
-    // Die verformte Figur gehört zur Hülle (massgebender Fall der Gebrauchstauglichkeit).
-    ansicht.verformt = l ? null : verformt;
+    // Die verformte Figur gehört zur Hülle (massgebender Fall der Gebrauchstauglichkeit);
+    // der Fall der Gebrauchstauglichkeit bringt seine eigene mit (21. November).
+    ansicht.verformt = l ? (l.verformt ?? null) : verformt;
     $('v-fall').value = key;
+    if (l?.gruppeKey === 'gzg' && [...$('v-plot').options].some((o) => o.value === 'w')) { setzeModus('w'); return; }
     zeichne();
   }
 
@@ -180,6 +224,21 @@ export function starte(daten) {
         ${z.mg ? `<div style="margin-top:4px"><b>${esc(f(z.mg.v) + e)}</b> · ${esc(ansicht.anzeigeText(z.mg.wo))}</div>` : ''}
         ${z.gg ? `<div style="color:var(--dim)">Gegenwert ${esc(f(z.gg.v) + e)} · ${esc(ansicht.anzeigeText(z.gg.wo))}</div>` : ''}
         <div style="color:var(--dim);margin-top:4px">rot positiv, blau negativ · ${esc(lf ?? '')}</div>`;
+      return;
+    }
+    // Positionen: Legende der Bauteile mit Farbe (21. November); Klick zeigt den Querschnitt.
+    if (ansicht.modus === 'positionen') {
+      const je = new Map();
+      szene.flaechen.forEach((f) => {
+        if (!f.farbeBauteil || (ansicht._flaecheAn && !ansicht._flaecheAn(f))) return;
+        const name = ansicht.anzeigeText(String(f.label ?? f.teil ?? '').split(' · ')[0]);
+        const k = `${f.farbeBauteil}|${name}`;
+        if (!je.has(k)) je.set(k, { farbe: f.farbeBauteil, name });
+      });
+      const zeilen = [...je.values()].slice(0, 18);
+      el.style.display = zeilen.length ? '' : 'none';
+      el.innerHTML = `<b>Positionen</b>${zeilen.map((z) => `<div class="v-pos"><i style="background:${esc(z.farbe)}"></i>${esc(z.name)}</div>`).join('')}
+        <div style="color:var(--dim);margin-top:4px">Klick auf ein Bauteil zeigt seinen Querschnitt</div>`;
       return;
     }
     const s = ansicht.plotSkala();
@@ -320,10 +379,14 @@ export function starte(daten) {
   // Einzelne Ausnutzungen in der Leiste (19. November): je Bauteil ein Balken.
   $('v-aus').innerHTML = (U.liste ?? []).slice().sort((a, b) => b.eta - a.eta).map((x) => {
     const fund = /^Fundament/.test(x.name);
-    return `<button class="v-aus-z ${ampel(x.eta)}" title="${esc(x.bez ?? '')}"${fund ? ' data-fund' : ''}>
+    return `<button class="v-aus-z ${ampel(x.eta)}" title="${esc(x.bez ?? '')}"${fund ? ' data-fund' : ''}${x.stab ? ` data-stab="${esc(x.stab)}"` : ''}>
       <span>${esc(ansicht.anzeigeText(x.name))}</span><b>${zahl(x.eta, 2)}</b>
       <i style="width:${Math.min(100, Math.max(0, x.eta * 100)).toFixed(0)}%"></i></button>`;
   }).join('') || '<div class="v-notiz">keine</div>';
+  // Klick auf eine Ausnutzung hebt das Bauteil im 3D hervor (21. November).
+  document.querySelectorAll('[data-stab]').forEach((b) => {
+    b.onclick = () => { ansicht.zeigeStab?.(b.dataset.stab); };
+  });
   document.querySelectorAll('[data-fund]').forEach((b) => {
     b.onclick = () => { reiter('bauteile'); requestAnimationFrame(() => $('v-fund')?.scrollIntoView({ block: 'start' })); };
   });

@@ -72,7 +72,7 @@ button, select, input { font: inherit; color: inherit; }
 /* Grundwerte, einzelne Ausnutzungen, Fundament (19. November) */
 .v-kennwerte { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px 16px; background: var(--s1);
   border-bottom: 1px solid var(--ol); font-size: 11px; color: var(--dim); }
-.v-kennwerte span { border: 1px solid var(--ol); border-radius: 999px; padding: 1px 8px; }
+
 .v-notiz { color: var(--dim); font-size: 11px; margin-top: 3px; }
 .v-aus { display: flex; flex-direction: column; gap: 3px; }
 .v-aus-z { position: relative; display: flex; justify-content: space-between; gap: 6px; text-align: left;
@@ -96,3 +96,12 @@ button, select, input { font: inherit; color: inherit; }
   .v-legende { min-width: 150px; }
 }
 @media print { .v-kopf, .v-fuss { display: none; } }
+
+/* 21. November: Explosion im 3D-Fenster, Lastarten, Positionslegende. */
+.v-explo { position: absolute; right: 12px; top: 12px; display: flex; align-items: center; gap: 6px;
+  background: var(--s1); border: 1px solid var(--ol); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--on2); }
+.v-explo input { width: 120px; }
+.v-lastarten { margin: 2px 0 0 14px; }
+.v-lastart { font-size: 12px; }
+.v-pos { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 2px; }
+.v-pos i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }

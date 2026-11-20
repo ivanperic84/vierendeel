@@ -30,7 +30,8 @@ import { fundamentNachweisText } from './ui.js';
 import { ekVonWindklasse } from './core.lasten.js';
 
 /** Die Grössen, die je Lastfall wechseln (w und η w gelten der Hülle). */
-export const VIEWER_FELDER = ['eta', 'sig_v', 'sig', 'M', 'V', 'N', 'T'];
+// Mit dem Weg w (21. November) für den Fall der Gebrauchstauglichkeit.
+export const VIEWER_FELDER = ['eta', 'sig_v', 'sig', 'M', 'V', 'N', 'T', 'w'];
 
 /** Zahl auf vier Stellen nach dem Komma - Koordinaten auf 0.1 mm, η auf 1e-4. */
 const rund = (v) => (Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : v);
@@ -85,7 +86,8 @@ export function werteJeFall(huelle, faelle) {
       idx[i] = tabIndex.get(k2);
       gefunden++;
     });
-    return { key: fa.key, bez: fa.bez, art: fa.art, tab, idx, gefunden };
+    return { key: fa.key, bez: fa.bez, art: fa.art, tab, idx, gefunden,
+             ...(fa.verformt ? { verformt: szeneDaten(fa.verformt) } : {}) };
   });
 }
 
@@ -108,6 +110,9 @@ export function werteJeFall(huelle, faelle) {
  */
 export function viewerRichtung(l) {
   if (l.art === 'aussergewoehnlich') return { key: 'havarie', label: 'Havarie' };
+  // Gebrauchstauglichkeit (21. November, «Lastfall gebrauchstauglichkeit ergänzen»):
+  // der Betriebswind mit dem grössten Weg.
+  if (l.art === 'gebrauchstauglichkeit') return { key: 'gzg', label: 'Gebrauchstauglichkeit' };
   if (l.art !== 'tragsicherheit') return null;
   const b = l.beiwerte ?? {};
   if (l.leit === 'Schnee') {
@@ -118,7 +123,7 @@ export function viewerRichtung(l) {
   if (l.leit === 'WindY') return { key: 'laengs', label: 'Wind längs zum Gleis' };
   return { key: 'andere', label: 'Weitere' };
 }
-const RICHTUNG_FOLGE = ['quer', 'laengs', 'schneeQuer', 'schneeLaengs', 'havarie', 'andere'];
+const RICHTUNG_FOLGE = ['quer', 'laengs', 'schneeQuer', 'schneeLaengs', 'havarie', 'gzg', 'andere'];
 
 /** Je Einwirkungsrichtung der Fall mit dem grössten η (aus den Werten der Flächen). */
 export function massgebendeFaelle(werte, faelle) {
@@ -126,7 +131,9 @@ export function massgebendeFaelle(werte, faelle) {
   werte.forEach((w, i) => {
     const r = viewerRichtung(faelle[i] ?? {});
     if (!r) return;
-    const eta = Math.max(0, ...w.tab.map((z) => (Number.isFinite(z[0]) ? z[0] : 0)));
+    // Gebrauchstauglichkeit nach dem grössten Weg, sonst nach η.
+    const sp = r.key === 'gzg' ? VIEWER_FELDER.indexOf('w') : 0;
+    const eta = Math.max(0, ...w.tab.map((z) => (Number.isFinite(z[sp]) ? z[sp] : 0)));
     const b = best.get(r.key);
     if (!b || eta > b.eta) best.set(r.key, { ...w, eta, gruppe: r.label, gruppeKey: r.key });
   });
@@ -205,7 +212,7 @@ export function viewerDaten(app) {
     titel: app.projekt?.name || 'Querprofil', ort: verortung(app.werte) || '',
     fassung: `${APP_NAME} ${app.VERSION}`, datum: new Date().toLocaleDateString('de-CH'),
     urteil: { eta: U.eta, massgebend: U.massgebend?.name ?? null,
-              liste: U.liste.map((x) => ({ name: x.name, eta: x.eta, ueber: x.ueber, bez: x.bez ?? null })) },
+              liste: U.liste.map((x) => ({ name: x.name, eta: x.eta, ueber: x.ueber, bez: x.bez ?? null, stab: x.stab ?? null })) },
     szene: huelle,
     verformt: sz.verformt ? szeneDaten(sz.verformt) : null,
     felder: VIEWER_FELDER,

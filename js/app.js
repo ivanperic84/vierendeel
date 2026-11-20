@@ -3200,8 +3200,14 @@ function viewerSzenen() {
       anzeigeKombi = l.key;
       try {
         const sz = blattSzene(kombi.ergebnisse?.[l.key] ?? erg);
+        // Gebrauchstauglichkeit (21. November): Weg und verformte Figur dieses Falls.
+        let vf = null;
+        if (l.art === 'gebrauchstauglichkeit') {
+          verformtSetzen(sz); wegeAusFigur(sz, ansicht?.verformt); vf = ansicht?.verformt ?? null;
+        }
         faelle.push({ key: l.key, bez: l.bez, art: l.art ?? null, leit: l.leit ?? null,
-                      beiwerte: l.beiwerte ?? null, nachweis: l.nachweis === true, szene: sz });
+                      beiwerte: l.beiwerte ?? null, nachweis: l.nachweis === true, szene: sz,
+                      ...(vf ? { verformt: vf } : {}) });
       } catch (e) { console.warn('Viewer, Lastfall', l.key, e); }
     });
     return { szene, verformt, faelle, karte: [...anzeigeKarte.entries()] };

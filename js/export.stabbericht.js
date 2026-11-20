@@ -106,7 +106,7 @@ export function blattUrteil(d) {
       const t = sw.teile?.[`${tw.stabKey}|${teil}`];
       if (!t) return;
       nimm({ key: `${tw.stabKey}|${teil}`, name: `${tw.pos} · ${TEIL_NAMEN[teil]}`,
-             eta: t.eta, fall: t.fall, bez: t.bez, gruppe: 'tragwerk' });
+             eta: t.eta, fall: t.fall, bez: t.bez, gruppe: 'tragwerk', stab: t.wo ?? null });
     });
     const a = tw.art === 'tragausleger' ? sw.ausleger?.aufhaengung : null;
     if (a) {
@@ -118,7 +118,7 @@ export function blattUrteil(d) {
     const t = sw.teile?.[`mast:${m.id}|mast`] ?? sw.bauteile?.[`mast:${m.id}`];
     if (t) {
       nimm({ key: `mast:${m.id}`, name: `Mast ${m.anzeige}`, eta: t.eta,
-             fall: t.fall, bez: t.bez, gruppe: 'mast' });
+             fall: t.fall, bez: t.bez, gruppe: 'mast', stab: t.wo ?? null });
     }
     if (m.knick && Number.isFinite(m.knick.eta)) {
       nimm({ key: `knick:${m.id}`, name: `Knicken ${m.anzeige}`, eta: m.knick.eta,
