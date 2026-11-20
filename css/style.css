@@ -4103,3 +4103,8 @@ body.setzen-an #legende { display: none; }
 .kzd-tab tr.lenkt td { color: var(--dim); }
 .kzd-tab tr.nok td { color: var(--fail); }
 .kzd-fuss { color: var(--dim); }
+
+/* Dimensionieren: Vergleich der angekreuzten Varianten (19. November). */
+.dm-vergleich td.dm-bestwert { font-weight: 700; color: var(--ok); }
+.dm-vergleich td.warn { color: var(--warn); }
+.dm-vergleich th, .dm-vergleich td { white-space: nowrap; }

@@ -24,6 +24,30 @@ const ROLLEN_NAMEN = {
   rohr: 'Rohr / Aufsatz', sonst: 'übrige',
 };
 
+/*
+ * >>> OBERFLÄCHE (19. November). <<< Für den Vergleich der Varianten
+ * («verglichen werden mit gewicht oberfläche etc.»): der Umfang des
+ * Querschnitts aus seinen Abmessungen in mm, scharfkantig (die Ausrundungen
+ * ändern ihn um wenige Promille), mal die Stablänge = Anstrichfläche.
+ */
+export function querschnittUmfang(q) {
+  const p = (q?.parameter ?? []).map(Number);
+  const [a, b, c] = p;
+  const ok = (...v) => v.every((x) => Number.isFinite(x) && x > 0);
+  let u = null;
+  switch (q?.form) {
+    case 'Rectangle': if (ok(a, b)) u = 2 * (a + b); break;
+    case 'Angle': if (ok(a, b)) u = 2 * (a + b); break;
+    case 'I': case 'Channel': case 'U': if (ok(a, b, c)) u = 2 * a + 4 * b - 2 * c; break;
+    case 'DoppelU': if (ok(a, b, c)) u = 2 * (2 * a + 4 * b - 2 * c); break;
+    case 'T': if (ok(a, b)) u = 2 * (a + b); break;
+    case 'Pipe': if (ok(a)) u = Math.PI * a; break;
+    case 'Box': if (ok(a)) u = 2 * (a + (ok(b) && b > (p[2] ?? 0) * 2 ? b : a)); break;
+    default: u = null;
+  }
+  return u === null ? null : u / 1000;
+}
+
 /** Rolle eines Stabes für den Auszug (Anker und Seile über ihren Namen). */
 function rolleVon(name) {
   const n = String(name);
@@ -76,23 +100,26 @@ export function massenauszug(dat, opt = {}) {
       const anzeige = bt.key.startsWith('mast:') && opt.mastName
         ? `Mast ${opt.mastName(bt.key.slice(5)) ?? bt.key.slice(5)}` : bt.name;
       g = { bauteil: anzeige, bauteilKey: bt.key, rolle: ro.name, profil,
-            querschnitt: q.name, A: w.A, Iy: w.Iy, Iz: w.Iz, staebe: 0, laenge: 0, kg: 0 };
+            querschnitt: q.name, A: w.A, Iy: w.Iy, Iz: w.Iz, staebe: 0, laenge: 0, kg: 0,
+            umfang: querschnittUmfang(q), m2: 0 };
       gruppen.set(key, g);
     }
     g.staebe += 1;
     g.laenge += L;
     g.kg += w.A * L * rho;
+    if (Number.isFinite(g.umfang)) g.m2 += g.umfang * L;
   });
   const zeilen = [...gruppen.values()].sort((p, q) =>
     p.bauteilKey.localeCompare(q.bauteilKey, 'de', { numeric: true })
     || p.rolle.localeCompare(q.rolle, 'de') || p.profil.localeCompare(q.profil, 'de', { numeric: true }));
   const bt = new Map();
   zeilen.forEach((z) => {
-    const b = bt.get(z.bauteilKey) ?? { key: z.bauteilKey, name: z.bauteil, kg: 0, laenge: 0 };
-    b.kg += z.kg; b.laenge += z.laenge;
+    const b = bt.get(z.bauteilKey) ?? { key: z.bauteilKey, name: z.bauteil, kg: 0, laenge: 0, m2: 0 };
+    b.kg += z.kg; b.laenge += z.laenge; b.m2 += z.m2;
     bt.set(z.bauteilKey, b);
   });
   const total = zeilen.reduce((t, z) => ({ kg: t.kg + z.kg, laenge: t.laenge + z.laenge,
-                                           staebe: t.staebe + z.staebe }), { kg: 0, laenge: 0, staebe: 0 });
+                                           staebe: t.staebe + z.staebe, m2: t.m2 + z.m2 }),
+                              { kg: 0, laenge: 0, staebe: 0, m2: 0 });
   return { zeilen, bauteile: [...bt.values()], total, rho };
 }

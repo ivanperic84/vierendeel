@@ -67,6 +67,9 @@ export function variante(w0, v) {
       : { ...kopie(JOCH_EINGESPANNT), ...(v.einsp === 'grenze' ? { schraubenGrenze: true } : {}) };
   }
   if (v.plastisch !== undefined) w.mastPlastisch = v.plastisch === true;
+  // Bleche plastisch und Rückhaltekraft als Achsen (19. November).
+  if (v.blech !== undefined) w.blechPlastisch = v.blech === true;
+  if (v.rueckhalt !== undefined) w.rueckhaltAn = v.rueckhalt === true;
   if (v.profil || v.steg) {
     mastenFuer(w, w).filter(Boolean).forEach((m) => {
       if (v.profil) w = setzeMastAngabe(w, m.id, 'mastProfil', v.profil);
@@ -87,16 +90,25 @@ export function auswerten(h) {
                     ...Object.values(h.knick ?? {}).map((x) => x?.eta)]);
   const fund = max(Object.values(h.fundamentJe ?? {}).map((x) => x?.eta));
   const anker = max(Object.values(h.ankerJe ?? {}).map((x) => x?.eta));
-  let kg = null;
-  try { kg = massenauszug(h.roh?.dat)?.total?.kg ?? null; } catch { kg = null; }
-  return { joch, mast, fund, anker, gesamt: Math.max(joch, mast, fund, anker), kg };
+  let kg = null, m2 = null, kgJoch = null, kgMast = null;
+  try {
+    const ma = massenauszug(h.roh?.dat);
+    kg = ma?.total?.kg ?? null;
+    m2 = ma?.total?.m2 ?? null;
+    kgMast = (ma?.bauteile ?? []).filter((b) => b.key.startsWith('mast:')).reduce((s, b) => s + b.kg, 0);
+    kgJoch = (ma?.bauteile ?? []).filter((b) => !b.key.startsWith('mast:') && !b.key.startsWith('anker:'))
+      .reduce((s, b) => s + b.kg, 0);
+  } catch { kg = null; }
+  const fundTyp = [...new Set(Object.values(h.fundamentJe ?? {}).map((x) => x?.typ?.typ).filter(Boolean))].join(', ');
+  return { joch, mast, fund, anker, gesamt: Math.max(joch, mast, fund, anker), kg, m2, kgJoch, kgMast, fundTyp };
 }
 
 /** Eine Variante rechnen (Kern + Stabwerk). */
 export function rechneVariante(app, v) {
   const w = variante(app.werte, v);
   const r = app.rechneTragwerk(kopie(w), app.jochVonTyp(w));
-  const h = rechneStabwerk({ werte: w, letzte: { erg: r.erg }, stabwerk: null });
+  // Ohne die Vergleichsläufe (Bestand, ohne Rückhalt) - sie verdoppelten die Zeit.
+  const h = rechneStabwerk({ werte: w, letzte: { erg: r.erg }, stabwerk: null, ohneBestand: true, ohneRueckhalt: true });
   if (h?.fehler || h?.ohneModell) return { ...v, fehler: h.fehler ?? h.ohneModell };
   return { ...v, ...auswerten(h) };
 }
@@ -116,12 +128,15 @@ export function variantenListe(w, wahl) {
     .sort((a, b) => (a.g ?? 0) - (b.g ?? 0)) : [];
   const stege = wahl.steg ? STEGRICHTUNGEN.map((s) => s.key) : [m0?.steg ?? w.mastSteg ?? 'jochachse'];
   const plast = wahl.plastisch ? [false, true] : [w.mastPlastisch === true];
-  einsp.forEach((e) => {
-    typen.forEach((j) => l.push({ art: 'joch', einsp: e, typ: j.typ, kgm: j.gewicht ?? null }));
+  const blech = wahl.blech ? [false, true] : [w.blechPlastisch === true];
+  const rh = wahl.rueckhalt ? [false, true] : [w.rueckhaltAn === true];
+  einsp.forEach((e) => rh.forEach((r) => {
+    typen.forEach((j) => blech.forEach((bp) =>
+      l.push({ art: 'joch', einsp: e, rueckhalt: r, typ: j.typ, blech: bp, kgm: j.gewicht ?? null })));
     profile.forEach((p) => stege.forEach((s) => plast.forEach((pl) =>
-      l.push({ art: 'mast', einsp: e, profil: p.name, steg: s, plastisch: pl }))));
-    if (!typen.length && !profile.length) l.push({ art: 'jetzt', einsp: e });
-  });
+      l.push({ art: 'mast', einsp: e, rueckhalt: r, profil: p.name, steg: s, plastisch: pl }))));
+    if (!typen.length && !profile.length) l.push({ art: 'jetzt', einsp: e, rueckhalt: r, blech: blech[0] });
+  }));
   return l;
 }
 
@@ -133,17 +148,17 @@ export function aktuelleEinspannung(w) {
 /** Stufe 3: je Einspannung das leichteste Joch und der leichteste Mast, die halten. */
 export function kombinationen(erg, grenze) {
   const out = [];
-  EINSPANNUNGEN.forEach(({ key }) => {
-    const ok = (x) => !x.fehler && x.einsp === key;
+  EINSPANNUNGEN.forEach(({ key }) => [false, true, undefined].forEach((r) => {
+    const ok = (x) => !x.fehler && x.einsp === key && x.rueckhalt === r;
     const j = erg.filter((x) => ok(x) && x.art === 'joch' && x.joch <= grenze)
-      .sort((a, b) => (a.kg ?? 1e9) - (b.kg ?? 1e9))[0];
+      .sort((a, b) => (a.kg ?? 1e9) - (b.kg ?? 1e9) || Number(a.blech) - Number(b.blech))[0];
     const m = erg.filter((x) => ok(x) && x.art === 'mast' && Math.max(x.mast, x.fund) <= grenze)
       .sort((a, b) => (a.kg ?? 1e9) - (b.kg ?? 1e9) || Number(a.plastisch) - Number(b.plastisch))[0];
     if (j || m) {
-      out.push({ art: 'kombi', einsp: key, ...(j ? { typ: j.typ } : {}),
+      out.push({ art: 'kombi', einsp: key, rueckhalt: r, ...(j ? { typ: j.typ, blech: j.blech } : {}),
                  ...(m ? { profil: m.profil, steg: m.steg, plastisch: m.plastisch } : {}) });
     }
-  });
+  }));
   return out;
 }
 
@@ -152,8 +167,9 @@ export function variantenText(v, w) {
   const e = EINSPANNUNGEN.find((x) => x.key === v.einsp)?.label ?? '';
   const teile = [];
   teile.push(v.typ ?? w?.typ ?? '');
+  if (v.blech) teile[0] += ' (Bleche plastisch)';
   if (v.profil) teile.push(`${v.profil} ${STEG_KURZ[v.steg] ?? ''}${v.plastisch ? ' (Mast plastisch)' : ''}`);
-  return `${teile.filter(Boolean).join(' · ')} · ${e}`;
+  return `${teile.filter(Boolean).join(' · ')} · ${e}${v.rueckhalt ? ' · Rückhalt' : ''}`;
 }
 
 /* ---------------------------------------------------------------------------
@@ -170,14 +186,16 @@ export function dialogDimension(app) {
     return;
   }
   let reserve = reserveLesen();
-  const wahl = { joch: true, mast: true, steg: true, plastisch: true, einspannung: true };
+  const wahl = { joch: true, mast: true, steg: true, plastisch: true, einspannung: true, blech: false, rueckhalt: false };
+  // Zum Vergleich angekreuzte Varianten (19. November).
+  const auswahl = new Set();
   let ergebnis = [];
   let abbruch = false;
   const schalter = (k, t, titel = '') => `<label class="dm-wahl"${titel ? ` title="${esc(titel)}"` : ''}><input type="checkbox" data-dm="${k}"${wahl[k] ? ' checked' : ''}> ${t}</label>`;
   app.dialog('Dimensionieren (Stabwerk)', `
     <div class="dm-kopf">
       ${schalter('joch', 'Jochtyp')}${schalter('mast', 'Mastprofil')}${schalter('steg', 'Mast gedreht')}
-      ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Mastprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Bügelschrauben zählt hier nicht.')}
+      ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Mastprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('blech', 'Bleche plastisch', 'Jeden Jochtyp zusätzlich mit plastisch nachgewiesenen stehenden Blechen rechnen. Ohne Haken: wie eingestellt.')}${schalter('rueckhalt', 'Rückhaltekraft', 'Jede Variante mit und ohne Rückhaltekraft der Leiter (Einstellung unter Lasten). Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Bügelschrauben zählt hier nicht.')}
       <label class="dm-wahl">Reserve <input type="number" id="dm-reserve" min="0" max="50" step="5" value="${reserve}"> %</label>
       <button class="btn" id="dm-los" type="button">Rechnen</button>
       <span class="ablage-meta" id="dm-zahl"></span>
@@ -202,6 +220,7 @@ export function dialogDimension(app) {
   box.querySelector('#dm-los').onclick = async () => {
     abbruch = false;
     ergebnis = [];
+    auswahl.clear();
     const liste = variantenListe(app.werte, wahl);
     const fort = box.querySelector('#dm-fort');
     fort.hidden = false;
@@ -222,6 +241,57 @@ export function dialogDimension(app) {
     zeige();
   };
 
+  /*
+   * >>> VERGLEICH DER ANGEKREUZTEN VARIANTEN (19. November). <<< «dann
+   * ermöglichen eine auswahl zu wählen die dann verglichen werden mit gewicht
+   * oberfläche etc.» Je Variante eine Spalte: was gewählt ist, die
+   * Ausnutzungen, Masse gesamt / Joch / Masten, Oberfläche, Fundament; die
+   * beste Zahl einer Zeile hervorgehoben.
+   */
+  function vergleichHtml() {
+    const l = [...auswahl].map((i) => ergebnis[i]).filter((x) => x && !x.fehler);
+    if (!l.length) return '';
+    if (l.length < 2) return '<p class="notiz">Eine weitere Variante ankreuzen, um zu vergleichen.</p>';
+    const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : '–');
+    const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
+    const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '–');
+    const ein = (v) => EINSPANNUNGEN.find((x) => x.key === v.einsp)?.label ?? '';
+    const zeilen = [
+      ['Jochtyp', (v) => v.typ ?? app.werte.typ ?? ''],
+      ['Mastprofil', (v) => v.profil ?? '(wie eingegeben)'],
+      ['Stegrichtung', (v) => (v.steg ? STEG_KURZ[v.steg] : '(wie eingegeben)')],
+      ['Mast plastisch', (v) => (v.plastisch === undefined ? '(wie eingestellt)' : v.plastisch ? 'ja' : 'nein')],
+      ['Bleche plastisch', (v) => (v.blech === undefined ? '(wie eingestellt)' : v.blech ? 'ja' : 'nein')],
+      ['Rückhaltekraft', (v) => (v.rueckhalt === undefined ? '(wie eingestellt)' : v.rueckhalt ? 'ja' : 'nein')],
+      ['Einspannung', ein],
+      ['Fundament', (v) => v.fundTyp || '–'],
+    ];
+    const zahlen = [
+      ['η Joch', 'joch', f3, 'min'], ['η Mast', 'mast', f3, 'min'], ['η Fundament', 'fund', f3, 'min'],
+      ['η Anker', 'anker', (v) => (v > 0 ? f3(v) : '–'), 'min'], ['η gesamt', 'gesamt', f3, 'min'],
+      ['Masse gesamt [kg]', 'kg', f0, 'min'], ['Masse Joch [kg]', 'kgJoch', f0, 'min'],
+      ['Masse Masten [kg]', 'kgMast', f0, 'min'], ['Oberfläche [m²]', 'm2', f1, 'min'],
+    ];
+    const g = 1 - reserve / 100;
+    const kopf = l.map((v, k) => `<th class="num">Variante ${k + 1}${v.gesamt <= g ? '' : ' ⚠'}</th>`).join('');
+    const text = zeilen.map(([n, fn]) => `<tr><td>${esc(n)}</td>${l.map((v) => `<td class="num">${esc(String(fn(v)))}</td>`).join('')}</tr>`).join('');
+    const num = zahlen.map(([n, k, fmt]) => {
+      const w = l.map((v) => v[k]).filter((x) => Number.isFinite(x) && x > 0);
+      // Hervorgehoben nur, wenn sich die Werte unterscheiden.
+      const best = w.length && Math.min(...w) < Math.max(...w) ? Math.min(...w) : null;
+      return `<tr><td>${esc(n)}</td>${l.map((v) => `<td class="num${Number.isFinite(v[k]) && v[k] === best && w.length > 1 ? ' dm-bestwert' : ''}${
+        k !== 'kg' && k !== 'kgJoch' && k !== 'kgMast' && k !== 'm2' && v[k] > g ? ' warn' : ''}">${fmt(v[k])}</td>`).join('')}</tr>`;
+    }).join('');
+    return `${abschnitt('Vergleich', `${l.length} Varianten · fett = kleinster Wert`)}
+      <div class="tabellenrahmen dm-vergleich"><table class="dt"><thead><tr><th></th>${kopf}</tr></thead>
+        <tbody>${text}${num}</tbody></table></div>
+      <p class="notiz"><button class="btn btn-mini" type="button" data-dm-vergleich-weg>Auswahl leeren</button></p>`;
+  }
+  function verdrahteVergleich() {
+    const b = box.querySelector('[data-dm-vergleich-weg]');
+    if (b) b.onclick = () => { auswahl.clear(); zeige(); };
+  }
+
   function zeige() {
     const g = 1 - reserve / 100;
     const ok = ergebnis.filter((x) => !x.fehler);
@@ -236,10 +306,12 @@ export function dialogDimension(app) {
     const zeile = (x) => {
       const i = ergebnis.indexOf(x);
       return `<tr data-dm-zeile="${i}" class="${x === best ? 'dm-best' : ''}">
+        <td><input type="checkbox" data-dm-wahl="${i}"${auswahl.has(i) ? ' checked' : ''} aria-label="zum Vergleich"></td>
         <td>${x.art === 'kombi' ? '★ ' : ''}${esc(variantenText(x, app.werte))}</td>
         <td class="num ${kl(x.joch)}">${f3(x.joch)}</td><td class="num ${kl(x.mast)}">${f3(x.mast)}</td>
         <td class="num ${kl(x.fund)}">${f3(x.fund)}</td><td class="num ${kl(x.gesamt)}"><b>${f3(x.gesamt)}</b></td>
         <td class="num">${Number.isFinite(x.kg) ? x.kg.toFixed(0) : '–'}</td>
+        <td class="num">${Number.isFinite(x.m2) ? x.m2.toFixed(1) : '–'}</td>
         <td><button class="btn btn-mini" data-dm-nimm="${i}" type="button">übernehmen</button></td></tr>`;
     };
     const fehler = ergebnis.filter((x) => x.fehler);
@@ -252,14 +324,15 @@ export function dialogDimension(app) {
       ${diagrammSvg(ok, g, best)}
       <div class="dm-legende">${EINSPANNUNGEN.filter((e) => ergebnis.some((x) => x.einsp === e.key)).map((e) => `<span><i style="background:${e.farbe}"></i>${esc(e.label)}</span>`).join('')}
         <span>○ Joch variiert</span><span>□ Mast variiert</span><span>◆ Kombination</span></div>
-      ${abschnitt('Varianten', 'zuerst die, die halten, nach Masse')}
+      <div id="dm-vergleich">${vergleichHtml()}</div>
+      ${abschnitt('Varianten', 'zuerst die, die halten, nach Masse · ankreuzen zum Vergleich')}
       <div class="tabellenrahmen dm-tabelle"><table class="dt">
-        <thead><tr><th>Variante</th><th class="num">η Joch</th><th class="num">η Mast</th><th class="num">η Fundament</th>
-          <th class="num">η gesamt</th><th class="num">Masse [kg]</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Variante</th><th class="num">η Joch</th><th class="num">η Mast</th><th class="num">η Fundament</th>
+          <th class="num">η gesamt</th><th class="num">Masse [kg]</th><th class="num">Oberfläche [m²]</th><th></th></tr></thead>
         <tbody>${reihe.map(zeile).join('')}</tbody></table></div>
       ${fehler.length ? `<p class="notiz">Nicht gerechnet: ${fehler.length} Variante(n) - ${esc(fehler[0].fehler)}</p>` : ''}
       <p class="notiz">η Mast enthält das Knicken nach SIA 263, wenn es geführt wird; η gesamt dazu
-        Joch, Fundament und Anker. Masse = Stäbe des Stabwerks (A · L · ρ). Beide Masten mit demselben Profil;
+        Joch, Fundament und Anker. Masse = Stäbe des Stabwerks (A · L · ρ), Oberfläche = Umfang · L (scharfkantig). Beide Masten mit demselben Profil;
         das Fundament ist das kleinste, das das Sortiment dem Profil zuordnet.</p>`;
     box.querySelectorAll('[data-dm-nimm]').forEach((b) => {
       b.onclick = () => {
@@ -271,6 +344,15 @@ export function dialogDimension(app) {
         b.closest('tr')?.classList.add('uebernommen');
       };
     });
+    box.querySelectorAll('[data-dm-wahl]').forEach((c) => {
+      c.onchange = () => {
+        const i = +c.dataset.dmWahl;
+        if (c.checked) auswahl.add(i); else auswahl.delete(i);
+        box.querySelector('#dm-vergleich').innerHTML = vergleichHtml();
+        verdrahteVergleich();
+      };
+    });
+    verdrahteVergleich();
     box.querySelectorAll('[data-dm-punkt]').forEach((p) => {
       p.addEventListener('click', () => {
         box.querySelectorAll('.dm-gewaehlt').forEach((x) => x.classList.remove('dm-gewaehlt'));
