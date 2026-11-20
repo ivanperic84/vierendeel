@@ -1117,6 +1117,24 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
     if (phantom(x)) return;
     // Die Aufhaengung des Kragarm-Kerns ersetzt das Stabwerk (unten bei `joch`).
     if (x.key === 'aufhaengung' && ta) return;
+    /*
+     * >>> ABFANGJOCHE ÜBEREINANDER GLEICHWERTIG (20. November). <<<
+     * Mit `o.jochKeys` (mehrere Abfangjoche am selben Mastpaar) steht jedes
+     * Joch mit eigenem Namen im Urteil - nicht nur das gewählte; das andere
+     * ist oft das stärker beanspruchte (Testprojekt: A1 0.408 neben A2 0.353).
+     */
+    if (x.key === 'joch' && (o.jochKeys?.length ?? 0) > 1 && !ta) {
+      let da = false;
+      o.jochKeys.forEach((j) => {
+        const t = ['OG', 'UG', 'blech', 'UPE'].map((k) => teilVon(j.key, k))
+          .filter(Boolean).sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0))[0];
+        if (!t) return;
+        da = true;
+        dazu({ key: 'joch', name: `Abfangjoch ${j.name}`, eta: t.eta,
+               quelle: 'stabwerk', fall: t.fall, bez: t.bez, ueber: null });
+      });
+      if (da) return;
+    }
     if (x.key === 'joch') {
       const t = ['OG', 'UG', 'blech', 'UPE']
         .map((k) => teilVon(o.jochKey ?? 'tragwerk', k))

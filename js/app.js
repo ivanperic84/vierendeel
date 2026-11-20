@@ -802,7 +802,7 @@ function urteilAngezeigt(urteil, bem) {
   // Am Tragausleger trägt das Stabwerk auch den Vermerk (ui.urteilMitStabwerk).
   return { ...ui.urteilMitStabwerk(urteil, g.h),
            bauteile: bauteileMitStabwerk(urteil.bauteile, g.h,
-                                         { jochKey: g.jochKey, knick: ui.knickJe(bem) }) };
+                                         { jochKey: g.jochKey, jochKeys: g.jochKeys, knick: ui.knickJe(bem) }) };
 }
 
 /**
@@ -814,8 +814,12 @@ function stabwerkGilt() {
   if (verfahrenVon(werte) !== 'stabwerk' || stabwerkStand(app) !== 'gueltig'
       || !stabwerk?.teile) return null;
   // In einer Reihe tragen die Stäbe des aktiven Tragwerks sein Präfix.
+  const mehr = (stabwerk.tragwerke ?? 1) > 1;
   return { h: stabwerk,
-           jochKey: (stabwerk.tragwerke ?? 1) > 1 ? `tragwerk:${werte.twId}` : 'tragwerk' };
+           jochKey: mehr ? `tragwerk:${werte.twId}` : 'tragwerk',
+           // Abfangjoche übereinander zählen gleichwertig (20. November).
+           jochKeys: mehr ? abfangUebereinander(werte)
+             .map((j) => ({ key: `tragwerk:${j.twId}`, name: j.name })) : [] };
 }
 
 /*
@@ -1260,6 +1264,19 @@ function profilBlatt() {
   });
   profilBlattSpeicher = { sig, liste };
   return liste;
+}
+
+/** Die Abfangjoche am Mastpaar des gewählten (mit ihm), von oben nach unten. */
+function abfangUebereinander(w) {
+  if (tragwerksart(w).key !== 'abfangjoch') return [];
+  const t0 = tragwerkeVon(w)[0];
+  const ids = new Set((mastenFuer(w, t0) ?? []).filter(Boolean).map((m) => m.id));
+  if (!ids.size) return [];
+  const liste = sichtbareTragwerke(w).filter((t) => tragwerksart(t).key === 'abfangjoch'
+    && (mastenFuer(w, t) ?? []).some((m) => m && ids.has(m.id)));
+  if (liste.length < 2) return [];
+  return liste.map((t) => ({ twId: t.id, name: tragwerkPos(w, t), H: anschlusshoehe(t) }))
+    .sort((a, b) => (Number(b.H) || 0) - (Number(a.H) || 0));
 }
 
 function rechneTragwerk(werte, joch) {
@@ -2339,6 +2356,14 @@ function zeichneAuswertung() {
                            // Das aktive Tragwerk - im Stabwerk einer Reihe
                            // tragen seine Stäbe dieses Präfix.
                            twId: werte.twId,
+                           /*
+                            * >>> ABFANGJOCHE ÜBEREINANDER GLEICHWERTIG (20. November). <<<
+                            * «bei mehreren Abfangjochen übereinander die auswertung
+                            * irreführend ist, da ein joch immer passiv geschalten ist»,
+                            * auf Rückfrage «Alle Joche gleichwertig»: die Übersicht zeigt
+                            * jedes Abfangjoch am selben Mastpaar mit eigener Zeile.
+                            */
+                           abfangUeber: abfangUebereinander(werte),
                            plastisch: werte.mastPlastisch === true,
                            // Stehende Bleche plastisch (10. Oktober); bei einem
                            // Joch alter Bauweise ein Hinweis (Entscheid beim Anwender).

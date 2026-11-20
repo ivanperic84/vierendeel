@@ -1379,7 +1379,10 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     const knA = `AT${j + 1}`;
     knoten.push({ name: knA, x: xs[i], y: 0, z: 0 });
     anbauKnoten.push({ name: knA, teil: t2, anbindung: an, i });
-    const seiten = an.art === 'mitte' ? [an.seite] : ['V', 'H'];
+    // «Mitte Träger, durchgehend» hat keine Seite (20. November, Befund im
+    // Testprojekt: der Arm ging zum Knoten «null», das Stabwerk brach ab) -
+    // er hängt wie ein senkrechtes Teil an beiden Gurten.
+    const seiten = an.art === 'mitte' && an.seite ? [an.seite] : ['V', 'H'];
     seiten.forEach((g) => {
       staebe.push({
         // Ein Anbauteil im Gabelbereich greift an der Gabel an.

@@ -4056,7 +4056,9 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .nw-zeilen .kz.warn .kz-w { color: var(--warn); }
 .nw-zeilen .kz.fail .kz-w { color: var(--fail); }
 .nw-zeilen .kz-e { grid-area: e; margin-top: 1px; }
-.nw-zeilen .kz-f { grid-area: f; border-top: 0; margin: 1px 0 0; padding: 0; text-align: right; white-space: nowrap; }
+.nw-zeilen .kz-f { grid-area: f; border-top: 0; margin: 1px 0 0; padding: 0; text-align: right; white-space: nowrap;
+  /* Lange Fallnamen (Havarie mit Leiternamen, 20. November) sprengen sonst die Spalte. */
+  min-width: 0; max-width: 15em; overflow: hidden; text-overflow: ellipsis; }
 .nw-zeilen .kz-n { grid-area: n; }
 .nw-zeilen .kz-knoepfe { grid-area: k; border-top: 0; padding-top: 2px; justify-content: flex-start; }
 .nw-zeilen .kz-knoepfe .kz-knopf { flex: 0 0 auto; }

@@ -1370,11 +1370,15 @@ export function zeichneSchienen(app) {
        * 1.14 im gemeldeten Fall), die Kachel daneben den des Stabwerks
        * (0.88) - zwei Zahlen für dasselbe Bauteil.
        */
-      const t = (k) => swG.h.teile[`${swG.jochKey}|${k}`];
-      gruppen.push({ titel: 'Abfangjoch · Stabwerk', teile: [
-        ['G', t('UPE')?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name} (Stabwerk)`],
-        ['Bl', t('blech')?.eta ?? 0, 'Bindeblech (Stabwerk)'],
-      ] });
+      // Abfangjoche übereinander: je Joch eine Gruppe (20. November).
+      const joche = (swG.jochKeys?.length ?? 0) > 1 ? swG.jochKeys : [{ key: swG.jochKey, name: '' }];
+      joche.forEach((j) => {
+        const t = (k) => swG.h.teile[`${j.key}|${k}`];
+        gruppen.push({ titel: `Abfangjoch${j.name ? ` ${j.name}` : ''} · Stabwerk`, teile: [
+          ['G', t('UPE')?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name}${j.name ? ` ${j.name}` : ''} (Stabwerk)`],
+          ['Bl', t('blech')?.eta ?? 0, `Bindeblech${j.name ? ` ${j.name}` : ''} (Stabwerk)`],
+        ] });
+      });
     } else if (e.abfang) {
       /*
        * >>> DAS ABFANGJOCH HAT ZWEI GURTE, NICHT VIER. <<<

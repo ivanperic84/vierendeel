@@ -21,6 +21,10 @@ export const AENDERUNGEN = [
       { text: 'Havarie am Abfangjoch: bei beidseitig abgefangenen und durchgehenden Leitern wird der Riss jetzt in beiden Richtungen (+y / −y) gerechnet, im Kern und im Stabwerk; einseitig bleibt die Richtung fest.', rechnung: true },
       { text: 'Havarie am Abfangjoch: Leiter an Teilen am Masten (z. B. NT-Ausleger) bekommen ihren Havariefall auch im Stabwerk; «kann reissen» wirkt jetzt dort.', rechnung: true },
       { text: 'Havariefälle heissen nach Anbauteil und Leiter statt nach der internen Kennung; die Nummern L1 … folgen den Tragwerken und wechseln nicht mehr mit dem gewählten.' },
+      { text: 'Lasten → Havarie: Längszug beim Riss eines durchgehenden Leiters einstellbar (Vorgabe 10 %).', rechnung: true },
+      { text: 'Kettenwerk über zwei Joche (Tragseil oben, Fahrdraht unten, gleicher Kettenwerk-Name an derselben Stelle): Havarie «ganzes Kettenwerk», «nur Tragseil», «nur Fahrdraht»; die Wahl gilt allen Tragwerken des Blattes.', rechnung: true },
+      { text: 'Abfangjoche übereinander: die Übersicht zeigt jedes Joch am Mastpaar mit eigenen Zeilen (Gurt, Bindeblech), das Urteil nimmt das grösste - nicht mehr nur das gewählte.' },
+      { text: 'Abfangjoch: ein Leiter «Mitte Träger, durchgehend» brach das Stabwerk ab; er hängt jetzt an beiden Gurten.' },
     ],
   },
   {

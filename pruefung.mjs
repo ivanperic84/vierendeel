@@ -37698,7 +37698,8 @@ if (AJ.abfangDbDa()) {
   const iSw = lay.indexOf("} else if (e.abfang && swG?.h?.teile?.[`${swG.jochKey}|UPE`]) {");
   const iKern = lay.indexOf('} else if (e.abfang) {');
   wahr('Gilt das Stabwerk, zeigt die Schiene am Abfangjoch Gurt und Blech aus dem Stabwerk - der Kern erst danach',
-       iSw > 0 && iKern > iSw && lay.includes("gruppen.push({ titel: 'Abfangjoch · Stabwerk', teile: ["));
+       // Seit dem 20. November je Joch eine Gruppe («Abfangjoch A1 · Stabwerk»).
+       iSw > 0 && iKern > iSw && lay.includes("gruppen.push({ titel: `Abfangjoch${j.name ? ` ${j.name}` : ''} · Stabwerk`, teile: ["));
 }
 
 
@@ -43278,6 +43279,26 @@ titel('303  Kettenwerk über zwei Abfangjoche: ganz, nur Tragseil, nur Fahrdraht
   const lf = C303.havarieMitNamen({ [`${K}|ts`]: { reisst: true } }, satz.anbauteile.length ? satz.anbauteile : []);
   wahr('Der Teilfall heisst nach dem Kettenwerk und «nur Tragseil»',
        lf[`${K}|ts`]?.name === 'Kettenwerk KW1 · nur Tragseil', lf[`${K}|ts`]?.name);
+}
+
+titel('304  Abfangjoch: Leiter «Mitte Träger, durchgehend» hängt an beiden Gurten');
+/*
+ * Befund 20. November (Testprojekt, im Browser): «durchgehend» an einem
+ * Leiter mit Anbindung «Mitte Träger» hat keine Seite - der Arm ging zum
+ * Knoten «null», das Stabwerk brach ab («reading 'x'»).
+ */
+{
+  const C304 = await import(J('core.constants.js'));
+  const A304 = await import(J('data.anbauteile.js'));
+  const AXA304 = await import(J('export.axisvm.abfang.js'));
+  const a = { ...A304.neuesAnbauteil('leiter-fd-rfl-abf', 3.5), verlauf: 'durchgehend' };
+  const dat = AXA304.abfangAxisvmModell('A160', 7.5, { knotenmodell: 'anschnitt', anbauteile: [a], ek: 'EK2' });
+  const kn = new Set(dat.knoten.map((k) => k.name));
+  const fehlt = dat.staebe.filter((s) => !kn.has(s.von) || !kn.has(s.bis));
+  wahr('Jeder Stab endet an einem Knoten des Modells', fehlt.length === 0, fehlt.map((s) => s.name).join(' '));
+  wahr('… der durchgehende Leiter hängt an beiden Gurten',
+       dat.staebe.filter((s) => /^ATARM_1/.test(s.name)).length === 2);
+  void C304;
 }
 
 console.log('\n' + '='.repeat(104));

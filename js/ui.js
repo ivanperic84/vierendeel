@@ -8535,8 +8535,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const jochKey = (swH?.tragwerke ?? 1) > 1 && opt.twId
     ? `tragwerk:${opt.twId}` : 'tragwerk';
   // Im Einzellastfall nur mit dem Stabwerk (die Zahlen des Falls, 4. Oktober).
+  // Abfangjoche übereinander gleichwertig (20. November, `opt.abfangUeber`).
+  const ueber = (swH?.tragwerke ?? 1) > 1 ? (opt.abfangUeber ?? []) : [];
+  const jochKeys = ueber.map((j) => ({ key: `tragwerk:${j.twId}`, name: j.name }));
   const bt = swH ? bauteileMitStabwerk(urteil.bauteile, swH,
-                                       { jochKey, knick: knickJe(erg) })
+                                       { jochKey, jochKeys, knick: knickJe(erg) })
     : (einzelLastfall ? null : urteil.bauteile);
   const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
   const eKopf = imFall ? imFall.eta : bt ? bt.eta : eAn;
@@ -8585,8 +8588,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * (mit Gabel) und Bindebleche aus ihm - wie beim Tragausleger. «N Gurt»
    * ist eine Grösse des Ersatzbalkens (Kräftepaar) und entfällt dann.
    */
-  const swTeil = (teil, titel, sub) => {
-    const s = swH?.teile?.[`${jochKey}|${teil}`];
+  const swTeil = (teil, titel, sub, key = jochKey) => {
+    const s = swH?.teile?.[`${key}|${teil}`];
     if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
     return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
       ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
@@ -8596,7 +8599,12 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
 ` : ''}Aus dem Stabwerk, Stab ${s.wo}.`,
     });
   };
-  const kz = ab && swH?.teile?.[`${jochKey}|UPE`] ? [
+  const kz = ab && jochKeys.length > 1 && jochKeys.some((j) => swH?.teile?.[`${j.key}|UPE`])
+    ? jochKeys.flatMap((j) => [
+      swTeil('UPE', `η Gurt ${j.name}`, `${ab.q.gurt.name} · mit Gabel`, j.key),
+      swTeil('blech', `η Bindeblech ${j.name}`, 'massgebendes Blech', j.key),
+    ])
+    : ab && swH?.teile?.[`${jochKey}|UPE`] ? [
     swTeil('UPE', 'η Gurt', `${ab.q.gurt.name} · mit Gabel`),
     swTeil('blech', 'η Bindeblech', 'massgebendes Blech'),
   ] : ab ? [
