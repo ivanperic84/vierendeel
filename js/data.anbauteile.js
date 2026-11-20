@@ -1692,6 +1692,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       }
       let havarieJe = null;
       let festeRichtung = false;
+      let abfangArt = null, abfangVz = 1;   // fürs Bild (20. November)
       const leiter = drahtwerk ? leiterKennung(a, m, i) : null;
       if (drahtwerk) {
         const zugHier = wirkt('wirktAblenk') ? 1
@@ -1714,6 +1715,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier,
                         art, richtung, laengszug: wahlL.laengszug ?? null };
         festeRichtung = art === 'einseitig';
+        abfangArt = art; abfangVz = richtung;
         // Mit Auswahl: aufgeloest ohne Bruch - der Lastfall setzt ihn ein.
         const h = havarieAnteile({ ...basis,
           bruch: auswahl ? false : (roh.bruch ?? a.bruch) === true });
@@ -1740,6 +1742,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         // Bei einseitiger Abfangung steht die Zugrichtung fest - der
         // Lastfall darf sie nicht drehen (siehe `havarieEinsetzen`).
         ...(drahtwerk && festeRichtung ? { havarieFest: true } : {}),
+        ...(abfangArt ? { abfangArt, abfangVz } : {}),
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
         /*

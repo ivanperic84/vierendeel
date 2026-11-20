@@ -1348,7 +1348,7 @@ export function erzeugeSzene(m, erg) {
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
           gruppe: 'last', punkt: true }));
       marken.push({
-        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t),
+        gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t), abfang: t.abfangArt ?? null, abfangVz: t.abfangVz ?? 1,
         text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
         fahrdraht: istFahrdraht(t),
         titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
@@ -2013,7 +2013,7 @@ function zeichneMastteil(ctx, a, k, ort) {
     flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
       { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
         gruppe: 'last', punkt: true }));
-    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t),
+    marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t), abfang: t.abfangArt ?? null, abfangVz: t.abfangVz ?? 1,
                   text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
                   fahrdraht: istFahrdraht(t),
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
@@ -6072,14 +6072,37 @@ export class Modellansicht {
     this.szene.marken.forEach((mk) => {
       if (!mk.leiter || !this._imFokus(mk.p[0])) return;
       const n = Math.max(1, Math.min(12, mk.leiterN ?? 1));
+      /*
+       * >>> DIE ABFANGART IST ZU SEHEN (20. November). <<< Wie am Abfangjoch:
+       * einseitig nur zur gezogenen Seite mit Querstrich am Ende, beidseitig
+       * nach beiden Seiten mit Querstrich an beiden Enden (Fixpunkt),
+       * durchgehend nach beiden Seiten länger und ohne Ende.
+       */
+      const art = mk.abfang;
+      const lang = art === 'durchgehend' ? 0.9 : 0.6;
+      const von = art === 'einseitig' ? (mk.abfangVz < 0 ? -lang : 0) : -lang;
+      const bis = art === 'einseitig' ? (mk.abfangVz < 0 ? 0 : lang) : lang;
+      const enden = art === 'einseitig' ? [mk.abfangVz < 0 ? von : bis]
+        : art === 'beidseitig' ? [von, bis] : [];
       for (let j = 0; j < n; j += 1) {
         const dx = (j - (n - 1) / 2) * 0.12;
-        const q0 = proj([mk.p[0] + dx, mk.p[1] - 0.6, mk.p[2]]);
-        const q1 = proj([mk.p[0] + dx, mk.p[1] + 0.6, mk.p[2]]);
+        const q0 = proj([mk.p[0] + dx, mk.p[1] + von, mk.p[2]]);
+        const q1 = proj([mk.p[0] + dx, mk.p[1] + bis, mk.p[2]]);
         if (!q0 || !q1) continue;
         // Nur Abzug: gestrichelt - der Leiter hängt hier nicht, er wird quer gezogen.
         c.setLineDash(mk.abzug ? [4 * s, 3 * s] : []);
         c.beginPath(); c.moveTo(q0[0], q0[1]); c.lineTo(q1[0], q1[1]); c.stroke();
+        c.setLineDash([]);
+        enden.forEach((ye) => {
+          const e0 = proj([mk.p[0] + dx - 0.1, mk.p[1] + ye, mk.p[2]]);
+          const e1 = proj([mk.p[0] + dx + 0.1, mk.p[1] + ye, mk.p[2]]);
+          const e2 = proj([mk.p[0] + dx, mk.p[1] + ye, mk.p[2] - 0.1]);
+          const e3 = proj([mk.p[0] + dx, mk.p[1] + ye, mk.p[2] + 0.1]);
+          c.lineWidth = 2 * s;
+          if (e0 && e1) { c.beginPath(); c.moveTo(e0[0], e0[1]); c.lineTo(e1[0], e1[1]); c.stroke(); }
+          if (e2 && e3) { c.beginPath(); c.moveTo(e2[0], e2[1]); c.lineTo(e3[0], e3[1]); c.stroke(); }
+          c.lineWidth = 1 * s;
+        });
       }
       c.setLineDash([]);
       if (mk.abzug) {

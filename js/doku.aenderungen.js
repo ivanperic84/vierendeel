@@ -28,6 +28,7 @@ export const AENDERUNGEN = [
       { text: 'Abfangjoch: die Abfangung steht nur noch am Leiter (Feld «Verlauf des Leiters» entfällt); beidseitig und durchgehend hängt der Leiter an beiden Gurten, einseitig am gezogenen. Im 3D unterscheidbar: einseitig ein Ende, beidseitig zwei Enden, durchgehend ohne Ende.', rechnung: true },
       { text: 'Havarie am Ausleger: die Kraft greift in der Achse der Hängestütze bzw. des Masten an (in x geschoben), ohne den Hebel des Auslegers.', rechnung: true },
       { text: 'Im 3D neue Lastart «Havarie (Leiterriss)»: beim gewählten Havariefall erscheinen die Kräfte des Risses.' },
+      { text: 'Im 3D zeigt der Leiterstrich auch am Tragjoch und am Masten die Abfangart (einseitig, beidseitig, durchgehend).' },
       { text: 'Schiene rechts: je Tragwerkselement eine Zahl (Joch, Mast mit Knicken, Anker, Fundament) statt jedes Einzelwerts. Explosion: Knopf «auf» weg, Rechtsklick auf den Schieber fährt auf bzw. zu.' },
     ],
   },
