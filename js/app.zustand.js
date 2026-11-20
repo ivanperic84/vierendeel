@@ -105,6 +105,10 @@ export function zustandSetzen(app, g) {
   const e = ansicht.ebenen ?? {};
   const sicht = (s) => {
     if (s.r === 'mast') return e.mast !== false;
+    // Anker und Druckstütze gehören im 3D zur Ebene «Masten» (21. November,
+    // «wenn man bauteile ausblendet bleiben die liniendiagramme bestehen
+    // (druckstütze)»).
+    if (/(^|_)(ANKER|SEILKOPF|ANKERGELENK)/.test(s.n ?? '')) return e.mast !== false;
     if (/^gurt/.test(s.r ?? '')) return e.profil !== false;
     if (s.r === 'blech') {
       const steh = Math.abs(s.b[2] - s.a[2]) > 0.7 * (Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]) || 1);

@@ -1828,8 +1828,11 @@ function neuRechnen(neuZeichnen = true) {
     const rollAlt = maskeTabGezeichnet === tabEingabe ? mEl.scrollTop : 0;
     maskeTabGezeichnet = tabEingabe;
     ui.zeichneMaske(mEl, werte, tabEingabe, aendern, setzeAnbauteile, extras);
-    // Havarie: alle Leiter im 3D, solange der Reiter Lasten offen ist (7. Oktober).
-    if (ansicht) ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null;
+    // Havarie: die Leiter NICHT mehr dauernd im 3D (21. November, «das
+    // highlithen der leiter nur machen wenn man … über den havariefall oder
+    // die position in der leiterzusammenstellung auswählt oder darüber mit
+    // der maus fährt») - das Hervorheben beim Überfahren/Anwählen bleibt.
+    if (ansicht) ansicht.havarieLeiter = null;
     verdrahteExtras(app);
     mEl.scrollTop = rollAlt;
     maskenAnkerHalten();
@@ -2864,7 +2867,31 @@ function blattSzene(erg) {
    * Klick von der Blattkoordinate in die des Tragwerks um (blattNachLokal).
    * Stand die Szene unverschoben da, ging jeder Klick um x0 daneben.
    */
-  return szenenVereinen(teile);
+  return lastenNachFall(szenenVereinen(teile));
+}
+
+/*
+ * >>> IM GEWÄHLTEN FALL NUR SEINE LASTEN (21. November). <<< Weisung: «beim
+ * havariefall … bleiben die wind und schneelasten eingeblendet.» Pfeile und
+ * Lastflächen einer Lastart, deren Gruppe im gewählten Fall den Beiwert 0
+ * trägt, fallen weg (Havarie: nur ständig und Havarie). Die Havarie-Pfeile
+ * stehen nur in einem Havariefall. Bei «umhüllend» bleibt alles.
+ */
+const GRUPPEN_DER_LASTART = { staendig: ['G'], leiterzug: ['G'], windX: ['WindX'], windY: ['WindY'],
+  schnee: ['Schnee'], havarie: ['HavarieX', 'HavarieY'] };
+function lastenNachFall(szene) {
+  if (!szene) return szene;
+  const bw = fallBeiwerte();
+  const weg = (v) => {
+    if (!v || v.gruppe !== 'last' || !v.lastart) return false;
+    const gr = GRUPPEN_DER_LASTART[v.lastart];
+    if (!gr) return false;
+    if (!bw) return v.lastart === 'havarie';
+    return !gr.some((g) => Math.abs(bw[g] ?? 0) > 1e-12);
+  };
+  return { ...szene,
+           vektoren: (szene.vektoren ?? []).filter((v) => !weg(v)),
+           lastflaechen: (szene.lastflaechen ?? []).filter((v) => !weg(v)) };
 }
 
 /* ===========================================================================
@@ -3190,6 +3217,12 @@ function aktualisiereModell(erg) {
   ansicht.ohneBalken = ohneBalken();
   verformtSetzen(szene);
   wegeAusFigur(szene, ansicht.verformt);
+  // Im gewählten Havariefall der gerissene Leiter hervorgehoben (21. November).
+  {
+    const lf = anzeigeKombi === 'umhuellend' ? null
+      : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
+    ansicht.havarieLeiter = lf?.bruchLeiter ? ui.havarieLeiterMarken(werte, lf.bruchLeiter) : null;
+  }
   // Die Zustandslinie (14. November) aus demselben Stabwerk.
   zustandSetzen(app, stabwerkGilt());
   ansicht.setzeSzene(szene);

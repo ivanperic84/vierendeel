@@ -628,7 +628,8 @@ export function abfangSzene(typ, jt, opt = {}) {
       const zL = zs.length ? Math.min(...zs) : -0.35;
       const durch = lwa.art === 'durchgehend';
       const richtungen = lwa.art === 'einseitig' ? [lwa.vz] : [1, -1];
-      const lang = durch ? 1.8 : 1.1;
+      // Näher am Joch (21. November, «die lastknoten näher an das joch setzen»).
+      const lang = durch ? 1.0 : 0.55;
       const text = `${at.name ?? 'Leiter'} · ${abfangart(lwa.art).label}${lwa.art === 'einseitig'
         ? `, zieht ${lwa.vz < 0 ? '−' : '+'}y` : ''}`;
       richtungen.forEach((sy) => {
@@ -678,13 +679,21 @@ export function abfangSzene(typ, jt, opt = {}) {
       });
     };
     // G und Wind stehen seit dem 6. Oktober je Modul an seinem Punkt (oben).
-    pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab', abspannung ?? pAn);
+    /*
+     * DER PFEIL STEHT AUF DER SEITE, ZU DER ER ZIEHT (21. November, «beim
+     * havariefall werden die lasten nicht jeweils auf der richtigen seite
+     * angezeigt»): am Ende des Leiters in Richtung der Kraft.
+     */
+    const amEnde = (wert) => (abspannung && Math.abs(wert) > 1e-9
+      ? [abspannung[0], Math.sign(wert) * Math.abs(abspannung[1]), abspannung[2]] : pAn);
+    pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab', amEnde(lw.Z));
     // Im gewählten Havariefall die Änderung des Längszugs (20. November).
     if (opt.havarieFall) {
       const kalt = abfangAnbauLasten(at, {
         ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL, tempFall: 'havarie',
         havarie: opt.havarie ?? null, bruch: opt.havarieFall.key, bruchVz: opt.havarieFall.vz });
-      pfeil('havarie', [0, 1, 0], (kalt.Z ?? 0) - (lw.Z ?? 0), 'ΔZ Havarie', abspannung ?? pAn);
+      const dZ = (kalt.Z ?? 0) - (lw.Z ?? 0);
+      pfeil('havarie', [0, 1, 0], dZ, 'ΔZ Havarie', amEnde(dZ));
     }
 
     marken.push({ gruppe: 'anbau', art: 'anbau', teil,

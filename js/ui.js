@@ -497,13 +497,15 @@ const feldSignatur = (werte) => (f) => (typeof f.optionenAus === 'function'
  * offen ist, stehen alle Leiter der Liste im 3D: Schlüssel `AT<i>#<k>` (bzw.
  * `AT_<i+1>#<k>`) → kann reissen (ja/nein).
  */
-export function havarieLeiterMarken(werte) {
+export function havarieLeiterMarken(werte, nurKey = null) {
   if (werte?.havarieAus === true) return null;
+  // Nur der Leiter des gewählten Havariefalls (21. November).
+  const basis = nurKey ? String(nurKey).replace(/\|(ts|fd)$/, '') : null;
   let imSatz = [];
   try { imSatz = rechensatz(werte).anbauteile ?? []; } catch { return null; }
   const wahl = werte.havarie ?? {};
   const m = new Map();
-  havarieLeiter(werte).forEach((l) => l.teile.forEach((t) => {
+  havarieLeiter(werte).filter((l) => !basis || l.key === basis).forEach((l) => l.teile.forEach((t) => {
     const k = imSatz.findIndex((a) => a.id === t.baugruppe);
     if (k < 0) return;
     const reisst = wahl[l.key]?.reisst === true;

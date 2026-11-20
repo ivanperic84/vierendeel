@@ -23112,8 +23112,9 @@ const CH9x = await import(J('core.checks.js'));
       wahr('Die uebrigen Pfeile greifen am Punkt ihres Moduls an, nicht auf der Achse',
            szL.vektoren.filter((v) => v.lastart !== 'leiterzug')
              .every((v) => v.p[1] === 0 && v.p[2] < 0));
+      // Seit dem 21. November näher am Joch (Ende bei 0.55 m statt 1.1 m).
       wahr('Der Zugpfeil sitzt am Ende des Leiters',
-           zug.every((v) => Math.abs(v.p[1]) > 1 && v.p[2] < 0),
+           zug.every((v) => Math.abs(v.p[1]) > 0.5 && v.p[2] < 0),
            zug.map((v) => `y ${v.p[1].toFixed(2)} z ${v.p[2].toFixed(2)}`).join(' · '));
       wahr('… und auf der Seite, auf der er abgefangen wird',
            zug.every((v) => Math.sign(v.p[1]) === Math.sign(v.v[1])));
@@ -40197,9 +40198,11 @@ titel('256  Gittermast-Wind je Richtung; Havarie-Leiter ohne Klick; Statikberich
   }
   const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   const R3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
-  wahr('Havarie: alle Leiter im 3D, solange Lasten offen (Warnfarbe = kann reissen)',
+  // Seit dem 21. November nicht mehr dauernd, nur der Leiter des gewählten Havariefalls.
+  wahr('Havarie: im 3D nur der Leiter des gewählten Havariefalls (nicht dauernd bei offenem Reiter)',
        UQ.includes('export function havarieLeiterMarken') && R3.includes('this.havarieLeiter.get(`${mk.teil}#${mk.modul}`)')
-       && APP_QUELLE().includes("ansicht.havarieLeiter = tabEingabe === 'lasten' ? ui.havarieLeiterMarken(werte) : null"));
+       && APP_QUELLE().includes('ui.havarieLeiterMarken(werte, lf.bruchLeiter)')
+       && !APP_QUELLE().includes("ansicht.havarieLeiter = tabEingabe === 'lasten'"));
   const PS = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
   wahr('Brücke: -Statikbericht mit Fenster, Zeichnungsbibliothek, EMF und Bericht aus Vorlage',
        ['[switch]$Statikbericht', '[string]$BerichtVorlage', 'function Bericht-Erzeugen', 'SetStaticDisplayParameters_V181',
