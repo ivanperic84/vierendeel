@@ -189,6 +189,7 @@ export function dialogDimension(app) {
   const wahl = { joch: true, mast: true, steg: true, plastisch: true, einspannung: true, blech: false, rueckhalt: false };
   // Zum Vergleich angekreuzte Varianten (19. November).
   const auswahl = new Set();
+  let spinneAn = false;
   let ergebnis = [];
   let abbruch = false;
   const schalter = (k, t, titel = '') => `<label class="dm-wahl"${titel ? ` title="${esc(titel)}"` : ''}><input type="checkbox" data-dm="${k}"${wahl[k] ? ' checked' : ''}> ${t}</label>`;
@@ -283,13 +284,23 @@ export function dialogDimension(app) {
         k !== 'kg' && k !== 'kgJoch' && k !== 'kgMast' && k !== 'm2' && v[k] > g ? ' warn' : ''}">${fmt(v[k])}</td>`).join('')}</tr>`;
     }).join('');
     return `${abschnitt('Vergleich', `${l.length} Varianten · fett = kleinster Wert`)}
+      ${spinneAn ? spinneSvg(l, g) : ''}
       <div class="tabellenrahmen dm-vergleich"><table class="dt"><thead><tr><th></th>${kopf}</tr></thead>
         <tbody>${text}${num}</tbody></table></div>
-      <p class="notiz"><button class="btn btn-mini" type="button" data-dm-vergleich-weg>Auswahl leeren</button></p>`;
+      <p class="notiz"><button class="btn btn-mini${spinneAn ? ' an' : ''}" type="button" data-dm-spinne>${spinneAn ? 'Spinne aus' : 'Spinne zeigen'}</button>
+        <button class="btn btn-mini" type="button" data-dm-vergleich-weg>Auswahl leeren</button></p>`;
   }
   function verdrahteVergleich() {
     const b = box.querySelector('[data-dm-vergleich-weg]');
     if (b) b.onclick = () => { auswahl.clear(); zeige(); };
+    const s = box.querySelector('[data-dm-spinne]');
+    if (s) {
+      s.onclick = () => {
+        spinneAn = !spinneAn;
+        box.querySelector('#dm-vergleich').innerHTML = vergleichHtml();
+        verdrahteVergleich();
+      };
+    }
   }
 
   function zeige() {
@@ -361,6 +372,54 @@ export function dialogDimension(app) {
       });
     });
   }
+}
+
+/*
+ * >>> SPINNE ZUM VERGLEICH (19. November). <<< «kannst du einen spider für
+ * den vergleich zuschaltbar machen.» Je angekreuzte Variante ein Polygon.
+ * Achsen: η Joch, η Mast, η Fundament, η gesamt auf derselben Skala (Rand =
+ * das Grössere aus 1.00 und dem grössten η, Ring bei 1.00 und bei der
+ * Grenze der Reserve); Masse gesamt und Oberfläche bezogen auf den grössten
+ * Wert der Auswahl (Rand = 100 %). Kleiner ist überall besser.
+ */
+const SPINNE_FARBEN = ['#7c8de0', '#d6a33c', '#4bbf8a', '#e06a6a', '#b07cd6', '#4ab3c8', '#c88a4a', '#8aa04a'];
+export function spinneSvg(liste, grenze = 1) {
+  const W = 420, H = 330, cx = W / 2, cy = H / 2 + 6, R = 118;
+  const etaMax = Math.max(1, ...liste.flatMap((v) => [v.joch, v.mast, v.fund, v.gesamt]).filter(Number.isFinite));
+  const relMax = (k) => Math.max(...liste.map((v) => v[k]).filter((x) => Number.isFinite(x) && x > 0), 1e-9);
+  const achsen = [
+    { name: 'η Joch', wert: (v) => v.joch / etaMax },
+    { name: 'η Mast', wert: (v) => v.mast / etaMax },
+    { name: 'η Fundament', wert: (v) => v.fund / etaMax },
+    { name: 'η gesamt', wert: (v) => v.gesamt / etaMax },
+    { name: 'Masse', wert: (v) => v.kg / relMax('kg') },
+    { name: 'Oberfläche', wert: (v) => v.m2 / relMax('m2') },
+  ];
+  const n = achsen.length;
+  const pt = (i, r) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  };
+  const ring = (f, cls) => `<polygon class="${cls}" points="${achsen.map((_, i) => pt(i, R * f).map((x) => x.toFixed(1)).join(',')).join(' ')}"/>`;
+  const ringe = [0.25, 0.5, 0.75, 1].map((f) => ring(f, 'dm-sp-ring')).join('')
+    + ring(1 / etaMax, 'dm-sp-eins') + (grenze < 1 ? ring(grenze / etaMax, 'dm-sp-grenze') : '');
+  const strahlen = achsen.map((a, i) => {
+    const [x, y] = pt(i, R), [tx, ty] = pt(i, R + 16);
+    const anker = Math.abs(tx - cx) < 4 ? 'middle' : tx > cx ? 'start' : 'end';
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="dm-sp-strahl"/>
+      <text x="${tx.toFixed(1)}" y="${(ty + 3).toFixed(1)}" text-anchor="${anker}" class="dm-achse">${esc(a.name)}</text>`;
+  }).join('');
+  const polys = liste.map((v, k) => {
+    const f = SPINNE_FARBEN[k % SPINNE_FARBEN.length];
+    const pts = achsen.map((a, i) => pt(i, R * Math.max(0, Math.min(1.05, Number.isFinite(a.wert(v)) ? a.wert(v) : 0))));
+    return `<g><title>Variante ${k + 1}: ${esc(variantenText(v))}</title>
+      <polygon points="${pts.map((p) => p.map((x) => x.toFixed(1)).join(',')).join(' ')}" fill="${f}" fill-opacity="0.12" stroke="${f}" stroke-width="1.8"/>
+      ${pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="${f}"/>`).join('')}</g>`;
+  }).join('');
+  const leg = liste.map((v, k) => `<span><i style="background:${SPINNE_FARBEN[k % SPINNE_FARBEN.length]}"></i>Variante ${k + 1}</span>`).join('');
+  return `<div class="dm-spinne"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vergleich als Spinne">${ringe}${strahlen}${polys}</svg>
+    <div class="dm-legende">${leg}</div>
+    <p class="notiz">η auf einer Skala bis ${etaMax.toFixed(2)} (Ring rot = 1.00${grenze < 1 ? `, gelb = ${grenze.toFixed(2)}` : ''}); Masse und Oberfläche bezogen auf den grössten Wert der Auswahl. Innen ist besser.</p></div>`;
 }
 
 /** Streudiagramm: x = Masse, y = η gesamt; Farbe = Einspannung, Form = Art. */

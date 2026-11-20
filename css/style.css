@@ -4108,3 +4108,11 @@ body.setzen-an #legende { display: none; }
 .dm-vergleich td.dm-bestwert { font-weight: 700; color: var(--ok); }
 .dm-vergleich td.warn { color: var(--warn); }
 .dm-vergleich th, .dm-vergleich td { white-space: nowrap; }
+
+/* Spinne im Vergleich (19. November). */
+.dm-spinne { margin: 6px 0 10px; }
+.dm-spinne svg { width: 100%; max-width: 460px; display: block; margin: 0 auto; }
+.dm-sp-ring { fill: none; stroke: var(--ol); stroke-width: 1; }
+.dm-sp-strahl { stroke: var(--ol); stroke-width: 1; }
+.dm-sp-eins { fill: none; stroke: var(--fail); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.dm-sp-grenze { fill: none; stroke: var(--warn); stroke-width: 1; stroke-dasharray: 2 3; }
