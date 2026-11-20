@@ -43211,6 +43211,21 @@ titel('302  Abfangjoch: Havarie der Leiter an Teilen am Masten, Leiternamen, fes
        `F_y ${Fy.toFixed(3)} / ${FyM.toFixed(3)} kN, soll ${soll.toFixed(3)}`);
   wahr('… mit dem Hebel des Auslegers: M_z = x · F_y', Math.abs(xMod) > 0.5 && Math.abs(Fy) > 0 && Math.abs(Mz - xMod * Fy) < 1e-6,
        `M_z ${Mz.toFixed(3)} kNm = ${xMod.toFixed(2)} m · ${Fy.toFixed(3)} kN`);
+  // Anteil einstellbar (Weisung «10 % einstellbar», 20. November).
+  {
+    const w20 = { ...wh, havarieLaengszug: 20 };
+    const s20 = C302.rechensatz(w20);
+    const e20 = V302.berechne(s20, ...N302.kernArgumente(s20));
+    const d20 = AS302.stabwerkModell(w20, e20, s20, null, {}).dat;
+    const F20 = [...d20.lasten.punkt].filter((p) => p.lastfall === `HavarieY|${l1.key}|p` && p.richtung === 'Y')
+      .reduce((a, p) => a + p.wert, 0);
+    wahr('Anteil 20 % statt 10 %: der Längszug verdoppelt sich', Math.abs(F20 - 2 * Fy) < 1e-6,
+         `${F20.toFixed(3)} gegen ${Fy.toFixed(3)} kN`);
+    const AJ302 = await import(J('core.abfangjoch.js'));
+    wahr('… auch im Abfangjoch-Kern (abfangZugNachArt)',
+         Math.abs(AJ302.abfangZugNachArt('durchgehend', 10, true, 0.2) - 2) < 1e-12
+         && Math.abs(AJ302.abfangZugNachArt('durchgehend', 10, true) - 1) < 1e-12);
+  }
   const q302 = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
   wahr('Die Nummern L1 … folgen den Tragwerken, nicht dem gewählten',
        q302.includes('.sort((a, b) => twNr(a) - twNr(b))'));

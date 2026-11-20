@@ -821,7 +821,7 @@ export function windAufTraeger(teile, a) {
  */
 export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier = 1,
                                  zug20 = null, art = ABFANG_VORGABE,
-                                 richtung = 1 }) {
+                                 richtung = 1, laengszug = null }) {
   let Z5 = 0, Z20 = 0;
   try {
     Z5 = leiterzug(id);
@@ -858,7 +858,9 @@ export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier =
     // Staendig heben sich die beiden Zuege am Anschluss auf.
     Fy = bruch ? Zbruch * anteil : 0;
   } else {
-    Fy = bruch ? HAVARIE_LAENGSZUG * Zbruch * anteil : 0;
+    // Anteil einstellbar (20. November, Blattfeld `havarieLaengszug`).
+    const lz = Number.isFinite(Number(laengszug)) && laengszug !== null ? Number(laengszug) : HAVARIE_LAENGSZUG;
+    Fy = bruch ? lz * Zbruch * anteil : 0;
   }
   return { dFx: GxHier * (faktor * f - 1), Fy, Gy, Z20, faktor };
 }
@@ -1701,7 +1703,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         const art = wahlL.art ?? ABFANG_VORGABE;
         const richtung = wahlL.richtung === '-y' ? -1 : 1;
         const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier,
-                        art, richtung };
+                        art, richtung, laengszug: wahlL.laengszug ?? null };
         festeRichtung = art === 'einseitig';
         // Mit Auswahl: aufgeloest ohne Bruch - der Lastfall setzt ihn ein.
         const h = havarieAnteile({ ...basis,

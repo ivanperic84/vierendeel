@@ -249,6 +249,9 @@ export const BLATT_FELDER = [
   // «Havariefall rechnen dem ganzen Blatt gehören»). Vorher je Tragwerk -
   // in einem alten Stand gilt die Wahl des gewählten Tragwerks für alle.
   'havarieAus',
+  // Anteil des Längszugs beim Riss eines durchgehenden Leiters [%] (20.
+  // November, Vorschlag 9 aus dem Testprojekt, Weisung «10 % einstellbar»).
+  'havarieLaengszug',
   // Merker «Begleiteinwirkung ohne γ_Q» (6. Oktober, `psiAnheben`).
   'psiOhneGamma',
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird
@@ -2267,7 +2270,7 @@ export function tragwerkSatz(w, id = null, opt = {}) {
   satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
   if (satz.havarie) {
     const alleTeile = anbauteileFuer(w, t);
-    satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, alleTeile), alleTeile);
+    satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, alleTeile), alleTeile, w.havarieLaengszug ?? null);
   }
   // Wo dieses Joch an ein anderes stösst (2. Oktober) - gekürzt wird im Kern.
   satz.stossEnden = stossEnden(w, t);
@@ -2330,8 +2333,13 @@ export function havarieOhneAbzug(havarie, anbauteile) {
  * Anbauteil und dem Leiter (ein umbenanntes Teil zieht nach), ein
  * Kettenwerk heisst nach seinem Namen.
  */
-export function havarieMitNamen(havarie, anbauteile) {
+export function havarieMitNamen(havarie, anbauteile, prozent = null) {
   const keys = Object.keys(havarie ?? {});
+  // Der Anteil beim Riss eines durchgehenden Leiters (Blattfeld
+  // `havarieLaengszug`, 20. November) reist je Leiter mit - so erreicht er
+  // jede Stelle, die die Wahl liest (Kern, Stabwerk, Karte), ohne neuen Weg.
+  const p = Number(prozent);
+  const anteil = Number.isFinite(p) && p >= 0 && prozent !== null && prozent !== '' ? p / 100 : null;
   if (!keys.length) return havarie;
   const namen = new Map();
   (anbauteile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => {
@@ -2344,10 +2352,12 @@ export function havarieMitNamen(havarie, anbauteile) {
   }));
   let h = null;
   keys.forEach((k) => {
-    const n = namen.get(k);
-    if (!n || havarie[k]?.name === n) return;
+    const n = namen.get(k) ?? havarie[k]?.name;
+    const neu = { ...havarie[k], ...(n ? { name: n } : {}) };
+    if (anteil !== null) neu.laengszug = anteil; else delete neu.laengszug;
+    if (neu.name === havarie[k]?.name && neu.laengszug === havarie[k]?.laengszug) return;
     h = h ?? { ...havarie };
-    h[k] = { ...h[k], name: n };
+    h[k] = neu;
   });
   return h ?? havarie;
 }
@@ -2361,7 +2371,7 @@ export function rechensatz(w) {
    * würde das Joch mit jeder Eingabe um weitere 5 cm kürzer.
    */
   const satz = { ...w, anbauteile: anbauteileFuer(w, t), stossEnden: stossEnden(w, t) };
-  if (satz.havarie) satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, satz.anbauteile), satz.anbauteile);
+  if (satz.havarie) satz.havarie = havarieMitNamen(havarieOhneAbzug(satz.havarie, satz.anbauteile), satz.anbauteile, w.havarieLaengszug ?? null);
   return mastenProjizieren(satz, w, t);
 }
 

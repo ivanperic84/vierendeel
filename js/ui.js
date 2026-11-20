@@ -586,8 +586,10 @@ function havarieHtml(g, werte) {
     if (bt) {
       try {
         const g0 = havarieAnteile({ id: bt, art, richtung: vz, bruch: false });
+        const lzP = Number(werte.havarieLaengszug);
         const b0 = havarieAnteile({ id: bt, art, richtung: vz, bruch: true,
-                                    zug20: e.zugP ?? null });
+                                    zug20: e.zugP ?? null,
+                                    laengszug: werte.havarieLaengszug != null && werte.havarieLaengszug !== '' && Number.isFinite(lzP) ? lzP / 100 : null });
         ff = { Gy: g0.Gy, riss: b0.Fy, ohne: g0.Fy };
       } catch { ff = null; }
     }
@@ -634,7 +636,15 @@ function havarieHtml(g, werte) {
   const schalter = `<label class="hav-an" title="Ausgeschaltet: keine Havariefälle im Nachweis und in der AxisVM-Ausleitung">
       <input type="checkbox" data-hav-an="1"${aus ? '' : ' checked'}> Havariefall rechnen (Nachweis und Export)</label>`
     + (aus ? '' : `<label class="hav-an" title="Die Traversen geben nach: die Havarie-Kräfte greifen am Anschluss des Teils an (Joch bzw. Mastachse), ohne den Hebel bis zum Leiter. Gilt im Stabwerk am Tragjoch und an Teilen am Masten.">
-      <input type="checkbox" data-hav-achse="1"${achse ? ' checked' : ''}> Havarie: Last aufs Tragwerk übertragen (in der Achse)</label>`);
+      <input type="checkbox" data-hav-achse="1"${achse ? ' checked' : ''}> Havarie: Last aufs Tragwerk übertragen (in der Achse)</label>`
+      /*
+       * >>> DER ANTEIL BEIM RISS EINES DURCHGEHENDEN LEITERS (20. November). <<<
+       * Vorschlag 9 aus dem Testprojekt, Weisung «10 % einstellbar». Leer =
+       * Vorgabe 10 % (`HAVARIE_LAENGSZUG`); gilt dem ganzen Blatt.
+       */
+      + `<label class="hav-an hav-anteil" title="Längszug, der beim Riss eines durchgehenden Leiters am Tragwerk ankommt - Anteil der Leiterzugkraft bei −20 °C. Leer: 10 %.">
+      Durchgehend, Längszug beim Riss <input type="number" min="0" max="100" step="1" data-hav-anteil="1"
+        value="${werte.havarieLaengszug ?? ''}" placeholder="10" style="width:4.5em"> %</label>`);
   return abschnitt(g.titel, `<span class="sec-r">${aus ? 'aus' : `${n} von ${leiter.length}`}</span>`)
     + schalter
     + (aus ? '<p class="notiz">Der Havariefall ist abgeschaltet — er wird weder nachgewiesen noch ausgeleitet.</p>'
@@ -683,6 +693,13 @@ function verdrahteHavarie(container, werte, onChange) {
   });
   container.querySelectorAll('[data-hav-achse]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieInAchse', inp.checked));
+  });
+  container.querySelectorAll('[data-hav-anteil]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const v = String(inp.value).trim();
+      const z = Number(v);
+      onChange('havarieLaengszug', v === '' || !Number.isFinite(z) ? null : Math.max(0, Math.min(100, z)));
+    });
   });
   container.querySelectorAll('[data-hav]').forEach((inp) => {
     const ev = inp.type === 'checkbox' ? 'change' : 'change';

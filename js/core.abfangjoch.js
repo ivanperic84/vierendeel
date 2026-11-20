@@ -1184,7 +1184,7 @@ export function abfangAnbauLasten(at, opt = {}) {
      * bleibt die Richtung fest (der ständige Zug fällt weg).
      */
     const dreh = bricht && art !== 'einseitig' && opt.bruchVz === -1 ? -1 : 1;
-    const zug = dreh * abfangZugNachArt(art, voll, bricht);
+    const zug = dreh * abfangZugNachArt(art, voll, bricht, e.laengszug);
     leiter.push({ key, art, voll, zug, bricht });
     Z += zug;
     temperaturabhaengig = temperaturabhaengig || k.temperaturabhaengig;
@@ -1468,10 +1468,12 @@ export const ABFANGJOCH_ART_VORGABE = abfangVorgabeFuer('abfangjoch');
  * Was ein Leiter mit dem vollen Zug `voll` (vorzeichenbehaftet) in diesem
  * Zustand zieht - die Regel von `ABFANGARTEN`, hier angewendet.
  */
-export function abfangZugNachArt(art, voll, bricht) {
+export function abfangZugNachArt(art, voll, bricht, laengszug = null) {
   if (art === 'einseitig') return bricht ? 0 : voll;           // reisst: fällt weg
   if (art === 'beidseitig') return bricht ? voll : 0;          // Fixpunkt: Kettenwerklast
-  return bricht ? HAVARIE_LAENGSZUG * voll : 0;                // durchgehend: 10 %
+  // durchgehend: 10 %, einstellbar (20. November, `havarieLaengszug`)
+  const lz = Number.isFinite(Number(laengszug)) && laengszug !== null ? Number(laengszug) : HAVARIE_LAENGSZUG;
+  return bricht ? lz * voll : 0;
 }
 
 export function abfangLeiterart(at, auswahl = null) {
