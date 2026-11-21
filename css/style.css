@@ -4135,3 +4135,17 @@ button.legende-fall:hover { color: var(--acc); text-decoration: underline; }
 .klapp-w, .rk-x, .rk-tabelle .rk-x, .rk-kurz thead .rk-x,
 .lasttabelle th, table.dt th, .ab-tabelle th { text-transform: none; }
 .klapp-w { letter-spacing: .02em; font-weight: 500; }
+
+/* Audit 21. November, Block 3: Werkzeugleiste, Legende und Kopfzeile im
+   Modellfenster stehen nebeneinander statt übereinander. Die Leiste meldet
+   ihre Breite als --wz-breite (app.layout.js, leisteMelden); sie läuft nie
+   unter die Fussleiste, sondern bekommt einen Bildlauf. */
+.viewer-tools-r { max-height: calc(100% - 66px); overflow-y: auto; overflow-x: hidden;
+                  scrollbar-width: thin; overscroll-behavior: contain; }
+.viewer-tools-r > * { flex-shrink: 0; }
+.legende { right: calc(10px + var(--wz-legende, var(--wz-breite, 0px))); }
+.viewer-kopf { left: 46px; right: calc(6px + var(--wz-breite, 0px)); }
+.legende-bar { position: relative; }
+.legende-grenze { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
+                  background: var(--on); box-shadow: 0 0 0 1px var(--s2); }
+.legende-grenzzeile { font-size: 10px; color: var(--on2); text-align: left; margin-top: 2px; }

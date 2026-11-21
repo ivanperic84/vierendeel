@@ -43380,6 +43380,50 @@ titel('306  Audit 21. November, Block 1: Δη, Stabilität in der Schulung, Gesa
        (q.match(/bemessungGesamt: anzeigeKombi === 'umhuellend' \? null : bemessungKopf\(\)/g) ?? []).length === 2);
 }
 
+titel('307  Audit 21. November, Block 3: 3D-Fenster - Leiste, Legende, Kopfzeile, Bildmitte');
+{
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Leiste läuft nicht unter die Fussleiste: Höhe begrenzt, Bildlauf',
+       /\.viewer-tools-r \{ max-height: calc\(100% - 66px\); overflow-y: auto;/.test(css));
+  wahr('Legende und Kopfzeile halten den Abstand der Leiste',
+       css.includes('.legende { right: calc(10px + var(--wz-legende, var(--wz-breite, 0px))); }')
+       && css.includes('.viewer-kopf { left: 46px; right: calc(6px + var(--wz-breite, 0px)); }'));
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Leiste meldet ihre Breite (CSS und Renderer) bei jedem Zeichnen, offen und eingeklappt',
+       (lay.match(/leisteMelden\(app\);/g) ?? []).length >= 2 && /a\.randRechts = b;/.test(lay));
+  wahr('Leiste klappt auch nach der Höhe ein', /h > 0 && h < WZ_NIEDRIG/.test(lay));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Projektion, Treffer und Zoom am Zeiger lesen dieselbe Bildmitte',
+       (r3.match(/_mitteX\(\)/g) ?? []).length >= 4 && !/w \/ 2 \+ \(dx \* rx/.test(r3)
+       && !/\(sx - w \/ 2\)/.test(r3));
+  wahr('Einpassen prüft die projizierten Ecken (Perspektive) und lässt die Leiste frei',
+       /q\[0\] > w - r - m/.test(r3));
+  wahr('Berichtsbild ohne Versatz der Leiste', /this\._randAus = true;/.test(r3) && /this\._randAus = false;/.test(r3));
+  wahr('Skala σ_v mit Grenze f_yd (σ_v / η derselben Fläche)',
+       /grenze: this\._fydSichtbar\(\)/.test(r3) && lay.includes('function grenzMarke(p)'));
+  // Die Bildmitte selbst: ein Renderer ohne DOM, Leiste 100 px auf 1000 px Breite.
+  const R3 = await import(J('render.3d.js'));
+  const K = R3.Ansicht ?? R3.Renderer ?? Object.values(R3).find((v) => typeof v === 'function' && v.prototype?._mitteX);
+  if (K) {
+    const o = Object.create(K.prototype);
+    o.cv = { width: 2000, height: 1000, clientWidth: 1000 };
+    o.randRechts = 100;
+    wahr('Bildmitte: 100 CSS-px Leiste bei Gerätefaktor 2 rücken die Mitte um 100 Gerätepixel',
+         Math.abs(o._mitteX() - 900) < 1e-9, o._mitteX());
+    o._randAus = true;
+    wahr('Bildmitte im Berichtsbild unverschoben', o._mitteX() === 1000);
+  } else wahr('Renderer-Klasse mit _mitteX gefunden', false);
+  const kx = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Kontextmenü: Art umstellen nur über die Rückfrage', /artRueckfrage\(app, t, id, v\);/.test(kx)
+       && /function artRueckfrage[\s\S]{0,1500}app\.aendern\('tragwerkArt'/.test(kx));
+  wahr('Kontextmenü: «Auf den Nachweisschnitt» nicht im Stabwerk', /erg\?\.schnitt && !app\.ohneBalken/.test(kx));
+  const q = APP_QUELLE();
+  wahr('Auf den Tragausleger zoomen nimmt seine Länge und Seite',
+       /tragwerksart\(t\)\.key === 'tragausleger'[\s\S]{0,300}x0 \+ sv \* la \/ 2/.test(q));
+  wahr('Nach einem neuen Tragwerk fährt die Ansicht heraus, wenn es abgeschnitten wäre',
+       /neuRechnen\(\);\n[^\n]*\n[^\n]*\n[^\n]*\n\s*try \{ ansicht\?\.passeEinWennAbgeschnitten/.test(q));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

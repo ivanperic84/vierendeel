@@ -4112,6 +4112,10 @@ function aendern(key, wert) {
       mastNachfuehren();
     }
     neuRechnen();
+    // Das neue Tragwerk soll ganz zu sehen sein (Audit 21. November, Block 3:
+    // ein Tragausleger lief nach dem Setzen aus dem Bild). Nur herausfahren,
+    // und nur ohne eigenen Ausschnitt - wie beim Ändern der Fenstergrösse.
+    try { ansicht?.passeEinWennAbgeschnitten?.(); } catch { /* nur Zugabe */ }
     return;
   }
   /*
@@ -7138,6 +7142,18 @@ function zoomAufTragwerk(id) {
   const t = tragwerkeSortiert(werte).find((x) => x.id === id);
   if (!t) return;
   const x0 = lageOrtsnull(t);
+  /*
+   * Der Tragausleger hat einen Masten, ragt aber um seine Länge zur Seite
+   * (Audit 21. November, Block 3: nach dem Setzen lag er mit ±1 m Ausschnitt
+   * zur Hälfte ausserhalb des Bildes bzw. unter der Werkzeugleiste).
+   */
+  if (tragwerksart(t).key === 'tragausleger') {
+    const la = Number(t.L) || 0;
+    const sv = t.auslegerSeite === 'links' ? -1 : 1;
+    station = null; ansicht.station = null;
+    ansicht.zoomAuf(x0 + sv * la / 2, null, Math.max(1, la / 2 + 0.5));
+    return;
+  }
   const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
   station = null; ansicht.station = null;
   ansicht.zoomAuf(x0 + L / 2, null, Math.max(1, L / 2));

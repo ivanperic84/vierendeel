@@ -250,8 +250,7 @@ export function kontextTragwerk(app, id) {
            tun: (v) => {
              if (v === tragwerksart(t).key) return;
              kontextSchliessen(app);
-             if ((app.werte.twId ?? 'T1') !== id) app.werte = tauscheAktives(app.werte, id);
-             app.aendern('tragwerkArt', { id, art: v });
+             artRueckfrage(app, t, id, v);
            } });
   /*
    * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
@@ -845,7 +844,9 @@ export function kontextGrund(app, k) {
     { text: 'Nur das gerechnete Tragwerk',
       tun: () => app.zoomAufTragwerk(app.werte.twId ?? 'T1') },
   ];
-  if (app.letzte?.erg?.schnitt) {
+  // Der Nachweisschnitt gehört zur Kontrollrechnung (Einfeldträger); mit
+  // dem Stabwerk gibt es ihn in der Oberfläche nicht mehr (Audit 21. November).
+  if (app.letzte?.erg?.schnitt && !app.ohneBalken) {
     p.push({ text: 'Auf den Nachweisschnitt', tun: () => app.ansicht.zeigeSchnitt(2.5) });
   }
   /*
@@ -969,4 +970,32 @@ export function kontextImModell(app, k) {
     punkte = kontextGrund(app, k);
   }
   kontextZeigen(app, k.bei, punkte);
+}
+
+/*
+ * >>> ART UMSTELLEN NUR MIT RÜCKFRAGE (Audit 21. November, Block 3). <<<
+ * Auf Rückfrage «Rückfrage einbauen»: im Kontextmenü stellte ein Klick in
+ * der Auswahl «Art» das Tragwerk um - ohne Wort; bei einer Art ohne Träger
+ * gehen dabei die Anbauteile am Träger weg, Typ und Länge springen aufs
+ * Sortiment der neuen Art. Jetzt sagt ein Dialog, was sich ändert.
+ */
+function artRueckfrage(app, t, id, v) {
+  const neu = TRAGWERKSARTEN.find((a) => a.key === v);
+  const alt = tragwerksart(t);
+  const amTraeger = (t.anbauteile ?? []).filter((a) => a && a.ort !== 'mastA' && a.ort !== 'mastB').length;
+  const verlust = !neu?.traeger && amTraeger > 0
+    ? `<li><b>${amTraeger} Anbauteil${amTraeger === 1 ? '' : 'e'} am Träger</b> ${amTraeger === 1 ? 'fällt' : 'fallen'} weg (die Teile an den Masten bleiben).</li>` : '';
+  const d = app.dialog(`${tragwerkName(t, app.werte)}: Art umstellen`, `
+    <p>Von <b>${esc(alt.label)}</b> auf <b>${esc(neu?.label ?? v)}</b>.</p>
+    <ul class="notiz">
+      <li>Typ und Länge springen auf das Sortiment der neuen Art.</li>
+      ${verlust}
+      <li>Rückgängig mit Strg+Z.</li>
+    </ul>`,
+    '<button class="btn btn-acc" data-art-ok>Umstellen</button>');
+  d.node.querySelector('[data-art-ok]').onclick = () => {
+    d.zu();
+    if ((app.werte.twId ?? 'T1') !== id) app.werte = tauscheAktives(app.werte, id);
+    app.aendern('tragwerkArt', { id, art: v });
+  };
 }

@@ -2672,9 +2672,35 @@ export class Modellansicht {
       halbB = Math.max(halbB, Math.abs(punkt(d, rechts)));
       halbH = Math.max(halbH, Math.abs(punkt(d, hoch)));
     });
-    const seit = this.cv.width / Math.max(1, this.cv.height);
+    // Die Breite ohne die Leiste (Audit 21. November).
+    const seit = (this.cv.width - this._randGeraet()) / Math.max(1, this.cv.height);
     const tn = Math.tan(this.kamera.fov / 2);
-    return Math.max(0.6, Math.max(halbH / tn, halbB / (tn * seit)) / rand);
+    let d = Math.max(0.6, Math.max(halbH / tn, halbB / (tn * seit)) / rand);
+    /*
+     * >>> AN DEN PROJIZIERTEN ECKEN NACHPRÜFEN (Audit 21. November). <<<
+     * Die Schätzung oben rechnet wie eine Parallelprojektion. In der
+     * perspektivischen Isometrie ist das nahe Ende grösser - es ragte über
+     * den Rand bzw. unter die Werkzeugleiste. Solange eine Ecke ausserhalb
+     * der freien Fläche liegt, wird der Abstand schrittweise vergrössert.
+     */
+    if (this.projektion !== 'orthogonal' && this.cv.width > 0 && this.cv.height > 0) {
+      const alt = this.kamera.dist;
+      const w = this.cv.width, h = this.cv.height;
+      const r = this._randGeraet(), m = 0.03 * Math.min(w, h);
+      try {
+        for (let i = 0; i < 20; i++) {
+          this.kamera.dist = d;
+          const proj = this._projektor();
+          const raus = ecken.some((pt) => {
+            const q = proj(pt);
+            return !q || q[0] < m || q[0] > w - r - m || q[1] < m || q[1] > h - m;
+          });
+          if (!raus) break;
+          d *= 1.06;
+        }
+      } finally { this.kamera.dist = alt; }
+    }
+    return d;
   }
 
   passeEin(rand = 0.86) {
@@ -4423,17 +4449,33 @@ export class Modellansicht {
     if (px !== null && py !== null) {
       const { rechts, hoch } = this._basis();
       const w = this._weltProPixel() * (1 - f);
-      const ex = px - this.cv.width / 2, ey = py - this.cv.height / 2;
+      const ex = px - this._mitteX(), ey = py - this.cv.height / 2;
       k.pan = add(k.pan, add(skal(rechts, ex * w), skal(hoch, -ey * w)));
     }
     k.dist = neu;
     this._selbstGezoomt = true;
   }
 
+  /*
+   * >>> DIE BILDMITTE NEBEN DER WERKZEUGLEISTE (Audit 21. November, Block 3). <<<
+   * Die rechte Leiste deckt rund 100 px des Modellfensters. Die Mitte, auf
+   * die Kamera und Einpassen zielen, liegt deshalb links von ihr: `randRechts`
+   * (CSS-px, von app.layout.js gesetzt) verschiebt sie um die halbe Leiste.
+   * Projektion, Treffer und Zoom am Zeiger lesen dieselbe Stelle.
+   */
+  _randGeraet() {
+    const r = Number(this.randRechts) || 0;
+    if (!r || this._randAus) return 0;
+    const s = this.cv.width / Math.max(1, this.cv.clientWidth || this.cv.width);
+    return Math.min(r * s, this.cv.width * 0.4);
+  }
+  _mitteX() { return (this.cv.width - this._randGeraet()) / 2; }
+
   _projektor() {
     const auge = this._kameraPos();
     const { vor, rechts, hoch } = this._basis();
     const w = this.cv.width, h = this.cv.height;
+    const mx = this._mitteX();
 
     // Die Rechnung ist bewusst ausgeschrieben statt über sub() und punkt():
     // sie läuft je Bild einige zehntausend Mal, und jeder Zwischenvektor wäre
@@ -4448,7 +4490,7 @@ export class Modellansicht {
       const s = 1 / this._weltProPixel();
       return (p) => {
         const dx = p[0] - ax, dy = p[1] - ay, dz = p[2] - az;
-        return [w / 2 + (dx * rx + dy * ry + dz * rz) * s,
+        return [mx + (dx * rx + dy * ry + dz * rz) * s,
                 h / 2 - (dx * hx + dy * hy + dz * hz) * s,
                 -(dx * vx + dy * vy + dz * vz)];
       };
@@ -4459,7 +4501,7 @@ export class Modellansicht {
       const dx = p[0] - ax, dy = p[1] - ay, dz = p[2] - az;
       const z = -(dx * vx + dy * vy + dz * vz);
       if (z < 0.02) return null;
-      return [w / 2 + (dx * rx + dy * ry + dz * rz) * f / z,
+      return [mx + (dx * rx + dy * ry + dz * rz) * f / z,
               h / 2 - (dx * hx + dy * hy + dz * hz) * f / z, z];
     };
   }
@@ -4591,15 +4633,16 @@ export class Modellansicht {
     const auge = this._kameraPos();
     const { vor, rechts, hoch } = this._basis();
     const w = this.cv.width, h = this.cv.height;
+    const mx = this._mitteX();
     let dir;
     if (this.projektion === 'orthogonal') {
       // Kein Fluchtpunkt: alle Strahlen laufen parallel zur Blickrichtung,
       // der Bildpunkt verschiebt nur ihren Ursprung.
       const wpp = this._weltProPixel();
       const o = [
-        auge[0] + (sx - w / 2) * wpp * rechts[0] - (sy - h / 2) * wpp * hoch[0],
-        auge[1] + (sx - w / 2) * wpp * rechts[1] - (sy - h / 2) * wpp * hoch[1],
-        auge[2] + (sx - w / 2) * wpp * rechts[2] - (sy - h / 2) * wpp * hoch[2],
+        auge[0] + (sx - mx) * wpp * rechts[0] - (sy - h / 2) * wpp * hoch[0],
+        auge[1] + (sx - mx) * wpp * rechts[1] - (sy - h / 2) * wpp * hoch[1],
+        auge[2] + (sx - mx) * wpp * rechts[2] - (sy - h / 2) * wpp * hoch[2],
       ];
       dir = [-vor[0], -vor[1], -vor[2]];
       const t = Math.abs(dir[1]) < 1e-9 ? null : -o[1] / dir[1];
@@ -4608,7 +4651,7 @@ export class Modellansicht {
     }
     const f = (h / 2) / Math.tan(this.kamera.fov / 2);
     // Der Strahl durch den Bildpunkt, in Weltkoordinaten.
-    const a = (sx - w / 2) / f, b = -(sy - h / 2) / f;
+    const a = (sx - mx) / f, b = -(sy - h / 2) / f;
     dir = [
       -vor[0] + a * rechts[0] + b * hoch[0],
       -vor[1] + a * rechts[1] + b * hoch[1],
@@ -4828,6 +4871,7 @@ export class Modellansicht {
       const dpr = Math.min(2, Math.max(1, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1));
       const bw = Math.round((opt.breite ?? 900) * dpr), bh = Math.round((opt.hoehe ?? 450) * dpr);
       this._pxFest = dpr;
+      this._randAus = true;   // das Berichtsbild kennt keine Werkzeugleiste
       if (this.cv.width !== bw || this.cv.height !== bh) { this.cv.width = bw; this.cv.height = bh; }
       const g = this.szene?.grenzen;
       this.kamera.az = a.az; this.kamera.el = a.el;
@@ -4863,6 +4907,7 @@ export class Modellansicht {
       Object.assign(this, { kamera: alt.kamera, fokus: alt.fokus,
                             station: alt.station, ansichtKey: alt.ansichtKey });
       this._pxFest = null;
+      this._randAus = false;
       if (this.cv.width !== alt.w || this.cv.height !== alt.h) { this.cv.width = alt.w; this.cv.height = alt.h; }
       this.zeichneJetzt();
     }
@@ -5615,7 +5660,26 @@ export class Modellansicht {
     const fall = p.key === 'w' ? null
       : (this.szene?.flaechen ?? []).find((f) => f.stabwerkFall)?.stabwerkFall ?? null;
     return { ...p, max, min, ...(sw && STABWERK_FUSSNOTE[p.key]
-      ? { fussnote: stabwerkFussnoteFall(STABWERK_FUSSNOTE[p.key], fall) } : {}) };
+      ? { fussnote: stabwerkFussnoteFall(STABWERK_FUSSNOTE[p.key], fall) } : {}),
+      ...(p.key === 'sig_v' ? { grenze: this._fydSichtbar() } : {}) };
+  }
+
+  /*
+   * >>> DIE GRENZE f_yd AN DER SKALA σ_v (Audit 21. November, Block 3). <<<
+   * Auf Rückfrage «Marke f_yd zeigen»: die Skala endet beim grössten Wert im
+   * Bild (z. B. 155 N/mm²) und sagte nicht, wie weit die Grenze weg ist.
+   * f_yd ist dieselbe Zahl, mit der der Nachweis rechnet: σ_v / η derselben
+   * Fläche - genommen an der Fläche mit dem grössten σ_v im Bild.
+   */
+  _fydSichtbar() {
+    let best = null;
+    (this.szene?.flaechen ?? []).forEach((f) => {
+      if (!this._flaecheAn(f)) return;
+      const sv = f.werte?.sig_v, e = f.werte?.eta;
+      if (!(sv > 0) || !(e > 1e-6)) return;
+      if (!best || sv > best.sv) best = { sv, fyd: sv / e };
+    });
+    return best && Number.isFinite(best.fyd) ? best.fyd : null;
   }
 
   _schattiere(farbe, k) {

@@ -7,7 +7,7 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 21. November 2026 - hier weitermachen
 
-**Spaet am 21. November:** Audit der Oberflaeche (zwei Durchgaenge), Block 1 der Befunde behoben (Δη-Marken nur beim selben Tragwerk, Schulung Knicken unter Masten, ein Gesamt-η fuer Hauptkachel/Fussleiste/Hinweis, Grossschrift ohne Werte). Oertlich committet, **nicht gepusht**. Pruefstand **7520**. Naechster Schritt: beim Auftraggeber fragen, welcher der offenen Bloecke 2-5 folgt (CLAUDE.md, *Offene Punkte*, «Audit 21. November»); Pruefseite `Versand/pruef_audit.html` mit Messhilfe `Versand/aud.js` (oertlich, ueber `serve.py 8741`).
+**Spaet am 21. November:** Audit der Oberflaeche (zwei Durchgaenge), Block 1 der Befunde behoben (Δη-Marken nur beim selben Tragwerk, Schulung Knicken unter Masten, ein Gesamt-η fuer Hauptkachel/Fussleiste/Hinweis, Grossschrift ohne Werte), danach Block 3 (3D-Fenster: Legende/Kopfzeile neben der Leiste, Bildmitte links davon, Leiste mit Bildlauf, Rueckfrage bei Art im Kontextmenue, f_yd an der Skala). Oertlich committet, **nicht gepusht**. Pruefstand **7534**. Naechster Schritt: beim Auftraggeber fragen, welcher der offenen Bloecke 2, 4, 5 folgt (CLAUDE.md, *Offene Punkte*, «Audit 21. November»); Pruefseite `Versand/pruef_audit.html` mit Messhilfe `Versand/aud.js` (oertlich, ueber `serve.py 8741`).
 
 ### Davor am 21. November
 

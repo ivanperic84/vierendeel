@@ -18,6 +18,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-21',
     punkte: [
+      { text: '3D-Fenster: Legende, Meldungen und Kopfzeile stehen neben der Werkzeugleiste statt darauf; die Leiste bekommt in niedrigen Fenstern einen Bildlauf und klappt unter 520 px Höhe von selbst ein; das Modell wird links von der Leiste eingepasst (auch in der Isometrie und nach dem Setzen eines Tragauslegers).' },
+      { text: 'Kontextmenü im 3D: die Tragwerksart wird erst nach einer Rückfrage umgestellt (was wegfällt, Strg+Z); «Auf den Nachweisschnitt» steht im Stabwerk nicht mehr.' },
+      { text: 'Farbskala σ_v nennt die Grenze f_yd (Strich im Balken bzw. «Skala endet bei … % davon»).' },
       { text: 'Die Markierungen «↑ / ↓» nach einer Eingabe vergleichen nur noch mit demselben Tragwerk: nach «Neues Querprofil», beim Laden und beim Wechsel der Tragwerksart erscheinen keine; an mm-Werten (Verformung) steht keine η-Differenz mehr.' },
       { text: 'Im Einzellastfall nennen Hinweis und Fussleiste dieselbe Bemessungszahl wie die Hauptkachel bei «umhüllend» (vorher drei verschiedene: nur Joch, ohne Gebrauchstauglichkeit, mit).' },
       { text: 'Schulung: das Knicken eines Masten zählt in der Gruppe «Masten», nicht mehr beim Tragjoch.' },

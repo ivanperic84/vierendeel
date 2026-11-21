@@ -343,6 +343,10 @@ export function modusKorrigieren(app) {
  */
 const WZ_MERKER = 'tragjoch-wz-zu';
 const WZ_SCHMAL = 560;
+// Audit 21. November, Block 3: die Leiste ist offen gut 700 px hoch. In einem
+// niedrigen Modellfenster klappt sie deshalb auch nach der HÖHE von selbst
+// ein; darüber bekommt sie einen Bildlauf statt in die Fussleiste zu laufen.
+const WZ_NIEDRIG = 520;
 function wzZu() {
   // Schulung (15. November, «das einklappen button entfernen»): die Leiste
   // ist kurz und steht immer offen.
@@ -352,7 +356,37 @@ function wzZu() {
   if (wahl === '1') return true;
   if (wahl === '0') return false;
   const b = ui.el('viewer')?.clientWidth ?? 0;
-  return b > 0 && b < WZ_SCHMAL;
+  const h = ui.el('viewer')?.clientHeight ?? 0;
+  return (b > 0 && b < WZ_SCHMAL) || (h > 0 && h < WZ_NIEDRIG);
+}
+
+/*
+ * >>> DIE LEISTE MELDET IHRE BREITE (Audit 21. November, Block 3). <<<
+ * Weisung «Ja, Block 3». Gemessen lag die Legende in JEDER Plotgrösse auf der
+ * Werkzeugleiste (1400 px² bei η, 12 000 px² mit «Linie» - genau über den
+ * Knöpfen der Resultate), Meldungen oben lagen über der Gruppe «Blick», und
+ * das Modell rückte nach dem Setzen hinter die Leiste. Die offene Leiste
+ * setzt deshalb `--wz-breite` am Modellfenster (Legende und Kopfzeile halten
+ * diesen Abstand) und `randRechts` am Renderer (die Bildmitte liegt links von
+ * ihr). Eingeklappt ist sie ein kleiner Knopf oben: dann 0.
+ */
+export function leisteMelden(app) {
+  const v = ui.el('viewer'), n = ui.el('ebenen-tools');
+  if (!v || !n) return;
+  const offen = !!n.querySelector('.wz-gruppe');
+  // Eingeklappt ist sie ein Knopf oben rechts: die Kopfzeile weicht ihm aus,
+  // die Bildmitte nicht (er steht über dem Himmel, nicht über dem Modell).
+  const kn = Math.ceil(n.getBoundingClientRect().width) + 8;
+  const b = offen ? kn : 0;
+  v.style.setProperty('--wz-breite', `${kn}px`);
+  v.style.setProperty('--wz-legende', `${b}px`);   // die Legende unten nur bei offener Leiste
+  const a = app.ansicht;
+  if (a && a.randRechts !== b) {
+    a.randRechts = b;
+    // Der Abstand hängt an der freien Breite: ohne eigenen Ausschnitt neu
+    // einpassen, sonst lag M2 nach dem Start hinter der Leiste.
+    try { if (!a.passeEinWennAbgeschnitten?.()) a.zeichne(); } catch { /* noch keine Szene */ }
+  }
 }
 function wzSetzen(zu) {
   try { localStorage.setItem(WZ_MERKER, zu ? '1' : '0'); } catch { /* kein Speicher */ }
@@ -368,6 +402,7 @@ export function zeichneModellWerkzeuge(app) {
       title="Werkzeugleiste einblenden: Blick, Modell, Zeichnung, Lasten, Resultate"
       aria-expanded="false">Ebenen${mo ? ` · ${esc(mo.kurz ?? mo.label.slice(0, 3))}` : ''} ‹</button>`;
     ui.el('wz-auf').onclick = () => { wzSetzen(false); zeichneModellWerkzeuge(app); };
+    leisteMelden(app);
     return;
   }
   const da = lastartenVorhanden(app);
@@ -598,6 +633,7 @@ export function zeichneModellWerkzeuge(app) {
       app.ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
     };
   });
+  leisteMelden(app);
 }
 
 /**
@@ -802,6 +838,25 @@ function lastfallText(app) {
   const l = (app.letzte?.kombi?.lastfaelle ?? []).find((x) => x.key === k);
   return `Lastfall: ${l?.bez ?? k}`;
 }
+/*
+ * Marke der Grenze im Balken (Audit 21. November, «Marke f_yd zeigen»): liegt
+ * f_yd innerhalb der Skala, ein Strich an seiner Stelle; sonst sagt eine
+ * Zeile unter dem Balken, wie weit die Skala darunter endet.
+ */
+function grenzMarke(p) {
+  const g = p?.grenze;
+  if (!(g > 0) || !(p.max > (p.min ?? 0))) return '';
+  const f = (g - (p.min ?? 0)) / (p.max - (p.min ?? 0));
+  if (f < 0 || f > 1) return '';
+  return `<span class="legende-grenze" style="left:${(f * 100).toFixed(1)}%" title="Grenze f_yd ${g.toFixed(0)} N/mm²"></span>`;
+}
+function grenzZeile(p) {
+  const g = p?.grenze;
+  if (!(g > 0)) return '';
+  const innen = g <= p.max && g >= (p.min ?? 0);
+  return `<div class="legende-grenzzeile">f_yd ${g.toFixed(0)} N/mm²${innen ? ' (Strich)'
+    : ` · Skala endet bei ${Math.round(100 * p.max / g)} % davon`}</div>`;
+}
 function balkenHtml(app, p, linie = false) {
   const a = app.ansicht;
   // Mit der Linie stellt der Balken die Farben der LINIE ein (19. November).
@@ -811,8 +866,8 @@ function balkenHtml(app, p, linie = false) {
     : [0, 0.33, 0.66, 1].map((f) => ((p.min ?? 0) + (p.max - (p.min ?? 0)) * f).toFixed(p.nk));
   const farbName = { nachweis: 'Nachweis η', resultat: 'Resultat', frei: 'frei' }[lf];
   const bar = p ? `<button type="button" class="legende-balken" data-balken title="Einstellungen der Farbe">
-      <div class="legende-bar${p.fest ? ' bis1' : ''}"></div>
-      <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div></button>`
+      <div class="legende-bar${p.fest ? ' bis1' : ''}">${grenzMarke(p)}</div>
+      <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div>${grenzZeile(p)}</button>`
     : `<button type="button" class="legende-balken leer" data-balken title="Einstellungen der Farbe">Farbe: ${esc(farbName)} ▾</button>`;
   const einst = !balkenOffen ? '' : `<div class="leg-einst">
       <div class="leg-zeile"><span>Farbe</span><div class="zl-reihe zl-klein">${[['nachweis', 'Nachweis'],
