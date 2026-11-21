@@ -4244,3 +4244,13 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
    wechselte ohne Übergang. Der volle Name steht im Titel; der Lastfall hat
    Vorrang, die Grundwerte geben zuerst nach. */
 .viewer-lf { flex-shrink: .01; }
+
+/* Zweizeilig (21. November, «bei der island den lastfall oben und die ek
+   parameter auf die zweite zeile legen»): oben Lastfall mit Steuerung,
+   darunter die Grundwerte über die ganze Breite, ausgefahren das Panel. */
+.viewer-oben { flex-wrap: wrap; justify-content: center; row-gap: 1px; border-radius: 14px; padding: 3px 8px 4px; }
+.viewer-oben .viewer-lf { order: 0; max-width: 100%; }
+.viewer-oben .insel-steuer { order: 1; }
+.viewer-oben .viewer-ek { order: 2; flex: 1 1 100%; min-width: 0; max-width: 100%; text-align: center; padding: 1px 6px; }
+.viewer-oben .kontext.insel-panel { order: 3; }
+.viewer-oben.offen { border-radius: 14px; padding: 3px 8px 6px; }
