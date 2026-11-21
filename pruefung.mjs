@@ -43492,8 +43492,9 @@ titel('309  Dimensionieren mit Auswahl und Grenzen; Lastfall-Insel; Figur im Kno
        css.includes('.viewer-lf .lf-text { display: block; white-space: nowrap;') && css.includes('--t-insel:')
        && css.includes('@keyframes insel-puls'));
   const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
-  wahr('Figur schwingt über den Knopf w (nochmals drücken), Knickfigur als Knopf in Resultate',
-       LQ.includes("app.ansicht.figurSchwingt ? '■' : '▶'") && LQ.includes('function knickKnopf(app, gR, text)')
+  // Das Abspielen steht seit dem 21. November nur in der Insel («die playfunktion hier unten weglassen»).
+  wahr('Kein Abspielen in der Leiste (nur in der Insel); Knickfigur als Knopf in Resultate',
+       !LQ.includes("app.ansicht.figurSchwingt ? '■' : '▶'") && LQ.includes('function knickKnopf(app, gR, text)')
        && LQ.includes('app.knickRechnen()'));
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Lasten gehen mit ihrem Bauteil (Masten, Anbauteile, Joch)',

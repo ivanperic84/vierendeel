@@ -490,14 +490,10 @@ export function zeichneModellWerkzeuge(app) {
        * animation, so muss nicht ein zusätzlicher button eingeblendet
        * werden.» Der Knopf «Figur ▶» ist weg.
        */
-      modiFuer(app.nachweisart).map((mo) => {
-        const aktiv = mo.key === app.ansicht.modus;
-        const figur = aktiv && FIGUR_MODI.includes(mo.key) && app.ansicht.verformt && !app.ansicht.verformt.immer;
-        const kurz = mo.kurz ?? mo.label.slice(0, 3);
-        return text(`wz-p-${mo.key}`, figur ? `${kurz} ${app.ansicht.figurSchwingt ? '■' : '▶'}` : kurz,
-                    figur ? `${mo.label} · nochmals drücken: Figur ${app.ansicht.figurSchwingt ? 'anhalten' : 'schwingen lassen'}` : mo.label,
-                    aktiv, !gR);
-      }).join('') +
+      // Das Abspielen steht nur in der Insel (21. November: «die
+      // playfunktion hier unten weglassen»).
+      modiFuer(app.nachweisart).map((mo) =>
+        text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3), mo.label, mo.key === app.ansicht.modus, !gR)).join('') +
       /*
        * >>> KNICKFIGUR IN DER LEISTE (21. November). <<< «was noch umständlich
        * ist, das die knickform separat ein und ausgeschaltet werden muss über
@@ -600,9 +596,9 @@ export function zeichneModellWerkzeuge(app) {
         setTimeout(() => { app.knickRechnen(); zeichneModellWerkzeuge(app); }, 30);
         return;
       }
-      if (!k.zeigen) { app.knickFigurSchalten(); app.ansicht.schwingen(false); }
-      else if (!app.ansicht.figurSchwingt) app.ansicht.schwingen(true);
-      else { app.ansicht.schwingen(false); app.knickFigurSchalten(); }
+      // Ein / aus; geschwungen wird über die Insel.
+      if (k.zeigen) app.ansicht.schwingen(false);
+      app.knickFigurSchalten();
       zeichneModellWerkzeuge(app);
     };
   }
@@ -657,12 +653,6 @@ export function zeichneModellWerkzeuge(app) {
   };
   modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
-      // Nochmals auf den gewählten Knopf mit Figur: schwingen ein / aus.
-      if (mo.key === app.ansicht.modus && FIGUR_MODI.includes(mo.key) && app.ansicht.verformt) {
-        app.ansicht.schwingen(!app.ansicht.figurSchwingt);
-        zeichneModellWerkzeuge(app);
-        return;
-      }
       if (app.ansicht.figurSchwingt && !app.knickInfo?.().zeigen) app.ansicht.schwingen(false);
       app.ansicht.modus = mo.key;
       // Mit eingeschalteter Linie gehört zur neuen Grösse eine neue Linie.
@@ -680,10 +670,9 @@ function knickKnopf(app, gR, text) {
   const k = app.knickInfo?.();
   if (!k?.stabwerk || tragwerksart(app.werte).key !== 'joch') return '';
   const an = k.zeigen && k.gilt;
-  const lab = !an ? 'Knick' : app.ansicht.figurSchwingt ? 'Knick ■' : 'Knick ▶';
+  const lab = 'Knick';
   const tit = !k.gilt ? 'Knickfigur: α_cr rechnen (rund 2-5 s) und die erste Eigenform zeigen'
-    : !an ? `Knickfigur zeigen · α_cr = ${k.gilt.alpha.toFixed(2)}`
-      : app.ansicht.figurSchwingt ? 'Knickfigur ausblenden' : 'Knickfigur schwingen lassen';
+    : !an ? `Knickfigur zeigen · α_cr = ${k.gilt.alpha.toFixed(2)}` : 'Knickfigur ausblenden';
   return text('wz-r-knick', lab, tit, an, !gR).replace('class="wz-s wz-txt', 'class="wz-s wz-txt wz-knick');
 }
 
