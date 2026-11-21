@@ -3439,12 +3439,18 @@ function aktualisiereModell(erg) {
     }
     if (!ek.dataset.verdrahtet) {
       ek.dataset.verdrahtet = '1';
+      /*
+       * >>> DIE INSEL FÄHRT AUS (21. November). <<< Weisung: «beim
+       * nochmaligen klicken die einstellungsbox einfahren. und anstatt eine
+       * neue box könnte man die dynamic island dynamisch ausfahren.» Die
+       * Grundwerte stehen als Panel in der Insel; ein zweiter Klick auf die
+       * Grundwertezeile fährt sie wieder ein.
+       */
       ek.addEventListener('click', (e) => {
         e.stopPropagation();
-        const r = ek.getBoundingClientRect();
-        // Höher, wenn Lasten von Hand aufgeführt sind (9. Oktober).
-        const pkt = kontextTrasse(app);
-        kontextZeigen(app, [r.right - 340, r.top - 40 - 26 * pkt.length], pkt);
+        const insel = ui.el('einwirkung-wahl');
+        if (insel?.classList.contains('offen')) { kontextSchliessen(app); return; }
+        kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });
       });
     }
   }

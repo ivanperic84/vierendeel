@@ -43559,6 +43559,23 @@ titel('311  Insel mit Blättern, Zurück und Play; Lastfall leuchtet in der Seit
   wahr('index.html trägt die Steuerung der Insel', readFileSync(join(HIER, 'index.html'), 'utf8').includes('id="pos-steuer"'));
 }
 
+// ===========================================================================
+titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein');
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  const KQ = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Klick auf die Grundwerte: Panel in der Insel, zweiter Klick schliesst',
+       AQ.includes("if (insel?.classList.contains('offen')) { kontextSchliessen(app); return; }")
+       && AQ.includes('kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });'));
+  wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
+       KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
+       && KQ.includes('kontextMenue?.zuruecksetzen?.();'));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Stilblatt: Insel ausgefahren, Panel statisch, Grundwerte nie unter «EK1…»',
+       css.includes('.viewer-oben.offen {') && css.includes('.viewer-oben .kontext.insel-panel {')
+       && css.includes('@keyframes insel-auf') && css.includes('.viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

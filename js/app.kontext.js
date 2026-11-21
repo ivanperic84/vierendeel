@@ -25,6 +25,7 @@ let kontextMenue = null;
 export const kontextOffen = () => Boolean(kontextMenue);
 
 export function kontextSchliessen(app) {
+  kontextMenue?.zuruecksetzen?.();
   kontextMenue?.remove();
   kontextMenue = null;
 }
@@ -58,7 +59,7 @@ function kontextErlaubt(p) {
   return !SCHULUNG_NICHT.test(text);
 }
 
-export function kontextZeigen(app, bei, punkte) {
+export function kontextZeigen(app, bei, punkte, opt = {}) {
   kontextSchliessen(app);
   const echte = punkte.filter(Boolean).filter(kontextErlaubt);
   // Eine Kopfzeile ohne Eintrag bis zur nächsten Kopfzeile oder zum Strich fällt weg.
@@ -111,7 +112,19 @@ export function kontextZeigen(app, bei, punkte) {
     return `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
          data-k="${i}">${esc(p.text)}</button>`;
   }).join('');
-  document.body.appendChild(n);
+  /*
+   * IN DER INSEL (21. November): «anstatt eine neue box könnte man die
+   * dynamic island dynamisch ausfahren.» Mit `opt.ziel` steht das Menü als
+   * Panel in diesem Element statt schwebend; die Insel fährt dafür aus
+   * (Klasse `offen`), und ein Klick in die Insel schliesst es nicht.
+   */
+  const ziel = opt.ziel ?? null;
+  if (ziel) {
+    n.classList.add('insel-panel');
+    ziel.appendChild(n);
+    ziel.classList.add('offen');
+    n.zuruecksetzen = () => ziel.classList.remove('offen');
+  } else document.body.appendChild(n);
   kontextMenue = n;
   /*
    * DAS MENUE BLEIBT IM FENSTER.
@@ -120,11 +133,13 @@ export function kontextZeigen(app, bei, punkte) {
    * unteren Eintraege waeren nicht erreichbar - gerade dort, wo die
    * gefaehrlichen stehen.
    */
-  const r = n.getBoundingClientRect();
-  const x = Math.min(bei[0], window.innerWidth - r.width - 8);
-  const y = Math.min(bei[1], window.innerHeight - r.height - 8);
-  n.style.left = `${Math.max(4, x)}px`;
-  n.style.top = `${Math.max(4, y)}px`;
+  if (!ziel) {
+    const r = n.getBoundingClientRect();
+    const x = Math.min(bei[0], window.innerWidth - r.width - 8);
+    const y = Math.min(bei[1], window.innerHeight - r.height - 8);
+    n.style.left = `${Math.max(4, x)}px`;
+    n.style.top = `${Math.max(4, y)}px`;
+  }
   n.querySelectorAll('[data-k]').forEach((b2) => {
     b2.addEventListener('click', () => {
       const p = echte[+b2.dataset.k];
@@ -161,7 +176,8 @@ export function kontextZeigen(app, bei, punkte) {
      * wirft - eine Ausnahme bei jedem Wechsel aus dem Fenster heraus,
      * waehrend ein Menue offen steht. Gemessen am 3. September.
      */
-    if (e?.target instanceof Node && n.contains(e.target)) return;
+    if (e?.target instanceof Node && (n.contains(e.target) || ziel?.contains(e.target))) return;
+    if (ziel && e?.type === 'wheel') return;
     kontextSchliessen(app); ab();
   };
   const ab = () => {

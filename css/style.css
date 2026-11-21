@@ -4224,3 +4224,22 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .insel-k:hover { background: var(--s3, var(--s1)); color: var(--on); border-color: var(--ol); }
 .insel-k.insel-spiel { color: var(--acc); border-color: var(--acc); }
 .insel-figur { font-family: var(--f-mono); font-size: 10px; color: var(--dim); margin-left: 4px; animation: lf-ein .3s ease-out; }
+
+/* Die Insel fährt aus: Grundwerte als Panel in der Insel (21. November). */
+.viewer-kopf { container-type: inline-size; }
+.viewer-oben { max-width: 100%; }
+.viewer-oben.offen { flex-wrap: wrap; border-radius: 16px; padding: 4px 6px 6px 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .4); }
+.viewer-oben .kontext.insel-panel {
+  position: static; flex-basis: 100%; box-shadow: none; border: 0; border-top: 1px solid var(--ol);
+  border-radius: 0; background: none; margin-top: 4px; padding: 6px 0 0; min-width: 0;
+  animation: insel-auf .38s cubic-bezier(.3, 1.25, .5, 1);
+  transform-origin: top center;
+}
+.viewer-oben.offen .viewer-ek { color: var(--acc); }
+@keyframes insel-auf { from { opacity: 0; max-height: 0; transform: scaleY(.6); } to { opacity: 1; max-height: 420px; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .viewer-oben .kontext.insel-panel { animation: none; } }
+/* Im schmalen Bild schrumpft die Grundwertezeile nicht unter «EK1…» - sie
+   bleibt der Griff, der die Insel ausfährt. */
+.viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }
+.viewer-oben:has(.viewer-lf:hover) .viewer-ek { min-width: 0; }
