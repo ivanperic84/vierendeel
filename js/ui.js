@@ -2823,7 +2823,7 @@ export function querprofilLeisteHtml(werte) {
         ${bandLinien}${bandMasten}
       </div>
       <div class="qp-skala"><span>${von.toFixed(1)} m</span>
-        <span>Lage auf dem Querprofil</span><span>${bis.toFixed(1)} m</span></div>
+        <span>x quer zum Gleis</span><span>${bis.toFixed(1)} m</span></div>
     </div>`;
 }
 
@@ -4430,7 +4430,6 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
  * nicht null ist, mit seiner Gruppe davor.
  */
 function modulLastenHtml(l, b) {
-  const drahtwerk = b?.rolle === 'drahtwerk';
   // F_z nach oben (rechte Hand, 1. Oktober): Gewicht und Schnee negativ.
   const anteile = [
     ['G', 'F_z', -(l.Gz ?? 0)], ['G', 'F_x', l.Gx], ['G', 'F_y', l.Gy],
@@ -4443,9 +4442,12 @@ function modulLastenHtml(l, b) {
   return (anteile.length
     ? anteile.map(([g, f, v]) => `<span><i>${g}</i> ${f} ${zahl(v)}</span>`).join('')
     : '<span class="ablage-meta">keine Last</span>') +
-    (drahtwerk ? `<span class="${Math.abs(l.alpha) > 1e-4 ? 'stark' : ''}"
-       >α ${f3(l.alpha)}°</span>` : '') +
-    `<span class="ablage-meta">kN · ${esc(b?.einheit ?? '')}</span>`;
+    /*
+     * Ohne α und ohne die Einheit der Tabellenzeile (Audit 21. November,
+     * Block 4): α steht schon im Kopf der Klappe «Ablenkung» darunter, und
+     * «kN · kN/m» las sich, als wären die Kräfte je Meter - sie sind kN.
+     */
+    `<span class="ablage-meta">kN</span>`;
 }
 
 /**
@@ -6501,7 +6503,7 @@ function nichtGefuehrtHtml(urteil) {
    * als ein Gedanke, und die Lücke steht dort, wo man die Nachweise sucht.
    */
   const namen = liste.map((g) => g.titel).join(', ');
-  return klapp('uebersicht-nichtgefuehrt', 'Nicht gefuehrte Nachweise',
+  return klapp('uebersicht-nichtgefuehrt', 'Nicht geführte Nachweise',
     `<div class="nichtgefuehrt">
       ${liste.map((g) => `<p class="notiz"><b>${esc(g.titel)}</b>
         <span class="ablage-meta">· ${esc(g.grund)}</span><br>${esc(g.was)}</p>`).join('')}
@@ -6532,7 +6534,13 @@ function pruefungenHtml(urteil) {
         <th class="num">verlangt</th><th class="num">Einheit</th>
         <th class="num"></th></tr></thead>
       <tbody>${geordnet.map(zeile).join('')}</tbody></table></div>`,
-    offen ? `${offen} verletzt` : `${alle.length} erfüllt`, offen > 0);
+    /*
+     * Zugeklappt, auch mit einer verletzten Prüfung (Audit 21. November,
+     * Block 4: offen stand die Tabelle mit 821 px in der Übersicht). Die
+     * verletzte steht dafür mit Kennung im Kopf.
+     */
+    offen ? `${offen} verletzt: ${alle.filter((c) => !c.ok).map((c) => c.id).join(', ')}`
+      : `${alle.length} erfüllt`, false);
 }
 
 /** Rückruf für die Sortimentssuche; app.js setzt ihn beim Start. */
@@ -6767,7 +6775,15 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         `<div class="hinweisliste">${hinw.map((h) =>
           `<p class="notiz">${esc(h)}</p>`).join('')}</div>`,
         hinw.length === 1 ? '1 Hinweis' : `${hinw.length} Hinweise`) : ''}
-    ${mn ? mastblattHtml(zeig) : ''}`;
+    ${!mn ? '' : swH
+      /*
+       * Mit gültigem Stabwerk ist das Mastblatt die KONTROLLRECHNUNG
+       * (Audit 21. November, Block 4: es stand offen unter den Nachweisen
+       * des Stabwerks, mit Kern-Angaben wie «Anteil an F_x nach k = 3EI/H³»).
+       */
+      ? klapp('einzelmast-kontrolle', 'Kontrollrechnung · Mast über die Höhe',
+              mastblattHtml(zeig, einzelLastfall), 'Kern', false)
+      : mastblattHtml(zeig, einzelLastfall)}`;
   verdrahteKlapp(node);
   verdrahteStabwerk(node, opt);
   verdrahtePlastisch(node, opt);
@@ -7636,7 +7652,8 @@ export function buegelBlockHtml(opt, urteil) {
     const Fg = b.Fgrenz || 0;
     // Lesbar statt «LINK_M2_OGL» (17. November): Mast und Gurt.
     const gurtWort = (g) => (g === 'UG' ? 'Untergurt' : g === 'OG' ? 'Obergurt' : g ?? '');
-    const anschluss = (z) => (z?.ende ? `${z.ende} ${gurtWort(z.gurt)}` : (z?.name ?? ''));
+    // Ohne die Anschlusshöhe im Namen (Audit 21. November: «M2k0 Obergurt»).
+    const anschluss = (z) => (z?.ende ? `${String(z.ende).replace(/k\d+$/, '')} ${gurtWort(z.gurt)}` : (z?.name ?? ''));
     k = kachel('Bügelschrauben', b.eta === null ? '–' : f3(b.eta),
       `${anschluss(b)} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
       b.eta === null ? '' : ampel(b.eta),
@@ -7674,6 +7691,19 @@ export function buegelBlockHtml(opt, urteil) {
       <button class="btn btn-mini btn-acc" data-buegel-uebernehmen type="button">übernehmen</button></p>`
     : vorschlag?.grund ? `<p class="notiz" style="margin:4px 0 0">${esc(vorschlag.grund)}</p>` : '';
   const aus = urteil?.nichtGefuehrt?.some?.((g) => g.key === 'auflagerJoch');
+  /*
+   * >>> AUSGESCHALTET NUR ALS ZEILE (Audit 21. November, Block 4). <<<
+   * Die Gruppe «Auflager Joch» ist ab Werk aus; der Block stand trotzdem
+   * offen mit Kachel, Notiz und Tabelle in der Übersicht. Jetzt eine
+   * zugeklappte Zeile mit der Zahl - aufgeklappt wie bisher.
+   */
+  if (aus && !ueber) {
+    const zahl = b ? (b.eta === null ? '–' : f3(b.eta)) : (a1 ? f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0) : '–');
+    return klapp('uebersicht-buegel-aus', `Bügelschrauben · η ${zahl}`, `
+      <div class="kennzahlen nw-zeilen">${k}</div>${vor}
+      <p class="notiz" style="margin:4px 0 0">Die Nachweisgruppe «Auflager Joch» ist ausgeschaltet (Optionen → Nachweise) - der Block zählt nicht zum Urteil.</p>
+      ${tabelle}`, 'nicht im Urteil', false);
+  }
   return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Kontrollrechnung')}
     <div class="kennzahlen nw-zeilen">${k}</div>
     ${ueber ? `<p class="notiz" style="margin:4px 0 0"><b>Grenzlast überschritten</b> mit
@@ -7967,7 +7997,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         const teilK = (teil, titel, unter) => {
           const t = opt.swH?.teile?.[`mast:${name}|${teil}`];
           if (!t) return;
-          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), `${unter} · Stabwerk`, ampelU(t.eta), {
+          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), unter, ampelU(t.eta), {
             ...(t.bez ? { fall: fallKurz(t.bez) } : {}), ...(t.wo ? { stab: t.wo } : {}),
             titel: `${t.bez ? `Massgebende Kombination: ${t.bez}\n\n` : ''}`
                  + `${n.profil.name}: ${titel} aus dem Stabwerk, massgebender Stab ${t.wo ?? ''}.`,
@@ -7999,7 +8029,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         const teilK = (teil, titel, unter) => {
           const t = opt.swH?.teile?.[`mast:${name}|${teil}`];
           if (!t) return;
-          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), `${unter} · Stabwerk`, ampelU(t.eta), {
+          mast.push(kachel(`η ${name} ${titel}`, f3(t.eta), unter, ampelU(t.eta), {
             ...(t.bez ? { fall: fallKurz(t.bez) } : {}), ...(t.wo ? { stab: t.wo } : {}),
             titel: `${t.bez ? `Massgebende Kombination: ${t.bez}\n\n` : ''}`
                  + `${n.profil.name}: ${titel} aus dem Stabwerk, massgebender Stab ${t.wo ?? ''}.`,
@@ -8013,7 +8043,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       if (sw) {
         const fS = sw.bez ? { kurz: fallKurz(sw.bez), voll: sw.bez } : null;
         mast.push(kachel(`η ${name}`, f3(sw.eta),
-          `${n.profil.name} · Stabwerk`, ampelU(sw.eta), {
+          n.profil.name, ampelU(sw.eta), {
             ...(fS ? { fall: fS.kurz } : {}),
             ...(sw.wo ? { stab: sw.wo } : {}),
             titel: `${fS ? `Massgebende Kombination: ${fS.voll}\n\n` : ''}`
@@ -8027,7 +8057,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
           : (opt.swH?.knick?.[name] ?? null);
         if (knA && Number.isFinite(knA.eta)) {
           stabil.push(kachel(`η Knicken ${name}`, f3(knA.eta),
-            `${n.profil.name} · Stabwerk`, ampelU(knA.eta), {
+            n.profil.name, ampelU(knA.eta), {
               ...(knA.bez ? { fall: fallKurz(knA.bez) } : {}),
               titel: 'Knicken nach SIA 263 mit den Kräften des Stabwerks - '
                    + 'Vertikallasten auf ihren Höhen, Schnittgrössen am Fuss '
@@ -8357,6 +8387,11 @@ export function bauteilKacheln(erg, urteil, ampelU) {
  *
  * @param {{titel:string, kacheln:string[]}[]} gruppen
  */
+/*
+ * «· Stabwerk» stand an jeder Nachweiszeile, obwohl der Gruppenkopf die
+ * Quelle schon nennt («JOCH · Stabwerk») - gestrichen (Audit 21. November,
+ * Block 4). Die Quelle steht im Kopf jeder Gruppe und in der Stabwerksleiste.
+ */
 export function nachweisGruppenHtml(gruppen) {
   const voll = (gruppen ?? []).filter((g) => g?.kacheln?.length);
   if (!voll.length) return '';
@@ -8592,8 +8627,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    */
   const swTeil = (teil, titel, sub, key = jochKey) => {
     const s = swH?.teile?.[`${key}|${teil}`];
-    if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
-    return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+    if (!s) return kachel(titel, '–', sub, '');
+    return kachel(titel, f3(s.eta), sub, ampelU(s.eta), {
       ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
       ...(s.wo ? { stab: s.wo } : {}),
       titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
@@ -8626,8 +8661,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
      */
     const k = (teil, titel, sub) => {
       const s = swH.teile[`${jochKey}|${teil}`];
-      if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
-      return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+      if (!s) return kachel(titel, '–', sub, '');
+      return kachel(titel, f3(s.eta), sub, ampelU(s.eta), {
         ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
         ...(s.wo ? { stab: s.wo } : {}),
         titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
@@ -8725,8 +8760,8 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
     ...[['OG', 'η Obergurt', m.profOG.name], ['UG', 'η Untergurt', m.profUG.name],
         ['blech', 'η Bindeblech', 'massgebendes Blech']].map(([k, t, sub]) => {
       const s = swH.teile[`${jochKey}|${k}`];
-      if (!s) return kachel(t, '–', `${sub} · Stabwerk`, '');
-      return kachel(t, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+      if (!s) return kachel(t, '–', sub, '');
+      return kachel(t, f3(s.eta), sub, ampelU(s.eta), {
         ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
         ...(s.wo ? { stab: s.wo } : {}),
         titel: `${s.bez ? `Massgebende Kombination: ${s.bez}\n\n` : ''}`
@@ -9087,7 +9122,10 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
         .sort((a, b) => b.eta - a.eta).slice(0, 10);
       if (!top.length) return '';
       const xm = (z) => (Number.isFinite(z.x0) && Number.isFinite(z.x1) ? (z.x0 + z.x1) / 2 : null);
-      return `${abschnitt('Höchstbeanspruchte Stellen', 'aus dem Stabwerk · anklicken zeigt den Stab')}
+      // Zugeklappt (Audit 21. November, Block 4: 451 px offen); im Kopf
+      // die höchste Stelle.
+      return klapp('uebersicht-hoechst', 'Höchstbeanspruchte Stellen', `
+    <p class="notiz" style="margin:0 0 4px">Aus dem Stabwerk · anklicken zeigt den Stab.</p>
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th>Stab</th><th class="num">x [m]</th><th>Teil</th><th>massgebend</th>
         <th class="num">η</th></tr></thead>
@@ -9097,7 +9135,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
           <td>${esc(teilName[z.teil] ?? z.teil ?? '')}</td><td>${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
           <td class="num stark ${ampelU(z.eta)}">${f3(z.eta)}</td>
         </tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div>`, `${teilName[top[0].teil] ?? top[0].teil ?? ''} η ${f3(top[0].eta)}`, false);
     })() : ''}
     ${zeigtTrag && !swH?.jeStab && !taK && !swH?.ausleger && !erg.ausleger?.fehler ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
@@ -10862,12 +10900,14 @@ function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
               ${f0(100 / (n.woelb?.k ?? 1))} cm` : ''}</p>`;
 }
 
-function mastblattHtml(erg) {
+function mastblattHtml(erg, einzelLastfall = true) {
   const mn = erg?.mast;
   if (!mn) return '';
   const namenVon = erg?.modell?.federn?.namen ?? {};
   const ende = (n) => mastEndeHtml(n, namenVon);
-  return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
+  // «des gewählten Lastfalls» stand auch bei «umhüllend» (Audit 21. November).
+  return `${abschnitt('Mast', einzelLastfall ? 'Bemessungswerte des gewählten Lastfalls'
+                                             : 'Bemessungswerte · umhüllend über alle Kombinationen')}
     ${ende(mn.A)}${ende(mn.B)}
     ${klapp('mast-hinweis', 'Achsen und was der Nachweis nicht enthält', `
       <p class="notiz" style="margin-top:0">

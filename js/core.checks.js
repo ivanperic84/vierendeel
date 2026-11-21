@@ -1851,7 +1851,11 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
   const enthalten = (g) => g.vorhanden
     && !(g.key === 'knickenJoch' && ['abfangjoch', 'tragausleger'].includes(art));
   const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && (!nw[g.key] || !enthalten(g)) && !g.vergleich)
-    .map((g) => ({ key: g.key, titel: g.titel,
+    .map((g) => ({ key: g.key,
+                   // Am Abfangjoch / Tragausleger heisst der Träger nicht «Joch»
+                   // (Audit 21. November: «Stabilität Joch» am Tragausleger).
+                   titel: g.key === 'knickenJoch' && art === 'tragausleger' ? 'Stabilität Tragausleger'
+                     : g.key === 'knickenJoch' && art === 'abfangjoch' ? 'Stabilität Abfangjoch' : g.titel,
                    // `was` darf von der Tragwerksart abhaengen - siehe
                    // `knickenJoch` in NACHWEISGRUPPEN.
                    was: typeof g.was === 'function' ? g.was(art) : g.was,

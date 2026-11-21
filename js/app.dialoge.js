@@ -744,7 +744,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     }
     return `<fieldset class="dlg-grundwerte">
       <legend>Grundwerte des Querprofils — gelten allen Tragwerken</legend>
-      <div class="feld"><label for="dlg-tw-ek">Einwirkungsklasse</label>
+      <div class="feld"><label for="dlg-tw-ek">Windbelastung</label>
         <select id="dlg-tw-ek">${WIND_KLASSEN.map((k) =>
           `<option value="${esc(k.key)}"${k.key === e.ek ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
         </select>

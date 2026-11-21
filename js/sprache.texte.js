@@ -53,6 +53,14 @@ export const TEXTE = {
   "fr": "Stabilité du joug",
   "it": "Stabilità del portale"
  },
+ "Stabilität Tragausleger": {
+  "fr": "Stabilité de la console haubanée",
+  "it": "Stabilità della mensola tirantata"
+ },
+ "Stabilität Abfangjoch": {
+  "fr": "Stabilité du joug d'amarrage",
+  "it": "Stabilità del portale di ancoraggio"
+ },
  "Stabilität": {
   "fr": "Stabilité",
   "it": "Stabilità"
@@ -1284,6 +1292,14 @@ export const TEXTE = {
  "Wind quer zum Gleis, von rechts": {
   "fr": "Vent perpendiculaire à la voie, de droite",
   "it": "Vento trasversale al binario, da destra"
+ },
+ "Windbelastung": {
+  "fr": "Charge de vent",
+  "it": "Carico del vento"
+ },
+ "x quer zum Gleis": {
+  "fr": "x transversal à la voie",
+  "it": "x trasversale al binario"
  },
  "Windzone": {
   "fr": "Zone de vent",

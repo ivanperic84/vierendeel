@@ -2035,6 +2035,18 @@ const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
  * ist die Hülle gewählt, stehen oben seine Verläufe (render.stabwerk.js),
  * die des Ersatzbalkens eingeklappt darunter.
  */
+/*
+ * >>> VERLÄUFE IN DER BREITE DER SEITENLEISTE (Audit 21. November, Block 4). <<<
+ * Gezeichnet wurde mit 860 px und auf rund 320 px verkleinert: Höhe 78-86 px,
+ * Schrift gut ein Drittel so gross. Jetzt in der Breite, in der sie stehen
+ * (höchstens 860); die Bühne zum Vergrössern zeichnet weiter breit.
+ */
+function verlaufBreite() {
+  const k = ui.el('auswertung');
+  const b = Math.round((k?.clientWidth ?? 0) - 4);
+  return b >= 260 ? Math.min(860, b) : 860;
+}
+
 function stabwerkVerlaeufe(breite) {
   // Seit dem 3. Oktober auch am Abfangjoch («Bild und Verläufe nachziehen»),
   // seit dem 4. Oktober an allen vier Arten («so weit wie sinnvoll
@@ -2269,7 +2281,7 @@ function zeichneAuswertung() {
     if (tabAuswertung === 'verlauf') {
       const zeig = anzeigeKombi === 'umhuellend' ? letzte.bemessung : letzte.anzeige;
       // Aus dem Stabwerk, wenn es gilt (4. Oktober), der Kern eingeklappt.
-      ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));
+      ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, verlaufBreite()), stabwerkVerlaeufe(verlaufBreite()));
     } else if (tabAuswertung === 'auflager') {
       // Schulung (16. November, Bild des Blocks «Mastfuss aus dem
       // Ersatzbalken»: «dies weglassen»): nur die Reaktionskräfte.
@@ -2523,9 +2535,9 @@ function zeichneAuswertung() {
      * Kontrollkurve daneben wird mit denselben Beiwerten gerechnet wie die
      * Kachel - `ankerKnickenSicher` ist dieselbe Funktion.
      */
-    ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
-                      abD ? null : vergleich, weitereDiagramme(erg, 860),
-                      stabwerkVerlaeufe(860));
+    ui.zeichneVerlauf(node, abD ?? diagramme(erg, verlaufBreite()),
+                      abD ? null : vergleich, weitereDiagramme(erg, verlaufBreite()),
+                      stabwerkVerlaeufe(verlaufBreite()));
   }
 }
 

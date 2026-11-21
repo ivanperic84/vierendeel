@@ -18,6 +18,9 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-21',
     punkte: [
+      { text: 'Übersicht kürzer (Tragjoch 2800 → 1400 px): «Höchstbeanspruchte Stellen» und «Konstruktionsprüfungen» zugeklappt mit dem Wichtigsten im Kopf (z. B. «1 verletzt: P2»); Bügelschrauben bei ausgeschalteter Gruppe nur als Zeile; «· Stabwerk» nicht mehr an jeder Nachweiszeile; «Nicht geführte Nachweise».' },
+      { text: 'Einzelmast: die Kontrollrechnung des Masten steht zugeklappt unter den Stabwerksnachweisen. Abfangjoch / Tragausleger: «Stabilität Abfangjoch» bzw. «Stabilität Tragausleger» statt «Stabilität Joch». Bügelschrauben ohne «k0» im Mastnamen.' },
+      { text: 'Verläufe in der Breite der Seitenleiste gezeichnet - rund 200 statt 80 px hoch, lesbare Schrift. Bauteilkarte ohne doppeltes α und ohne «kN/m» an Kräften; mit ausgeschalteten Erklärtexten auch ohne die «Hinweis»-Zeilen. Im Dialog «Windbelastung» wie unter Lasten.' },
       { text: '3D-Fenster: Legende, Meldungen und Kopfzeile stehen neben der Werkzeugleiste statt darauf; die Leiste bekommt in niedrigen Fenstern einen Bildlauf und klappt unter 520 px Höhe von selbst ein; das Modell wird links von der Leiste eingepasst (auch in der Isometrie und nach dem Setzen eines Tragauslegers).' },
       { text: 'Kontextmenü im 3D: die Tragwerksart wird erst nach einer Rückfrage umgestellt (was wegfällt, Strg+Z); «Auf den Nachweisschnitt» steht im Stabwerk nicht mehr.' },
       { text: 'Farbskala σ_v nennt die Grenze f_yd (Strich im Balken bzw. «Skala endet bei … % davon»).' },

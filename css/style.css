@@ -4149,3 +4149,6 @@ button.legende-fall:hover { color: var(--acc); text-decoration: underline; }
 .legende-grenze { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
                   background: var(--on); box-shadow: 0 0 0 1px var(--s2); }
 .legende-grenzzeile { font-size: 10px; color: var(--on2); text-align: left; margin-top: 2px; }
+/* «Erklärtexte» aus heisst auch: keine zugeklappten «Hinweis»-Zeilen in der
+   Bauteilkarte (Audit 21. November, Block 4: vier davon in einer Karte). */
+body.ohne-erklaertexte .hinweis-zu { display: none; }

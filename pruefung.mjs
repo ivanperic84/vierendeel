@@ -38182,7 +38182,7 @@ titel('224  Einzelmast im Bild und in den Verläufen aus dem Stabwerk');
   wahr('Der Walzprofil-Einzelmast wird aus dem Stabwerk gefärbt (`walzEinzel`)',
        app.includes('gitterWerte, mastenOhneJoch: walzEinzel,'));
   wahr('Die Verläufe des Einzelmasten nehmen das Stabwerk',
-       app.includes('weitereDiagramme(zeig, 860), stabwerkVerlaeufe(860));')
+       app.includes('weitereDiagramme(zeig, verlaufBreite()), stabwerkVerlaeufe(verlaufBreite()));') /* 21. Nov.: Breite der Leiste statt 860 */
        && app.includes('function stabwerkVerlaeufe(breite)'));
 }
 
@@ -42615,7 +42615,7 @@ titel('288  Durchsicht der Vollversion: Anteile grau, Fussleiste, Einspannung, B
        && AQ.includes("werte = { ...werte, schraubenGrenze: wert === 'grenze' };"));
   const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Bügelschrauben: Mast und Gurt statt Linkname, «begrenzt auf …»',
-       UQ.includes("const anschluss = (z) => (z?.ende ? `${z.ende} ${gurtWort(z.gurt)}`")
+       UQ.includes("const anschluss = (z) => (z?.ende ? `${String(z.ende).replace(") /* 21. Nov.: ohne «k0» */
        && UQ.includes('begrenzt auf ${f2(Fg)} kN'));
 }
 
@@ -43422,6 +43422,31 @@ titel('307  Audit 21. November, Block 3: 3D-Fenster - Leiste, Legende, Kopfzeile
        /tragwerksart\(t\)\.key === 'tragausleger'[\s\S]{0,300}x0 \+ sv \* la \/ 2/.test(q));
   wahr('Nach einem neuen Tragwerk fährt die Ansicht heraus, wenn es abgeschnitten wäre',
        /neuRechnen\(\);\n[^\n]*\n[^\n]*\n[^\n]*\n\s*try \{ ansicht\?\.passeEinWennAbgeschnitten/.test(q));
+}
+
+titel('308  Audit 21. November, Block 4: Seitenleisten kürzer und ohne fremde Blöcke');
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Kein «· Stabwerk» mehr an den Nachweiszeilen (nur noch an Bestandesschutz-Zeilen)',
+       !/`\$\{(unter|sub|n\.profil\.name)\} · Stabwerk`/.test(UQ));
+  wahr('«Nicht geführte Nachweise» mit Umlaut', UQ.includes("'Nicht geführte Nachweise'") && !UQ.includes("'Nicht gefuehrte Nachweise'"));
+  wahr('Konstruktionsprüfungen zugeklappt, verletzte im Kopf', /verletzt: \$\{alle\.filter\(\(c\) => !c\.ok\)\.map\(\(c\) => c\.id\)/.test(UQ));
+  wahr('Höchstbeanspruchte Stellen zugeklappt', UQ.includes("klapp('uebersicht-hoechst', 'Höchstbeanspruchte Stellen'"));
+  wahr('Bügelschrauben bei ausgeschalteter Gruppe nur als Zeile', UQ.includes("klapp('uebersicht-buegel-aus'"));
+  wahr('Einzelmast: Kontrollrechnung des Masten zugeklappt unter dem Stabwerk',
+       UQ.includes("klapp('einzelmast-kontrolle', 'Kontrollrechnung · Mast über die Höhe'"));
+  wahr('Lastzeile der Bauteilkarte ohne doppeltes α und ohne Tabelleneinheit',
+       !/>α \$\{f3\(l\.alpha\)\}°<\/span>/.test(UQ) && UQ.includes('`<span class="ablage-meta">kN</span>`;'));
+  wahr('nachweisGruppenHtml bleibt exportiert (export direkt vor function)', UQ.includes('export function nachweisGruppenHtml('));
+  const CK = await import(J('core.checks.js'));
+  const nur = (art) => CK.urteilKonstruktion([], {}, art).nichtGefuehrt?.map((g) => g.titel) ?? [];
+  wahr('Tragausleger: «Stabilität Tragausleger» statt «Stabilität Joch»',
+       nur('tragausleger').includes('Stabilität Tragausleger') && !nur('tragausleger').includes('Stabilität Joch'), nur('tragausleger').join(', '));
+  wahr('Abfangjoch: «Stabilität Abfangjoch»', nur('abfangjoch').includes('Stabilität Abfangjoch'), nur('abfangjoch').join(', '));
+  const AQ = APP_QUELLE();
+  wahr('Verläufe in der Breite der Leiste (höchstens 860)', /function verlaufBreite\(\)[\s\S]{0,200}Math\.min\(860, b\)/.test(AQ));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Erklärtexte aus: auch keine zugeklappten «Hinweis»-Zeilen', css.includes('body.ohne-erklaertexte .hinweis-zu { display: none; }'));
 }
 
 console.log('\n' + '='.repeat(104));
