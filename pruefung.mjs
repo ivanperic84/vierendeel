@@ -43577,6 +43577,8 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
        && css2.includes('.viewer-lf { flex-shrink: .01; }'));
   wahr('Insel zweizeilig: Lastfall oben, Grundwerte darunter (21. November)',
        css2.includes('.viewer-oben .viewer-ek { order: 2; flex: 1 1 100%;') && css2.includes('.viewer-oben .viewer-lf { order: 0;'));
+  wahr('Insel kompakt: Raster, Breite der breitesten Zeile (gemessen 348 → 217 px)',
+       css2.includes('grid-template-areas: ". lf st ." "ek ek ek ek" "p p p p";'));
   wahr('Die Insel wächst und schrumpft weich (FLIP auf Breite und Höhe)',
        KQ.includes('function inselMorph(el, aendern)') && KQ.includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` }"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');

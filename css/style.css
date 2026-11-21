@@ -4254,3 +4254,25 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben .viewer-ek { order: 2; flex: 1 1 100%; min-width: 0; max-width: 100%; text-align: center; padding: 1px 6px; }
 .viewer-oben .kontext.insel-panel { order: 3; }
 .viewer-oben.offen { border-radius: 14px; padding: 3px 8px 6px; }
+
+/* Kompakter (21. November, «mach die island box kompakter es ist viel graue
+   freie fläche»): weniger Innenabstand, der Lastfall ohne eigenen Rahmen. */
+.viewer-oben { padding: 2px 10px 3px; row-gap: 0; }
+.viewer-oben .viewer-lf { padding: 1px 6px; border-color: transparent; background: none; line-height: 1.25; }
+.viewer-oben .viewer-lf.einzel { background: var(--acc-s); }
+.viewer-oben .viewer-ek { padding: 0 6px 1px; line-height: 1.2; }
+.viewer-oben .insel-k { height: 18px; min-width: 18px; padding: 0 4px; }
+.viewer-oben.offen { padding: 2px 10px 6px; }
+.viewer-oben .kontext.insel-panel { margin-top: 2px; padding-top: 4px; }
+/* Raster statt umbrechender Zeile: die Breite ist die der breitesten Zeile
+   (eine umbrechende Flexzeile rechnet ihre Breite, als stünde alles in
+   einer Zeile - daher die graue Fläche). */
+.viewer-oben {
+  display: grid; grid-template-columns: 1fr auto auto 1fr; align-items: center;
+  grid-template-areas: ". lf st ." "ek ek ek ek" "p p p p";
+}
+.viewer-oben .viewer-lf { grid-area: lf; }
+.viewer-oben .insel-steuer { grid-area: st; }
+.viewer-oben .viewer-ek { grid-area: ek; }
+.viewer-oben .kontext.insel-panel { grid-area: p; }
+.viewer-oben:empty { display: none; }
