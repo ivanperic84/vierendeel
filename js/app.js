@@ -7,6 +7,7 @@
  */
 
 import { dialogDimension } from './app.dimension.js';
+import { bewegungStarten, dialogAusKnopf } from './ui.bewegung.js';
 import { viewerAusleiten } from './app.viewer.js';
 import { standAnheben, amMast, havarieKopieren, expandiereAnbauteile, anbauGruppe } from './data.anbauteile.js';
 import { STAND } from './version.js';
@@ -7306,6 +7307,7 @@ function dialog(titel, koerper, knoepfe, klasse = '', opt = {}) {
     <div class="dialog-koerper">${koerper}</div>
     <div class="dialog-fuss">${knoepfe}</div>
   </div></div>`;
+  dialogAusKnopf(n.querySelector('.dialog'));
   const zu = () => {
     if (dialogLauf !== meins) return;      // längst ein anderer da
     // Wer wissen muss, dass der Dialog zuging (13. November: Abbrechen eines
@@ -8292,6 +8294,8 @@ export async function start() {
       m?.addEventListener(ev, maskenAnkerLoesen, { passive: true }));
   }
   baueLayout(app);
+  // Bewegung wie Android (22. November): Welle, Reiter gleiten, Dialog aus dem Knopf.
+  bewegungStarten();
   baueModellWerkzeuge(app);
   verdrahteZeichnung();
   verdrahteAblegen();

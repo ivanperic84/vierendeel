@@ -43670,6 +43670,22 @@ titel('317  Farbe «frei» behält die Einstellungen; Dimensionieren geordnet; a
        && css.includes('.dialog, .kontext, .bannerschublade { background: var(--glas); backdrop-filter: blur(14px); }'));
 }
 
+// ===========================================================================
+titel('318  Bewegung wie Android: Welle, Reiter gleiten, Kacheln gestaffelt, Dialog aus dem Knopf');
+{
+  const BQ = readFileSync(join(HIER, 'js', 'ui.bewegung.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Modul ui.bewegung.js: Welle, Reiterrichtung, Dialog aus dem Knopf; mit «weniger Bewegung» nichts',
+       BQ.includes('function welle(e)') && BQ.includes("'gleitet-r' : 'gleitet-l'") && BQ.includes('export function dialogAusKnopf(dlg)')
+       && BQ.includes('prefers-reduced-motion: reduce'));
+  wahr('App startet die Bewegung und lässt Dialoge aus dem Knopf wachsen',
+       AQ.includes('bewegungStarten();') && AQ.includes("dialogAusKnopf(n.querySelector('.dialog'));"));
+  wahr('Stilblatt: Welle, Gleiten, Staffel, Wachsen, jeweils mit Ausnahme bei weniger Bewegung',
+       css.includes('@keyframes welle') && css.includes('@keyframes gleit-r') && css.includes('@keyframes staffel')
+       && css.includes('@keyframes waechst') && css.includes('.welle, .panel-koerper.gleitet-r'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
