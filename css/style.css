@@ -4181,7 +4181,6 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
               color var(--t-mittel), border-color var(--t-mittel), background var(--t-mittel);
 }
 .viewer-lf .lf-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.viewer-oben:hover .viewer-lf, .viewer-lf:focus-visible { max-width: 520px; }
 .viewer-lf.einzel { background: var(--acc-s); }
 .viewer-lf .lf-text.neu { animation: lf-ein .32s ease-out; }
 .viewer-oben.puls { animation: insel-puls .42s cubic-bezier(.3, 1.4, .5, 1); }
@@ -4195,9 +4194,6 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
    zieht sie sich ganz zurück, damit der volle Name Platz hat. */
 .viewer-oben .viewer-ek { flex-shrink: 4; max-width: 600px;
   transition: max-width var(--t-insel), opacity var(--t-mittel), padding var(--t-insel); }
-.viewer-oben:has(.viewer-lf:hover) .viewer-ek, .viewer-oben:has(.viewer-lf:focus-visible) .viewer-ek {
-  max-width: 0; opacity: 0; padding-left: 0; padding-right: 0; }
-.viewer-oben:has(.viewer-lf:hover) .viewer-lf { max-width: 100%; }
 /* Im schmalen Fenster bleibt der Lastfall lesbar; die Grundwerte weichen zuerst. */
 .viewer-oben { min-width: min(150px, 100%); }
 .viewer-lf { min-width: 92px; }
@@ -4243,4 +4239,9 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 /* Im schmalen Bild schrumpft die Grundwertezeile nicht unter «EK1…» - sie
    bleibt der Griff, der die Insel ausfährt. */
 .viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }
-.viewer-oben:has(.viewer-lf:hover) .viewer-ek { min-width: 0; }
+
+/* Kein Auslaufen beim Überfahren mehr (21. November, «wenn man mit der maus
+   über diesen button fährt springt es»): die Mindestbreite der Grundwerte
+   wechselte ohne Übergang. Der volle Name steht im Titel; der Lastfall hat
+   Vorrang, die Grundwerte geben zuerst nach. */
+.viewer-lf { flex-shrink: .01; }

@@ -43571,6 +43571,10 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
        KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
        && KQ.includes('n.inselZu = () => inselMorph(ziel,'));
+  const css2 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Überfahren des Lastfalls ändert keine Breiten (sprang, 21. November); der Lastfall hat Vorrang',
+       !css2.includes('.viewer-oben:has(.viewer-lf:hover) .viewer-ek') && !css2.includes('.viewer-oben:hover .viewer-lf')
+       && css2.includes('.viewer-lf { flex-shrink: .01; }'));
   wahr('Die Insel wächst und schrumpft weich (FLIP auf Breite und Höhe)',
        KQ.includes('function inselMorph(el, aendern)') && KQ.includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` }"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
