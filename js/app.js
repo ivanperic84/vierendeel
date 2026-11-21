@@ -3316,7 +3316,7 @@ function inselText(el, text, titel = null) {
   const w0 = el.getBoundingClientRect().width;
   el.style.width = '';
   el.innerHTML = `<span class="lf-text${erstes ? '' : ' neu'}">${esc(text)}</span>`;
-  el.title = `${titel ?? text} - Lastfall wählen (Seitenleiste)`;
+  el.title = titel ?? text;
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (erstes || still || !w0) return;
   const w1 = el.getBoundingClientRect().width;
@@ -3400,10 +3400,9 @@ function aktualisiereModell(erg) {
     inselText(lfEl, lf ? lastfallName(letzte?.kombi, lf) : 'Lastfall: umhüllend', lf?.bez);
     inselSteuerung();
     lfEl.classList.toggle('einzel', !!lf);
-    if (!lfEl.dataset.verdrahtet) {
-      lfEl.dataset.verdrahtet = '1';
-      lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });
-    }
+    // Kein Verweis mehr (21. November: «man kann die verlinkung des lastfalls
+    // in der island weglassen da diese schon in der resultatbox enthalten ist»).
+    lfEl.tabIndex = -1;
   }
   if (ui.el('pos-ek')) {
     /*

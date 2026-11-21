@@ -43610,6 +43610,27 @@ titel('313  Lastfälle heissen überall wie in der Matrix; die Matrix zeigt die 
   wahr('Matrix markiert den gewählten Fall', UQ.includes("${opt.gewaehlt === k.key ? ' gewaehlt' : ''}"));
 }
 
+// ===========================================================================
+titel('314  Insel, Leiste, Legende einheitlich; Legende mittig; Modell springt nicht; K schliesst w aus');
+{
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Insel und Leiste mit den kleinen Ecken der Legende, ohne Schatten; Leiste durchsichtig',
+       css.includes('.viewer-oben, .viewer-oben.offen { border-radius: var(--m-r1); box-shadow: none; }')
+       && css.includes('background: color-mix(in srgb, var(--s2) 45%, transparent);'));
+  wahr('Legende bei offener Leiste in der Mitte der freien Fläche (ausser von Hand verschoben)',
+       LQ.includes("v.classList.toggle('wz-offen', offen);") && css.includes('#viewer.wz-offen .legende:not(.gezogen) {'));
+  wahr('Lastfall der Insel ist kein Verweis mehr (Span, kein Klick)',
+       readFileSync(join(HIER, 'index.html'), 'utf8').includes('<span class="viewer-marke viewer-lf" id="pos-lf"></span>')
+       && !AQ.includes("lfEl.addEventListener('click'"));
+  wahr('Modell springt nicht: Bildmitte mit der Breite der offenen Leiste, auch eingeklappt',
+       LQ.includes('if (offen) breiteOffen = kn;') && LQ.includes('const b = offen ? kn : (breiteOffen ?? 107);'));
+  wahr('Knickfigur «K» schliesst w / η w aus und umgekehrt',
+       LQ.includes("const lab = 'K';") && LQ.includes("app.ansicht.modus = 'eta'")
+       && LQ.includes('if (FIGUR_MODI.includes(mo.key) && app.knickInfo?.().zeigen)'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

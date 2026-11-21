@@ -370,6 +370,7 @@ function wzZu() {
  * diesen Abstand) und `randRechts` am Renderer (die Bildmitte liegt links von
  * ihr). Eingeklappt ist sie ein kleiner Knopf oben: dann 0.
  */
+let breiteOffen = null;
 export function leisteMelden(app) {
   const v = ui.el('viewer'), n = ui.el('ebenen-tools');
   if (!v || !n) return;
@@ -377,9 +378,20 @@ export function leisteMelden(app) {
   // Eingeklappt ist sie ein Knopf oben rechts: die Kopfzeile weicht ihm aus,
   // die Bildmitte nicht (er steht über dem Himmel, nicht über dem Modell).
   const kn = Math.ceil(n.getBoundingClientRect().width) + 8;
-  const b = offen ? kn : 0;
+  /*
+   * DAS MODELL SPRINGT NICHT (21. November, «das modell so bleiben wo es ist
+   * und nicht springen»): die Bildmitte rechnet immer mit der Breite der
+   * OFFENEN Leiste - auch eingeklappt -, so bleibt das Modell beim Auf- und
+   * Zuklappen stehen. Die Breite der offenen Leiste wird gemerkt.
+   */
+  if (offen) breiteOffen = kn;
+  // Noch nie offen: die gemessene Breite der offenen Leiste (99 px + 8).
+  const b = offen ? kn : (breiteOffen ?? 107);
   v.style.setProperty('--wz-breite', `${kn}px`);
-  v.style.setProperty('--wz-legende', `${b}px`);   // die Legende unten nur bei offener Leiste
+  v.style.setProperty('--wz-legende', `${offen ? kn : 0}px`);   // die Legende unten nur bei offener Leiste
+  // Bei offener Leiste steht die Legende unten in der Mitte (21. November,
+  // «wenn die layersteuerung ausfährt dann die untere resultatbox in die mitte ziehen»).
+  v.classList.toggle('wz-offen', offen);
   const a = app.ansicht;
   if (a && a.randRechts !== b) {
     a.randRechts = b;
@@ -591,13 +603,21 @@ export function zeichneModellWerkzeuge(app) {
   if (kn) {
     kn.onclick = () => {
       const k = app.knickInfo?.();
+      /*
+       * Knickfigur und Verformung schliessen sich aus (21. November: «wenn
+       * man es auswählt soll nicht gleichzeitig w ausgewählt bleiben»): mit
+       * der Knickfigur wechselt ein Plot w / η w auf η.
+       */
+      const wegVonW = () => {
+        if (FIGUR_MODI.includes(app.ansicht.modus)) { app.ansicht.modus = 'eta'; zeichneLegende(app); }
+      };
       if (!k?.gilt) {
-        kn.textContent = 'rechnet …';
-        setTimeout(() => { app.knickRechnen(); zeichneModellWerkzeuge(app); }, 30);
+        kn.textContent = '…';
+        setTimeout(() => { app.knickRechnen(); wegVonW(); zeichneModellWerkzeuge(app); }, 30);
         return;
       }
       // Ein / aus; geschwungen wird über die Insel.
-      if (k.zeigen) app.ansicht.schwingen(false);
+      if (k.zeigen) app.ansicht.schwingen(false); else wegVonW();
       app.knickFigurSchalten();
       zeichneModellWerkzeuge(app);
     };
@@ -654,6 +674,8 @@ export function zeichneModellWerkzeuge(app) {
   modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
       if (app.ansicht.figurSchwingt && !app.knickInfo?.().zeigen) app.ansicht.schwingen(false);
+      // w / η w nimmt die Knickfigur weg (sie schliessen sich aus).
+      if (FIGUR_MODI.includes(mo.key) && app.knickInfo?.().zeigen) { app.ansicht.schwingen(false); app.knickFigurSchalten(); }
       app.ansicht.modus = mo.key;
       // Mit eingeschalteter Linie gehört zur neuen Grösse eine neue Linie.
       if (zl.an) app.zustandNeu(true);
@@ -670,7 +692,8 @@ function knickKnopf(app, gR, text) {
   const k = app.knickInfo?.();
   if (!k?.stabwerk || tragwerksart(app.werte).key !== 'joch') return '';
   const an = k.zeigen && k.gilt;
-  const lab = 'Knick';
+  // Kurz wie die übrigen Plotknöpfe (21. November: «hier mit K knicken anschreiben»).
+  const lab = 'K';
   const tit = !k.gilt ? 'Knickfigur: α_cr rechnen (rund 2-5 s) und die erste Eigenform zeigen'
     : !an ? `Knickfigur zeigen · α_cr = ${k.gilt.alpha.toFixed(2)}` : 'Knickfigur ausblenden';
   return text('wz-r-knick', lab, tit, an, !gR).replace('class="wz-s wz-txt', 'class="wz-s wz-txt wz-knick');

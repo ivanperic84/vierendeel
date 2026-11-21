@@ -4307,3 +4307,28 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 /* Die Matrix zeigt, was in der Seitenleiste gewählt ist (21. November). */
 .dialog-lf .lf-zeile.gewaehlt > td { background: var(--acc-s); }
 .dialog-lf .lf-zeile.gewaehlt > td:first-child { box-shadow: inset 3px 0 0 var(--acc); }
+
+/* Wie der Rest der App (21. November, «diese felder sehen nicht gleich wie
+   der rest der app aus»): Insel und Werkzeugleiste wie die Legende - kleine
+   Ecken, Monoschrift, kein Schatten; der Lastfall ist kein Knopf mehr. */
+.viewer-oben, .viewer-oben.offen { border-radius: var(--m-r1); box-shadow: none; }
+.viewer-oben:hover { box-shadow: none; }
+.viewer-oben .viewer-lf { font-family: var(--f-mono); font-size: 11px; color: var(--on2); cursor: default; }
+.viewer-oben .viewer-lf.einzel { color: var(--acc); background: none; }
+.viewer-lf:hover { color: var(--on2); }
+.viewer-tools-r:not(:has(> #wz-auf)) { border-radius: var(--m-r1); box-shadow: none; }
+.viewer-tools-r > #wz-auf { border-radius: var(--m-r1); box-shadow: none; height: 24px; padding: 0 10px; }
+/* Legende in der Mitte der freien Fläche, solange die Leiste offen ist. */
+#viewer.wz-offen .legende:not(.gezogen) {
+  right: auto; left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%);
+}
+
+/* Die Werkzeugleiste durchsichtig, auch ausgeklappt (21. November, «die
+   layerdarstellung transparent machen uch im ausgeklapptem zustand»): das
+   Modell scheint durch, der Rahmen bleibt. */
+.viewer-tools-r:not(:has(> #wz-auf)),
+.viewer-tools-r > #wz-auf {
+  background: color-mix(in srgb, var(--s2) 45%, transparent);
+  backdrop-filter: blur(2px);
+}
+.viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe { opacity: 1; }
