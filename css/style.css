@@ -4233,9 +4233,10 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben .kontext.insel-panel {
   position: static; flex-basis: 100%; box-shadow: none; border: 0; border-top: 1px solid var(--ol);
   border-radius: 0; background: none; margin-top: 4px; padding: 6px 0 0; min-width: 0;
-  animation: insel-auf .38s cubic-bezier(.3, 1.25, .5, 1);
-  transform-origin: top center;
+  animation: lf-ein .32s ease-out .08s both;
 }
+/* Ausgefahren eine feste Breite, damit die Insel nicht über die ganze Kopfzeile springt. */
+.viewer-oben.offen { width: min(100%, 460px); }
 .viewer-oben.offen .viewer-ek { color: var(--acc); }
 @keyframes insel-auf { from { opacity: 0; max-height: 0; transform: scaleY(.6); } to { opacity: 1; max-height: 420px; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .viewer-oben .kontext.insel-panel { animation: none; } }

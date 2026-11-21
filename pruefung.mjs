@@ -43547,9 +43547,10 @@ titel('310  Audit 21. November, Block 2: Startzustand (Abfangjoch mit Anker, Tra
 titel('311  Insel mit Blättern, Zurück und Play; Lastfall leuchtet in der Seitenleiste');
 {
   const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
-  wahr('Insel: ‹ › durch die Nachweisfälle, × zurück auf umhüllend, ▶ / ■ für Figur bzw. Knickfigur',
-       AQ.includes('function inselSteuerung()') && AQ.includes("knopf('vor', '›'") && AQ.includes("knopf('alle', '×'")
-       && AQ.includes("knopf('spiel', schwingt ? '■' : '▶'") && AQ.includes("l.nachweis === true"));
+  // Die Pfeile ‹ › sind am selben Tag wieder weg («die pfeile füe den lastwechsel sind überflüssig»).
+  wahr('Insel: × zurück auf umhüllend, ▶ / ■ für Figur bzw. Knickfigur, keine Pfeile',
+       AQ.includes('function inselSteuerung()') && !AQ.includes("knopf('vor', '›'") && AQ.includes("knopf('alle', '×'")
+       && AQ.includes("knopf('spiel', schwingt ? '■' : '▶'"));
   wahr('Die Leiste meldet Änderungen an die Insel', readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes('app.inselSteuerung?.();'));
   wahr('Klick auf den Lastfall: die Zeile in der Seitenleiste leuchtet auf',
        AQ.includes("[data-lf-wahl=\"${CSS.escape(String(anzeigeKombi))}\"]") && AQ.includes("'lf-leuchten'"));
@@ -43569,11 +43570,13 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
        && AQ.includes('kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });'));
   wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
        KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
-       && KQ.includes('kontextMenue?.zuruecksetzen?.();'));
+       && KQ.includes('n.inselZu = () => inselMorph(ziel,'));
+  wahr('Die Insel wächst und schrumpft weich (FLIP auf Breite und Höhe)',
+       KQ.includes('function inselMorph(el, aendern)') && KQ.includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` }"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Stilblatt: Insel ausgefahren, Panel statisch, Grundwerte nie unter «EK1…»',
        css.includes('.viewer-oben.offen {') && css.includes('.viewer-oben .kontext.insel-panel {')
-       && css.includes('@keyframes insel-auf') && css.includes('.viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }'));
+       && css.includes('.viewer-oben.offen { width: min(100%, 460px); }') && css.includes('.viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }'));
 }
 
 console.log('\n' + '='.repeat(104));

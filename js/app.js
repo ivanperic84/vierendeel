@@ -3287,9 +3287,9 @@ function inselSteuerung() {
   const einzel = anzeigeKombi !== 'umhuellend';
   const knopf = (k, t, titel, extra = '') =>
     `<button type="button" class="insel-k${extra}" data-insel="${k}" title="${esc(titel)}">${t}</button>`;
-  const html = (inselFaelle().length > 1
-    ? knopf('zurueck', '‹', 'Vorheriger Nachweisfall') + knopf('vor', '›', 'Nächster Nachweisfall') : '')
-    + (einzel ? knopf('alle', '×', 'Zurück auf «umhüllend» (alle Nachweisfälle)') : '')
+  // Keine Pfeile zum Blättern (21. November: «die pfeile füe den
+  // lastwechsel sind überflüssig») - gewählt wird in der Lastfallliste.
+  const html = (einzel ? knopf('alle', '×', 'Zurück auf «umhüllend» (alle Nachweisfälle)') : '')
     + (figur ? `<span class="insel-figur">${knickFig ? 'Knick' : 'Figur'}</span>`
       + knopf('spiel', schwingt ? '■' : '▶', schwingt ? 'Figur anhalten' : 'Figur schwingen lassen', ' insel-spiel') : '');
   if (el.dataset.html === html) return;

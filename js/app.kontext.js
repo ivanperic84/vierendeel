@@ -24,8 +24,33 @@ let kontextMenue = null;
 /** Fuer app.js: steht ein Kontextmenue offen? */
 export const kontextOffen = () => Boolean(kontextMenue);
 
+/*
+ * >>> DIE INSEL WÄCHST UND SCHRUMPFT WEICH (21. November). <<< «die dynamic
+ * island funktioniert nicht sauber»: gemessen sprang sie beim Ausfahren in
+ * einem Bild von 344 × 34 auf 497 × 169 px. Jetzt Breite und Höhe als FLIP
+ * (vorher messen, umstellen, nachher messen, dazwischen animieren).
+ */
+function inselMorph(el, aendern) {
+  const a = el.getBoundingClientRect();
+  aendern();
+  const b = el.getBoundingClientRect();
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || typeof el.animate !== 'function' || (a.width === b.width && a.height === b.height)) return;
+  el.style.overflow = 'hidden';
+  const an = el.animate([{ width: `${a.width}px`, height: `${a.height}px` },
+                         { width: `${b.width}px`, height: `${b.height}px` }],
+                        { duration: 380, easing: 'cubic-bezier(.3, 1.15, .5, 1)' });
+  const fertig = () => { el.style.overflow = ''; };
+  an.onfinish = fertig; an.oncancel = fertig;
+}
+
 export function kontextSchliessen(app) {
-  kontextMenue?.zuruecksetzen?.();
+  if (kontextMenue?.inselZu) {
+    const n = kontextMenue;
+    kontextMenue = null;
+    n.inselZu();
+    return;
+  }
   kontextMenue?.remove();
   kontextMenue = null;
 }
@@ -121,9 +146,8 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
   const ziel = opt.ziel ?? null;
   if (ziel) {
     n.classList.add('insel-panel');
-    ziel.appendChild(n);
-    ziel.classList.add('offen');
-    n.zuruecksetzen = () => ziel.classList.remove('offen');
+    inselMorph(ziel, () => { ziel.appendChild(n); ziel.classList.add('offen'); });
+    n.inselZu = () => inselMorph(ziel, () => { n.remove(); ziel.classList.remove('offen'); });
   } else document.body.appendChild(n);
   kontextMenue = n;
   /*
