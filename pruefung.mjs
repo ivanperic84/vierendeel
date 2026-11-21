@@ -43584,6 +43584,8 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   wahr('Werkzeugleiste: eine Box im Stil der Insel, Auf-/Zuklappen weich (inselMorph)',
        LQ2.includes("ui.el('wz-auf').onclick = () => inselMorph(n,") && LQ2.includes("inselMorph(ui.el('ebenen-tools'),")
        && css2.includes('.viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe {'));
+  wahr('Werkzeugleiste ohne sichtbaren Balken, Höhe bis Fenster − 20 px (vorher − 66)',
+       css2.includes('.viewer-tools-r { max-height: calc(100% - 20px); scrollbar-width: none; }'));
   wahr('Die Insel wächst und schrumpft weich (FLIP auf Breite und Höhe)',
        KQ.includes('function inselMorph(el, aendern)') && KQ.includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` }"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');

@@ -4292,3 +4292,14 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-tools-r:not(:has(> #wz-auf)) > .wz-klapp { align-self: flex-end; border-color: transparent; background: none; }
 .viewer-tools-r > #wz-auf { border-radius: 14px; height: 30px; padding: 0 12px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .28); background: var(--s2); }
+
+/* Keine Bildlaufleiste in der Werkzeugleiste (21. November, «warum hat es
+   hier eine scrollleist»): sie durfte nur Fensterhöhe − 66 px nutzen (ein
+   Rest aus der Zeit, als die Legende darunter stand) und war mit 706 px
+   Inhalt bei rund 730 px Fenster zu hoch. Jetzt − 20 px, die Gruppen
+   dichter; muss sie doch rollen, ohne sichtbaren Balken. */
+.viewer-tools-r { max-height: calc(100% - 20px); scrollbar-width: none; }
+.viewer-tools-r::-webkit-scrollbar { width: 0; height: 0; }
+.viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe { padding: 3px 4px 3px; }
+.viewer-tools-r .wz-t { margin-bottom: 2px; }
+.viewer-tools-r .wz-explo { margin-top: 2px; }
