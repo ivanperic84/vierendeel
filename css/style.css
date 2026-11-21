@@ -4383,3 +4383,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-tools-r:not(:has(> #wz-auf)), .viewer-tools-r > #wz-auf { background: var(--glas); backdrop-filter: blur(2px); }
 .dialog, .kontext, .bannerschublade { background: var(--glas); backdrop-filter: blur(14px); }
 .dialog-kopf, .dialog-fuss { background: transparent; }
+/* Dimensionieren: Innenabstand wie die übrigen Fenster (22. November, «der
+   text klebt am rand»); der breite Dialog selbst hat keinen. */
+.dialog-breit .dm-block, .dialog-breit .dm-fort, .dialog-breit #dm-ergebnis { padding-left: 14px; padding-right: 14px; }
+.dialog-breit .dm-block:first-child { padding-top: 10px; }
