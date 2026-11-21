@@ -5,7 +5,27 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-## Stand 18. November 2026 - hier weitermachen
+## Stand 21. November 2026 - hier weitermachen
+
+Alles gepusht bis `5cf23b8`, Arbeitsbaum sauber, Pruefstand **7509** gruen, `durchlauf.mjs` ohne Bruch.
+Seit dem 18. November gebaut (Einzelheiten und Wortlaut in CLAUDE.md, *Entschieden*, Zeilen 19.-21. November):
+Dimensionieren mit dem Stabwerk (Varianten, Streudiagramm, Vergleich, Spinne); Uebersicht als Zeilen;
+Plastisch-Schalter bei der Gruppe; Havarie am Abfangjoch nach dem Testprojekt (`Grundlagen/Testprojekt`, oertlich):
+Riss je Leiter in ±y, Kettenwerk ueber Joche gekoppelt (`kw:…`, Teilfaelle `|ts`/`|fd`), Feld `havarieLaengszug`,
+mehrere Abfangjoche uebereinander gleichwertig in Uebersicht und Schiene, Ausleger-Havarie in x auf Haengestuetze
+bzw. Mastachse, Abfangung nur noch am Leiter; Sammelliste 21. November: 3D zeigt nur Lasten des gewaehlten Falls,
+Lastfall oben im 3D waehlbar, Havariefaelle mit Leiter benannt, Eigengewicht der Druckstuetzen-Hilfsglieder
+entfernt (Gr. A staendig 122 → 24 kN), Reaktionsskizze, Viewer (Lastarten, Explosion, Teilmodell, GZG-Fall,
+Klick hebt Stab hervor, Positionslegende).
+
+**Offen:** Mast an Mauer (zurueckgestellt, Zeichnungen fehlen); Havarie-Vorschlaege (4)-(6) bewusst nicht gebaut;
+Liste vom 18. November (Schaltposten, Spannweitenkategorien, Tablet). Kein laufender Auftrag - beim
+Auftraggeber nachfragen, womit es weitergeht.
+
+`Versand/`: `vierendeel_tool_2026-11-21.html`, `vierendeel_schulung_2026-11-21.html` (mit Daten, nur intern),
+`COM_Bruecke` gleich `com/`, Datenpaket `Vierendeel_Datenpaket_2026-11-16.json` weiter aktuell.
+
+## Stand 18. November 2026 (davor)
 
 Zuletzt (18. November, örtlich committet, **nicht gepusht**): gespreizte Masten in AxisVM geprüft und finalisiert (DGP26/10 gerechnet; I_t der T-Hälften jetzt I_t des Walzprofils / 2, Torsion gegen AxisVM 11-14 % → ≤ 1.5 %). **Viewer gebaut** (Export → «Viewer (HTML: Modell, Bericht, Massen)», `js/app.viewer.js`, Laufzeit `js/viewer.js` → `js/viewer.laufzeit.js` beim Bündeln; Bericht mit klickbaren Bildern; Massenauszug `js/core.massenauszug.js` auch im Bericht). Die alte Stufe «viewer» ist gestrichen («der viewer wurde nie benutzt»); leichte Stufe nur noch die Schulung. Danach Explosion: Bleche auf eigener Ebene jenseits der Gurte (Resultate liessen sich dort schon plotten). Danach (18. November, auf Weisung gepusht): Explosion je Bauteil, Lastpfeile je Fall auch am Tragausleger und an Nachbarn, Bleche-Zustandslinie nach aussen, Sprungleiste Anbauteile, Grundwerte oben statt Lastfallfeld, Einzellasten in der Lastfallliste. Prüfstand **7432** grün. Danach (18. November, **nicht gepusht**): Knick-Eigenwert α_cr im Löser (`knicken` in core.stabwerk.js, gegen Euler geprüft) und als Auskunft in der Stabwerksleiste mit Knickfigur (J130/30 m mit Schnee α_cr 8.00 < 10). Danach gegen AxisVM gerechnet (Brücke `-Knicken`, `modell_knicken.mjs`): J90/20 m 23.022 gegen 22.995, J130/30 m mit Schnee 8.269 gegen 7.996 - die Anwendung liegt gleich bzw. auf der sicheren Seite. Theorie 2. Ordnung entschieden «A, dann B»: A gebaut (Vergrösserungsfaktor 1/(1 − 1/α_cr) als Auskunft in der Stabwerksleiste), B gebaut (Schalter «Theorie 2. Ordnung» in Optionen → Nachweise, Schiefstellung nach EN 5.3.2 in Windrichtung, `core.stabtheorie2.js`). Gegen AxisVM nichtlinear gerechnet (J130/30 m mit Schnee): Mastkopf 111.97 / 110.35 mm, Gepusht bis `35e194f` (Weisung «Jetzt pushen», 18. November). Ursache gesucht und behoben: K_G jetzt mit Momenttermen und an den Starrelementen - danach Mastkopf 111.7 / 111.97 mm, Stabkräfte auf 0.5-3 % (CLAUDE.md, Zeile Etappe B); offen nur das Moment des Masten um die schwache Achse (rund 1-2 % am η). Danach (nicht gepusht): Theorie 2. Ordnung und α_cr im Nachweisbericht (Grundlagen); «Stabilität Joch» über das Gesamtsystem (α_cr ≥ 10 oder 2. Ordnung), Gruppe «Stabilität» in der Nachweiskarte, kein Einzelstabnachweis der Gurte; Werkzeugleiste ohne «Teil»/«η w», Erklärtexte Vorgabe aus; Explosion mit Zustandslinien, weiter auseinander, ohne Anbauteile (Dlubal-Ausleitung auf Weisung nicht gebaut); Schieber «Auffällig» im Resultatplot. Prüfstand **7459**. Offen auch: Theorie 2. Ordnung im Bericht nennen. Prüfstand **7449**. Prüfstand **7440** grün.
 
