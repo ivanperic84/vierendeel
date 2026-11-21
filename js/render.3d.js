@@ -3082,7 +3082,9 @@ export class Modellansicht {
     }
     // Die Knickfigur (18. November) ist auf 1 normiert - keine Werte in mm.
     this._figurWerte = v.immer ? null : marken;
-    if (v.text && !this.sparsam) {
+    // Die Anschrift der Figur steht seit dem 21. November in der Insel oben;
+    // im Bild nur noch, wo eine Aufnahme sie braucht (`figurTextImBild`).
+    if (v.text && !this.sparsam && this.figurTextImBild) {
       c.font = this._wertFont();
       // Über der unteren Werkzeugleiste, nicht hinter ihr - und in kurzen
       // Zeilen, damit die Legende daneben sie nicht zudeckt (30. September).

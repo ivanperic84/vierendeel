@@ -4332,3 +4332,19 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
   backdrop-filter: blur(2px);
 }
 .viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe { opacity: 1; }
+
+/* «Oben was, unten Skala» (21. November): die Insel zeigt Lastfall und
+   Plotgrösse, die Grundwerte stehen in der Fussleiste, die Legende ist nur
+   noch die Skala - durchsichtig wie die Werkzeugleiste. */
+.viewer-oben .viewer-ek { display: none; }
+.viewer-oben { grid-template-areas: ". lf st ." "pl pl pl pl" "p p p p"; }
+.viewer-oben .insel-plot { grid-area: pl; font-family: var(--f-mono); font-size: 10px; color: var(--dim);
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px 1px; }
+.viewer-oben .insel-plot:empty { display: none; }
+.viewer-oben .viewer-lf { cursor: pointer; }
+.viewer-oben .viewer-lf:hover { color: var(--on); }
+.st-gw { cursor: pointer; border: 1px solid transparent; border-radius: var(--m-r1); padding: 1px 6px; }
+.st-gw:hover { color: var(--on); border-color: var(--ol); }
+.st-gw:empty { display: none; }
+.legende { background: color-mix(in srgb, var(--s2) 45%, transparent); backdrop-filter: blur(2px); }
+.st-gw { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }

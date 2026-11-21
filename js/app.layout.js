@@ -895,6 +895,7 @@ const POS_LEGENDE_LANG = 8;
  * Modells (Nachweis / Resultat / frei) und der Höchstwert der Skala.
  */
 let balkenOffen = false;
+let legendeInfo = false;
 function lastfallText(app) {
   const k = app.anzeigeKombi;
   if (!k || k === 'umhuellend') return 'Lastfall: umhüllend (alle Nachweisfälle)';
@@ -943,7 +944,9 @@ function balkenHtml(app, p, linie = false) {
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  return `${bar}<button type="button" class="legende-fall" data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</button>${einst}`;
+  // Der Lastfall steht in der Insel oben (21. November, «Oben was, unten Skala»).
+  void lastfallText;
+  return `${bar}${lf !== 'resultat' ? `<div class="legende-fall">Farbe ${esc(farbName)}</div>` : ''}${einst}`;
 }
 function balkenLinieHtml(app, p) {
   const a = app.ansicht;
@@ -970,7 +973,7 @@ function balkenLinieHtml(app, p) {
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  return `${bar}<button type="button" class="legende-fall" data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))} · Linie ${esc(name)}</button>${einst}`;
+  return `${bar}<div class="legende-fall">Linie ${esc(name)}</div>${einst}`;
 }
 function balkenVerdrahten(app, n) {
   // Die Lastfallzeile führt zu den Lastfällen (21. November).
@@ -1066,12 +1069,20 @@ export function zeichneLegende(app) {
      * bei 1.0, was darüber liegt, steht rot. Die Farben bleiben dieselben.
      */
     // Seit dem 19. November überall bis 1.0 und mit Lastfall (balkenHtml).
+    // Der Erklärsatz steht hinter ⓘ (21. November, «Oben was, unten Skala»).
+    const info = p.fussnote && !p.fest
+      ? `<button type="button" class="legende-klapp" data-leg-info title="${esc(p.fussnote)}">ⓘ</button>` : '';
     n.innerHTML =
-      griff(`${p.label}${p.einheit === '–' ? '' : ` [${p.einheit}]`}`) +
+      griff(`${p.label}${p.einheit === '–' ? '' : ` [${p.einheit}]`}`, info) +
       balkenHtml(app, p) +
-      (p.fussnote && !p.fest ? `<div class="legende-fuss">${esc(p.fussnote)}</div>` : '') +
+      (p.fussnote && !p.fest && legendeInfo ? `<div class="legende-fuss">${esc(p.fussnote)}</div>` : '') +
       (p.max > 0 || p.fest ? '' : '<div class="legende-fuss">keine Werte vorhanden</div>');
     balkenVerdrahten(app, n);
+    const ib = n.querySelector('[data-leg-info]');
+    if (ib) {
+      ib.addEventListener('pointerdown', (e) => e.stopPropagation());
+      ib.onclick = (e) => { e.stopPropagation(); legendeInfo = !legendeInfo; zeichneLegende(app); };
+    }
     fertig();
     return;
   }

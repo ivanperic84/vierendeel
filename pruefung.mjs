@@ -43568,9 +43568,10 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
 {
   const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
   const KQ = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8').replace(/\r\n/g, '\n');
-  wahr('Klick auf die Grundwerte: Panel in der Insel, zweiter Klick schliesst',
-       AQ.includes("if (insel?.classList.contains('offen')) { kontextSchliessen(app); return; }")
-       && AQ.includes('kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });'));
+  // Seit dem 21. November spät stehen die Grundwerte in der Fussleiste («Oben was, unten Skala»).
+  wahr('Klick auf die Grundwerte (Fussleiste): Felder, zweiter Klick schliesst',
+       AQ.includes("if (kontextOffen()) { kontextSchliessen(app); return; }")
+       && AQ.includes("const ek = ui.el('st-grundwerte') ?? ui.el('pos-ek');"));
   wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
        KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
        && KQ.includes('n.inselZu = () => inselMorph(ziel,'));
@@ -43621,14 +43622,33 @@ titel('314  Insel, Leiste, Legende einheitlich; Legende mittig; Modell springt n
        && css.includes('background: color-mix(in srgb, var(--s2) 45%, transparent);'));
   wahr('Legende bei offener Leiste in der Mitte der freien Fläche (ausser von Hand verschoben)',
        LQ.includes("v.classList.toggle('wz-offen', offen);") && css.includes('#viewer.wz-offen .legende:not(.gezogen) {'));
-  wahr('Lastfall der Insel ist kein Verweis mehr (Span, kein Klick)',
+  // Seit «Oben was, unten Skala» führt der Lastfall der Insel wieder zu den Lastfällen (die Legende trägt ihn nicht mehr).
+  wahr('Lastfall der Insel als Span, führt zu den Lastfällen',
        readFileSync(join(HIER, 'index.html'), 'utf8').includes('<span class="viewer-marke viewer-lf" id="pos-lf"></span>')
-       && !AQ.includes("lfEl.addEventListener('click'"));
+       && AQ.includes("lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });"));
   wahr('Modell springt nicht: Bildmitte mit der Breite der offenen Leiste, auch eingeklappt',
        LQ.includes('if (offen) breiteOffen = kn;') && LQ.includes('const b = offen ? kn : (breiteOffen ?? 107);'));
   wahr('Knickfigur «K» schliesst w / η w aus und umgekehrt',
        LQ.includes("const lab = 'K';") && LQ.includes("app.ansicht.modus = 'eta'")
        && LQ.includes('if (FIGUR_MODI.includes(mo.key) && app.knickInfo?.().zeigen)'));
+}
+
+// ===========================================================================
+titel('315  Oben was, unten Skala: Insel mit Plotgrösse und Figur, Legende nur Skala, Grundwerte in der Fussleiste');
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const IX = readFileSync(join(HIER, 'index.html'), 'utf8');
+  wahr('Insel: zweite Zeile mit Plotgrösse und Figur (Massstab, grösster Weg)',
+       AQ.includes('function inselPlot(v, figur, knickFig)') && IX.includes('id="pos-plot"'));
+  wahr('Legende ohne Lastfall, Erklärsatz hinter ⓘ, durchsichtig',
+       !LQ.includes('data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))}')
+       && LQ.includes('data-leg-info') && css.includes('.legende { background: color-mix(in srgb, var(--s2) 45%, transparent);'));
+  wahr('Grundwerte in der Fussleiste, nicht mehr in der Insel', IX.includes('id="st-grundwerte"')
+       && css.includes('.viewer-oben .viewer-ek { display: none; }'));
+  wahr('Anschrift der Figur nicht mehr im Bild (lag hinter der Legende)', RQ.includes('this.figurTextImBild'));
 }
 
 console.log('\n' + '='.repeat(104));
