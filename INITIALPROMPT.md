@@ -7,6 +7,8 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 21. November 2026 - hier weitermachen
 
+**Abends am 21. November:** Audit-Bloecke 1, 3, 4 gepusht (bis `9bef97c`). Danach, oertlich committet und **nicht gepusht**: ein Knopf «Dimensionieren» mit Auswahl je Gruppe (alte Jochtypen nie empfohlen), Vorauswahl mit dem Kern bis η 1.10 und Massengrenze +30 % (beide einstellbar), Lastfall oben als einzeilige «Insel», Figur schwingt im Knopf w, Knopf «Knick» in Resultate, Lasten ausgeblendeter Bauteile weg. Pruefstand **7558**. Naechster Schritt: Audit-Block 2 (Startzustand; vorher die ⚠-Rueckfragen: neues Abfangjoch η 2.96, neuer Tragausleger 1.017, P2 am Startjoch - P2 prueft L / a₁ ganzzahlig, obwohl die Stationen aus der Mass-Tabelle kommen) oder 5 (Form).
+
 **Spaet am 21. November:** Audit der Oberflaeche (zwei Durchgaenge), Block 1 der Befunde behoben (Δη-Marken nur beim selben Tragwerk, Schulung Knicken unter Masten, ein Gesamt-η fuer Hauptkachel/Fussleiste/Hinweis, Grossschrift ohne Werte), danach Block 3 (3D-Fenster: Legende/Kopfzeile neben der Leiste, Bildmitte links davon, Leiste mit Bildlauf, Rueckfrage bei Art im Kontextmenue, f_yd an der Skala), dann Block 4 (Seitenleisten: Uebersicht 2800 → 1400 px, fremde Bloecke, Verlaeufe lesbar). Oertlich committet, **nicht gepusht**. Pruefstand **7546**. Naechster Schritt: beim Auftraggeber fragen, ob Block 2 (Startzustand, Rueckfragen) oder 5 (Form, Kontrast) folgt (CLAUDE.md, *Offene Punkte*, «Audit 21. November»); Pruefseite `Versand/pruef_audit.html` mit Messhilfe `Versand/aud.js` (oertlich, ueber `serve.py 8741`).
 
 ### Davor am 21. November

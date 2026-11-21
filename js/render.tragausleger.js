@@ -374,7 +374,7 @@ export function auslegerSzene(satz, opt = {}) {
                       text: i === Math.round(n / 2) ? `${nm} = ${wert.toFixed(2)} kN/m` : '',
                       titel });
     }
-    lastflaechen.push({ gruppe: 'last', art: 'wind', lastart,
+    lastflaechen.push({ gruppe: 'last', art: 'wind', lastart, teil,
                         punkte: [aus(pVon), aus(pBis), pBis, pVon],
                         titel: `${titel} · ${nm} = ${wert.toFixed(2)} kN/m` });
   };

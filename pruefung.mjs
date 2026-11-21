@@ -6564,7 +6564,7 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
      * stand das Joch bei 0.52 und ein Mast bei 1.47.
      */
     wahr('Sie erscheint, wenn Joch, Mast oder Anker ueberschritten ist',
-         /\(eAn > 1 \|\| mastUeber \|\| ankerUeber\)/.test(uq));
+         /eAn > 1 \|\| mastUeber \|\| ankerUeber/.test(uq));
     wahr('… und der Anker zaehlt auch die Ueberlaenge',
          /ankerUeber = \[/.test(uq) && /lieferbar === false/.test(uq));
     wahr('Der Typ wechselt nicht von selbst',
@@ -43107,8 +43107,8 @@ titel('299  Dynamik: Figur schwingt, Δη nach Eingabe, Wert am Zeiger, Überble
   const AQ3 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Wert am Zeiger (Fläche oder Linie), mit «weniger Bewegung» keine Animation',
        RQ3.includes('_wertAmZeiger(e)') && RQ3.includes('this._zlPunkte') && RQ3.includes("prefers-reduced-motion: reduce"));
-  wahr('Knöpfe Explosion auf/zu und Figur schwingen; Δη an Kacheln und Hauptkachel',
-       LQ3.includes('ef.oncontextmenu') && !LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
+  wahr('Explosion per Rechtsklick, Figur schwingt im Knopf w bzw. Knick (21. Nov.); Δη an Kacheln und Hauptkachel',
+       LQ3.includes('ef.oncontextmenu') && !LQ3.includes('id="wz-explo-fahren"') && LQ3.includes("'wz-r-knick'") && !LQ3.includes("'wz-r-schwingen'") && AQ3.includes('function deltaMarken()')
        && AQ3.includes("document.querySelector('.urteil .urteil-zahl')"));
 }
 
@@ -43447,6 +43447,72 @@ titel('308  Audit 21. November, Block 4: Seitenleisten kürzer und ohne fremde B
   wahr('Verläufe in der Breite der Leiste (höchstens 860)', /function verlaufBreite\(\)[\s\S]{0,200}Math\.min\(860, b\)/.test(AQ));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Erklärtexte aus: auch keine zugeklappten «Hinweis»-Zeilen', css.includes('body.ohne-erklaertexte .hinweis-zu { display: none; }'));
+}
+
+// ===========================================================================
+titel('309  Dimensionieren mit Auswahl und Grenzen; Lastfall-Insel; Figur im Knopf w; Knick in der Leiste; Lasten mit dem Bauteil');
+/* 21. November, im Wortlaut u. a.: «beim sortiment durchrechnen sollte man
+ * eine auswahl machen können welche typen berücksichtigt wreden sollen …
+ * eine empfehlung für otpimierung sollte nie das alte jochsortiment
+ * berücksichtigen», «diesen button mit dem dimensionieren verbinden»,
+ * «nachweise die über 1.1 gehen sind zu limitieren und bei der oberen
+ * grenze die gewichtszunahme als kriterium aufführen» (einstellbar). */
+{
+  const DM = await import(J('app.dimension.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const k = DM.kandidaten(w);
+  wahr('Gruppen: Jochtypen neu / alt, Walzprofile, Gittermasten, DGP',
+       DM.GRUPPEN.map((g) => g.key).join() === 'jochNeu,jochAlt,walz,gitter,dgp'
+       && DM.GRUPPEN.find((g) => g.key === 'jochAlt').an === false);
+  wahr('Kandidaten: alte Jochtypen getrennt, keine Vergleichsmodelle',
+       k.jochNeu.length > 0 && k.jochNeu.every((x) => !/-alt$/.test(x.name))
+       && k.jochAlt.every((x) => /-alt$/.test(x.name)) && !k.jochNeu.some((x) => /SIGNAL/i.test(x.name)));
+  const an = new Set(['J90', 'J90-alt', 'HEB 240']);
+  const l = DM.variantenListe(w, { steg: false, plastisch: false, einspannung: false }, an);
+  wahr('Nur die gewählten Typen werden Varianten; alte als «alt» gekennzeichnet',
+       l.length === 3 && l.find((v) => v.typ === 'J90-alt')?.alt === true && l.find((v) => v.typ === 'J90')?.alt === false);
+  const kb = DM.kombinationen([
+    { art: 'joch', einsp: 'gebaut', rueckhalt: false, typ: 'J90-alt', alt: true, joch: 0.5, kg: 100 },
+    { art: 'joch', einsp: 'gebaut', rueckhalt: false, typ: 'J90', alt: false, joch: 0.7, kg: 200 },
+  ], 1);
+  wahr('Kombination nimmt nie ein altes Joch, auch wenn es leichter ist', kb.length === 1 && kb[0].typ === 'J90');
+  const DQ = readFileSync(join(HIER, 'js', 'app.dimension.js'), 'utf8');
+  wahr('Empfehlung ohne alte Jochtypen; Vorauswahl und Massengrenze einstellbar (1.10 / 30 %)',
+       DQ.includes('x.gesamt <= g && !x.alt') && DQ.includes("etaV: 1.1") && DQ.includes('plus: 30')
+       && DQ.includes("grund: 'vorauswahl'") && DQ.includes("grund: 'masse'"));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Ein Knopf «Dimensionieren» statt «Sortiment durchrechnen» daneben',
+       !UQ.includes('>Sortiment durchrechnen</button>') && UQ.includes('>Dimensionieren</button>'));
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Lastfall oben als Insel: eine Zeile, Breite weich (FLIP), Text blendet ein',
+       AQ.includes('function inselText(el, text)') && AQ.includes("inselText(lfEl,"));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Insel im Stilblatt: einzeilig mit «…», mit weniger Bewegung ohne Animation',
+       css.includes('.viewer-lf .lf-text { display: block; white-space: nowrap;') && css.includes('--t-insel:')
+       && css.includes('@keyframes insel-puls'));
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Figur schwingt über den Knopf w (nochmals drücken), Knickfigur als Knopf in Resultate',
+       LQ.includes("app.ansicht.figurSchwingt ? '■' : '▶'") && LQ.includes('function knickKnopf(app, gR, text)')
+       && LQ.includes('app.knickRechnen()'));
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Lasten gehen mit ihrem Bauteil (Masten, Anbauteile, Joch)',
+       RQ.includes('_lastBauteilAn(v)') && RQ.includes("if (/^MAST/.test(t)) return this._ebeneAn('mast');")
+       && RQ.includes("v.gruppe === 'last' && !this._lastBauteilAn(v)"));
+  // Gemessen am Renderer: ohne Masten keine Mastwindlast, ohne Anbauteile keine Teillast.
+  const R3 = await import(J('render.3d.js'));
+  const r = Object.create(R3.Modellansicht.prototype);
+  if (typeof r._lastBauteilAn === 'function') {
+    r.ebenen = { mast: false, anbau: true, profil: true, blechSteh: true, blechLieg: true };
+    r.gruppen = {}; r.setzModus = false; r.ohneBalken = false;
+    wahr('Renderer: Mast aus → Mastwind weg, Anbauteil und Joch bleiben',
+         !r._lastBauteilAn({ teil: 'MAST_A' }) && r._lastBauteilAn({ teil: 'AT3' }) && r._lastBauteilAn({ art: 'gleichlast' }));
+    r.ebenen = { mast: true, anbau: false, profil: false, blechSteh: false, blechLieg: false };
+    wahr('Renderer: Joch und Anbauteile aus → ihre Lasten weg',
+         !r._lastBauteilAn({ teil: 'AT3' }) && !r._lastBauteilAn({ art: 'wind' }) && r._lastBauteilAn({ teil: 'MAST_B' }));
+  } else {
+    wahr('Renderer-Klasse gefunden', false, Object.keys(R3).join(','));
+  }
 }
 
 console.log('\n' + '='.repeat(104));

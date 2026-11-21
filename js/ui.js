@@ -9061,13 +9061,13 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
          * der Durchlauf zeigt, welcher Typ welche Fussgrössen bringt. Das
          * ist die Auskunft, mit der man die Wahl trifft.
          */''}
-      ${(eAn > 1 || mastUeber || ankerUeber) && beiSortiment
-        ? `<button class="btn btn-mini" data-sortiment
-         type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
-diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
-         >Sortiment durchrechnen</button>` : ''}
-      ${beiDimension && opt.stabwerk?.verfahren === 'stabwerk' ? `<button class="btn btn-mini" data-dimension type="button"
-         title="Jochtyp, Mastprofil, Stegrichtung, elastisch / plastisch und Einspannung mit dem Stabwerk durchrechnen - mit Diagramm Ausnutzung gegen Masse"
+      ${/* 21. November: «könnte man diesen button mit dem dimensionieren verbinden,
+          * da es sonst etwas verwirrt in der nutzung» - ein Knopf. Am Tragjoch
+          * öffnet er das Dimensionieren (Vorauswahl mit dem Kern, dann
+          * Stabwerk), an den übrigen Arten den Durchlauf durch das Sortiment. */''}
+      ${beiDimension && (opt.stabwerk?.verfahren === 'stabwerk' || eAn > 1 || mastUeber || ankerUeber)
+        ? `<button class="btn btn-mini" data-dimension type="button"
+         title="Typen und Profile durchrechnen und die leichteste Wahl vorschlagen, die hält. Nichts wechselt von selbst."
          >Dimensionieren</button>` : ''}
     </div>
     ${/*

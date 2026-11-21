@@ -210,6 +210,10 @@ const app = {
   // Zustand - gelesen immer der aktuelle; wo ein Modul schreibt, ein Setter.
   get werte() { return werte; }, set werte(v) { werte = v; },
   deltaVergessen,
+  // Knickfigur in der Gruppe Resultate (21. November).
+  knickInfo: () => ({ gilt: knickGilt(), zeigen: knickZeigen, stabwerk: !!stabwerkGilt() }),
+  knickRechnen: () => knickRechnen(),
+  knickFigurSchalten: () => knickFigurSchalten(),
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
   get axisErgebnis() { return axisErgebnis; },
@@ -3246,6 +3250,42 @@ function viewerSzenen() {
   }
 }
 
+/*
+ * >>> DER LASTFALL OBEN ALS «INSEL» (21. November). <<< Weisung: «bei der
+ * anzeige der lastfälle im 3d dynamische animationen ergänzen, es wirkt
+ * momentan abgehakt am liebsten wäre mir wenn diese box sich wie eine
+ * dynamic island verhält. was auch nicht gefällt, wenn der lastfall name
+ * lang ist switcht es zu einem zweizeiler.» Eine Zeile: ein langer Name
+ * endet mit «…» und läuft beim Überfahren aus; ein Wechsel fährt die Breite
+ * weich auf das neue Mass und blendet den Text ein (FLIP auf der Breite).
+ */
+function inselText(el, text) {
+  if (el.dataset.text === text) return;
+  const erstes = el.dataset.text === undefined;
+  el.dataset.text = text;
+  const w0 = el.getBoundingClientRect().width;
+  el.style.width = '';
+  el.innerHTML = `<span class="lf-text${erstes ? '' : ' neu'}">${esc(text)}</span>`;
+  el.title = `${text} - Lastfall wählen (Seitenleiste)`;
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (erstes || still || !w0) return;
+  const w1 = el.getBoundingClientRect().width;
+  const insel = el.parentElement;
+  insel?.classList.remove('puls');
+  void insel?.offsetWidth;
+  insel?.classList.add('puls');
+  if (Math.abs(w1 - w0) < 1) return;
+  el.style.width = `${w0}px`;
+  void el.offsetWidth;
+  el.style.width = `${w1}px`;
+  const fertig = (e) => {
+    if (e.propertyName !== 'width') return;
+    el.style.width = '';
+    el.removeEventListener('transitionend', fertig);
+  };
+  el.addEventListener('transitionend', fertig);
+}
+
 function aktualisiereModell(erg) {
   const szene = blattSzene(erg);
   uebernehmeAnsichtsoptionen();
@@ -3305,9 +3345,8 @@ function aktualisiereModell(erg) {
     const lfEl = ui.el('pos-lf');
     const lf = anzeigeKombi === 'umhuellend' ? null
       : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
-    lfEl.textContent = `Lastfall: ${lf ? lf.bez : 'umhüllend'}`;
+    inselText(lfEl, `Lastfall: ${lf ? lf.bez : 'umhüllend'}`);
     lfEl.classList.toggle('einzel', !!lf);
-    lfEl.title = 'Lastfall wählen - führt zu den Lastfällen in der Seitenleiste';
     if (!lfEl.dataset.verdrahtet) {
       lfEl.dataset.verdrahtet = '1';
       lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });
@@ -8083,7 +8122,7 @@ export async function start() {
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
   // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.
   ui.setzeSortimentSuche(() => dialogSortiment(app));
-  ui.setzeDimension(() => dialogDimension(app));
+  ui.setzeDimension(() => (tragwerksart(werte).key === 'joch' ? dialogDimension(app) : dialogSortiment(app)));
   // Drahtwerke nach Typ (7. Oktober): die Teile im 3D hervorheben.
   ui.setzeDrahtwerkWahl((teile) => {
     if (!ansicht) return;

@@ -37,6 +37,8 @@
      benutzt - ohne dass eine Regel sie nennen muss. */
   --t-schnell: .12s var(--t-kurve);
   --t-mittel: .2s var(--t-kurve);
+  /* Die Lastfall-Insel federt leicht nach (21. November). */
+  --t-insel: .42s cubic-bezier(.3, 1.25, .5, 1);
   --t-ruhig: .3s var(--t-kurve);
   interpolate-size: allow-keywords;
 }
@@ -4152,3 +4154,51 @@ button.legende-fall:hover { color: var(--acc); text-decoration: underline; }
 /* «Erklärtexte» aus heisst auch: keine zugeklappten «Hinweis»-Zeilen in der
    Bauteilkarte (Audit 21. November, Block 4: vier davon in einer Karte). */
 body.ohne-erklaertexte .hinweis-zu { display: none; }
+
+/* Dimensionieren: Auswahl der Typen je Gruppe (21. November). */
+.dm-auswahl { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }
+.dm-gruppe { border: 1px solid var(--ol); border-radius: 6px; padding: 3px 8px; background: var(--s1); }
+.dm-gruppe > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; list-style: none; }
+.dm-gruppe > summary::-webkit-details-marker { display: none; }
+.dm-gruppe > summary::after { content: '▾'; color: var(--dim); font-size: 10px; }
+.dm-gruppe[open] > summary::after { content: '▴'; }
+.dm-typen { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 6px 0 2px; max-width: 520px; }
+.dm-typen input:disabled + * , .dm-typen label:has(input:disabled) { opacity: .45; }
+.dm-aus { margin-top: 8px; }
+.dm-aus > summary { cursor: pointer; color: var(--dim); }
+
+/* Lastfall oben als «Insel» (21. November): eine Zeile, weiche Breite. */
+.viewer-oben {
+  flex-wrap: nowrap; border-radius: 999px; padding: 3px 4px 3px 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+  transition: box-shadow var(--t-mittel), background var(--t-mittel), opacity var(--t-mittel);
+}
+.viewer-oben:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .36); }
+.viewer-oben .viewer-ek { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.viewer-lf {
+  border-radius: 999px; flex: 0 1 auto; min-width: 0; max-width: 240px; overflow: hidden;
+  transition: max-width var(--t-insel), width var(--t-insel),
+              color var(--t-mittel), border-color var(--t-mittel), background var(--t-mittel);
+}
+.viewer-lf .lf-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.viewer-oben:hover .viewer-lf, .viewer-lf:focus-visible { max-width: 520px; }
+.viewer-lf.einzel { background: var(--acc-s); }
+.viewer-lf .lf-text.neu { animation: lf-ein .32s ease-out; }
+.viewer-oben.puls { animation: insel-puls .42s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes lf-ein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes insel-puls { 0% { transform: scale(.95); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .viewer-oben.puls, .viewer-lf .lf-text.neu { animation: none; }
+  .viewer-lf, .viewer-oben .viewer-ek { transition-duration: 0s; }
+}
+/* Wird es eng, gibt zuerst die Grundwertezeile nach; über dem Lastfall
+   zieht sie sich ganz zurück, damit der volle Name Platz hat. */
+.viewer-oben .viewer-ek { flex-shrink: 4; max-width: 600px;
+  transition: max-width var(--t-insel), opacity var(--t-mittel), padding var(--t-insel); }
+.viewer-oben:has(.viewer-lf:hover) .viewer-ek, .viewer-oben:has(.viewer-lf:focus-visible) .viewer-ek {
+  max-width: 0; opacity: 0; padding-left: 0; padding-right: 0; }
+.viewer-oben:has(.viewer-lf:hover) .viewer-lf { max-width: 100%; }
+/* Im schmalen Fenster bleibt der Lastfall lesbar; die Grundwerte weichen zuerst. */
+.viewer-oben { min-width: min(150px, 100%); }
+.viewer-lf { min-width: 92px; }
+.viewer-oben .viewer-ek { min-width: 0; }

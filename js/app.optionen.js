@@ -228,7 +228,7 @@ export function dialogSortiment(app) {
   const mitJoch = tragwerksart(app.werte).key === 'joch';
   let reserve = reserveLesen();
   let vorschlag = vorschlagRechnen(app, mitJoch ? zeilen : null, 1 - reserve / 100);
-  app.dialog('Sortiment durchrechnen',
+  app.dialog('Dimensionieren (Sortiment)',
     `<div id="vs-block">${vorschlagHtml(vorschlag, reserve, f3)}</div>
      ${mitJoch ? `<p class="notiz">Dieselbe Geometrie, dieselben Lasten,
        dieselben Anbauteile, nur der Tragjoch-Typ wechselt. Profile, Bleche und
@@ -352,7 +352,7 @@ function dialogSortimentAbfang(app, { f0, f2, f3 }) {
         <th>Profil · Gurt · Blech · Kräftepaar</th></tr></thead>
       <tbody>${liste.map(zeile).join('')}</tbody></table></div>` : '');
 
-  app.dialog('Sortiment durchrechnen',
+  app.dialog('Dimensionieren (Sortiment)',
     `<p class="notiz" style="margin-top:0">Dieselbe Länge (${f2(jt)} m),
        dieselben Anbauteile und Beiwerte, nur der Abfangjoch-Typ wechselt.
        Eigengewicht, Wind und Schnee des Jochs kommen dabei aus der

@@ -1539,7 +1539,7 @@ export function erzeugeSzene(m, erg) {
         });
       }
       lastflaechen.push({
-        gruppe: 'last', art: 'wind', lastart: teil.lastart,
+        gruppe: 'last', art: 'wind', lastart: teil.lastart, teil: `MAST_${ende}`,
         punkte: [pkt(aus, g.zF), pkt(aus, g.zKopf),
                  pkt(kante, g.zKopf), pkt(kante, g.zF)],
         titel: `Wind auf Mast ${ende} · ${teil.bez} · `
@@ -5723,6 +5723,7 @@ export class Modellansicht {
     if (!this._ebeneAn('last')) return;
     (this.szene.lastflaechen ?? []).forEach((fl) => {
       if (!this._lastartAn(fl.lastart)) return;
+      if (!this._lastBauteilAn(fl)) return;
       const p = fl.punkte.map(proj);
       if (p.some((q) => !q)) return;
       const farbe = this._lastfarbe(fl.lastart, t);
@@ -5846,6 +5847,23 @@ export class Modellansicht {
     return !g || this.gruppen[g] !== false;
   }
 
+  /*
+   * >>> LASTEN GEHEN MIT IHREM BAUTEIL (21. November). <<< Weisung: «wenn
+   * bauteile ausgeblendet werden, dann sollte die dazugehörigen lasten auch
+   * nicht dargestellt werden.» Zugeordnet über `teil`: MAST… = Masten,
+   * AT… = Anbauteile; Laufmeterlasten und Wind auf den Träger gehören dem
+   * Joch (aus, wenn Gurte und beide Blechebenen aus sind).
+   */
+  _lastBauteilAn(v) {
+    const t = String(v.teil ?? '');
+    if (/^MAST/.test(t)) return this._ebeneAn('mast');
+    if (/^AT/.test(t)) return this._ebeneAn('anbau');
+    if (v.art === 'gleichlast' || v.art === 'wind' || /^GURT|^[VH]_S/.test(t)) {
+      return ['profil', 'blechSteh', 'blechLieg'].some((k) => this._ebeneAn(k));
+    }
+    return true;
+  }
+
   /** Ist diese Lastart eingeschaltet? Ohne Angabe immer. */
   _lastartAn(art) {
     if (!art) return true;
@@ -5948,6 +5966,7 @@ export class Modellansicht {
     (this.szene.vektoren ?? []).forEach((v) => {
       if (!this._ebeneAn(v.gruppe)) return;
       if (!this._lastartAn(v.lastart)) return;
+      if (v.gruppe === 'last' && !this._lastBauteilAn(v)) return;
       if (!this._imFokus(v.p[0])) return;
       const a = proj(v.p), b = proj(add(v.p, v.v));
       if (!a || !b) return;

@@ -18,6 +18,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-21',
     punkte: [
+      { text: 'Ein Knopf «Dimensionieren» statt «Sortiment durchrechnen» daneben. Am Tragjoch: Typen je Gruppe oder einzeln wählen (Jochtypen, alte Jochtypen, Walzprofile, Gittermasten, DGP); alte Jochtypen stehen nur zum Vergleich da und werden nie empfohlen. Zuerst eine schnelle Vorauswahl mit der Kontrollrechnung (Vorgabe bis η 1.10), dann das Stabwerk je Gruppe vom leichtesten aufwärts, bis eine Variante mehr als 30 % schwerer wäre als die leichteste, die hält - beide Grenzen einstellbar.' },
+      { text: '3D: der Lastfall oben ist eine einzeilige «Insel» - ein langer Name endet mit «…» und läuft beim Überfahren aus, ein Wechsel gleitet weich. Die Figur schwingt über den Knopf w (nochmals drücken), die Knickfigur hat einen Knopf «Knick» unter Resultate. Lasten eines ausgeblendeten Bauteils werden nicht mehr gezeichnet.' },
       { text: 'Übersicht kürzer (Tragjoch 2800 → 1400 px): «Höchstbeanspruchte Stellen» und «Konstruktionsprüfungen» zugeklappt mit dem Wichtigsten im Kopf (z. B. «1 verletzt: P2»); Bügelschrauben bei ausgeschalteter Gruppe nur als Zeile; «· Stabwerk» nicht mehr an jeder Nachweiszeile; «Nicht geführte Nachweise».' },
       { text: 'Einzelmast: die Kontrollrechnung des Masten steht zugeklappt unter den Stabwerksnachweisen. Abfangjoch / Tragausleger: «Stabilität Abfangjoch» bzw. «Stabilität Tragausleger» statt «Stabilität Joch». Bügelschrauben ohne «k0» im Mastnamen.' },
       { text: 'Verläufe in der Breite der Seitenleiste gezeichnet - rund 200 statt 80 px hoch, lesbare Schrift. Bauteilkarte ohne doppeltes α und ohne «kN/m» an Kräften; mit ausgeschalteten Erklärtexten auch ohne die «Hinweis»-Zeilen. Im Dialog «Windbelastung» wie unter Lasten.' },

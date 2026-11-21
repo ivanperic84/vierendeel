@@ -481,12 +481,29 @@ export function zeichneModellWerkzeuge(app) {
         schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR)) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
-      // Die Figur schwingt (19. November) - verformte Figur bzw. Knickfigur.
-      (app.ansicht.verformt && (app.ansicht.verformt.immer || FIGUR_MODI.includes(app.ansicht.modus)) ? text('wz-r-schwingen', app.ansicht.figurSchwingt ? 'Figur ■' : 'Figur ▶',
-        'Verformte Figur bzw. Knickfigur langsam hin und her schwingen lassen', app.ansicht.figurSchwingt, !gR) : '') +
-      modiFuer(app.nachweisart).map((mo) =>
-        text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
-             mo.label, mo.key === app.ansicht.modus, !gR)).join('')
+      /*
+       * >>> DIE FIGUR SCHWINGT IM KNOPF w (21. November). <<< Weisung: «Die
+       * animation der verformung soll als kleines play symbol im w button
+       * erscheinen und wenn man den button nochmals drückt dann startet die
+       * animation, so muss nicht ein zusätzlicher button eingeblendet
+       * werden.» Der Knopf «Figur ▶» ist weg.
+       */
+      modiFuer(app.nachweisart).map((mo) => {
+        const aktiv = mo.key === app.ansicht.modus;
+        const figur = aktiv && FIGUR_MODI.includes(mo.key) && app.ansicht.verformt && !app.ansicht.verformt.immer;
+        const kurz = mo.kurz ?? mo.label.slice(0, 3);
+        return text(`wz-p-${mo.key}`, figur ? `${kurz} ${app.ansicht.figurSchwingt ? '■' : '▶'}` : kurz,
+                    figur ? `${mo.label} · nochmals drücken: Figur ${app.ansicht.figurSchwingt ? 'anhalten' : 'schwingen lassen'}` : mo.label,
+                    aktiv, !gR);
+      }).join('') +
+      /*
+       * >>> KNICKFIGUR IN DER LEISTE (21. November). <<< «was noch umständlich
+       * ist, das die knickform separat ein und ausgeschaltet werden muss über
+       * die sidebar. diese sollte wenn möglich auch in die layersteuerung
+       * implementiert werden.» Ein Knopf: aus → Knickfigur (rechnet α_cr,
+       * wenn er zum Stand fehlt) → schwingt → aus.
+       */
+      knickKnopf(app, gR, text)
       /*
        * >>> NUR AUFFÄLLIGE TEILE (19. November). <<< Weisung: «Nur
        * auffällige Teile schieber für die darstellung im modell bei den
@@ -572,9 +589,20 @@ export function zeichneModellWerkzeuge(app) {
       app.ansicht.explosionFahren(ziel, 650, (v) => { ef.value = Math.round(v * 100); });
     };
   }
-  const sw = ui.el('wz-r-schwingen');
-  if (sw) {
-    sw.onclick = () => { app.ansicht.schwingen(!app.ansicht.figurSchwingt); zeichneModellWerkzeuge(app); };
+  const kn = ui.el('wz-r-knick');
+  if (kn) {
+    kn.onclick = () => {
+      const k = app.knickInfo?.();
+      if (!k?.gilt) {
+        kn.textContent = 'rechnet …';
+        setTimeout(() => { app.knickRechnen(); zeichneModellWerkzeuge(app); }, 30);
+        return;
+      }
+      if (!k.zeigen) { app.knickFigurSchalten(); app.ansicht.schwingen(false); }
+      else if (!app.ansicht.figurSchwingt) app.ansicht.schwingen(true);
+      else { app.ansicht.schwingen(false); app.knickFigurSchalten(); }
+      zeichneModellWerkzeuge(app);
+    };
   }
   const ex = ui.el('wz-explosion');
   if (ex) {
@@ -627,6 +655,13 @@ export function zeichneModellWerkzeuge(app) {
   };
   modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
+      // Nochmals auf den gewählten Knopf mit Figur: schwingen ein / aus.
+      if (mo.key === app.ansicht.modus && FIGUR_MODI.includes(mo.key) && app.ansicht.verformt) {
+        app.ansicht.schwingen(!app.ansicht.figurSchwingt);
+        zeichneModellWerkzeuge(app);
+        return;
+      }
+      if (app.ansicht.figurSchwingt && !app.knickInfo?.().zeigen) app.ansicht.schwingen(false);
       app.ansicht.modus = mo.key;
       // Mit eingeschalteter Linie gehört zur neuen Grösse eine neue Linie.
       if (zl.an) app.zustandNeu(true);
@@ -634,6 +669,18 @@ export function zeichneModellWerkzeuge(app) {
     };
   });
   leisteMelden(app);
+}
+
+/** Der Knopf der Knickfigur - nur am Tragjoch mit gültigem Stabwerk. */
+function knickKnopf(app, gR, text) {
+  const k = app.knickInfo?.();
+  if (!k?.stabwerk || tragwerksart(app.werte).key !== 'joch') return '';
+  const an = k.zeigen && k.gilt;
+  const lab = !an ? 'Knick' : app.ansicht.figurSchwingt ? 'Knick ■' : 'Knick ▶';
+  const tit = !k.gilt ? 'Knickfigur: α_cr rechnen (rund 2-5 s) und die erste Eigenform zeigen'
+    : !an ? `Knickfigur zeigen · α_cr = ${k.gilt.alpha.toFixed(2)}`
+      : app.ansicht.figurSchwingt ? 'Knickfigur ausblenden' : 'Knickfigur schwingen lassen';
+  return text('wz-r-knick', lab, tit, an, !gR).replace('class="wz-s wz-txt', 'class="wz-s wz-txt wz-knick');
 }
 
 /**
