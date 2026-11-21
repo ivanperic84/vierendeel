@@ -42827,7 +42827,8 @@ titel('295  Sprungleiste Anbauteile, Grundwerte statt Lastfallfeld, Einzellasten
   const h = E.kombiEinfachHtml(k);
   const ein = [...h.matchAll(/lf-einzel[^>]*>\s*<span>([^<]*)/g)].map((m) => m[1]);
   wahr('Lastfallliste: einzelne Lasten unter den Kombinationen, ohne «Ständig + …», ohne Ausnutzung',
-       ein.join(' | ') === 'Ständig (Tragwerk) | Wind quer zum Gleis, von rechts | Schnee'
+       // Vollversion: Namen wie in der Matrix (21. November); die Schulung behält die einfachen.
+       ein.join(' | ') === 'LF2 · Ständig (Tragwerk) | LF3 · Wind −x (quer zum Gleis) | LF5 · Schnee'
        && h.indexOf('Einzelne Lasten') > h.indexOf('data-lf-wahl="a"'), ein.join(' | '));
 }
 
@@ -43534,8 +43535,9 @@ titel('310  Audit 21. November, Block 2: Startzustand (Abfangjoch mit Anker, Tra
   wahr('Neuer Tragausleger startet mit HEM 240 und seinem Fundament',
        AQ.includes("if (art === 'tragausleger') werte = auslegerStartprofil(werte);")
        && AQ.includes("setzeMastAngabe(w, m.id, 'mastProfil', 'HEM 240')"));
+  // Seit dem 21. November abends heissen die Fälle in der Vollversion wie in der Matrix (lastfallName).
   wahr('Lastfall oben mit demselben Namen wie in der Lastfallliste',
-       AQ.includes('lastfallEinfach(lf.bez).text'));
+       AQ.includes('lastfallName(letzte?.kombi, lf)'));
   const DQ = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8').replace(/\r\n/g, '\n');
   wahr('Dialog Neues Querprofil: Typen ohne Vergleichsmodelle, alte als (Bestand), kein Doppelname, kein widersprechender Satz',
        DQ.includes(': sortimentstypen().map((j) =>') && DQ.includes("a.profil !== a.typ") && DQ.includes("${blatt ? '' : `<p class=\"notiz\">"));
@@ -43592,6 +43594,20 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   wahr('Stilblatt: Insel ausgefahren, Panel statisch, Grundwerte nie unter «EK1…»',
        css.includes('.viewer-oben.offen {') && css.includes('.viewer-oben .kontext.insel-panel {')
        && css.includes('.viewer-oben.offen { width: min(100%, 460px); }') && css.includes('.viewer-oben .viewer-ek { min-width: 5.2em; flex-shrink: 4; }'));
+}
+
+// ===========================================================================
+titel('313  Lastfälle heissen überall wie in der Matrix; die Matrix zeigt die Wahl');
+{
+  const UE = await import(J('ui.einfach.js'));
+  const kombi = { lastfaelle: [{ key: 'a', bez: 'Ständig' }, { key: 'b', bez: 'Wind +y (längs zum Gleis) leitend' }] };
+  wahr('Name wie in der Matrix: «LF2 · Wind +y (längs zum Gleis) leitend»',
+       UE.lastfallName(kombi, kombi.lastfaelle[1]) === 'LF2 · Wind +y (längs zum Gleis) leitend');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Insel, Seitenleiste, Verformungszeilen und Fenster benutzen denselben Namen',
+       (AQ.match(/lastfallName\(/g) ?? []).length >= 4 && AQ.includes('gewaehlt: anzeigeKombi'));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Matrix markiert den gewählten Fall', UQ.includes("${opt.gewaehlt === k.key ? ' gewaehlt' : ''}"));
 }
 
 console.log('\n' + '='.repeat(104));

@@ -11404,7 +11404,7 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
     : 'Beiwerte von Hand gesetzt';
 
   const zeile = (k, i) => `
-    <tr class="lf-zeile${massg(k) ? ' aktiv' : ''}${k.nachweis ? '' : ' char'}" data-lf-wahl="${esc(k.key)}"
+    <tr class="lf-zeile${massg(k) ? ' aktiv' : ''}${k.nachweis ? '' : ' char'}${opt.gewaehlt === k.key ? ' gewaehlt' : ''}" data-lf-wahl="${esc(k.key)}"
         title="Anklicken: diesen Lastfall im 3D, oben und rechts zeigen">
       <td>LF${i + 1} · ${esc(k.bez)}
         ${massg(k) ? '<br><b>massgebend</b>' : ''}

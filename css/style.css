@@ -4303,3 +4303,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe { padding: 3px 4px 3px; }
 .viewer-tools-r .wz-t { margin-bottom: 2px; }
 .viewer-tools-r .wz-explo { margin-top: 2px; }
+
+/* Die Matrix zeigt, was in der Seitenleiste gewählt ist (21. November). */
+.dialog-lf .lf-zeile.gewaehlt > td { background: var(--acc-s); }
+.dialog-lf .lf-zeile.gewaehlt > td:first-child { box-shadow: inset 3px 0 0 var(--acc); }

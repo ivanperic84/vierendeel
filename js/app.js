@@ -13,7 +13,7 @@ import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
 import { herausgeberVorbereiten } from './herausgeber.js';
 import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
-import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach } from './ui.einfach.js';
+import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach, lastfallName } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, VERMERK_SCHULUNG, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -278,7 +278,7 @@ const app = {
   dialog: (...a) => dialog(...a),
   // Ganze Lastfalltabelle fuer das Fenster (13. November, app.optionen.js).
   lastfallTabelle: () => (letzte?.kombi ? ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte),
-    { stabwerk: kombiEtaStabwerk(),
+    { stabwerk: kombiEtaStabwerk(), gewaehlt: anzeigeKombi,
       vorlaeufig: verfahrenVon(werte) === 'stabwerk' && !stabwerkGilt() }) : ''),
   handlung: (...a) => handlung(...a),
   meldeImBalken: (...a) => meldeImBalken(...a),
@@ -2350,7 +2350,7 @@ function zeichneAuswertung() {
           : (stabwerkAnsicht()?.h?.teile ?? null),
         gzgFall: letzte?.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.stufe === 'betrieb',
         fall: anzeigeKombi === 'umhuellend' ? null
-          : lastfallEinfach(letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
+          : lastfallName(letzte.kombi, letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)) });
     }
     return;
   }
@@ -2463,7 +2463,7 @@ function zeichneAuswertung() {
           : (stabwerkAnsicht()?.h?.teile ?? null),
         gzgFall: letzte?.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.stufe === 'betrieb',
         fall: anzeigeKombi === 'umhuellend' ? null
-          : lastfallEinfach(kombi.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez).text });
+          : lastfallName(kombi, kombi.lastfaelle?.find((k) => k.key === anzeigeKombi)) });
     }
   } else if (tabAuswertung === 'schnitt') {
     /*
@@ -3397,7 +3397,7 @@ function aktualisiereModell(erg) {
       : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
     // Derselbe Name wie in der Lastfallliste und der Seitenleiste (Audit
     // Block 2: «Einzellastfall heisst links und rechts verschieden»).
-    inselText(lfEl, `Lastfall: ${lf ? lastfallEinfach(lf.bez).text : 'umhüllend'}`, lf?.bez);
+    inselText(lfEl, lf ? lastfallName(letzte?.kombi, lf) : 'Lastfall: umhüllend', lf?.bez);
     inselSteuerung();
     lfEl.classList.toggle('einzel', !!lf);
     if (!lfEl.dataset.verdrahtet) {
@@ -7962,7 +7962,7 @@ function gzgEinfach() {
     const betrieb = quelle ? lf.find((l) => l.stufe === 'betrieb' && l.leit === quelle.leit
       && l.vorzeichen === (quelle.vorzeichen ?? Math.sign(quelle.beiwerte?.[quelle.leit] ?? 1))) : null;
     return { name, was: mg.was, eta: mg.eta, bez: mg.bez, key: betrieb?.key ?? null,
-             fallBez: betrieb?.bez, fallText: betrieb ? lastfallEinfach(betrieb.bez).text : null };
+             fallBez: betrieb?.bez, fallText: betrieb ? lastfallName(letzte?.kombi, betrieb) : null };
   }).filter(Boolean);
 }
 

@@ -799,6 +799,8 @@ function dialogLastfaelle(app) {
   const d = app.dialog('Lastfälle und Beiwerte', html,
     '<button class="btn btn-acc" data-zu>Fertig</button>', 'dialog-lf');
   verdrahteLastfaelle(app, d.node, () => dialogLastfaelle(app));
+  // Der in der Seitenleiste gewählte Fall steht markiert und im Bild (21. November).
+  requestAnimationFrame(() => d.node.querySelector('.lf-zeile.gewaehlt')?.scrollIntoView({ block: 'center' }));
 }
 
 function verdrahteLastfaelle(app, knoten = null, zurueck = null) {

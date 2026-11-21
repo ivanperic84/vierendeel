@@ -23,6 +23,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** Gruppe einer Kachel: aus der Überschrift ihrer Reihe, sonst aus dem Titel. */
+import { EINFACH } from './stufe.js';
+
 export function gruppeVon(titel, kopf = '') {
   const t = String(titel ?? '');
   if (/^(Verformung|Seitenlage|Verdrehung)/i.test(t)) return 'verformung';
@@ -347,6 +349,20 @@ export function begriffeVerdrahten() {
  * Klick zeigt den Fall im 3D (`data-lf-wahl`, derselbe Weg wie die Tabelle
  * der Vollversion), «Alle Fälle» kehrt zum ungünstigsten zurück.
  * ======================================================================== */
+/*
+ * >>> DER NAME EINES LASTFALLS (21. November). <<< Weisung: «die bennung der
+ * lastfälle gleich machen wie in der matrix darstellung.» In der Vollversion
+ * heisst ein Fall überall wie in der Matrix «LF12 · Wind +y (längs zum
+ * Gleis) leitend» - Lastfallliste, Insel, Seitenleiste; die Schulung behält
+ * ihre einfachen Worte (15. November).
+ */
+export function lastfallName(kombi, k) {
+  if (!k) return '';
+  if (EINFACH) return lastfallEinfach(k.bez).text;
+  const i = (kombi?.lastfaelle ?? []).findIndex((x) => x.key === k.key);
+  return i >= 0 ? `LF${i + 1} · ${k.bez}` : (k.bez ?? '');
+}
+
 export function lastfallEinfach(bez) {
   const b = String(bez ?? '');
   const seite = /\+/.test(b) ? 1 : (/[−-]\s*[xy]/.test(b) ? -1 : 0);
@@ -431,7 +447,7 @@ function einzelLastenHtml(kombi, gewaehlt) {
   return `<div class="sec-klein">Einzelne Lasten (charakteristisch)</div>${einzeln.map((k) => `
     <div class="lf-einfach lf-einzel${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
       data-lf-wahl="${esc(k.key)}" title="${esc(k.bez)} - charakteristisch, kein Nachweis; im 3D zeigen">
-      <span>${esc(/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez)}</span><span></span></div>`).join('')}`;
+      <span>${esc(EINFACH ? (/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez) : lastfallName(kombi, k))}</span><span></span></div>`).join('')}`;
 }
 
 export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', gzg = []) {
@@ -441,7 +457,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
   const je = { quer: [], laengs: [], weitere: [], havarie: [] };
   faelle.forEach((k) => {
     const e = lastfallEinfach(k.bez);
-    je[e.gruppe].push({ k, text: e.text });
+    je[e.gruppe].push({ k, text: lastfallName(kombi, k) });
   });
   const zeile = ({ k, text }) => {
     const e = eta(k);
