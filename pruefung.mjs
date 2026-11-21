@@ -43654,6 +43654,22 @@ titel('315  Oben was, unten Skala: Insel mit Plotgrösse und Figur, Legende nur 
   wahr('Anschrift der Figur nicht mehr im Bild (lag hinter der Legende)', RQ.includes('this.figurTextImBild'));
 }
 
+// ===========================================================================
+titel('317  Farbe «frei» behält die Einstellungen; Dimensionieren geordnet; alle Fenster gleich durchsichtig');
+{
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const DQ = readFileSync(join(HIER, 'js', 'app.dimension.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Legende mit Farbe «frei»: Balken und Einstellungen bleiben (fiel vorher auf «Bauteile» zurück)',
+       LQ.includes("if (!p && app.ansicht.linienFarbe === 'frei' && PLOTS.some((x) => x.key === app.ansicht.modus))"));
+  wahr('Dimensionieren in drei Blöcken (Typen, Varianten, Grenzen), ein Schliessen',
+       DQ.includes('<div class="dm-blocktitel">Typen</div>') && DQ.includes('<div class="dm-blocktitel">Grenzen</div>')
+       && css.includes('.dialog-fuss:empty { display: none; }'));
+  wahr('Ein Glas-Token für Insel, Leiste, Legende, Dialoge, Menüs und Projektablage',
+       css.includes(':root { --glas: color-mix(in srgb, var(--s2) 45%, transparent); }')
+       && css.includes('.dialog, .kontext, .bannerschublade { background: var(--glas); backdrop-filter: blur(14px); }'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

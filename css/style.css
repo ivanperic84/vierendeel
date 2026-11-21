@@ -4357,3 +4357,29 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
   background: color-mix(in srgb, var(--s2) 45%, transparent); backdrop-filter: blur(2px); }
 .viewer-oben .viewer-ek { cursor: pointer; }
 .viewer-oben .viewer-ek:hover { color: var(--on); }
+
+/* Dimensionieren geordnet (22. November, «layout nicht sauber»). */
+.dm-block { border-bottom: 1px solid var(--ol); padding: 8px 0 10px; }
+.dm-block:first-child { padding-top: 0; }
+.dm-blocktitel { font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--acc); margin-bottom: 6px; }
+.dm-auswahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; margin: 0; }
+.dm-gruppe { margin: 0; }
+.dm-gruppe > summary { justify-content: space-between; }
+.dm-gruppe > summary .ablage-meta { margin-left: auto; }
+.dm-schalter { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 14px; margin: 0; }
+.dm-grenzen { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 0; }
+.dm-grenzen .dm-wahl input[type=number] { width: 64px; }
+.dm-los { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; }
+.dialog-fuss:empty { display: none; }
+
+/* Alle Fenster gleich durchsichtig (22. November, «alle fenster gleich
+   transparent machen in der app das system design vereinheitlichen»): ein
+   Glas-Token für Insel, Werkzeugleiste, Legende, Dialoge, Kontextmenüs und
+   die Projektablage. Dialoge und Menüs mit stärkerer Unschärfe, damit Text
+   über dem Hintergrund lesbar bleibt. */
+:root { --glas: color-mix(in srgb, var(--s2) 45%, transparent); }
+.viewer-oben, .legende,
+.viewer-tools-r:not(:has(> #wz-auf)), .viewer-tools-r > #wz-auf { background: var(--glas); backdrop-filter: blur(2px); }
+.dialog, .kontext, .bannerschublade { background: var(--glas); backdrop-filter: blur(14px); }
+.dialog-kopf, .dialog-fuss { background: transparent; }

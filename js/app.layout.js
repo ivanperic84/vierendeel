@@ -1086,6 +1086,20 @@ export function zeichneLegende(app) {
     fertig();
     return;
   }
+  /*
+   * >>> FARBE «FREI» BEHÄLT IHRE EINSTELLUNGEN (22. November). <<< «der button
+   * frei unter dem resultat box wenn man die farbskala anklickt funktioniert
+   * nicht richtig»: mit «frei» gibt es keine Skala, die Legende fiel auf
+   * «Bauteile» zurück - die Einstellungen verschwanden, und man kam nicht
+   * mehr zurück zu «Resultat». Jetzt bleibt der Balken mit «Farbe: frei ▾».
+   */
+  if (!p && app.ansicht.linienFarbe === 'frei' && PLOTS.some((x) => x.key === app.ansicht.modus)) {
+    const mo = MODI.find((m) => m.key === app.ansicht.modus);
+    n.innerHTML = griff(mo?.label ?? 'Farbe') + balkenHtml(app, null);
+    balkenVerdrahten(app, n);
+    fertig();
+    return;
+  }
   if (app.ansicht.modus === 'positionen') {
     const l = app.ansicht.szene?.legende ?? [];
     /*

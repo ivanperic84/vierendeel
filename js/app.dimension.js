@@ -62,7 +62,7 @@ const EINSPANNUNG_VARIIERT = ['gebaut', 'grenze'];
  */
 export const GRUPPEN = [
   { key: 'jochNeu', titel: 'Jochtypen', art: 'joch', an: true },
-  { key: 'jochAlt', titel: 'Jochtypen alt (nur Bestand, nie empfohlen)', art: 'joch', an: false },
+  { key: 'jochAlt', titel: 'Jochtypen alt (Bestand)', art: 'joch', an: false, info: 'Nur Bestand: zum Vergleich gerechnet, nie empfohlen' },
   { key: 'walz', titel: 'Walzprofile', art: 'mast', an: true },
   { key: 'gitter', titel: 'Gittermasten', art: 'mast', an: false },
   { key: 'dgp', titel: 'Gespreizte Masten (DGP)', art: 'mast', an: false },
@@ -287,30 +287,38 @@ export function dialogDimension(app) {
     const frei = l.filter((x) => !x.grund);
     const n = frei.filter((x) => an.has(x.name)).length;
     return `<details class="dm-gruppe"><summary>
-        <label class="dm-wahl"><input type="checkbox" data-dm-gruppe="${g.key}"${n === frei.length && n ? ' checked' : ''}${!frei.length ? ' disabled' : ''}> ${esc(g.titel)}</label>
+        <label class="dm-wahl"${g.info ? ` title="${esc(g.info)}"` : ''}><input type="checkbox" data-dm-gruppe="${g.key}"${n === frei.length && n ? ' checked' : ''}${!frei.length ? ' disabled' : ''}> ${esc(g.titel)}</label>
         <span class="ablage-meta" data-dm-gzahl="${g.key}">${n} / ${frei.length}</span></summary>
       <div class="dm-typen">${l.map((x) => `<label class="dm-wahl"${x.grund ? ` title="Länge nicht im Bereich ${esc(x.grund)}"` : ''}>
         <input type="checkbox" data-dm-typ="${esc(x.name)}" data-dm-g="${g.key}"${an.has(x.name) ? ' checked' : ''}${x.grund ? ' disabled' : ''}> ${esc(x.name)}</label>`).join('')}</div></details>`;
   };
+  /*
+   * >>> GEORDNET IN DREI BLÖCKEN (22. November, «layout nicht sauber»). <<<
+   * Typen (Gruppen als Raster), Varianten (Schalter), Grenzen (Felder mit
+   * dem Knopf rechts); nur ein «Schliessen» (im Kopf).
+   */
   app.dialog('Dimensionieren', `
-    <div class="dm-auswahl">${GRUPPEN.map(gruppeHtml).join('')}</div>
-    <div class="dm-kopf">
+    <div class="dm-block"><div class="dm-blocktitel">Typen</div>
+      <div class="dm-auswahl">${GRUPPEN.map(gruppeHtml).join('')}</div></div>
+    <div class="dm-block"><div class="dm-blocktitel">Varianten</div>
+    <div class="dm-kopf dm-schalter">
       ${schalter('steg', 'Mast gedreht')}
       ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Walzprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('blech', 'Bleche plastisch', 'Jeden Jochtyp zusätzlich mit plastisch nachgewiesenen stehenden Blechen rechnen. Ohne Haken: wie eingestellt.')}${schalter('rueckhalt', 'Rückhaltekraft', 'Jede Variante mit und ohne Rückhaltekraft der Leiter (Einstellung unter Lasten). Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Bügelschrauben zählt hier nicht.')}
-    </div>
-    <div class="dm-kopf">
+    </div></div>
+    <div class="dm-block"><div class="dm-blocktitel">Grenzen</div>
+    <div class="dm-kopf dm-grenzen">
       <label class="dm-wahl">Reserve <input type="number" id="dm-reserve" min="0" max="50" step="5" value="${reserve}"> %</label>
       <label class="dm-wahl" title="Vorauswahl mit der Kontrollrechnung (Kern): Varianten mit grösserer Ausnutzung werden nicht im Stabwerk gerechnet.">Vorauswahl bis η <input type="number" id="dm-etav" min="1" max="3" step="0.05" value="${grenzen.etaV}"></label>
       <label class="dm-wahl" title="Nach oben endet die Suche je Gruppe, sobald eine Variante mehr als so viel schwerer wäre als die leichteste, die hält.">Masse höchstens + <input type="number" id="dm-plus" min="0" max="500" step="5" value="${grenzen.plus}"> %</label>
-      <button class="btn" id="dm-los" type="button">Rechnen</button>
-      <span class="ablage-meta" id="dm-zahl"></span>
-    </div>
+      <span class="dm-los"><span class="ablage-meta" id="dm-zahl"></span>
+        <button class="btn btn-acc" id="dm-los" type="button">Rechnen</button></span>
+    </div></div>
     <div class="dm-fort" id="dm-fort" hidden><div id="dm-balken"></div><span id="dm-text"></span>
       <button class="btn btn-mini" id="dm-stopp" type="button">abbrechen</button></div>
     <div id="dm-ergebnis"><p class="notiz">Zuerst rechnet die Kontrollrechnung (Kern) jede Variante schnell vor;
       im Stabwerk (rund 1 s je Variante) nur, was die Vorauswahl besteht, je Gruppe vom leichtesten aufwärts.
       Gerechnet wird auf Kopien; die Eingabe ändert sich erst mit «übernehmen».</p></div>`,
-    '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit',
+    '', 'dialog-breit',
     { beiZu: () => { abbruch = true; } });
 
   const box = ui.el('ueberlagerung');
