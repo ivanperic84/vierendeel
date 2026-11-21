@@ -5894,7 +5894,7 @@ function zeigeLastfaelle() {
    * «beim anklicken des lastfalls unter dem 3d den lastfall aufleuchten
    * lassen unter der sidebar um den blick des users zu führen.» Die Zeile
    * des gezeigten Falls (bzw. «Alle Fälle») rollt in die Mitte und leuchtet
-   * zweimal auf; ohne sie wie bisher die Gruppe.
+   * einmal auf («einmal aufleuchten genügt»); ohne sie wie bisher die Gruppe.
    */
   requestAnimationFrame(() => {
     const m = ui.el('maske');
@@ -5903,7 +5903,7 @@ function zeigeLastfaelle() {
     k?.scrollIntoView({ block: z ? 'center' : 'start', behavior: 'smooth' });
     const kl = z ? 'lf-leuchten' : 'blitz';
     k?.classList.remove(kl); void k?.offsetWidth; k?.classList.add(kl);
-    setTimeout(() => k?.classList.remove(kl), 1800);
+    setTimeout(() => k?.classList.remove(kl), 1300);
   });
 }
 

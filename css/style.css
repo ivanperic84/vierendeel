@@ -4200,11 +4200,10 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben .viewer-ek { min-width: 0; }
 
 /* Der gewählte Lastfall leuchtet in der Seitenleiste auf (21. November). */
-.lf-einfach.lf-leuchten { animation: lf-leuchten 1.7s ease-out; }
+.lf-einfach.lf-leuchten { animation: lf-leuchten 1.2s ease-out; }
+/* Einmal aufleuchten genügt (21. November). */
 @keyframes lf-leuchten {
-  0%, 40% { background: var(--acc-s); box-shadow: 0 0 0 2px var(--acc); }
-  20%, 60% { background: transparent; box-shadow: 0 0 0 0 var(--acc); }
-  75% { background: var(--acc-s); box-shadow: 0 0 0 2px var(--acc); }
+  0%, 35% { background: var(--acc-s); box-shadow: 0 0 0 2px var(--acc); }
   100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
