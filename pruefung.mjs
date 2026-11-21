@@ -43543,6 +43543,22 @@ titel('310  Audit 21. November, Block 2: Startzustand (Abfangjoch mit Anker, Tra
        SQ.includes("a.profil !== a.typ ? ` · ${a.profil}` : ''") && !SQ.includes('Der Nachweis des Abfangjochs wird noch'));
 }
 
+// ===========================================================================
+titel('311  Insel mit Blättern, Zurück und Play; Lastfall leuchtet in der Seitenleiste');
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Insel: ‹ › durch die Nachweisfälle, × zurück auf umhüllend, ▶ / ■ für Figur bzw. Knickfigur',
+       AQ.includes('function inselSteuerung()') && AQ.includes("knopf('vor', '›'") && AQ.includes("knopf('alle', '×'")
+       && AQ.includes("knopf('spiel', schwingt ? '■' : '▶'") && AQ.includes("l.nachweis === true"));
+  wahr('Die Leiste meldet Änderungen an die Insel', readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes('app.inselSteuerung?.();'));
+  wahr('Klick auf den Lastfall: die Zeile in der Seitenleiste leuchtet auf',
+       AQ.includes("[data-lf-wahl=\"${CSS.escape(String(anzeigeKombi))}\"]") && AQ.includes("'lf-leuchten'"));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Stilblatt: Aufleuchten, mit weniger Bewegung nur ein Rahmen', css.includes('@keyframes lf-leuchten')
+       && css.includes('.lf-einfach.lf-leuchten { animation: none; outline: 2px solid var(--acc); }'));
+  wahr('index.html trägt die Steuerung der Insel', readFileSync(join(HIER, 'index.html'), 'utf8').includes('id="pos-steuer"'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

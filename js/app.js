@@ -32,7 +32,7 @@ import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
-         LASTARTEN, mastTeileSzene } from './render.3d.js';
+         LASTARTEN, mastTeileSzene, FIGUR_MODI } from './render.3d.js';
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten, setzeDruckStamm, kurzBericht } from './app.bericht.js';
@@ -214,6 +214,7 @@ const app = {
   knickInfo: () => ({ gilt: knickGilt(), zeigen: knickZeigen, stabwerk: !!stabwerkGilt() }),
   knickRechnen: () => knickRechnen(),
   knickFigurSchalten: () => knickFigurSchalten(),
+  inselSteuerung: () => inselSteuerung(),
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
   get axisErgebnis() { return axisErgebnis; },
@@ -3259,6 +3260,55 @@ function viewerSzenen() {
  * endet mit «…» und läuft beim Überfahren aus; ein Wechsel fährt die Breite
  * weich auf das neue Mass und blendet den Text ein (FLIP auf der Breite).
  */
+/*
+ * >>> DIE INSEL KANN MEHR (21. November). <<< Weisung: «die funktionalität
+ * der dynamiv island ausbauen. wenn verformung oder knickform aktiv play
+ * button ergänzen und weitere optionen falls sinnvoll.» Neben dem Lastfall:
+ * ‹ › blättert durch die Nachweisfälle (umhüllend zuerst), × führt zurück
+ * auf «umhüllend», ▶ / ■ lässt die verformte Figur bzw. die Knickfigur
+ * schwingen - mit einer kleinen Marke, welche Figur gerade steht.
+ */
+function inselFaelle() {
+  return ['umhuellend', ...(letzte?.kombi?.lastfaelle ?? []).filter((l) => l.nachweis === true).map((l) => l.key)];
+}
+function inselBlaettern(schritt) {
+  const l = inselFaelle();
+  const i = Math.max(0, l.indexOf(anzeigeKombi));
+  anzeigeKombi = l[(i + schritt + l.length) % l.length];
+  neuRechnen(false);
+}
+function inselSteuerung() {
+  const el = ui.el('pos-steuer');
+  if (!el) return;
+  const v = ansicht?.verformt;
+  const figur = v && (v.immer || FIGUR_MODI.includes(ansicht.modus));
+  const knickFig = figur && v.immer;
+  const schwingt = ansicht?.figurSchwingt === true;
+  const einzel = anzeigeKombi !== 'umhuellend';
+  const knopf = (k, t, titel, extra = '') =>
+    `<button type="button" class="insel-k${extra}" data-insel="${k}" title="${esc(titel)}">${t}</button>`;
+  const html = (inselFaelle().length > 1
+    ? knopf('zurueck', '‹', 'Vorheriger Nachweisfall') + knopf('vor', '›', 'Nächster Nachweisfall') : '')
+    + (einzel ? knopf('alle', '×', 'Zurück auf «umhüllend» (alle Nachweisfälle)') : '')
+    + (figur ? `<span class="insel-figur">${knickFig ? 'Knick' : 'Figur'}</span>`
+      + knopf('spiel', schwingt ? '■' : '▶', schwingt ? 'Figur anhalten' : 'Figur schwingen lassen', ' insel-spiel') : '');
+  if (el.dataset.html === html) return;
+  el.dataset.html = html;
+  el.innerHTML = html;
+  el.classList.toggle('leer', !html);
+  el.querySelectorAll('[data-insel]').forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const k = b.dataset.insel;
+      if (k === 'vor') inselBlaettern(1);
+      else if (k === 'zurueck') inselBlaettern(-1);
+      else if (k === 'alle') { anzeigeKombi = 'umhuellend'; neuRechnen(false); }
+      else if (k === 'spiel') { ansicht.schwingen(!ansicht.figurSchwingt); zeichneModellWerkzeuge(app); }
+      inselSteuerung();
+    };
+  });
+}
+
 function inselText(el, text, titel = null) {
   if (el.dataset.text === text) return;
   const erstes = el.dataset.text === undefined;
@@ -3348,6 +3398,7 @@ function aktualisiereModell(erg) {
     // Derselbe Name wie in der Lastfallliste und der Seitenleiste (Audit
     // Block 2: «Einzellastfall heisst links und rechts verschieden»).
     inselText(lfEl, `Lastfall: ${lf ? lastfallEinfach(lf.bez).text : 'umhüllend'}`, lf?.bez);
+    inselSteuerung();
     lfEl.classList.toggle('einzel', !!lf);
     if (!lfEl.dataset.verdrahtet) {
       lfEl.dataset.verdrahtet = '1';
@@ -5832,11 +5883,21 @@ function zeigeLastfaelle() {
   neuRechnen();
   if (zuSeite.links) seiteAusklappen('links');
   maskenAnkerLoesen();
+  /*
+   * >>> DER GEWÄHLTE LASTFALL LEUCHTET AUF (21. November). <<< Weisung:
+   * «beim anklicken des lastfalls unter dem 3d den lastfall aufleuchten
+   * lassen unter der sidebar um den blick des users zu führen.» Die Zeile
+   * des gezeigten Falls (bzw. «Alle Fälle») rollt in die Mitte und leuchtet
+   * zweimal auf; ohne sie wie bisher die Gruppe.
+   */
   requestAnimationFrame(() => {
-    const k = ui.el('maske')?.querySelector('[data-grp="komb"]');
-    k?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    k?.classList.add('blitz');
-    setTimeout(() => k?.classList.remove('blitz'), 1400);
+    const m = ui.el('maske');
+    const z = m?.querySelector(`[data-lf-wahl="${CSS.escape(String(anzeigeKombi))}"]`);
+    const k = z ?? m?.querySelector('[data-grp="komb"]');
+    k?.scrollIntoView({ block: z ? 'center' : 'start', behavior: 'smooth' });
+    const kl = z ? 'lf-leuchten' : 'blitz';
+    k?.classList.remove(kl); void k?.offsetWidth; k?.classList.add(kl);
+    setTimeout(() => k?.classList.remove(kl), 1800);
   });
 }
 

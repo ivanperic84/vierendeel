@@ -4202,3 +4202,25 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben { min-width: min(150px, 100%); }
 .viewer-lf { min-width: 92px; }
 .viewer-oben .viewer-ek { min-width: 0; }
+
+/* Der gewählte Lastfall leuchtet in der Seitenleiste auf (21. November). */
+.lf-einfach.lf-leuchten { animation: lf-leuchten 1.7s ease-out; }
+@keyframes lf-leuchten {
+  0%, 40% { background: var(--acc-s); box-shadow: 0 0 0 2px var(--acc); }
+  20%, 60% { background: transparent; box-shadow: 0 0 0 0 var(--acc); }
+  75% { background: var(--acc-s); box-shadow: 0 0 0 2px var(--acc); }
+  100% { background: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lf-einfach.lf-leuchten { animation: none; outline: 2px solid var(--acc); }
+}
+
+/* Steuerung in der Insel (21. November): blättern, zurück, Figur spielen. */
+.insel-steuer { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.insel-steuer.leer { display: none; }
+.insel-k { border: 1px solid transparent; background: none; color: var(--on2); border-radius: 999px;
+  min-width: 22px; height: 22px; padding: 0 6px; font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+  transition: background var(--t-schnell), color var(--t-schnell), border-color var(--t-schnell); }
+.insel-k:hover { background: var(--s3, var(--s1)); color: var(--on); border-color: var(--ol); }
+.insel-k.insel-spiel { color: var(--acc); border-color: var(--acc); }
+.insel-figur { font-family: var(--f-mono); font-size: 10px; color: var(--dim); margin-left: 4px; animation: lf-ein .3s ease-out; }

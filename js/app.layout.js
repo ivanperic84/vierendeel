@@ -669,6 +669,8 @@ export function zeichneModellWerkzeuge(app) {
     };
   });
   leisteMelden(app);
+  // Die Insel oben zeigt Play / Stopp der Figur - sie folgt der Leiste.
+  app.inselSteuerung?.();
 }
 
 /** Der Knopf der Knickfigur - nur am Tragjoch mit gültigem Stabwerk. */
