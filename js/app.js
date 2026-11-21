@@ -3271,29 +3271,6 @@ function viewerSzenen() {
 function inselFaelle() {
   return ['umhuellend', ...(letzte?.kombi?.lastfaelle ?? []).filter((l) => l.nachweis === true).map((l) => l.key)];
 }
-/*
- * Die zweite Zeile der Insel: WAS gezeigt wird (Plotgrösse mit Einheit), bei
- * einer Figur ihr Massstab und der grösste Weg - das stand vorher als
- * oranger Text unten links im Bild und lag halb hinter der Legende.
- */
-function inselPlot(v, figur, knickFig) {
-  const el = ui.el('pos-plot');
-  if (!el) return;
-  let p = null;
-  try { p = ansicht?.plotSkala?.(); } catch { p = null; }
-  const mo = MODI.find((m) => m.key === ansicht?.modus);
-  const groesse = p ? `${p.label}${p.einheit && p.einheit !== '–' ? ` [${p.einheit}]` : ''}` : (mo?.label ?? '');
-  const zeilen = Array.isArray(v?.text) ? v.text : [];
-  let fig = '';
-  if (figur && zeilen.length) {
-    fig = knickFig ? (zeilen[0] ?? '').replace(/^Knickfigur\s*·\s*/, 'Knickfigur · ')
-      : `${(zeilen[0] ?? '').replace(/^Verformte Figur\s*·\s*/, '')} · ${(zeilen[1] ?? '').replace(/\s*·.*$/, '')}`;
-  }
-  const t = [groesse, fig].filter(Boolean).join(' · ');
-  if (el.textContent !== t) el.textContent = t;
-  el.title = zeilen.length && figur ? zeilen.join('\n') : t;
-}
-
 function inselBlaettern(schritt) {
   const l = inselFaelle();
   const i = Math.max(0, l.indexOf(anzeigeKombi));
@@ -3305,7 +3282,10 @@ function inselSteuerung() {
   if (!el) return;
   const v = ansicht?.verformt;
   const figur = v && (v.immer || FIGUR_MODI.includes(ansicht.modus));
-  const knickFig = figur && v.immer;
+  // Die Plotgrösse steht in der Legende (22. November: «in der insel kann die
+  // info über den resultatplot weggelassen werden da schon vorhanden»); die
+  // Angaben der Figur stehen im Titel des Knopfs ▶.
+  const figTitel = Array.isArray(v?.text) ? v.text.join('\n') : '';
   const schwingt = ansicht?.figurSchwingt === true;
   const einzel = anzeigeKombi !== 'umhuellend';
   const knopf = (k, t, titel, extra = '') =>
@@ -3313,9 +3293,7 @@ function inselSteuerung() {
   // Keine Pfeile zum Blättern (21. November: «die pfeile füe den
   // lastwechsel sind überflüssig») - gewählt wird in der Lastfallliste.
   const html = (einzel ? knopf('alle', '×', 'Zurück auf «umhüllend» (alle Nachweisfälle)') : '')
-    // Was die Figur ist, sagt die zweite Zeile (inselPlot); hier nur ▶ / ■.
-    + (figur ? knopf('spiel', schwingt ? '■' : '▶', schwingt ? 'Figur anhalten' : 'Figur schwingen lassen', ' insel-spiel') : '');
-  inselPlot(v, figur, knickFig);
+    + (figur ? knopf('spiel', schwingt ? '■' : '▶', `${schwingt ? 'Figur anhalten' : 'Figur schwingen lassen'}${figTitel ? `\n${figTitel}` : ''}`, ' insel-spiel') : '');
   if (el.dataset.html === html) return;
   el.dataset.html = html;
   el.innerHTML = html;
@@ -3431,7 +3409,7 @@ function aktualisiereModell(erg) {
       lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });
     }
   }
-  if (ui.el('st-grundwerte') ?? ui.el('pos-ek')) {
+  if (ui.el('pos-ek')) {
     /*
      * Mit den Grundwerten der Trasse (7. Oktober, «hier unten die globalen
      * trasse parameter einblenden und durch anklicken bearbeitbar machen»).
@@ -3444,13 +3422,11 @@ function aktualisiereModell(erg) {
     if (werte.windReduktion) teile.push('Wind × 0.74');
     if (werte.schneeAktiv) teile.push('Schnee');
     /*
-     * >>> IN DER FUSSLEISTE (21. November). <<< Auf «wie kann man das
-     * interface hier aufbessern? … die obere island und das untere resultat
-     * box erscheinen nicht ganz logisch», Rückfrage «Oben was, unten Skala»:
-     * die Grundwerte sind Eingaben des Querprofils, nicht das, was das Bild
-     * zeigt - sie stehen in der Fussleiste und öffnen dort ihre Felder.
+     * In der Insel (22. November: «Grundwerte in der Fussleiste: ist zu
+     * versteckt, lieber wieder in die insel»), zweite Zeile; ein Klick fährt
+     * die Insel mit den Feldern aus, ein zweiter fährt sie ein.
      */
-    const ek = ui.el('st-grundwerte') ?? ui.el('pos-ek');
+    const ek = ui.el('pos-ek');
     ek.textContent = teile.join(' · ');
     ek.title = 'Grundwerte des Querprofils - anklicken zum Bearbeiten';
     /*
@@ -3481,11 +3457,9 @@ function aktualisiereModell(erg) {
        */
       ek.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Ein zweiter Klick schliesst (21. November).
-        if (kontextOffen()) { kontextSchliessen(app); return; }
-        const r = ek.getBoundingClientRect();
-        const pkt = kontextTrasse(app);
-        kontextZeigen(app, [r.left, r.top - 40 - 26 * pkt.length], pkt);
+        const insel = ui.el('einwirkung-wahl');
+        if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); return; }
+        kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });
       });
     }
   }

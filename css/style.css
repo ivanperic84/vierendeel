@@ -4348,3 +4348,12 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .st-gw:empty { display: none; }
 .legende { background: color-mix(in srgb, var(--s2) 45%, transparent); backdrop-filter: blur(2px); }
 .st-gw { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+
+/* Grundwerte wieder in der Insel, die Insel durchsichtig wie die Leiste
+   (22. November: «lieber wieder in die insel und die insel gleich
+   transparent machen»); keine Zeile mit der Plotgrösse. */
+.viewer-oben .viewer-ek { display: block; grid-area: ek; }
+.viewer-oben { grid-template-areas: ". lf st ." "ek ek ek ek" "p p p p";
+  background: color-mix(in srgb, var(--s2) 45%, transparent); backdrop-filter: blur(2px); }
+.viewer-oben .viewer-ek { cursor: pointer; }
+.viewer-oben .viewer-ek:hover { color: var(--on); }

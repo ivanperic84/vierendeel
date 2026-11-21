@@ -43569,9 +43569,10 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
   const KQ = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8').replace(/\r\n/g, '\n');
   // Seit dem 21. November spät stehen die Grundwerte in der Fussleiste («Oben was, unten Skala»).
-  wahr('Klick auf die Grundwerte (Fussleiste): Felder, zweiter Klick schliesst',
-       AQ.includes("if (kontextOffen()) { kontextSchliessen(app); return; }")
-       && AQ.includes("const ek = ui.el('st-grundwerte') ?? ui.el('pos-ek');"));
+  // 22. November: die Grundwerte wieder in der Insel («ist zu versteckt»), sie fährt aus.
+  wahr('Klick auf die Grundwerte: Panel in der Insel, zweiter Klick schliesst',
+       AQ.includes("if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); return; }")
+       && AQ.includes('kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });'));
   wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
        KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
        && KQ.includes('n.inselZu = () => inselMorph(ziel,'));
@@ -43641,13 +43642,15 @@ titel('315  Oben was, unten Skala: Insel mit Plotgrösse und Figur, Legende nur 
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   const IX = readFileSync(join(HIER, 'index.html'), 'utf8');
-  wahr('Insel: zweite Zeile mit Plotgrösse und Figur (Massstab, grösster Weg)',
-       AQ.includes('function inselPlot(v, figur, knickFig)') && IX.includes('id="pos-plot"'));
+  // 22. November: keine Plotzeile in der Insel («da schon vorhanden»); die Figur steht im Titel von ▶.
+  wahr('Insel ohne Plotzeile; Angaben der Figur im Titel des Knopfs ▶',
+       !AQ.includes('function inselPlot(') && !IX.includes('id="pos-plot"') && AQ.includes('const figTitel ='));
   wahr('Legende ohne Lastfall, Erklärsatz hinter ⓘ, durchsichtig',
        !LQ.includes('data-lf-link title="Lastfall wählen (Seitenleiste)">${esc(lastfallText(app))}')
        && LQ.includes('data-leg-info') && css.includes('.legende { background: color-mix(in srgb, var(--s2) 45%, transparent);'));
-  wahr('Grundwerte in der Fussleiste, nicht mehr in der Insel', IX.includes('id="st-grundwerte"')
-       && css.includes('.viewer-oben .viewer-ek { display: none; }'));
+  wahr('Grundwerte wieder in der Insel (zweite Zeile), Insel durchsichtig wie die Leiste',
+       !IX.includes('id="st-grundwerte"') && css.includes('.viewer-oben .viewer-ek { display: block; grid-area: ek; }')
+       && css.includes('background: color-mix(in srgb, var(--s2) 45%, transparent); backdrop-filter: blur(2px); }'));
   wahr('Anschrift der Figur nicht mehr im Bild (lag hinter der Legende)', RQ.includes('this.figurTextImBild'));
 }
 
