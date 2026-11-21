@@ -128,7 +128,7 @@ import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT, PAKET_SPEICHER } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB,
-         mastenDbDa, gitterOhneObenName } from './data.masten.js';
+         mastenDbDa, gitterOhneObenName, fundamentKandidaten } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe, einzelmastLaenge,
          mastLaengeFuer, JOCH_EINGESPANNT } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
@@ -3259,14 +3259,14 @@ function viewerSzenen() {
  * endet mit «…» und läuft beim Überfahren aus; ein Wechsel fährt die Breite
  * weich auf das neue Mass und blendet den Text ein (FLIP auf der Breite).
  */
-function inselText(el, text) {
+function inselText(el, text, titel = null) {
   if (el.dataset.text === text) return;
   const erstes = el.dataset.text === undefined;
   el.dataset.text = text;
   const w0 = el.getBoundingClientRect().width;
   el.style.width = '';
   el.innerHTML = `<span class="lf-text${erstes ? '' : ' neu'}">${esc(text)}</span>`;
-  el.title = `${text} - Lastfall wählen (Seitenleiste)`;
+  el.title = `${titel ?? text} - Lastfall wählen (Seitenleiste)`;
   const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (erstes || still || !w0) return;
   const w1 = el.getBoundingClientRect().width;
@@ -3345,7 +3345,9 @@ function aktualisiereModell(erg) {
     const lfEl = ui.el('pos-lf');
     const lf = anzeigeKombi === 'umhuellend' ? null
       : (letzte?.kombi?.lastfaelle ?? []).find((l) => l.key === anzeigeKombi);
-    inselText(lfEl, `Lastfall: ${lf ? lf.bez : 'umhüllend'}`);
+    // Derselbe Name wie in der Lastfallliste und der Seitenleiste (Audit
+    // Block 2: «Einzellastfall heisst links und rechts verschieden»).
+    inselText(lfEl, `Lastfall: ${lf ? lastfallEinfach(lf.bez).text : 'umhüllend'}`, lf?.bez);
     lfEl.classList.toggle('einzel', !!lf);
     if (!lfEl.dataset.verdrahtet) {
       lfEl.dataset.verdrahtet = '1';
@@ -7526,6 +7528,16 @@ function abfangjochMitAnker(w) {
   return w;
 }
 
+/** Masten des Tragauslegers auf HEM 240 mit dem Fundament, das ihm zugeordnet ist. */
+function auslegerStartprofil(w) {
+  mastenVon(w).forEach((m) => {
+    w = setzeMastAngabe(w, m.id, 'mastProfil', 'HEM 240');
+    const f = fundamentKandidaten('HEM 240', m.steg ?? 'jochachse', m.gelaende ?? 'bis14')[0];
+    if (f?.typ) w = setzeMastAngabe(w, m.id, 'mastFundament', f.typ);
+  });
+  return w;
+}
+
 function beginneNeu(art, opt = {}) {
   const mitAnker = art === 'abfangjoch-anker';
   if (mitAnker) art = 'abfangjoch';
@@ -7533,9 +7545,17 @@ function beginneNeu(art, opt = {}) {
     : TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
   deltaVergessen();
   werte = frisch(art);
-  if (mitAnker) werte = abfangjochMitAnker(werte);
+  /*
+   * >>> STARTZUSTAND JE ART (21. November, Audit Block 2). <<< Auf Rückfrage:
+   * ein neues Abfangjoch startet wie die Vorlage «Abfangjoch mit Anker»
+   * («Vorlage mit Anker») - mit den Beispielteilen des Tragjochs zogen dessen
+   * Leiter einseitig ohne Anker, η 2.96. Ein neuer Tragausleger startet mit
+   * dem HEM 240 («HEM 240 starten»; mit HEB 260 Knicken MT1 η 1.017).
+   */
+  if (art === 'abfangjoch' && !opt.ohneTeile) werte = abfangjochMitAnker(werte);
   // «Ohne Beispielteile» (13. November): das Blatt beginnt wirklich leer.
   else if (opt.ohneTeile) werte = setzeAnbauteileAn(werte, []);
+  if (art === 'tragausleger') werte = auslegerStartprofil(werte);
   try {
     const b = localStorage.getItem(BEARBEITER);
     if (b) werte.bearbeiter = b;

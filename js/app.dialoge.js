@@ -15,7 +15,7 @@ import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteL
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen, ankerIstDoppelt,
          doppelankerGeometrie, DOPPELANKER_ABSTAND_VOR } from './data.anker.js';
 import { STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
-import { getTragjoch, laengenbereich, tragjoche } from './data.tragjoche.js';
+import { getTragjoch, laengenbereich, tragjoche, sortimentstypen } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { signalteile, signalFlaeche, SIGNAL_CW } from './data.anbauteile.js';
@@ -770,10 +770,12 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       ? tragauslegerTypen().map((a) => ({ wert: String(a.L),
           text: `Tragausleger ${Number(a.L).toFixed(2)} m · 2 × ${a.profil ?? 'UPE 140'}` }))
       : istAbfang()
+      // Audit 21. November: kein «UAP 130 · UAP 130» (alte Typen heissen nach
+      // dem Profil), keine Vergleichsmodelle (SIGNAL-AXISVM) im neuen Blatt.
       ? abfangjoche().map((a) => ({ wert: a.typ,
-          text: `${a.typ} · ${a.profil} · ${abfangLaengenbereich(a).text}` }))
-      : tragjoche().map((j) => ({ wert: j.typ,
-          text: `${j.typ} · jd ${j.jd} mm` }));
+          text: `${a.typ}${a.profil && a.profil !== a.typ ? ` · ${a.profil}` : ''}${(a.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''} · ${abfangLaengenbereich(a).text}` }))
+      : sortimentstypen().map((j) => ({ wert: j.typ,
+          text: `${j.typ} · jd ${j.jd} mm${(j.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''}` }));
     const typJetzt = istAusleger() ? String(e.L) : istAbfang() ? e.abfangTyp : e.typ;
     return `
     <div class="feld"><label>Welche Art</label>
@@ -837,12 +839,12 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
           vom gewählten Tragwerk übernehmen</label></div>
       <small class="hinweis">Teile an den Masten gehören dem Masten und bleiben.</small></div>` : ''}
 
-    <p class="notiz">${neuesTragwerk
+    ${blatt ? '' : `<p class="notiz">${neuesTragwerk
       ? 'Profile und Bleche übernimmt das neue Tragwerk vom zuletzt gewählten '
         + '— sie lassen sich danach in der Maske ändern.'
       : 'Profile, Bleche, Masten und Anbauteile bleiben, wie sie sind. Ein '
         + 'Wechsel der ART setzt Typ und Länge auf das Sortiment der neuen '
-        + 'Art — «J90» steht in keiner Abfangjoch-Liste.'}</p>`;
+        + 'Art — «J90» steht in keiner Abfangjoch-Liste.'}</p>`}`;
   };
 
   /*

@@ -579,8 +579,7 @@ export const FELDER = [
     optionenAus: () => abfangOptionen(),
     sichtbar: (w) => tragwerksart(w).key === 'abfangjoch',
     hinweis: 'Aktuelles Sortiment A160–A360, darunter die Altbauweise nach '
-           + 'ihrer Profilbezeichnung. Der Nachweis des Abfangjochs wird noch '
-           + 'nicht geführt.' },
+           + 'ihrer Profilbezeichnung.' },
   /*
    * DER MASTABSTAND DES ABFANGJOCHS (11. Oktober, `abfangJsIst`): gesetzt
    * beim Verschieben eines Masten; gilt, wenn er im Stützweitenbereich der
@@ -2785,7 +2784,7 @@ export function abfangOptionen() {
        * und ohne die gibt es keinen Nachweisschnitt. Wer waehlt, soll das
        * SEHEN, statt es an einer ausbleibenden Zahl zu merken.
        */
-      text: `${a.typ} · ${a.profil} · ${b.text}`
+      text: `${a.typ}${a.profil && a.profil !== a.typ ? ` · ${a.profil}` : ''} · ${b.text}`
           + (abfangVollstaendig(a) ? '' : ' — Masse unvollständig'),
     };
   };

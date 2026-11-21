@@ -43486,7 +43486,7 @@ titel('309  Dimensionieren mit Auswahl und Grenzen; Lastfall-Insel; Figur im Kno
        !UQ.includes('>Sortiment durchrechnen</button>') && UQ.includes('>Dimensionieren</button>'));
   const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
   wahr('Lastfall oben als Insel: eine Zeile, Breite weich (FLIP), Text blendet ein',
-       AQ.includes('function inselText(el, text)') && AQ.includes("inselText(lfEl,"));
+       AQ.includes('function inselText(el, text, titel = null)') && AQ.includes("inselText(lfEl,"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Insel im Stilblatt: einzeilig mit «…», mit weniger Bewegung ohne Animation',
        css.includes('.viewer-lf .lf-text { display: block; white-space: nowrap;') && css.includes('--t-insel:')
@@ -43513,6 +43513,34 @@ titel('309  Dimensionieren mit Auswahl und Grenzen; Lastfall-Insel; Figur im Kno
   } else {
     wahr('Renderer-Klasse gefunden', false, Object.keys(R3).join(','));
   }
+}
+
+// ===========================================================================
+titel('310  Audit 21. November, Block 2: Startzustand (Abfangjoch mit Anker, Tragausleger HEM 240, P2), Typenliste, Lastfallnamen');
+{
+  const CH = await import(J('core.checks.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1' };
+  const erg = berechne(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl), T.getTragjoch('J90'));
+  const ids = CH.konstruktionsChecks(erg.modell).map((c) => c.id);
+  wahr('P2 nicht am Sortimentsjoch (Stationen aus der Mass-Tabelle, 20 / 0.75 = 26.67)',
+       erg.modell.teilungQuelle === 'masstabelle' && !ids.includes('P2'), ids.join(','));
+  const CQ = readFileSync(join(HIER, 'js', 'core.checks.js'), 'utf8');
+  wahr('P2 bleibt für Joche ohne Mass-Tabelle', CQ.includes("if (m.teilungQuelle !== 'masstabelle') checks.push({"));
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Neues Abfangjoch startet mit der Vorlage «Abfangjoch mit Anker»',
+       AQ.includes("if (art === 'abfangjoch' && !opt.ohneTeile) werte = abfangjochMitAnker(werte);"));
+  wahr('Neuer Tragausleger startet mit HEM 240 und seinem Fundament',
+       AQ.includes("if (art === 'tragausleger') werte = auslegerStartprofil(werte);")
+       && AQ.includes("setzeMastAngabe(w, m.id, 'mastProfil', 'HEM 240')"));
+  wahr('Lastfall oben mit demselben Namen wie in der Lastfallliste',
+       AQ.includes('lastfallEinfach(lf.bez).text'));
+  const DQ = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8').replace(/\r\n/g, '\n');
+  wahr('Dialog Neues Querprofil: Typen ohne Vergleichsmodelle, alte als (Bestand), kein Doppelname, kein widersprechender Satz',
+       DQ.includes(': sortimentstypen().map((j) =>') && DQ.includes("a.profil !== a.typ") && DQ.includes("${blatt ? '' : `<p class=\"notiz\">"));
+  const SQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  wahr('Abfangjoch-Typenliste ohne «UAP 130 · UAP 130», Hinweis ohne «nicht geführt»',
+       SQ.includes("a.profil !== a.typ ? ` · ${a.profil}` : ''") && !SQ.includes('Der Nachweis des Abfangjochs wird noch'));
 }
 
 console.log('\n' + '='.repeat(104));

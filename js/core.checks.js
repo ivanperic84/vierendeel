@@ -850,8 +850,14 @@ export function konstruktionsChecks(m, ab = null) {
     });
   }
 
+  /*
+   * >>> P2 NUR OHNE MASSTABELLE (21. November). <<< Audit Block 2, auf
+   * Rückfrage «Nur ohne Masstabelle»: stehen die Bleche nach der Mass-Tabelle
+   * des Sortiments, ist ein kürzeres Endfeld so vorgesehen - das Startjoch
+   * J90 20 m (20 / 0.75 = 26.67) meldete sonst schon beim Anlegen «verletzt».
+   */
   const n = m.L / m.a1;
-  checks.push({
+  if (m.teilungQuelle !== 'masstabelle') checks.push({
     id: 'P2', text: 'Feldeinteilung:  L / a₁ ganzzahlig',
     vorhanden: n, erforderlich: Math.round(n), einheit: '–', richtung: '=',
     ok: Math.abs(n - Math.round(n)) < 1e-3,
