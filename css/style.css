@@ -4276,3 +4276,19 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben .viewer-ek { grid-area: ek; }
 .viewer-oben .kontext.insel-panel { grid-area: p; }
 .viewer-oben:empty { display: none; }
+
+/* Die Werkzeugleiste als EINE Box im Stil der Insel (21. November, «diese
+   animation der island anpassen und eine box bilden mit allen»): die
+   Gruppen ohne eigenen Rahmen, durch Linien getrennt; zugeklappt ist der
+   Knopf selbst die Box. */
+.viewer-tools-r:not(:has(> #wz-auf)) {
+  background: var(--s2); border: 1px solid var(--ol); border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28); padding: 4px 4px 6px; gap: 0;
+}
+.viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe {
+  background: none; border: 0; border-radius: 0; border-top: 1px solid var(--ol); padding: 5px 4px 4px;
+}
+.viewer-tools-r:not(:has(> #wz-auf)) .wz-gruppe:first-of-type { border-top: 0; }
+.viewer-tools-r:not(:has(> #wz-auf)) > .wz-klapp { align-self: flex-end; border-color: transparent; background: none; }
+.viewer-tools-r > #wz-auf { border-radius: 14px; height: 30px; padding: 0 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28); background: var(--s2); }

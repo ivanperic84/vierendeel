@@ -30,7 +30,7 @@ export const kontextOffen = () => Boolean(kontextMenue);
  * einem Bild von 344 × 34 auf 497 × 169 px. Jetzt Breite und Höhe als FLIP
  * (vorher messen, umstellen, nachher messen, dazwischen animieren).
  */
-function inselMorph(el, aendern) {
+export function inselMorph(el, aendern) {
   const a = el.getBoundingClientRect();
   aendern();
   const b = el.getBoundingClientRect();

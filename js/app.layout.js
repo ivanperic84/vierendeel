@@ -9,7 +9,7 @@
  * Kontextobjekt aus app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { alleZeigen, nurDiesesZeigen } from './app.kontext.js';
+import { alleZeigen, nurDiesesZeigen, inselMorph } from './app.kontext.js';
 import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf } from './design.js';
@@ -401,7 +401,9 @@ export function zeichneModellWerkzeuge(app) {
     n.innerHTML = `<button class="wz-s wz-txt wz-klapp" id="wz-auf" type="button"
       title="Werkzeugleiste einblenden: Blick, Modell, Zeichnung, Lasten, Resultate"
       aria-expanded="false">Ebenen${mo ? ` · ${esc(mo.kurz ?? mo.label.slice(0, 3))}` : ''} ‹</button>`;
-    ui.el('wz-auf').onclick = () => { wzSetzen(false); zeichneModellWerkzeuge(app); };
+    // Auf- und Zuklappen wie die Insel: die Box wächst weich (21. November,
+    // «diese animation der island anpassen und eine box bilden mit allen»).
+    ui.el('wz-auf').onclick = () => inselMorph(n, () => { wzSetzen(false); zeichneModellWerkzeuge(app); });
     leisteMelden(app);
     return;
   }
@@ -539,7 +541,7 @@ export function zeichneModellWerkzeuge(app) {
     if (zl.an) app.zustandNeu(); else app.ansicht.zeichne();
     zeichneLegende(app); zeichneModellWerkzeuge(app);
   };
-  ui.el('wz-zu').onclick = () => { wzSetzen(true); zeichneModellWerkzeuge(app); };
+  ui.el('wz-zu').onclick = () => inselMorph(ui.el('ebenen-tools'), () => { wzSetzen(true); zeichneModellWerkzeuge(app); });
   ['modell', 'zeichnung', 'lasten', 'resultate'].forEach((g) => {
     ui.el(`wz-g-${g}`).onclick = () => {
       app.ansicht.gruppen[g] = !app.ansicht.gruppen[g]; nach();
