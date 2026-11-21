@@ -4127,3 +4127,11 @@ body.setzen-an #legende { display: none; }
 .viewer-lf:hover { color: var(--on); }
 button.legende-fall { display: block; width: 100%; background: none; border: 0; padding: 0; margin: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 button.legende-fall:hover { color: var(--acc); text-decoration: underline; }
+
+/* Grossschrift verwandelt Formelzeichen und Einheiten (Audit 21. November,
+   «Block 1 Fehler»): «η» wurde «Η» (liest sich wie H), «m» wurde «M»,
+   «kN» wurde «KN», «DP2a» wurde «DP2A». Werte, Einheiten und Typen stehen
+   deshalb wie geschrieben; gross bleibt nur der reine Name. */
+.klapp-w, .rk-x, .rk-tabelle .rk-x, .rk-kurz thead .rk-x,
+.lasttabelle th, table.dt th, .ab-tabelle th { text-transform: none; }
+.klapp-w { letter-spacing: .02em; font-weight: 500; }

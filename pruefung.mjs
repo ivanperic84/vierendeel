@@ -43352,6 +43352,34 @@ titel('305  Eigengewicht nur an echten Stäben - auch mit Druckstütze im Blatt'
   pruefeEG(r, 'Jochreihe mit Druckstütze: kein Starrglied mit Eigengewicht');
 }
 
+titel('306  Audit 21. November, Block 1: Δη, Stabilität in der Schulung, Gesamt-η, Grossschrift');
+{
+  const E306 = await import(J('ui.einfach.js'));
+  wahr('Schulung: «Knicken M2» der Gruppe Stabilität ist ein Mastnachweis',
+       E306.gruppeVon('η Knicken M2', 'Stabilität') === 'mast', E306.gruppeVon('η Knicken M2', 'Stabilität'));
+  wahr('Schulung: «Knicken MT1» ebenso', E306.gruppeVon('η Knicken MT1', 'Stabilität') === 'mast');
+  wahr('Schulung: α_cr / Stabilität Joch bleibt beim Träger', E306.gruppeVon('α_cr Gesamtsystem', 'Stabilität') === 'traeger');
+  const D306 = await import(J('design.js'));
+  const k = D306.klapp('x', 'Knicknachweis · L_cr 10.81 m · η 0.207', '');
+  wahr('Klapptitel: der Wert steht ausserhalb der Grossschrift',
+       k.includes('Knicknachweis<span class="klapp-w"> · L_cr 10.81 m · η 0.207</span>'), k.slice(0, 160));
+  wahr('Klapptitel ohne « · » bleibt ein Name', !/klapp-w/.test(D306.klapp('y', 'Kräfte am Mastfuss', '')));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Stilblatt: Werte, Einheiten und Tabellenköpfe ohne Grossschrift',
+       /\.klapp-w,[^{]*\.rk-x[^{]*table\.dt th[^{]*\{ text-transform: none; \}/.test(css));
+  const q = APP_QUELLE();
+  wahr('Δη: neues und geladenes Blatt vergessen den Vergleich',
+       /function beginneNeu[\s\S]{0,300}deltaVergessen\(\)/.test(q) && q.includes('app.deltaVergessen()'));
+  wahr('Δη: vergleichbar nur bei gleichem Tragwerk UND gleicher Art',
+       /const deltaTw = [^\n]*twId[^\n]*tragwerksart/.test(q));
+  wahr('Δη: nur an Kacheln, die eine Zahl ohne Einheit zeigen (nicht an «34 mm»)',
+       q.includes("test(w.textContent.split(/[↑↓]/)[0])"));
+  wahr('Gesamt-η: Fussleiste urteilt über die Bemessung (nicht über den Einzelfall)',
+       /function urteilGesamt[\s\S]{0,900}nachweisart, false\)/.test(q));
+  wahr('Gesamt-η: der Hinweis im Einzellastfall liest dieselbe Stelle',
+       (q.match(/bemessungGesamt: anzeigeKombi === 'umhuellend' \? null : bemessungKopf\(\)/g) ?? []).length === 2);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

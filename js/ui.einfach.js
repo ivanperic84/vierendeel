@@ -32,6 +32,10 @@ export function gruppeVon(titel, kopf = '') {
   if (k.startsWith('mast')) return 'mast';
   if (k.startsWith('fundament')) return 'fundament';
   if (k.startsWith('anker')) return 'anker';
+  // Gruppe «Stabilität» (19. November): das Knicken eines Masten ist ein
+  // Mastnachweis. Ohne diese Zeile fiel «Knicken M2» unter «Träger» (Audit
+  // 21. November: «Tragjoch 73 % · Knicken M2», Masten 69 %).
+  if (k.startsWith('stabil')) return /\bMT?\d|Mast/.test(t) ? 'mast' : 'traeger';
   if (k) return 'traeger';
   if (/Obergurt|Untergurt|Bindeblech|Blech|Gurt|UPE|Joch|Ausleger/i.test(t)
       && !/\bM\d|Mast/i.test(t)) return 'traeger';

@@ -6843,7 +6843,8 @@ function quellSchalter(opt, einzel, eBem) {
     <b>Einzellastfall${opt.lastfallName ? `: ${esc(opt.lastfallName)}` : ''}</b>
     — die Zahlen darunter gelten NUR für diesen Fall und sind kein Nachweis.
     Die Bemessung über alle Kombinationen gibt
-    <b>η ${f3(eBem)}</b>. Oben im Lastfallwähler auf «umhüllend»
+    <b>η ${f3(opt.bemessungGesamt?.eta ?? eBem)}</b>${opt.bemessungGesamt?.wer
+      ? ` (${esc(opt.bemessungGesamt.wer)})` : ''}. Oben im Lastfallwähler auf «umhüllend»
     zurückschalten.</p>`;
 }
 

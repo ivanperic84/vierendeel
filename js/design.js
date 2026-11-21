@@ -356,9 +356,22 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
  * @param {string} inhalt     HTML
  * @param {string} rechts     kleiner Zusatz in der Kopfzeile
  */
+/*
+ * >>> GROSSSCHRIFT NUR FÜR DEN NAMEN, NICHT FÜR WERTE (Audit 21. November). <<<
+ * Weisung «Block 1 Fehler». Der Klapptitel steht in Grossschrift; ein Wert
+ * darin wurde mitverwandelt: «Knicknachweis · L_cr 10.81 m · η 0.207» stand
+ * als «… L_CR 10.81 M · Η 0.207» da - das griechische Gross-Eta sieht aus
+ * wie «H». Gross bleibt der Name bis zum ersten « · », der Rest wie geschrieben.
+ */
+function klappTitel(titel) {
+  const t = String(titel ?? '');
+  const i = t.indexOf(' · ');
+  return i < 0 ? esc(t) : `${esc(t.slice(0, i))}<span class="klapp-w"> · ${esc(t.slice(i + 3))}</span>`;
+}
+
 export function klapp(schluessel, titel, inhalt, rechts = '', offen = false) {
   return `<details class="klapp" data-klapp="${esc(schluessel)}"${offen ? ' open' : ''}>
-    <summary><span class="klapp-t">${esc(titel)}</span>${
+    <summary><span class="klapp-t">${klappTitel(titel)}</span>${
       rechts ? `<span class="klapp-r">${esc(rechts)}</span>` : ''}</summary>
     <div class="klapp-koerper">${inhalt}</div>
   </details>`;

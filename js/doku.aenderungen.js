@@ -18,6 +18,10 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-21',
     punkte: [
+      { text: 'Die Markierungen «↑ / ↓» nach einer Eingabe vergleichen nur noch mit demselben Tragwerk: nach «Neues Querprofil», beim Laden und beim Wechsel der Tragwerksart erscheinen keine; an mm-Werten (Verformung) steht keine η-Differenz mehr.' },
+      { text: 'Im Einzellastfall nennen Hinweis und Fussleiste dieselbe Bemessungszahl wie die Hauptkachel bei «umhüllend» (vorher drei verschiedene: nur Joch, ohne Gebrauchstauglichkeit, mit).' },
+      { text: 'Schulung: das Knicken eines Masten zählt in der Gruppe «Masten», nicht mehr beim Tragjoch.' },
+      { text: 'Grossschrift verwandelt keine Werte mehr: in Klapptiteln, Tabellenköpfen und der Fundamentzeile stehen η, m, kN, cm² und «DP2a» wie geschrieben (vorher «Η», «M», «KN»).' },
       { text: 'Abfangjoch und Tragausleger mit Druckstütze: die Hilfsglieder der Stütze trugen fälschlich ein Eigengewicht (rund 19 kN je Meter) - behoben; Mastfuss- und Ankerreaktionen sinken deutlich.', rechnung: true },
       { text: 'Im gewählten Lastfall zeigt das 3D nur dessen Lasten (Havarie ohne Wind und Schnee); Havariepfeile auf der Seite, zu der sie ziehen; Leiter werden nur beim Überfahren oder im gewählten Havariefall hervorgehoben.' },
       { text: 'Lastfall oben in der Mitte des 3D und in der Legende anklickbar - führt zu den Lastfällen in der Seitenleiste; Havariefälle mit Leiter und Richtung in eigenem Block.' },

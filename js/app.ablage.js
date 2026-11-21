@@ -762,6 +762,7 @@ async function eintragLaden(app, id, fragen = true) {
    */
   const vorher = { werte: app.werte, projekt: app.projekt };
   try {
+    app.deltaVergessen();   // anderes Blatt: kein Δη gegen das vorige (Audit 21. Nov.)
     app.werte = standAnheben({ ...standardwerte(), ...s.werte, bearbeiten: false });
     app.mastNachfuehrenGlobal();   // siehe beim Start
     app.projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };

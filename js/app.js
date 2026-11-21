@@ -209,6 +209,7 @@ let thema = 'dunkel';
 const app = {
   // Zustand - gelesen immer der aktuelle; wo ein Modul schreibt, ein Setter.
   get werte() { return werte; }, set werte(v) { werte = v; },
+  deltaVergessen,
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
   get axisErgebnis() { return axisErgebnis; },
@@ -648,6 +649,16 @@ function knickGilt() {
 let deltaAlt = null;
 let deltaNeu = null;
 const DELTA_MS = 8000;
+/*
+ * >>> NEUES ODER GELADENES BLATT: KEIN VERGLEICH (Audit 21. November). <<<
+ * Weisung «Block 1 Fehler». Gemessen: nach «Neues Querprofil» stand
+ * «η 2.956 ↑ +2.749» - verglichen mit dem Einzelmast davor, weil jedes
+ * neue Blatt wieder «T1» heisst. Der Vergleich gilt nur innerhalb desselben
+ * Blattes und derselben Tragwerksart.
+ */
+function deltaVergessen() { deltaAlt = null; deltaNeu = null; document.querySelectorAll('.kz-delta').forEach((x) => x.remove()); }
+/** Kennung, unter der zwei Stände vergleichbar sind: Tragwerk und Art. */
+const deltaTw = () => `${werte?.twId ?? ''}|${werte?.tragwerksart ?? 'tragjoch'}`;
 function deltaLesen() {
   const m = new Map();
   document.querySelectorAll('.kz').forEach((el) => {
@@ -668,7 +679,7 @@ function deltaMarken() {
   const g = stabwerkGilt();
   const kenn = g?.h?.kennung;
   if (!kenn) return;
-  const tw = werte?.twId ?? '';
+  const tw = deltaTw();
   if (!deltaAlt || deltaAlt.kenn !== kenn) {
     const jetzt = deltaLesen();
     if (!jetzt.size) return;
@@ -687,7 +698,11 @@ function deltaMarken() {
     if (!k || !alt.has(k) || !Number.isFinite(v)) return;
     const d = v - alt.get(k);
     if (Math.abs(d) < 0.0005) return;
-    el.querySelector('.kz-w')?.insertAdjacentHTML('beforeend', deltaSpan(d));
+    // Die Differenz ist eine von η - sie gehört nur an eine Kachel, die η
+    // zeigt. An «34 mm» (Verformung) stand sonst «↑ +0.225» (Audit 21. Nov.).
+    const w = el.querySelector('.kz-w');
+    if (!w || !/^\s*-?\d+(\.\d+)?\s*$/.test(w.textContent.split(/[↑↓]/)[0])) return;
+    w.insertAdjacentHTML('beforeend', deltaSpan(d));
   });
   const hz = document.querySelector('.urteil .urteil-zahl');
   if (hz && !hz.querySelector('.kz-delta') && alt.has('__haupt') && deltaAlt.werte.has('__haupt')) {
@@ -2307,6 +2322,7 @@ function zeichneAuswertung() {
         gzg: { gzgReferenz: werte.gzgReferenz, fdHoehe: werte.fdHoehe },
         lastfallName: anzeigeKombi === 'umhuellend' ? null
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
+        bemessungGesamt: anzeigeKombi === 'umhuellend' ? null : bemessungKopf(),
       });
       // Schulung (15. November): auch am Einzelmasten das einfache Ergebnis.
       // Der gewählte Fall gilt auch hier (16. November: «warum wird hier immer die
@@ -2419,7 +2435,8 @@ function zeichneAuswertung() {
                            lastfallName: anzeigeKombi === 'umhuellend' ? null
                              : (kombi.lastfaelle
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
-                                ?? anzeigeKombi) });
+                                ?? anzeigeKombi),
+                           bemessungGesamt: anzeigeKombi === 'umhuellend' ? null : bemessungKopf() });
     // Schulung (15. November): ein Satz und Balken, die Kacheln zugeklappt darunter.
     if (EINFACH) {
       einfachesErgebnis(node, { traeger: tragwerksart(werte).label,
@@ -3336,6 +3353,33 @@ function aktualisiereModell(erg) {
   if (buehne) zeichneBuehne();
 }
 
+/*
+ * >>> EIN GESAMT-η FÜR HAUPTKACHEL, FUSSLEISTE UND HINWEIS (Audit 21. November). <<<
+ * Weisung «Block 1 Fehler». Im Einzellastfall standen drei Zahlen für «die
+ * Bemessung»: Hinweis oben η 0.514 (nur das Joch), Fussleiste 0.732 (ohne
+ * Gebrauchstauglichkeit), Hauptkachel bei «umhüllend» 0.737 (Verformung M2).
+ * Die Fussleiste urteilt immer über die Bemessung - auch wenn oben ein
+ * einzelner Fall gezeigt wird -, und der Hinweis nennt dieselbe Zahl.
+ */
+function urteilGesamt(erg, urteil) {
+  const ab = erg?.abfang ?? null;
+  const bt = urteil?.bauteile;
+  const e = bt ? bt.eta : (ab ? ab.max.eta : erg?.max?.etaGesamt);
+  const gut = (bt ? !bt.ueber : e <= 1) && urteil?.bindendVerletzt !== true;
+  const swV = stabwerkGilt() ? stabwerk?.verformung ?? null : null;
+  const Ug = ui.urteilMitGebrauch({ eta: e, zustand: gut ? 'ok' : 'nok', wer: bt?.massgebend?.name ?? null, text: '' },
+    swV ? { ...erg, verformung: swV } : erg, nachweisart, false);
+  const gzgGibt = Ug.eta > e + 1e-12 && Ug.wer;
+  return { e, gut, Ug, gzgGibt, swV,
+           eta: gzgGibt ? Ug.eta : e, wer: gzgGibt ? Ug.wer : (bt?.massgebend?.name ?? null) };
+}
+/** Das Gesamturteil der Bemessung zum jetzigen Stand - für den Hinweis im Einzellastfall. */
+function bemessungKopf() {
+  if (!letzte) return null;
+  try { return urteilGesamt(letzte.anzeige, urteilAngezeigt(letzte.urteil, letzte.bemessung)); }
+  catch { return null; }
+}
+
 function aktualisiereFuss(erg, urteil, joch) {
   /*
    * >>> DIE FUSSLEISTE ZEIGTE DAS TRAGJOCH, WAEHREND EIN ABFANGJOCH DASTAND.
@@ -3390,11 +3434,7 @@ function aktualisiereFuss(erg, urteil, joch) {
    * dieselbe Regel (`urteilMitGebrauch`) mit denselben Wegen (Stabwerk,
    * wenn es gilt) - die Schulung tat es schon über ihr einfaches Ergebnis.
    */
-  const einzelFall = anzeigeKombi !== 'umhuellend';
-  const swV = stabwerkGilt() ? stabwerk?.verformung ?? null : null;
-  const Ug = ui.urteilMitGebrauch({ eta: e, zustand: gut ? 'ok' : 'nok', wer: bt?.massgebend?.name ?? null, text: '' },
-    swV ? { ...erg, verformung: swV } : erg, nachweisart, einzelFall);
-  const gzgGibt = Ug.eta > e + 1e-12 && Ug.wer;
+  const { Ug, gzgGibt, swV } = urteilGesamt(erg, urteil);
   const farbeF = urteil.tragwerkGefuehrt === false ? 'var(--warn)'
     : (Ug.zustand === 'ok' ? 'var(--ok)' : 'var(--fail)');
   if (!(EINFACH && tabAuswertung === 'uebersicht')) {
@@ -7424,6 +7464,7 @@ function beginneNeu(art, opt = {}) {
   if (mitAnker) art = 'abfangjoch';
   const bez = mitAnker ? 'Abfangjoch mit Anker'
     : TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
+  deltaVergessen();
   werte = frisch(art);
   if (mitAnker) werte = abfangjochMitAnker(werte);
   // «Ohne Beispielteile» (13. November): das Blatt beginnt wirklich leer.
