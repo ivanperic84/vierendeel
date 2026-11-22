@@ -42629,9 +42629,10 @@ titel('289  Profile im Reiter System; Linie ohne Reaktionen, Blick-Knopf, Gurte 
   const BQ = readFileSync(join(HIER, 'js', 'export.zustandsbild.js'), 'utf8');
   const SCH = await import(J('ui.schema.js'));
   wahr('Profile, Bleche, Stückliste zugeklappt', ['prof', 'blech', 'stueck'].every((g) => SCH.GRUPPEN.find((x) => x.id === g)?.zugeklappt === true));
-  wahr('Linie: kein «Reaktionen dazu», kein «Ansicht folgt», Knopf «Blick auf die Ebene» (einmal)',
-       !ZQ.includes('Reaktionen dazu') && !ZQ.includes('> Ansicht folgt') && ZQ.includes('data-zl-blick')
-       && ZQ.includes("folgt: false") && ZQ.includes('zustandBlickFolgen(app, true)'));
+  // 22. November: «der button blick auf die eben … ich würde diesen weglassen» - auch der Knopf ist weg.
+  wahr('Linie: kein «Reaktionen dazu», kein «Ansicht folgt», kein Knopf «Blick auf die Ebene»',
+       !ZQ.includes('Reaktionen dazu') && !ZQ.includes('> Ansicht folgt') && !ZQ.includes('data-zl-blick')
+       && ZQ.includes("folgt: false"));
   const UQ289 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Ein Sprungknopf «Profile, Bleche, Stückliste» öffnet alle drei (auch die ohne eigenes Feld zugeklappt)',
        UQ289.includes("titel: 'Profile, Bleche, Stückliste', zusammen: true") && UQ289.includes('data-sprung-mit')
@@ -43783,6 +43784,17 @@ titel('323  Schraffur, wo die Grenzspannung überschritten ist');
   wahr('Flächen mit η > 1 tragen in jedem Resultatplot eine Schraffur',
        RQ.includes('if (schraffurAn && Number(f.werte?.eta) > 1 + 1e-9 && durch < 0.9) {')
        && RQ.includes('PLOTS.some((x) => x.key === this.modus) && !this.zustand;'));
+}
+
+// ===========================================================================
+titel('324  Legende mit Linie: Zusatzangaben hinter ⓘ, Achsen erklärt');
+{
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const ZQ = readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8');
+  wahr('Mit Linie: zu nur Titel und Balken, ⓘ klappt Wert, Ebene und Achsen auf',
+       LQ.includes("${balkenHtml(app, pp, true)}${legendeInfo ? zlHtml : ''}"));
+  wahr('Achsenknopf benennt, was er tut (global = Gleis, örtlich = je Stab)',
+       ZQ.includes("zl.ax === 'global' ? 'global (Gleis)' : 'örtlich (je Stab)'"));
 }
 
 console.log('\n' + '='.repeat(104));

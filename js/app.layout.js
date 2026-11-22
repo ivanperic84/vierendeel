@@ -1056,8 +1056,20 @@ export function zeichneLegende(app) {
      * das Modell folgt mit der Linie immer der Plotgrösse.
      */
     const pp = app.ansicht.plotSkala();
-    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small></div>${balkenHtml(app, pp, true)}${zlHtml}`;
+    /*
+     * >>> ZUSATZINFOS EINKLAPPBAR (22. November). <<< Weisung: «kann man bei
+     * dieser box wenn liniendiagramm eingeschaltet ist, die zusatzinfos so
+     * weit wie möglich einklappbar machen ähnlich wie beim fall ohne
+     * liniendigramm. zudem funktioniert der button blick auf die eben nicht
+     * sauber ich würde diesen weglassen.» Zu: Titel und Balken; ⓘ klappt
+     * Wert, Ebene und Achsen auf (dieselbe Wahl wie ohne Linie).
+     */
+    const info = `<button type="button" class="legende-klapp${legendeInfo ? ' an' : ''}" data-leg-info title="${legendeInfo ? 'Angaben einklappen' : 'Grösster Wert, Ebene und Achsen zeigen'}">ⓘ</button>`;
+    n.innerHTML = `<div class="legende-griff"><span>${esc(titel)}</span><small>ziehen</small>${info}</div>${balkenHtml(app, pp, true)}${legendeInfo ? zlHtml : ''}`;
     balkenVerdrahten(app, n);
+    const ibz = n.querySelector('[data-leg-info]');
+    ibz.addEventListener('pointerdown', (e) => e.stopPropagation());
+    ibz.onclick = (e) => { e.stopPropagation(); legendeInfo = !legendeInfo; zeichneLegende(app); };
     if (legendeLage) {
       n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;
     } else { n.classList.remove('gezogen'); n.style.left = ''; n.style.top = ''; }

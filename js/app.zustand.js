@@ -190,10 +190,9 @@ export function zustandLegendeHtml(app) {
     ${z.klein && z.vmax > 1e-9 ? `<div class="zl-dim">klein (unter ${fmt(z, z.bezug)}${z.einheit ? ` ${z.einheit}` : ''}) - Massstab auf ${fmt(z, z.bezug)}${z.einheit ? ` ${z.einheit}` : ''} bezogen</div>` : ''}
     ${ebenen}
     <div class="zl-reihe zl-klein">
-      <button type="button" data-zl-blick title="Dreht den Blick einmal so, dass die Linie flach vor einem liegt (leicht schräg)">Blick auf die Ebene</button>
       <button type="button" data-zl-ax="${zl.ax === 'global' ? 'lokal' : 'global'}"
-        title="global: x quer, y längs, z oben - unabhängig von der Drehlage der Profile; örtlich: Achsen je Stab wie im Löser">${
-        zl.ax === 'global' ? 'Achsen global' : 'Achsen örtlich'}</button>
+        title="In welche Richtung das Diagramm aufgetragen wird. Global (Vorgabe): quer und längs zum Gleis, lotrecht - für alle Stäbe gleich, auch wenn ein Profil gedreht ist (z. B. Mast mit Steg längs oder quer). Örtlich: in den Achsen jedes einzelnen Stabes wie im Löser - nur für die Kontrolle gegen ein Statikprogramm">Diagramm ${
+        zl.ax === 'global' ? 'global (Gleis)' : 'örtlich (je Stab)'}</button>
     </div></div>`;
 }
 
@@ -205,8 +204,6 @@ export function zustandLegendeVerdrahten(app, n, neu) {
   if (r) { stopp(r); r.onchange = () => { zl.reak = r.checked; neu(false); }; }
   const t = n.querySelector('[data-zl-teile]');
   if (t) { stopp(t); t.onchange = () => { zl.teile = t.value; neu(true); }; }
-  const f = n.querySelector('[data-zl-blick]');
-  if (f) { stopp(f); f.onclick = () => zustandBlickFolgen(app, true); }
   const a = n.querySelector('[data-zl-ax]');
   if (a) { stopp(a); a.onclick = () => { zl.ax = a.dataset.zlAx; zl.eb = 'auto'; neu(true); }; }
 }
