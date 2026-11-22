@@ -2442,6 +2442,13 @@ function blechLiegend(f) {
 }
 
 /** Stabname des Stabwerks in Worten, für den Wert am Zeiger (19. November). */
+/** Zwei Hex-Farben mischen, t = 0 … 1. */
+function farbMisch(a, b, t) {
+  const h = (x) => [1, 3, 5].map((i) => parseInt(String(x).slice(i, i + 2), 16) || 0);
+  const [p, q] = [h(a), h(b)];
+  return `rgb(${p.map((v, i) => Math.round(v + (q[i] - v) * t)).join(',')})`;
+}
+
 function stabWort(n) {
   const s = String(n ?? '');
   const tw = /^((?:MT|[TA])\d+)_/.exec(s)?.[1];
@@ -5192,7 +5199,7 @@ export class Modellansicht {
     // dieselbe Farbe wie im Bild davor. Das Ausrechnen (Farbverlauf, Regex,
     // zwei Zeichenketten je Fläche) fiel bisher bei jedem Bild für jede Fläche
     // an - beim langen Joch einige tausend Mal in der Sekunde.
-    const farbSchluessel = `${this.modus}|${document.documentElement.dataset.thema ?? ''}`;
+    const farbSchluessel = `${this.modus}|${document.documentElement.dataset.thema ?? ''}|${this.linienFarbe}|${this.flFreiVon}|${this.flFrei}|${this.skalaMin}|${this.skalaMax}`;
     // Schraffur nur in einem Resultatplot mit sichtbaren Resultaten.
     const schraffurAn = !this.setzModus && this.gruppen.resultate !== false
       && PLOTS.some((x) => x.key === this.modus) && !this.zustand;
@@ -5676,7 +5683,12 @@ export class Modellansicht {
       if (!Number.isFinite(v)) return t.xdim;
       const max = p.fest ?? (this.skalaMax > 0 && p.key === this.modus ? this.skalaMax : (this._bereichSichtbar(p.feld) || 1));
       const min = !p.fest && this.skalaMin > 0 && p.key === this.modus && this.skalaMin < max ? this.skalaMin : 0;
-      return etaFarbe(Math.min(1.25, Math.max(0, (Math.abs(v) - min) / ((max - min) || 1)) * (p.fest ?? 1.25)));
+      const anteil = Math.max(0, (Math.abs(v) - min) / ((max - min) || 1));
+      // Verlauf aus zwei Farben (22. November, wie bei der Linie).
+      if (this.linienFarbe === 'verlauf' && !this.setzModus && !this.zustand) {
+        return farbMisch(this.flFreiVon ?? '#f3e2bd', this.flFrei ?? '#e0a030', Math.min(1, anteil));
+      }
+      return etaFarbe(Math.min(1.25, anteil * (p.fest ?? 1.25)));
     }
     if (this.modus === 'positionen' && f.farbeBauteil) return f.farbeBauteil;
     // ANBAUTEILE EINFARBIG. Sie sind nicht der Gegenstand des Nachweises,

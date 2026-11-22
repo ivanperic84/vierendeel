@@ -732,5 +732,8 @@ export function reglierTemperatur(key) {
 /** Die Zusatzlast am Leiter zu einem Lastfall [kN/m]; 0, wo keine gilt. */
 export function reglierZusatzlast(key) {
   const r = REGLIERTEMPERATUREN.find((x) => x.key === key);
+  // Über 1000 m ü. M. (EK4-6) die zweite Zusatzlast der Reglage, 0.015 kN/m
+  // (22. November). Die Höhenlage kommt mit dem Kontext des Leiterzugs.
+  if (key === 'schnee' && KONTEXT?.ueber1000) return 0.015;
   return (r ?? REGLIERTEMPERATUREN[0]).zusatzlast ?? 0;
 }

@@ -39696,7 +39696,8 @@ titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste
   UI247.setzeAnbauMarkiert([]);
   wahr('Ohne Markierung gilt das Fenster dem Teil allein', K247.kontextAnbauSeite(app, 2)[0].kopf !== '2 markierte Anbauteile');
   const t = K247.kontextTrasse({ werte: { windKlasse: '0.9', flSpannweite: 40, trasseRadius: 600 }, aendern: () => {} });
-  wahr('Trassenfenster: Wind, Reduktion, Spannweite, Radius, Schnee', t.filter((x) => x.feld).length === 5);
+  // 22. November: dazu die Schnelleingabe EK 1-6.
+  wahr('Trassenfenster: EK, Wind, Reduktion, Spannweite, Radius, Schnee', t.filter((x) => x.feld).length === 6);
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Leeres Zahlenfeld wird beim Tippen nicht geschrieben, erst beim Verlassen',
        uq.includes('const leerBeimTippen') && (uq.match(/auchBeimVerlassen\(inp,/g) ?? []).length === 4);
@@ -43851,6 +43852,27 @@ titel('326  Leiterzug-Kern: Zustandsgleichung wie die Durchhang-App, Systeme, Zu
   wahr('Schnee leitend greift die Änderung des Leiterzugs mit γ_G',
        LQ.includes('beiwerte: bw({ G: g, WindY: vz * p, Schnee: q, SchneeZug: g }),')
        && LQ.includes('beiwerte: bw({ G: g, WindX: vz * p, Schnee: q, SchneeZug: g }),'));
+}
+
+// ===========================================================================
+titel('327  EK 1-6 mit Höhenlage; Eislast folgt; Legende mit Lastfall und Farben wie die Linie');
+{
+  const LA = await import(J('core.lasten.js'));
+  const FLK = await import(J('data.fl.js'));
+  wahr('EK1-3 = Wind 0.9 / 1.1 / 1.3 unter 1000 m, EK4-6 dieselben Winde über 1000 m',
+       LA.EK_KLASSEN.map((k) => `${k.key}:${k.wind}/${k.schnee}`).join(',')
+         === 'EK1:0.9/0.9,EK2:1.1/0.9,EK3:1.3/0.9,EK4:0.9/1.25,EK5:1.1/1.25,EK6:1.3/1.25');
+  wahr('EK aus Wind- und Schneestufe', LA.ekKlasseVon({ windKlasse: '1.1', schneeKlasse: '1.25' }) === 'EK5'
+       && LA.ekKlasseVon({ windKlasse: '1.0', schneeKlasse: '0.9' }) === '');
+  FLK.setzeLeiterzugKontext({ L: 40, ueber1000: true });
+  try { pruef('Über 1000 m: Eislast 0.015 kN/m', FLK.reglierZusatzlast('schnee'), 0.015, 1e-12, 'kN/m'); }
+  finally { FLK.setzeLeiterzugKontext(null); }
+  pruef('Ohne Kontext (unter 1000 m): 0.007 kN/m', FLK.reglierZusatzlast('schnee'), 0.007, 1e-12, 'kN/m');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Legende: Lastfall unter der Skala, Farbe Skala / Verlauf (statt Nachweis / Resultat / frei)',
+       LQ.includes("${esc(lastfallText(app))}${lf !== 'resultat'") && LQ.includes("[['resultat', 'Skala'],\n        ['verlauf', 'Verlauf']]")
+       && RQ.includes("return farbMisch(this.flFreiVon ?? '#f3e2bd', this.flFrei ?? '#e0a030', Math.min(1, anteil));"));
 }
 
 console.log('\n' + '='.repeat(104));

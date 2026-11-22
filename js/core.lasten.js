@@ -68,9 +68,29 @@ export const WIND_KLASSEN = [
 
 /** Schneestufen der Zeichnung. sk = Referenz-Schneelast [kN/m2]. */
 export const SCHNEE_KLASSEN = [
-  { key: '0.9',  sk: 0.90, label: 'Referenz-Schneelast 0.90 kN/m²' },
-  { key: '1.25', sk: 1.25, label: 'Referenz-Schneelast 1.25 kN/m²' },
+  { key: '0.9',  sk: 0.90, hoch: false, label: 'unter 1000 m ü. M. · Referenz-Schneelast 0.90 kN/m² (EK1–3)' },
+  { key: '1.25', sk: 1.25, hoch: true, label: 'über 1000 m ü. M. · Referenz-Schneelast 1.25 kN/m² (EK4–6)' },
 ];
+
+/*
+ * >>> EINWIRKUNGSKLASSE EK 1-6 ALS SCHNELLEINGABE (22. November). <<<
+ * Weisung: «beim schnee leitend eine eingabe vornehmen, ob der schnee bzw.
+ * eislast für m ü. M. unter oder über 1000 anzusetzen ist. das sind jeweils
+ * die beiden hinterlegten lastwerte. dies entspricht dann ek 1 bis 3 ist der
+ * verschieden wind bei unter 1000 m ü M und für ek 4 bis 6 ist es der
+ * gleiche wind aber für den schnee bei über 1000 m ü M … so könnte man nur
+ * das ek eingeben als schnelleingabe». EK n setzt Windstufe und Höhenlage
+ * (Schnee auf dem Joch EK1–3 / EK4–6, Eislast am Leiter 0.007 / 0.015 kN/m).
+ */
+export const EK_KLASSEN = [1, 2, 3, 4, 5, 6].map((n) => ({
+  key: `EK${n}`, wind: ['0.9', '1.1', '1.3'][(n - 1) % 3], schnee: n <= 3 ? '0.9' : '1.25',
+  label: `EK${n} · q ${['0.90', '1.10', '1.30'][(n - 1) % 3]} kN/m² · ${n <= 3 ? 'unter' : 'über'} 1000 m ü. M.`,
+}));
+/** Die EK eines Blattes aus Windstufe und Schneestufe ('' beim Einheitswind). */
+export function ekKlasseVon(w) {
+  return EK_KLASSEN.find((k) => k.wind === String(w?.windKlasse ?? '0.9')
+    && k.schnee === String(w?.schneeKlasse ?? '1.25'))?.key ?? '';
+}
 
 /** Einwirkungsklasse zu einer Windstufe – die Lasttabelle spricht in EK. */
 export const ekVonWindklasse = (key) =>

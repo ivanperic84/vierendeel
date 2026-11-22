@@ -10,10 +10,10 @@
  */
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
 import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
-import { flBauteile, getFlBauteil, hatZustandsgleichung, montagezug, zugAusKern, leiterzugKontext } from './data.fl.js';
+import { flBauteile, getFlBauteil, hatZustandsgleichung, montagezug, zugAusKern, leiterzugKontext, reglierZusatzlast } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { anbauGruppe } from './data.anbauteile.js';
-import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
+import { WIND_KLASSEN, SCHNEE_KLASSEN, EK_KLASSEN, ekKlasseVon, ekVonWindklasse } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
 import { LEICHT, mehrAn } from './stufe.js';
@@ -763,7 +763,7 @@ export function dialogEinzelleiter(app) {
       <tbody>${leiter().map((b) => {
         const hand = w.leiterMontage?.[b.id];
         let z5 = null, zs = null, z20 = null;
-        try { z5 = zugAusKern(b.id, 5); zs = zugAusKern(b.id, -5, 0.007); z20 = zugAusKern(b.id, -20); } catch { /* ohne Kontext */ }
+        try { z5 = zugAusKern(b.id, 5); zs = zugAusKern(b.id, -5, reglierZusatzlast('schnee')); z20 = zugAusKern(b.id, -20); } catch { /* ohne Kontext */ }
         return `<tr><td><input type="checkbox" data-el-an="${esc(b.id)}"${aus.has(b.id) ? '' : ' checked'}></td>
           <td>${esc(b.name)}</td>
           <td class="num"><input type="number" step="0.1" min="0" data-el-h="${esc(b.id)}" value="${hand ?? ''}"
@@ -824,6 +824,12 @@ export function radiusSkizze(R) {
 function kontextTrasseFelder(app, w, ja) {
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
+    // Schnelleingabe EK 1-6 (22. November): Windstufe und Höhenlage zusammen.
+    { feld: { art: 'auswahl', label: 'EK', wert: ekKlasseVon(w),
+              optionen: [...(ekKlasseVon(w) ? [] : [{ wert: '', text: 'frei / Einheitswind' }]),
+                ...EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label }))] },
+      tun: (v) => { const k = EK_KLASSEN.find((x) => x.key === v); if (!k) return;
+        app.aendern('windKlasse', k.wind); app.aendern('schneeKlasse', k.schnee); } },
     { feld: { art: 'auswahl', label: 'Wind', wert: w.windKlasse ?? '0.9',
               optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
                 text: k.einheit ? 'Einheitswind 1.0' : `${k.ek} · q ${k.qp.toFixed(2)}` })) },
@@ -844,7 +850,7 @@ function kontextTrasseFelder(app, w, ja) {
       } },
     { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? (w.schneeKlasse ?? '1.25') : '',
               optionen: [{ wert: '', text: 'aus' },
-                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `s ${k.sk.toFixed(2)} kN/m²` }))] },
+                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `${k.hoch ? 'über' : 'unter'} 1000 m · s ${k.sk.toFixed(2)}` }))] },
       tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); } },
     // Breit rechts neben den Feldern, schmal darunter (Stilblatt).
     { skizze: radiusSkizze(w.trasseRadius) },

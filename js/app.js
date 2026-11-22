@@ -28,7 +28,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bautei
 import { bestandAufsBlatt } from './core.bestand.js';
 import { unterbauVon } from './data.unterbau.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
-         lastfaelle, ekVonWindklasse, mitTrasse } from './core.lasten.js';
+         lastfaelle, ekVonWindklasse, mitTrasse, ekKlasseVon } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
@@ -1732,7 +1732,8 @@ function neuRechnen(neuZeichnen = true) {
   // Der Leiterzug-Kern rechnet mit Spannweite, Systemen und Montagezügen des
   // Blattes (22. November) - vor allem anderen, alle Leser holen ihn dort.
   setzeLeiterzugKontext({ L: Number(werte.flSpannweite) || 40, nfl: werte.flSystemNfl || null,
-                          rfl: werte.flSystemRfl || null, montage: werte.leiterMontage ?? {} });
+                          rfl: werte.flSystemRfl || null, montage: werte.leiterMontage ?? {},
+                          ueber1000: String(werte.schneeKlasse ?? '1.25') === '1.25' });
   // Ein Gittermast trägt die Länge seines Typs (Gitter + Rohr), 3. Oktober.
   werte = gitterLaengenFest(werte);
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
@@ -3445,7 +3446,8 @@ function aktualisiereModell(erg) {
      */
     const ekAnz = ekVonWindklasse(werte.windKlasse);
     const R = Number(werte.trasseRadius) || 0;
-    const teile = [ekAnz === 'EK0' ? 'Einheitswind' : ekAnz,
+    // EK 1-6 mit der Höhenlage (22. November); der Einheitswind für sich.
+    const teile = [ekAnz === 'EK0' ? 'Einheitswind' : (ekKlasseVon(werte) || ekAnz),
       `L_FL ${(Number(werte.flSpannweite) || 0).toFixed(0)} m`,
       Math.abs(R) < 1e-9 || Math.abs(R) >= 1e5 ? 'gerade' : `R ${R.toFixed(0)} m`];
     if (werte.windReduktion) teile.push('Wind × 0.74');

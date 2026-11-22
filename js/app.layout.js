@@ -946,28 +946,40 @@ function balkenHtml(app, p, linie = false) {
   const a = app.ansicht;
   // Mit der Linie stellt der Balken die Farben der LINIE ein (19. November).
   if (linie) return balkenLinieHtml(app, p);
-  const lf = a.linienFarbe ?? 'resultat';
+  /*
+   * >>> FARBEN WIE BEI DER LINIE (22. November). <<< «die einstellauswahl
+   * für die farben sollten wie bei den liniendigramme übernommen werden,
+   * diese machen nicht so viel sinn hier.» Statt Nachweis / Resultat / frei:
+   * «Skala» (Farbbalken der Grösse) oder «Verlauf» (zwei Farben, klein → gross).
+   */
+  const lf = a.linienFarbe === 'verlauf' ? 'verlauf' : 'resultat';
   const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
     : [0, 0.33, 0.66, 1].map((f) => ((p.min ?? 0) + (p.max - (p.min ?? 0)) * f).toFixed(p.nk));
-  const farbName = { nachweis: 'Nachweis η', resultat: 'Resultat', frei: 'frei' }[lf];
+  const farbName = { resultat: 'Skala', verlauf: 'Verlauf' }[lf];
+  const barStil = lf === 'verlauf' ? ` style="background:linear-gradient(90deg, ${esc(a.flFreiVon ?? '#f3e2bd')}, ${esc(a.flFrei ?? '#e0a030')})"` : '';
   const bar = p ? `<button type="button" class="legende-balken" data-balken title="Einstellungen der Farbe">
-      <div class="legende-bar${p.fest ? ' bis1' : ''}">${grenzMarke(p)}</div>
+      <div class="legende-bar${p.fest ? ' bis1' : ''}"${barStil}>${grenzMarke(p)}</div>
       <div class="legende-skala">${marken.map((s) => `<span>${esc(s)}</span>`).join('')}</div>${grenzZeile(p)}</button>`
     : `<button type="button" class="legende-balken leer" data-balken title="Einstellungen der Farbe">Farbe: ${esc(farbName)} ▾</button>`;
   const einst = !balkenOffen ? '' : `<div class="leg-einst">
-      <div class="leg-zeile"><span>Farbe</span><div class="zl-reihe zl-klein">${[['nachweis', 'Nachweis'],
-        ['resultat', 'Resultat'], ['frei', 'frei']].map(([k, tx]) =>
+      <div class="leg-zeile"><span>Farbe</span><div class="zl-reihe zl-klein">${[['resultat', 'Skala'],
+        ['verlauf', 'Verlauf']].map(([k, tx]) =>
         `<button type="button" data-leg-farbe="${k}" class="${lf === k ? 'an' : ''}">${tx}</button>`).join('')}</div></div>
-      ${lf === 'frei' ? `<div class="leg-zeile"><span>Farbton</span><input type="color" data-leg-frei value="${esc(a.linienFrei ?? '#8a93a6')}"></div>` : ''}
+      ${lf === 'verlauf' ? `<div class="leg-zeile"><span>Verlauf</span><div class="leg-farben"><input type="color" data-leg-vvon
+          value="${esc(a.flFreiVon ?? '#f3e2bd')}" title="Farbe für kleine Werte"><span>→</span><input type="color" data-leg-vbis
+          value="${esc(a.flFrei ?? '#e0a030')}" title="Farbe für grosse Werte"></div></div>` : ''}
       ${p && !p.fest ? `<div class="leg-zeile"><span>Skala von</span><input type="number" data-leg-min min="0" step="any"
           placeholder="0" value="${a.skalaMin > 0 ? a.skalaMin : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>
         <div class="leg-zeile"><span>Skala bis</span><input type="number" data-leg-max min="0" step="any"
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  // Der Lastfall steht in der Insel oben (21. November, «Oben was, unten Skala»).
-  void lastfallText;
-  return `${bar}${lf !== 'resultat' ? `<div class="legende-fall">Farbe ${esc(farbName)}</div>` : ''}${einst}`;
+  /*
+   * >>> DER LASTFALL STEHT WIEDER UNTER DER SKALA (22. November). <<< «warum
+   * wird hier nicht der aktuelle lastfall in der unteren box abgebildet?» -
+   * kurz, als Zeile; ändert «Oben was, unten Skala» vom 21. November.
+   */
+  return `${bar}<div class="legende-fall">${esc(lastfallText(app))}${lf !== 'resultat' ? ` · Farbe ${esc(farbName)}` : ''}</div>${einst}`;
 }
 function balkenLinieHtml(app, p) {
   const a = app.ansicht;
@@ -994,7 +1006,7 @@ function balkenLinieHtml(app, p) {
           placeholder="auto" value="${a.skalaMax > 0 ? a.skalaMax : ''}"><small>${esc(p.einheit && p.einheit !== '–' ? p.einheit : '')}</small></div>` : ''}
       <div class="leg-zeile"><span>Werte</span><label><input type="checkbox" data-leg-werte${a.werteAnschreiben ? ' checked' : ''}> anschreiben</label></div>
     </div>`;
-  return `${bar}<div class="legende-fall">Linie ${esc(name)}</div>${einst}`;
+  return `${bar}<div class="legende-fall">${esc(lastfallText(app))} · Linie ${esc(name)}</div>${einst}`;
 }
 function balkenVerdrahten(app, n) {
   // Die Lastfallzeile führt zu den Lastfällen (21. November).
@@ -1022,6 +1034,11 @@ function balkenVerdrahten(app, n) {
   }
   const fr = n.querySelector('[data-leg-frei]');
   if (fr) { stopp(fr); fr.oninput = () => { app.ansicht.linienFrei = fr.value; app.ansicht.zeichne(); }; }
+  // Verlauf der Flächen (22. November): zwei Farben, klein → gross.
+  [['[data-leg-vvon]', 'flFreiVon'], ['[data-leg-vbis]', 'flFrei']].forEach(([sel, k]) => {
+    const el = n.querySelector(sel);
+    if (el) { stopp(el); el.oninput = () => { app.ansicht[k] = el.value; app.ansicht._farbCacheWeg?.(); app.ansicht.zeichne(); }; el.onchange = neu; }
+  });
   const mx = n.querySelector('[data-leg-max]');
   if (mx) {
     stopp(mx);
