@@ -3124,23 +3124,32 @@ export class Modellansicht {
     const fl = this._stabFlaechen(m.name).filter((f) => sichtbar.has(f) && f._2d?.length);
     if (!fl.length) return;
     const s = this._s;
+    /*
+     * >>> FEINER HERVORGEHOBEN (22. November). <<< Weisung: «was nicht ganz
+     * in die feine appdesign spreache passt ist die aktivschalung der
+     * bauteile mit der fetten umrandung, kann man das eleganter lösen?»
+     * Statt einer 2.4-px-Kante ein leichter Schimmer in der Akzentfarbe mit
+     * haarfeiner Kante, die Anschrift in Worten («Mast M1, Abschnitt 1»).
+     */
     c.save();
+    c.fillStyle = t.acc ?? '#4aa3df';
     c.strokeStyle = t.acc ?? '#4aa3df';
-    c.lineWidth = (m.vorschau ? 1.6 : 2.4) * s;
-    c.globalAlpha = m.vorschau ? 0.75 : 1;
+    c.lineWidth = 0.9 * s;
     c.lineJoin = 'round';
     let oben = null;
     fl.forEach((f) => {
       c.beginPath();
       f._2d.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
       c.closePath();
-      c.stroke();
+      c.globalAlpha = m.vorschau ? 0.12 : 0.22; c.fill();
+      c.globalAlpha = m.vorschau ? 0.45 : 0.7; c.stroke();
       f._2d.forEach((p) => { if (!oben || p[1] < oben[1]) oben = p; });
     });
     c.restore();
     if (oben) {
       c.font = this._wertFont();
-      const text = `${m.vorschau ? '' : 'massgebend: '}${this.anzeigeText ? this.anzeigeText(m.name) : m.name}`;
+      const wort = stabWort(m.name);
+      const text = `${m.vorschau ? '' : 'massgebend · '}${this.anzeigeText ? this.anzeigeText(wort) : wort}`;
       this._beschriftung(c, t, text, oben[0] + 8 * s, oben[1] - 8 * s, t.acc ?? '#4aa3df');
     }
   }

@@ -43797,6 +43797,15 @@ titel('324  Legende mit Linie: Zusatzangaben hinter ⓘ, Achsen erklärt');
        ZQ.includes("zl.ax === 'global' ? 'global (Gleis)' : 'örtlich (je Stab)'"));
 }
 
+// ===========================================================================
+titel('325  Markierung des massgebenden Stabes fein: Schimmer, haarfeine Kante, Name in Worten');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Keine 2.4-px-Kante mehr; Schimmer und 0.9-px-Kante, Anschrift über stabWort',
+       !RQ.includes('c.lineWidth = (m.vorschau ? 1.6 : 2.4) * s;') && RQ.includes('c.globalAlpha = m.vorschau ? 0.12 : 0.22; c.fill();')
+       && RQ.includes("const wort = stabWort(m.name);"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
