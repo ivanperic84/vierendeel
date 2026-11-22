@@ -56,7 +56,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { abfangkraft } from './data.fl.js';
 import { baugruppeSumme, leiterKennung } from './data.anbauteile.js';
-import { leiterTrifft } from './core.constants.js';
+import { leiterTrifft, nurAbgezogen } from './core.constants.js';
 import { HAVARIE_LAENGSZUG,
          abfangVorgabeFuer } from './core.lasten.js';
 
@@ -1173,7 +1173,16 @@ export function abfangAnbauLasten(at, opt = {}) {
     // Der alte Verlauf «durchgehend» an der Anbindung (4. September) sagt
     // dasselbe wie die Abfangart «durchgehend» - er gilt, solange am Leiter
     // keine Art steht; so behält ein gespeicherter Stand seine Aussage.
-    const art = e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
+    /*
+     * >>> EIN NUR ABGEZOGENER LEITER IST DURCHGEHEND (23. November). <<<
+     * Auftrag «Fahrdrahtabzug am Abfangjoch»: «Der abgezogene Fahrdraht ist
+     * durchgehend (nie abgefangen)». Ohne Gewicht (`wirktG: false`) hängt er
+     * hier nicht, er wird nur quer gezogen - am Abfangjoch galt aber die
+     * Vorgabe «einseitig», und der volle Leiterzug stand längs am Träger
+     * (A160/12.5 m, Abzug bei 4 m: ΣF_y ständig 8.5 → 17.0 kN, Mast M1
+     * 0.800 → 1.448).
+     */
+    const art = nurAbgezogen(m) ? 'durchgehend' : e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
       ? 'durchgehend' : ABFANGJOCH_ART_VORGABE);
     const bricht = havarieFall && (opt.bruch === '*' || leiterTrifft(opt.bruch, at, m, i));
     /*
@@ -1244,7 +1253,7 @@ export function abfangLeiterWahl(at, havarie = null) {
   const an = abfangAnbindung(at);
   let key = null;
   (Array.isArray(at?.module) ? at.module : []).some((m, i) => {
-    if (!m || m.aktiv === false || !m.bauteil) return false;
+    if (!m || m.aktiv === false || !m.bauteil || nurAbgezogen(m)) return false;
     let z = 0;
     try { z = abfangkraft(m.bauteil, {}).Z; } catch { z = 0; }
     if (!z) return false;
@@ -1510,7 +1519,7 @@ export function abfangLeiterart(at, auswahl = null) {
   const module = Array.isArray(at?.module) ? at.module : [];
   for (let i = 0; i < module.length; i += 1) {
     const m = module[i];
-    if (!m || m.aktiv === false || !m.bauteil) continue;
+    if (!m || m.aktiv === false || !m.bauteil || nurAbgezogen(m)) continue;
     const wahl = auswahl?.[leiterKennung(at, m, i)];
     if (wahl?.art) return wahl.art;
   }

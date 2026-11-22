@@ -1545,7 +1545,7 @@ export function expandiereAnbauteile(liste, o = {}) {
        * Tragwerksart (`artVorgabe`: am Abfangjoch «einseitig»).
        */
       const wahlArt = o.artWahl !== undefined ? o.artWahl : auswahl;
-      const einseitig = b.rolle === 'drahtwerk'
+      const einseitig = b.rolle === 'drahtwerk' && !nurAbgezogen(m)   // nur abgezogen: durchgehend (23. Nov.)
         && (wahlArt?.[leiterKennung(a, m, o.artIndex ?? i)]?.art
             ?? o.artVorgabe ?? ABFANG_VORGABE) === 'einseitig';
       // Länge-Teile (7. Oktober): ihre Gesamtlänge, ohne Eintrag 2 × Punkt.
@@ -1732,7 +1732,8 @@ export function expandiereAnbauteile(liste, o = {}) {
          * staendige Zug haengt daran aber nicht.
          */
         const wahlL = auswahl?.[leiter] ?? {};
-        const art = wahlL.art ?? ABFANG_VORGABE;
+        // Nur abgezogen = durchgehend, nie abgefangen (23. November, Fahrdrahtabzug am Joch).
+        const art = nurAbgezogen(m) ? 'durchgehend' : (wahlL.art ?? ABFANG_VORGABE);
         const richtung = wahlL.richtung === '-y' ? -1 : 1;
         const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier,
                         art, richtung, laengszug: wahlL.laengszug ?? null };

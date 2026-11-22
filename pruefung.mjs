@@ -26516,9 +26516,11 @@ titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
     // der Trafo 50 kVA am Masten, die LED-Lampe am Rohr ist weg (bis dahin
     // hier mit 'mast-lampe-led-rohr' und Traverse «beide» geprüft).
     wahr('Am Masten stehen die angewiesenen Vorlagen',
-         ['mast-nt-ausleger', 'mast-rohrausleger', 'mast-fd-abzug', 'mast-lampe-alt-rohr',
+         ['mast-nt-ausleger', 'mast-rohrausleger', 'mast-lampe-alt-rohr',
           'mast-trafo-50', 'leiter-traverse'].every((id) => mastIds.includes(id))
-         && ort('leiter-rl') === 'beide',
+         && ort('leiter-rl') === 'beide'
+         // Seit dem 23. November auch am Joch (Fahrdrahtabzug am Abfangjoch).
+         && ort('mast-fd-abzug') === 'beide',
          mastIds.join(', '));
     const app100 = { werte: {}, letzte: null };
     const amMast = SZ100.vorlagenFuer(app100, 'mastA').map((e) => e.v.id);
@@ -44024,6 +44026,27 @@ titel('331  Der Fundamentkörper trägt das η des Fundaments, nicht der Mastfus
        AQ.includes('const q = g?.h?.fundamentJe?.[name];') && AQ.includes('return kern[name] ?? null;'));
   const KQ = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
   wahr('Der Klotz ist ein eigener Körper unter dem Mastfuss (FUNDAMENT_…)', KQ.includes('teil: `FUNDAMENT_${name}`'));
+}
+
+// ===========================================================================
+titel('332  Ein nur abgezogener Fahrdraht ist am Abfangjoch durchgehend, nie abgefangen');
+{
+  const AB = await import(J('core.abfangjoch.js'));
+  const teil = (wirktG) => ({ id: 'AT-FDA', ort: 'joch', x: 4, aktiv: true, module: [
+    { bauteil: 'drahtwerk-n-fl-cu-107', anzahl: 1, x: 1, y: 0, z: 0, umlenkung: true,
+      ...(wirktG === false ? { wirktG: false } : {}) }] });
+  const o = { ek: 'EK1', R: 0, spannweite: 50 };
+  const ab = AB.abfangAnbauLasten(teil(false), o);
+  const mit = AB.abfangAnbauLasten(teil(true), o);
+  wahr('Mit Gewicht (hängt hier) gilt am Abfangjoch die Vorgabe «einseitig», voller Zug',
+       mit.leiter[0]?.art === 'einseitig' && Math.abs(mit.Z) > 1, `art ${mit.leiter[0]?.art}, Z ${mit.Z}`);
+  wahr('Nur abgezogen (wirktG false): durchgehend, kein ständiger Leiterzug',
+       ab.leiter[0]?.art === 'durchgehend' && Math.abs(ab.Z) < 1e-9, `art ${ab.leiter[0]?.art}, Z ${ab.Z}`);
+  wahr('… auch eine gesetzte Wahl «einseitig» macht ihn nicht zum abgefangenen',
+       AB.abfangAnbauLasten(teil(false), { ...o, havarie: { [A.leiterKennung(teil(false), teil(false).module[0], 0)]: { art: 'einseitig' } } })
+         .leiter[0]?.art === 'durchgehend');
+  wahr('… und er bestimmt die Anbindung des Teils nicht (abfangLeiterWahl ohne Leiter)',
+       AB.abfangLeiterWahl(teil(false)).leiter === false && AB.abfangLeiterWahl(teil(true)).leiter === true);
 }
 
 console.log('\n' + '='.repeat(104));
