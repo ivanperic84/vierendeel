@@ -1008,6 +1008,7 @@ export function havarieKandidaten(havarie) {
  */
 export function leiterListe(anbauteile) {
   const liste = new Map();
+  const abgezogen = [];
   (anbauteile ?? []).filter((a) => a?.aktiv !== false).forEach((a) => {
     (a.module ?? []).forEach((m, i) => {
       if (m?.aktiv === false || !m?.bauteil) return;
@@ -1015,7 +1016,11 @@ export function leiterListe(anbauteile) {
       try { b = getFlBauteil(m.bauteil); } catch { return; }
       if (b.rolle !== 'drahtwerk') return;
       // Nur abgezogen (9. Oktober): kein Havariefall, steht nicht in der Liste.
-      if (nurAbgezogen(m)) return;
+      // Mit Kettenwerk-Namen (23. November) zählt er beim gleichnamigen mit.
+      if (nurAbgezogen(m)) {
+        if (leiterKennung(a, m, i).endsWith('@*')) abgezogen.push({ a, m, b });
+        return;
+      }
       const key = leiterKennung(a, m, i);
       const ort = ortVon(a);
       let z20 = null;
@@ -1027,6 +1032,14 @@ export function leiterListe(anbauteile) {
                      bauteilId: m.bauteil, ort,
                      hMast: a.hMast ?? null, x: a.x ?? null, zug20: z20 });
       liste.set(key, e);
+    });
+  });
+  abgezogen.forEach(({ a, m, b }) => {
+    const kw = String(m.kettenwerk).trim();
+    liste.forEach((e) => {
+      if (e.kettenwerk !== kw) return;
+      e.teile.push({ baugruppe: a.id, modul: a.module.indexOf(m), name: a.name, bauteil: `${b.name} (abgezogen)`,
+                     bauteilId: m.bauteil, ort: ortVon(a), hMast: a.hMast ?? null, x: a.x ?? null, zug20: null });
     });
   });
   return [...liste.values()].map((e) => ({

@@ -2311,10 +2311,25 @@ const kwStelle = (a) => {
   if (ort !== 'joch') return `${ort}${a?.mastId ? `:${a.mastId}` : ''}`;
   return `joch:${(Math.round((Number(a?.x) || 0) * 100) / 100).toFixed(2)}`;
 };
+/*
+ * >>> DER ABGEZOGENE FAHRDRAHT REISST MIT SEINEM KETTENWERK (23. November). <<<
+ * Auftrag «Fahrdrahtabzug am Abfangjoch»: der abgezogene Fahrdraht «kann
+ * einem Kettenwerk zugeordnet werden, damit die Havarie «ganzes Kettenwerk /
+ * nur Ts / nur Fd» zusammen mit dem Tragseil am NT-Ausleger funktioniert»;
+ * auf Rückfrage «Ja, mitreissen». Das Tragseil hängt dort an einer anderen
+ * Stelle (Ausleger am Masten), der Fahrdraht wird am Joch abgezogen - die
+ * Stelle kann die beiden nicht verbinden. Ein nur abgezogener Leiter mit
+ * Kettenwerk-Namen trägt deshalb die Stelle «*»: er gehört zum gleichnamigen
+ * Kettenwerk, wo immer dessen gestützter Teil hängt (`leiterTrifft`). Für
+ * sich steht er weiter nicht in der Liste (9. Oktober).
+ */
 export function leiterKennung(a, m, i) {
   const kw = String(m?.kettenwerk ?? '').trim();
+  if (kw && nurAbgezogen(m)) return `kw:${kw}@*`;
   return kw ? `kw:${kw}@${kwStelle(a)}` : `${a?.id}#${i}`;
 }
+/** Kettenwerk-Name einer Kennung `kw:Name@Stelle`, sonst null. */
+const kwName = (k) => (String(k ?? '').startsWith('kw:') ? String(k).slice(3).replace(/@[^@]*$/, '') : null);
 
 /*
  * >>> KETTENWERK: GANZ, NUR TRAGSEIL, NUR FAHRDRAHT (20. November). <<<
@@ -2338,6 +2353,12 @@ export function leiterTrifft(key, a, m, i) {
   if (!key) return false;
   const k = leiterKennung(a, m, i);
   if (key === k) return true;
+  if (k.endsWith('@*')) {
+    // Der abgezogene Teil: jedes gleichnamige Kettenwerk, ganz oder sein Teilfall.
+    const basis = havarieBasis(key);
+    if (kwName(basis) !== kwName(k)) return false;
+    return key === basis || key === `${basis}|${kwTeil(m)}`;
+  }
   return k.startsWith('kw:') && key === `${k}|${kwTeil(m)}`;
 }
 /*
@@ -2356,12 +2377,17 @@ function havarieKwVomBlatt(w, t, eigene, teile) {
   // Nur Kettenwerke, die dieses Tragwerk selbst trägt - sonst stünden
   // fremde Fälle ohne Wirkung in seiner Lastfallliste.
   const hier = new Set();
-  (teile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => hier.add(leiterKennung(a, m, i))));
+  const namen = new Set();      // abgezogene Teile (Stelle «*», 23. November)
+  (teile ?? []).forEach((a) => (a?.module ?? []).forEach((m, i) => {
+    const k = leiterKennung(a, m, i);
+    hier.add(k);
+    if (k.endsWith('@*')) namen.add(kwName(k));
+  }));
   const fremd = {};
   tragwerkeVon(w).forEach((x) => {
     if (!x || x.id === t?.id) return;
     Object.entries(x.havarie ?? {}).forEach(([k, v]) => {
-      if (k.startsWith('kw:') && hier.has(havarieBasis(k))) fremd[k] = v;
+      if (k.startsWith('kw:') && (hier.has(havarieBasis(k)) || namen.has(kwName(havarieBasis(k))))) fremd[k] = v;
     });
   });
   if (!Object.keys(fremd).length) return eigene;

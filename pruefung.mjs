@@ -41002,8 +41002,10 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   wahr('Die Liste führt den nur abgezogenen Leiter nicht, den gestützten schon',
        !liste.some((l) => l.key === 'X1#0') && liste.some((l) => l.key === 'X2#0'), liste.map((l) => l.key).join(', '));
   const lk = liste.find((l) => l.kettenwerk === 'K1');
-  wahr('Ein Kettenwerk bleibt mit seinem gestützten Tragseil; der abgezogene Fahrdraht fehlt darin',
-       lk?.teile.length === 1 && lk.teile[0].bauteilId === ts);
+  // Seit dem 23. November («Ja, mitreissen») gehört der abgezogene Fahrdraht
+  // zum gleichnamigen Kettenwerk (bis dahin: fehlte darin).
+  wahr('Ein Kettenwerk bleibt mit seinem gestützten Tragseil; der abgezogene Fahrdraht reisst mit',
+       lk?.teile.length === 2 && lk.teile[0].bauteilId === ts && /abgezogen/.test(lk.teile[1].bauteil));
   const hav = { 'X1#0': { reisst: true, art: 'durchgehend' }, 'X2#0': { reisst: true }, [lk.key]: { reisst: true } };
   const h = C264.havarieOhneAbzug(hav, [abzug, gest, kw]);
   wahr('Der Rechensatz nimmt den angehakten, nur abgezogenen Leiter aus der Auswahl (Abfangart bleibt)',
@@ -44047,6 +44049,32 @@ titel('332  Ein nur abgezogener Fahrdraht ist am Abfangjoch durchgehend, nie abg
          .leiter[0]?.art === 'durchgehend');
   wahr('… und er bestimmt die Anbindung des Teils nicht (abfangLeiterWahl ohne Leiter)',
        AB.abfangLeiterWahl(teil(false)).leiter === false && AB.abfangLeiterWahl(teil(true)).leiter === true);
+}
+
+// ===========================================================================
+titel('333  Der abgezogene Fahrdraht reisst mit seinem Kettenwerk (Stelle «*»)');
+{
+  const AB = await import(J('core.abfangjoch.js'));
+  const C3 = await import(J('core.constants.js'));
+  const ts = { id: 'TS', ort: 'joch', x: 6, aktiv: true, module: [
+    { bauteil: 'drahtwerk-n-fl-stcu-50', anzahl: 1, x: 0, y: 0, z: 0, kettenwerk: 'KW1' }] };
+  const fd = { id: 'FD', ort: 'joch', x: 4, aktiv: true, module: [
+    { bauteil: 'drahtwerk-n-fl-cu-107', anzahl: 1, x: 1, y: 0, z: 0, wirktG: false, umlenkung: true, kettenwerk: 'KW1' }] };
+  const kTs = C3.leiterKennung(ts, ts.module[0], 0);
+  wahr('Der abgezogene Teil trägt die Stelle «*», der gestützte seine eigene',
+       C3.leiterKennung(fd, fd.module[0], 0) === 'kw:KW1@*' && kTs === 'kw:KW1@joch:6.00');
+  wahr('Ganzes Kettenwerk und «nur Fd» treffen den abgezogenen Fahrdraht, «nur Ts» nicht',
+       C3.leiterTrifft(kTs, fd, fd.module[0], 0) && C3.leiterTrifft(`${kTs}|fd`, fd, fd.module[0], 0)
+       && !C3.leiterTrifft(`${kTs}|ts`, fd, fd.module[0], 0)
+       && !C3.leiterTrifft('kw:KW2@joch:6.00', fd, fd.module[0], 0));
+  const o = { ek: 'EK1', R: 0, spannweite: 50, tempFall: 'havarie' };
+  const l = AB.abfangAnbauLasten(fd, { ...o, bruch: kTs });
+  wahr('Beim Riss zieht er als durchgehender Leiter 10 % (nie abgefangen)',
+       l.leiter[0]?.bricht === true && l.leiter[0]?.art === 'durchgehend'
+       && Math.abs(Math.abs(l.Z) - 0.1 * Math.abs(l.leiter[0].voll)) < 1e-9, `Z ${l.Z}`);
+  const liste = A.leiterListe([ts, fd]);
+  wahr('In der Havarie-Liste steht das Kettenwerk einmal, mit dem abgezogenen Teil',
+       liste.length === 1 && liste[0].teile.length === 2 && /abgezogen/.test(liste[0].name), liste.map((e) => e.name).join(' | '));
 }
 
 console.log('\n' + '='.repeat(104));
