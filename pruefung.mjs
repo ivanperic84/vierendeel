@@ -44012,6 +44012,20 @@ titel('330  Abfangjoch: der Längszug der abgefangenen Leiter erzeugt keinen Zwa
        Q.includes('abfangXEinseitig: satz.abfangXEinseitig,') && Q.includes("kraftuebertragung: laengsHalt(linkBedingung(opt, 'abfangjoch', g), opt, ende, g),"));
 }
 
+// ===========================================================================
+titel('331  Der Fundamentkörper trägt das η des Fundaments, nicht der Mastfuss');
+{
+  const AQ = APP_QUELLE();
+  wahr('Die Szene des Blattes färbt die Fundamentklötze (fundamenteFaerben)',
+       AQ.includes('return fundamenteFaerben(lastenNachFall(szenenVereinen(teile)));')
+       && AQ.includes("if (!/^FUNDAMENT_/.test(String(f.teil ?? '')) || !f.punkte?.length) return;")
+       && AQ.includes('f.werte = { ...(f.werte ?? {}), eta };'));
+  wahr('… mit dem η aus dem Stabwerk (fundamentJe), sonst der Kontrollrechnung',
+       AQ.includes('const q = g?.h?.fundamentJe?.[name];') && AQ.includes('return kern[name] ?? null;'));
+  const KQ = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
+  wahr('Der Klotz ist ein eigener Körper unter dem Mastfuss (FUNDAMENT_…)', KQ.includes('teil: `FUNDAMENT_${name}`'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

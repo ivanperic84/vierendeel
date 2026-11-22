@@ -2918,7 +2918,7 @@ function blattSzene(erg) {
    * Klick von der Blattkoordinate in die des Tragwerks um (blattNachLokal).
    * Stand die Szene unverschoben da, ging jeder Klick um x0 daneben.
    */
-  return lastenNachFall(szenenVereinen(teile));
+  return fundamenteFaerben(lastenNachFall(szenenVereinen(teile)));
 }
 
 /*
@@ -2930,6 +2930,54 @@ function blattSzene(erg) {
  */
 const GRUPPEN_DER_LASTART = { staendig: ['G'], leiterzug: ['G'], windX: ['WindX'], windY: ['WindY'],
   schnee: ['Schnee', 'SchneeZug'], havarie: ['HavarieX', 'HavarieY'] };
+/*
+ * >>> DER FUNDAMENTKÖRPER TRÄGT DAS η DES FUNDAMENTS (22. November). <<<
+ * Weisung: «beim Erfüllungssgrad des fundaments den fundamentkörper im 3d
+ * färben und nicht den mastfuss, so sieht man besser wo die grenzen sind
+ * des stahltragwerks und des fundaments.» Der Mastfuss zeigt weiter die
+ * Ausnutzung des Stahlprofils; der Klotz darunter (`FUNDAMENT_…`,
+ * render.koerper.js) das η des Fundamentnachweises seines Masten - aus dem
+ * Stabwerk (`fundamentJe`), sonst aus der Kontrollrechnung. Zugeordnet über
+ * die Stelle: der Mast, über dessen Achse der Klotz steht. Nur im Plot η;
+ * in den übrigen Grössen hat das Fundament keinen Wert und bleibt neutral.
+ */
+function fundamenteFaerben(szene) {
+  if (!szene?.flaechen?.length) return szene;
+  const g = stabwerkGilt();
+  const masten = mastenVon(werte);
+  const namenK = letzte?.erg?.modell?.federn?.namen ?? {};
+  const kern = {};
+  ['A', 'B'].forEach((e) => {
+    const q = (letzte?.bemessung ?? letzte?.erg)?.fundament?.[e];
+    if (namenK[e] && Number.isFinite(q?.eta)) kern[namenK[e]] = q.eta;
+  });
+  const etaVon = (name) => {
+    const q = g?.h?.fundamentJe?.[name];
+    if (Number.isFinite(q?.eta)) return q.eta;
+    const ta = g?.h?.ausleger;
+    if (ta && ta.name === `Mast ${name}` && Number.isFinite(ta.fundament?.A?.eta)) return ta.fundament.A.eta;
+    return kern[name] ?? null;
+  };
+  szene.flaechen.forEach((f) => {
+    if (!/^FUNDAMENT_/.test(String(f.teil ?? '')) || !f.punkte?.length) return;
+    const xs = f.punkte.map((q) => q[0]);
+    const xm = (Math.min(...xs) + Math.max(...xs)) / 2;
+    let best = null;
+    masten.forEach((m) => {
+      const d = Math.abs((Number(m.x) || 0) - xm);
+      if (d < 0.6 && (!best || d < best.d)) best = { m, d };
+    });
+    if (!best) return;
+    const name = mastName(werte, best.m);
+    const eta = etaVon(name);
+    if (!Number.isFinite(eta)) return;
+    f.werte = { ...(f.werte ?? {}), eta };
+    f.fundamentEta = eta;
+    f.label = `Fundament ${name} · η ${eta.toFixed(3)}`;
+  });
+  return szene;
+}
+
 function lastenNachFall(szene) {
   if (!szene) return szene;
   const bw = fallBeiwerte();
