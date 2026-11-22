@@ -255,6 +255,32 @@ function reserveLesen() {
  * je Gruppe, sobald eine Variante mehr als X % schwerer wäre als die
  * leichteste, die im Stabwerk hält (Vorgabe 30 %). Beide Felder einstellbar.
  */
+/*
+ * >>> DAS ERGEBNIS BLEIBT (22. November). <<< Weisung: «das dimensionieren
+ * speichern, damit man es nicht jedes mal rechnen muss nach dem schliessen.»
+ * Die letzte Rechnung steht im Speicher und im Browser (übersteht das
+ * Neuladen), mit einer Kennung des Eingabestands. Beim Öffnen wird sie
+ * gezeigt; haben sich die Eingaben seither geändert (auch durch
+ * «übernehmen»), steht es dabei - neu gerechnet wird nur auf Knopfdruck.
+ */
+const LETZTE = 'tragjoch-dim-letzte';
+function standKennung(w) {
+  const t = JSON.stringify(w ?? {});
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i += 1) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+}
+let letzte = null;
+function letzteLesen() {
+  if (letzte) return letzte;
+  try { letzte = JSON.parse(localStorage.getItem(LETZTE) ?? 'null'); } catch { letzte = null; }
+  return letzte;
+}
+function letzteMerken(d) {
+  letzte = d;
+  try { localStorage.setItem(LETZTE, JSON.stringify(d)); } catch { /* zu gross oder ohne Speicher */ }
+}
+
 const GRENZEN = 'tragjoch-dim-grenzen';
 function grenzenLesen() {
   try {
@@ -358,6 +384,19 @@ export function dialogDimension(app) {
   box.querySelector('#dm-etav').onchange = grenzenSchreiben;
   box.querySelector('#dm-plus').onchange = grenzenSchreiben;
   zahlNeu();
+  {
+    const d = letzteLesen();
+    if (d?.ergebnis?.length) {
+      ergebnis = d.ergebnis;
+      ausgelassen = d.ausgelassen ?? [];
+      const zeit = new Date(d.zeit).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' });
+      const anders = d.kennung !== standKennung(app.werte);
+      box.querySelector('#dm-zahl').textContent = `Gespeichert ${zeit} · ${d.info}`
+        + (anders ? ' · Eingaben seither geändert, «Rechnen» für den jetzigen Stand' : '');
+      if (anders) box.querySelector('#dm-zahl').classList.add('warn');
+      setTimeout(() => zeige(), 0);
+    }
+  }
   box.querySelector('#dm-reserve').onchange = (e) => {
     reserve = Math.min(50, Math.max(0, Number(e.target.value) || 0));
     try { localStorage.setItem(RESERVE, String(reserve)); } catch { /* ohne Speicher */ }
@@ -421,7 +460,12 @@ export function dialogDimension(app) {
       for (let j = 0; j < k.length && !abbruch; j += 1) ergebnis.push(await rechne(k[j], i + k.length - j));
     }
     fort.hidden = true;
-    box.querySelector('#dm-zahl').textContent = `${ergebnis.length} im Stabwerk, ${ausgelassen.length} ausgelassen · ${((performance.now() - t0) / 1000).toFixed(0)} s${abbruch ? ' (abgebrochen)' : ''}`;
+    const info = `${ergebnis.length} im Stabwerk, ${ausgelassen.length} ausgelassen · ${((performance.now() - t0) / 1000).toFixed(0)} s${abbruch ? ' (abgebrochen)' : ''}`;
+    box.querySelector('#dm-zahl').textContent = info;
+    if (ergebnis.length) {
+      letzteMerken({ kennung: standKennung(app.werte), zeit: Date.now(), info,
+        ergebnis, ausgelassen, reserve });
+    }
     zeige();
   };
 

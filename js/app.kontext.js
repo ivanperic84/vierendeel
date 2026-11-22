@@ -117,6 +117,8 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
   n.innerHTML = echte.map((p, i) => {
     if (p === '-') return '<hr>';
     if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
+    // Eine Skizze (22. November) - fertiges, selbst erzeugtes SVG, kein Fremdtext.
+    if (p.skizze) return `<div class="kontext-skizze">${p.skizze}</div>`;
     // Eine Zeile Auskunft, nichts zum Anklicken (9. Oktober).
     if (p.info) return `<div class="kontext-info${p.warn ? ' warn' : ''}">${esc(p.info)}</div>`;
     if (p.feld) {
@@ -733,6 +735,33 @@ export function kontextTrasse(app) {
     ...kontextTrasseFelder(app, w, ja), ...handBlock];
 }
 
+/*
+ * >>> SKIZZE ZUM VORZEICHEN DES RADIUS (22. November). <<<
+ * Weisung, mit Bild des Grundwerte-Fensters: «hier ist zu viel leere fläche.
+ * man könnte höchstens noch eine abbildung für das bessere verständniss für
+ * den radius angeben -> positiv rechts / negativ links». Grundriss mit x
+ * nach rechts (wie die Längsansicht im 3D) und dem Gleis nach oben: R > 0
+ * biegt nach rechts, die Umlenkung zeigt in +x (core.trasse.js); R < 0 links.
+ * Der eingegebene Fall ist hervorgehoben.
+ */
+export function radiusSkizze(R) {
+  const r = Number(R) || 0;
+  const an = (s) => (s === Math.sign(r) ? 'var(--acc)' : 'var(--dim)');
+  const op = (s) => (s === Math.sign(r) ? 1 : 0.55);
+  const bogen = (s) => `<path d="M60 92 Q60 40 ${60 + s * 34} 10" fill="none" stroke="${an(s)}" stroke-width="${s === Math.sign(r) ? 2.2 : 1.4}" opacity="${op(s)}"/>`
+    + `<path d="M${60 + s * 6} 52 l${s * 14} 0" stroke="${an(s)}" stroke-width="1.4" opacity="${op(s)}" marker-end="url(#rs-pf${s > 0 ? 'p' : 'm'})"/>`
+    + `<text x="${60 + s * 44}" y="${s > 0 ? 30 : 30}" text-anchor="middle" fill="${an(s)}" opacity="${op(s)}" font-size="10">R ${s > 0 ? '> 0' : '< 0'}</text>`;
+  const mk = (id, farbe) => `<marker id="${id}" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="${farbe}"/></marker>`;
+  return `<svg viewBox="0 0 120 112" width="120" height="112" role="img" aria-label="Vorzeichen des Radius: positiv biegt nach rechts, negativ nach links">
+    <defs>${mk('rs-pfp', an(1))}${mk('rs-pfm', an(-1))}${mk('rs-ax', 'var(--dim)')}</defs>
+    <line x1="60" y1="92" x2="60" y2="8" stroke="${r === 0 ? 'var(--acc)' : 'var(--ol)'}" stroke-dasharray="3 3"/>
+    ${bogen(1)}${bogen(-1)}
+    <line x1="14" y1="104" x2="40" y2="104" stroke="var(--dim)" marker-end="url(#rs-ax)"/>
+    <text x="44" y="107" fill="var(--dim)" font-size="9">x</text>
+    <text x="104" y="107" text-anchor="end" fill="var(--dim)" font-size="9">Gleis ↑</text>
+  </svg>`;
+}
+
 function kontextTrasseFelder(app, w, ja) {
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
@@ -748,11 +777,18 @@ function kontextTrasseFelder(app, w, ja) {
       tun: (v) => { if (v > 0) app.aendern('flSpannweite', v); } },
     { feld: { art: 'zahl', label: 'Radius R', wert: w.trasseRadius ?? 0,
               einheit: 'm', schritt: 50, platzhalter: '0 = gerade' },
-      tun: (v) => app.aendern('trasseRadius', v) },
+      tun: (v) => {
+        app.aendern('trasseRadius', v);
+        // Die Skizze folgt dem Vorzeichen, ohne das Panel neu aufzubauen.
+        const sk = document.querySelector('.insel-panel .kontext-skizze');
+        if (sk) sk.innerHTML = radiusSkizze(v);
+      } },
     { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? (w.schneeKlasse ?? '1.25') : '',
               optionen: [{ wert: '', text: 'aus' },
                 ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `s ${k.sk.toFixed(2)} kN/m²` }))] },
       tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); } },
+    // Breit rechts neben den Feldern, schmal darunter (Stilblatt).
+    { skizze: radiusSkizze(w.trasseRadius) },
   ];
 }
 

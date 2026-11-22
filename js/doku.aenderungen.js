@@ -18,6 +18,8 @@ export const AENDERUNGEN = [
   {
     datum: '2026-11-22',
     punkte: [
+      { text: 'Die Trasse steht im 3D mit dem Radius; ein Klick darauf öffnet die Eingabe. Das Grundwerte-Fenster zeigt das Vorzeichen des Radius als Skizze.' },
+      { text: 'Dimensionieren behält die letzte Rechnung; die Kamera fährt weich auf Bauteile, auch in der Explosion.' },
       { text: 'Die Seitenleisten fahren geschmeidig ein und aus; das 3D-Bild bleibt während der Fahrt stehen. Klappabschnitte öffnen weich.' },
       { text: 'Havarie «Last aufs Tragwerk übertragen (in der Achse)» gilt jetzt auch für Teile am Masten von Abfangjoch und Tragausleger.', rechnung: true },
     ],

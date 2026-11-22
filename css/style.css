@@ -4435,3 +4435,27 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
   .ws.animiert { transition-duration: 0s; }
   .panel.blendet-aus > *, .panel.blendet-ein > *, details[open] > * { animation: none !important; }
 }
+
+/* Grundwerte kompakt mit Radius-Skizze (22. November, «hier ist zu viel
+   leere fläche»): Felder links, die Skizze rechts daneben. */
+.viewer-oben.offen { width: auto; max-width: min(100%, 460px); }
+.viewer-oben .kontext.insel-panel { display: grid; grid-template-columns: auto auto; column-gap: 4px; align-items: center; }
+.viewer-oben .kontext.insel-panel > * { grid-column: 1 / -1; }
+.viewer-oben .kontext.insel-panel > .kontext-feld { grid-column: 1; grid-template-columns: 96px 112px 14px; }
+.viewer-oben .kontext.insel-panel > .kontext-skizze { grid-column: 2; grid-row: 2 / span 5; align-self: center; }
+.kontext-skizze svg { display: block; font-family: var(--f-mono); }
+/* Schmale Kopfzeile: die Skizze unter die Felder, Felder schmaler. */
+@container (max-width: 400px) {
+  .viewer-oben .kontext.insel-panel > .kontext-skizze { grid-column: 1 / -1; grid-row: auto; justify-self: center; }
+  .viewer-oben .kontext.insel-panel > .kontext-feld { grid-column: 1 / -1; grid-template-columns: minmax(70px, 96px) minmax(0, 112px) 14px; }
+}
+/* Werkzeugleiste auf/zu (22. November): die Insel oben bleibt stehen, die
+   Legende unten gleitet weich in die Mitte und zurück (nur left/transform,
+   damit es einen Übergang gibt). */
+.viewer-kopf { right: calc(6px + var(--wz-kopf, var(--wz-breite, 0px))); }
+#viewer .legende:not(.gezogen) {
+  right: auto; left: calc(100% - 10px); transform: translateX(-100%);
+  transition: left var(--t-fahrt), transform var(--t-fahrt);
+}
+#viewer.wz-offen .legende:not(.gezogen) { left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) { #viewer .legende:not(.gezogen) { transition-duration: 0s; } }

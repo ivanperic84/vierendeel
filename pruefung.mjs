@@ -5924,7 +5924,7 @@ titel('31  Bewegung: nichts springt');
     wahr('Sparsam werden die Koerper weggelassen',
          rq.includes('if (!this.sparsam) this.szene.flaechen.forEach('));
     wahr('... und die Beschriftungen auch',
-         /if \(!this\.sparsam\) \{[\s\S]{0,220}this\._texte\(c, t\);/.test(rq));
+         /if \(!this\.sparsam && !this\.faehrt\) \{[\s\S]{0,220}this\._texte\(c, t\);/.test(rq));
     wahr('Die Achsen vertreten sie fuer die Dauer der Fahrt',
          rq.includes("(this.sparsam || this._ebeneAn('achse')"));
     // Der HAUPTSCHALTER gilt aber weiter - sonst erschiene ein abgeschaltetes
@@ -26166,9 +26166,9 @@ titel('95  Anbauteile und Ebenen: Befunde vom 19. September (zweiter Teil)');
 
   wahr('Einzelmast: keine Systemachse ohne Joch',
        /if \(m\.L > 0\) \{\s*linien\.push\(\{ gruppe: 'achse', stark: true/.test(r95));
-  wahr('… die Schwerachse des Masten folgt auch dem Schalter «Schwerachsen»',
-       r95.includes("if (!this.sparsam && l.schwerachse && l.gruppe === 'mast'")
-       && r95.includes("&& !this._ebeneAn('achse')) return;"));
+  // 22. November: die Schwerachse folgt NUR dem Schalter «Schwerachsen» (vorher zusätzlich «Masten»).
+  wahr('… die Schwerachse des Masten folgt dem Schalter «Schwerachsen»',
+       r95.includes("else if (l.schwerachse) { if (!this._ebeneAn('achse')) return; }"));
   const fake = { szene: { flaechen: [{ gruppe: 'mast' }, { gruppe: 'anbau' }],
                           linien: [{ gruppe: 'mast', schwerachse: true }],
                           marken: [], vektoren: [{ gruppe: 'last' }], masse: [] } };
@@ -39372,7 +39372,7 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
        /export function seiteAusklappen\(seite\)/.test(lay) && /seiteAusklappen\('links'\)/.test(app238)
        && !/[^.\w]ausklappen\('links'\)/.test(readFileSync(join(HIER, 'js', 'app.js'), 'utf8')));
   wahr('Nur die linke Taste klickt (Rechtsklick zoomt nicht)', /!griff\.bewegt && !\(e\.button > 0\)/.test(r3));
-  wahr('Zoom auf die Mitte des ganzen Teils', /this\._animiere\(\[mitte, 0, zM\], dist\)/.test(r3));
+  wahr('Zoom auf die Mitte des ganzen Teils', /this\._animiere\(\[mitte, 0, zM\], dist, 620, pan0\)/.test(r3));
   // Seit dem 7. Oktober auch die Teile der Drahtwerk-Übersicht (`hervorTeile`).
   wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = \(this\.auswahlTeil && trifft\(this\.auswahlTeil\)\)/.test(r3)
        && /this\.hervorTeile\?\.size/.test(r3));
@@ -43707,6 +43707,34 @@ titel('319  Havarie in der Achse auch an Teilen am Masten; Leisten fahren geschm
   wahr('3D zeichnet während der Fahrt nicht jedes Bild neu',
        AQ.includes("if (ui.el('ws')?.classList.contains('animiert')) return;"));
   wahr('Klappabschnitte öffnen weich nur beim Klick', css.includes('details.oeffnet[open] > :not(summary)'));
+}
+
+// ===========================================================================
+titel('320  Radius-Skizze, Trasse im 3D, Schwerachsen, Kamerafahrt, Explosion, Dimensionieren gespeichert');
+{
+  const KQ = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const DQ = readFileSync(join(HIER, 'js', 'app.dimension.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const { radiusSkizze } = await import(J('app.kontext.js'));
+  const sp = radiusSkizze(600), sm = radiusSkizze(-600), s0 = radiusSkizze(0);
+  wahr('Radius-Skizze: R > 0 biegt nach +x (rechts), R < 0 nach links, der gewählte Fall hervorgehoben',
+       sp.includes('Q60 40 94 10" fill="none" stroke="var(--acc)"') && sp.includes('Q60 40 26 10" fill="none" stroke="var(--dim)"')
+       && sm.includes('Q60 40 26 10" fill="none" stroke="var(--acc)"')
+       && s0.includes('stroke="var(--acc)" stroke-dasharray'), KQ.includes('{ skizze: radiusSkizze(w.trasseRadius) }') ? '' : 'Skizze fehlt im Fenster');
+  wahr('Trasse im 3D: erster Fahrdraht (nicht am Masten abgefangen), sonst 3 m; Klick führt zur Eingabe',
+       RQ.includes("const x0 = fd.length ? fd[0].p[0] : 3;") && RQ.includes("m.amMast && (m.abfang === 'einseitig'")
+       && RQ.includes('this.opt.beiTrasse?.(); return;'));
+  wahr('Schwerachsen hängen nur am Schalter «Schwerachsen» und treten mit der Grenze zurück',
+       RQ.includes("else if (l.schwerachse) { if (!this._ebeneAn('achse')) return; }")
+       && RQ.includes('if ((l.schwerachse || traegt) && this._unauffaellig(l))'));
+  wahr('Kamerafahrt: Verschiebung fährt mit, ohne Beschriftungen während der Fahrt',
+       RQ.includes('_animiere(ziel, dist, ms = 620, pan0 = null)') && RQ.includes('if (!this.sparsam && !this.faehrt) {'));
+  wahr('Zoom auf den Stab in der Explosion misst den versetzten Stab',
+       RQ.includes('const v = ex ? this._explosionsVersatz(f) : null;'));
+  wahr('Dimensionieren: letzte Rechnung gespeichert, mit Kennung des Eingabestands',
+       DQ.includes("const LETZTE = 'tragjoch-dim-letzte';") && DQ.includes('letzteMerken({ kennung: standKennung(app.werte)'));
+  wahr('Insel bleibt beim Auf-/Zuklappen der Werkzeugleiste stehen', LQ.includes("v.style.setProperty('--wz-kopf', `${b}px`);"));
 }
 
 console.log('\n' + '='.repeat(104));

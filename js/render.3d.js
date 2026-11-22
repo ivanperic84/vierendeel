@@ -2015,7 +2015,7 @@ function zeichneMastteil(ctx, a, k, ort) {
         gruppe: 'last', punkt: true }));
     marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t), abfang: t.abfangArt ?? null, abfangVz: t.abfangVz ?? 1,
                   text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
-                  fahrdraht: istFahrdraht(t),
+                  fahrdraht: istFahrdraht(t), amMast: true,
                   titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
     teilEndeMarke(marken, a, t, pAn, teilKey);
     teilEndeKoerper(flaechen, a, t, pAn, opt);
@@ -2755,18 +2755,26 @@ export class Modellansicht {
     const fl = this._stabFlaechen(name);
     if (!fl.length) { this.markierung = null; this.zeichne(); return false; }
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-    fl.forEach((f) => f.punkte.forEach((p) => p.forEach((v, i) => {
-      lo[i] = Math.min(lo[i], v); hi[i] = Math.max(hi[i], v);
-    })));
+    // In der Explosion steht der Stab versetzt (22. November, «wenn das
+    // modell explodiert ist dann funktioniert der zoom auf nachweistab nicht
+    // richrig») - gemessen wird dort, wo er gezeichnet ist.
+    const ex = (this.explosion ?? 0) > 0;
+    fl.forEach((f) => {
+      const v = ex ? this._explosionsVersatz(f) : null;
+      f.punkte.forEach((p) => p.forEach((w, i) => {
+        const x = w + (v ? v[i] : 0);
+        lo[i] = Math.min(lo[i], x); hi[i] = Math.max(hi[i], x);
+      }));
+    });
     const mitte = lo.map((v, i) => (v + hi[i]) / 2);
     const groesse = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
     // Ein Ausschnitt, der den Stab abschneidet, gilt nicht mehr.
     this.fokus = null;
     this.detail = null;
     this.station = null;
-    this.kamera.pan = [0, 0, 0];
+    const pan0 = this.kamera.pan; this.kamera.pan = [0, 0, 0];
     this.markierung = { name };
-    this._animiere(mitte, Math.max(groesse * 1.8, 4));
+    this._animiere(mitte, Math.max(groesse * 1.8, 4), 620, pan0);
     return true;
   }
 
@@ -3003,7 +3011,7 @@ export class Modellansicht {
     c.restore();
     // Die Werte der Linie folgen dem Schalter «Werte anschreiben» (19. November,
     // «hier werden die werte geschrieben obwohl die einstellung auf aus ist»).
-    if (this.sparsam || !this.werteAnschreiben) return;
+    if (this.sparsam || this.faehrt || !this.werteAnschreiben) return;
     // Anschrift ohne Überlappung: Raster am Bildschirm, die grössten zuerst.
     c.save();
     c.font = this._wertFont();
@@ -3139,7 +3147,7 @@ export class Modellansicht {
     if (!g) return;
     this.markierung = null;
     this.station = station;
-    this.kamera.pan = [0, 0, 0];
+    const pan0 = this.kamera.pan; this.kamera.pan = [0, 0, 0];
     if (halbeBreite) {
       this.fokus = { von: Math.max(g.xMin, x - halbeBreite),
                      bis: Math.min(g.xMax, x + halbeBreite) };
@@ -3161,7 +3169,7 @@ export class Modellansicht {
       this.kamera.ziel = alt;
       if (noetig) dist = Math.max(dist, noetig);
     }
-    this._animiere(ziel, dist);
+    this._animiere(ziel, dist, 620, pan0);
   }
 
   /**
@@ -3248,9 +3256,11 @@ export class Modellansicht {
     if (dAz < -Math.PI) dAz += 2 * Math.PI;
     const t0 = performance.now();
     const lauf = (this._schwenk = (this._schwenk ?? 0) + 1);
+    this.faehrt = true;
     const schritt = (t) => {
       if (lauf !== this._schwenk) return;          // ein neuer Schwenk löst ab
       const f = Math.min(1, (t - t0) / ms);
+      if (f >= 1) this.faehrt = false;
       const e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;
       k.ziel = von.ziel.map((v, i) => v + (ziel[i] - v) * e);
       k.pan = von.pan.map((v) => v * (1 - e));
@@ -3269,12 +3279,12 @@ export class Modellansicht {
     this.markierung = null;
     this.fokus = null;
     this.detail = null;
-    this.kamera.pan = [0, 0, 0];
+    const pan0 = this.kamera.pan; this.kamera.pan = [0, 0, 0];
     const d0 = this.kamera.dist;
     this.passeEin();
     const ziel = this.kamera.dist;
     this.kamera.dist = d0;
-    this._animiere([(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2], ziel);
+    this._animiere([(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2], ziel, 620, pan0);
   }
 
   /**
@@ -3299,7 +3309,7 @@ export class Modellansicht {
     this.ebenen.anbau = true;       // sonst zeigte der Blick auf ein Teil nichts
     this.ebenen.last = true;
     this.station = null;
-    this.kamera.pan = [0, 0, 0];
+    const pan0 = this.kamera.pan; this.kamera.pan = [0, 0, 0];
     // In x nur die nähere Umgebung: das Teil und ein paar Felder daneben.
     const g = this.szene.grenzen;
     // Ein Kragarm reicht ueber das Raster hinaus - sonst schnitte der Blick
@@ -3323,17 +3333,35 @@ export class Modellansicht {
      * Anschluss (`b.x`); ein Ausleger von 2.50 m hing damit halb aus dem
      * Bild. Jetzt die Mitte seines Bereichs.
      */
-    this._animiere([mitte, 0, zM], dist);
+    this._animiere([mitte, 0, zM], dist, 620, pan0);
   }
 
-  _animiere(ziel, dist, ms = 420) {
+  /*
+   * >>> GESCHMEIDIG HINFAHREN (22. November). <<<
+   * Weisung: «beim fahren auf bauteile ob für die resultate oder anbauteile
+   * geschmeidiger machen nicht abruptt.» Gemessen dauerte jedes Bild der
+   * Fahrt rund 110 ms (vier bis fünf Bilder in 420 ms), und die Verschiebung
+   * sprang im ersten Bild auf null. Jetzt: die Verschiebung fährt mit, die
+   * Beschriftungen bleiben während der Fahrt weg (`faehrt`, sie kosten die
+   * Textmessungen), eine weiche Kurve über 620 ms, eine neue Fahrt löst die
+   * laufende ab. Mit «weniger Bewegung» sofort am Ziel.
+   */
+  _animiere(ziel, dist, ms = 620, pan0 = null) {
     const k = this.kamera;
     const z0 = [...k.ziel], d0 = k.dist, t0 = performance.now();
+    const p0 = pan0 ? [...pan0] : [...(k.pan ?? [0, 0, 0])];
+    const p1 = [...(k.pan ?? [0, 0, 0])];
+    if (Modellansicht.wenigBewegung) ms = 1;
+    const lauf = (this._schwenk = (this._schwenk ?? 0) + 1);
+    this.faehrt = true;
     const schritt = (t) => {
+      if (lauf !== this._schwenk) return;
       const f = Math.min(1, (t - t0) / ms);
-      const e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;   // ease in/out
-      k.ziel = z0.map((v, i) => v + (ziel[i] - v) * e);
-      k.dist = d0 + (dist - d0) * e;
+      const ee = f < 0.5 ? 4 * f * f * f : 1 - (-2 * f + 2) ** 3 / 2;  // weich anfahren und auslaufen
+      k.ziel = z0.map((v, i) => v + (ziel[i] - v) * ee);
+      k.dist = d0 + (dist - d0) * ee;
+      k.pan = p0.map((v, i) => v + (p1[i] - v) * ee);
+      if (f >= 1) this.faehrt = false;
       this.zeichne();
       if (f < 1) requestAnimationFrame(schritt);
     };
@@ -3778,6 +3806,11 @@ export class Modellansicht {
           this._titelUnterZeiger = jetzt;
           this.cv.style.cursor = jetzt ? 'pointer' : '';
           this.zeichne();
+        }
+        const tt = this._trasseTreffer;
+        if (!jetzt && tt) {
+          const ueber = zx >= tt.x && zx <= tt.x + tt.w && zy >= tt.y && zy <= tt.y + tt.h;
+          if (ueber !== this._ueberTrasse) { this._ueberTrasse = ueber; this.cv.style.cursor = ueber ? 'pointer' : ''; }
         }
         /*
          * >>> WAS SICH HIER ZIEHEN LIESSE (2. Oktober). <<<
@@ -4244,6 +4277,11 @@ export class Modellansicht {
     if (this.beiStelle) {
       const w = this.weltTreffer(px, py);
       if (w) { this.beiStelle(w); return; }
+    }
+    // Die Anschrift der Trasse führt zur Eingabe des Radius (22. November).
+    const tt = this._trasseTreffer;
+    if (tt && px >= tt.x && px <= tt.x + tt.w && py >= tt.y && py <= tt.y + tt.h) {
+      this.opt.beiTrasse?.(); return;
     }
     const mt = this._massTreffer.find(
       (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
@@ -5089,6 +5127,7 @@ export class Modellansicht {
     this._massketteMalen(c, proj, t);
 
     if (this._ebeneAn('raster')) this._raster(c, proj, t);
+    this._trasseMalen(c, proj, t);
 
     // Flächen sammeln, projizieren, nach Tiefe sortieren.
     //
@@ -5265,8 +5304,9 @@ export class Modellansicht {
     if (!explodiert) this._vektoren(c, proj, t);
     else this._pfeiltexte = [];
     // Beschriftungen sind während der Fahrt nicht lesbar und kosten Messungen
-    // von Textbreiten - sie bleiben weg, bis das Bild wieder steht.
-    if (!this.sparsam) {
+    // von Textbreiten - sie bleiben weg, bis das Bild wieder steht. Auch
+    // während einer Kamerafahrt auf ein Bauteil (`faehrt`, 22. November).
+    if (!this.sparsam && !this.faehrt) {
       if (!explodiert && this.ebenen.marken) this._marken(c, proj, t);
       if (!explodiert && this._ebeneAn('masse')) this._masse(c, proj, t);
       this._bauteiltitel(c, proj, t);
@@ -5697,6 +5737,66 @@ export class Modellansicht {
     return `rgb(${f(r)},${f(g)},${f(b)})`;
   }
 
+  /*
+   * >>> DIE TRASSE IM 3D (22. November). <<<
+   * Weisung: «den radius im 3d als trasse andeuten, als lage in x richtung
+   * kann der derste fahrdraht genommen werden, ausser er ist am mast
+   * abgefangen dann den nächsten. falls kein farhdraht eingegeben ist, dann
+   * im abstand von 3m ansetezen in x richtung wenn man auf den radius klickt
+   * sollte man direkt in die eingabe kommen.»
+   * Ein Gleis (zwei Schienen, Achse gestrichelt) auf Geländehöhe längs y.
+   * Der Bogen ist ANGEDEUTET, nicht massstäblich (bei R 600 m wiche das Gleis
+   * auf 12 m nur 12 cm ab): er biegt zur Seite des Vorzeichens (R > 0 nach
+   * +x, core.trasse.js), die Anschrift nennt den Radius und führt zur Eingabe.
+   */
+  _trasseMalen(c, proj, t) {
+    this._trasseTreffer = null;
+    const g = this.szene?.grenzen;
+    if (!g || this.setzModus || (this.explosion ?? 0) > 0) return;
+    const fd = (this.szene.marken ?? []).filter((m) => m.fahrdraht && m.p
+      && !(m.amMast && (m.abfang === 'einseitig' || m.abfang === 'beidseitig')))
+      .sort((a, b) => a.p[0] - b.p[0]);
+    const x0 = fd.length ? fd[0].p[0] : 3;
+    const Rr = Number(this.trasseRadius) || 0;
+    const gerade = Math.abs(Rr) < 1e-9 || Math.abs(Rr) >= 1e5;
+    const sg = gerade ? 0 : Math.sign(Rr);
+    const L = 12, z = g.zMin - 0.35;
+    // Angedeutete Ausbiegung am Ende: 1.2 m, die Richtung zählt.
+    const dx = (y) => sg * 1.2 * (y / L) ** 2;
+    const s = this._s;
+    const zug = (versatz) => {
+      c.beginPath();
+      let erst = true;
+      for (let i = 0; i <= 24; i++) {
+        const y = -L + (2 * L * i) / 24;
+        const p = proj([x0 + dx(y) + versatz, y, z]);
+        if (!p) { erst = true; continue; }
+        if (erst) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]);
+        erst = false;
+      }
+      c.stroke();
+    };
+    c.save();
+    c.strokeStyle = t.acc; c.globalAlpha = 0.8; c.lineWidth = 1.6 * s;
+    zug(-0.7175); zug(0.7175);
+    c.setLineDash([6 * s, 4 * s]); c.globalAlpha = 0.6; c.lineWidth = 1 * s;
+    zug(0);
+    c.setLineDash([]);
+    const pe = proj([x0 + dx(L) , L, z]);
+    if (pe) {
+      const text = gerade ? 'Trasse gerade' : `Trasse R ${Rr > 0 ? '+' : ''}${Rr.toFixed(0)} m`;
+      c.font = this._font(this.schrift);
+      const w = c.measureText(text).width + 10 * s, h = 16 * s;
+      const bx = pe[0] + 6 * s, by = pe[1] - h / 2;
+      c.globalAlpha = 0.85; c.fillStyle = t.viewerBg ?? t.bg;
+      c.fillRect(bx, by, w, h);
+      c.globalAlpha = 1; c.fillStyle = t.acc;
+      c.fillText(text, bx + 5 * s, by + h - 4.5 * s);
+      this._trasseTreffer = { x: bx, y: by, w, h };
+    }
+    c.restore();
+  }
+
   _raster(c, proj, t) {
     const g = this.szene.grenzen;
     // Über die ganze Breite - das Modell wird nicht mehr geschnitten.
@@ -5902,6 +6002,15 @@ export class Modellansicht {
       // Im sparsamen Bild vertreten die Achsen die Körper; dann gilt ihr
       // Einzelschalter nicht - der HAUPTSCHALTER der Gruppe aber sehr wohl.
       if (this.sparsam) { if (!this.gruppen.modell) return; }
+      /*
+       * >>> SCHWERACHSEN HAENGEN NUR AM SCHALTER «SCHWERACHSEN» (22. November). <<<
+       * Frage: «beim layer schwereachsen sind die masten nicht dargestellt,
+       * warum?» - mit Rechtsklick nur die Schwerachsen gezeigt, war der
+       * Schalter «Masten» aus, und die Achse des Masten brauchte beide. Der
+       * Schalter «Masten» blendet jetzt die Körper, die Achse folgt allein
+       * den Schwerachsen (wie Gurt- und Blechachsen).
+       */
+      else if (l.schwerachse) { if (!this._ebeneAn('achse')) return; }
       else if (!this._ebeneAn(l.gruppe)) return;
       /*
        * DIE SCHWERACHSE DES MASTEN IST STABMODELL (Befund vom 19. September,
@@ -5910,8 +6019,6 @@ export class Modellansicht {
        * der nur aus dem Masten besteht, tat der Schalter damit gar nichts.
        * Jetzt braucht sie beide: den Masten und die Schwerachsen.
        */
-      if (!this.sparsam && l.schwerachse && l.gruppe === 'mast'
-          && !this._ebeneAn('achse')) return;
       // Beim Stationszoom bleibt eine Linie stehen, sobald IRGENDEIN Ende im
       // Ausschnitt liegt - sonst verschwände die Systemachse, die von Ende zu
       // Ende läuft und deren erster Punkt fast immer draussen liegt.
@@ -5948,6 +6055,10 @@ export class Modellansicht {
         c.lineWidth = (l.gurt ? 2.2 : l.blechachse ? 1.6 : (l.stark ? 1.4 : 0.9)) * s;
         c.globalAlpha = l.gurt ? 1 : (l.blechachse ? 0.95 : (l.stark ? 0.9 : 0.65));
       }
+      // Mit der Grenze treten auch die Achsen unter der Schwelle zurück
+      // (22. November, «diese bleiben sichtbar auch wenn man den regler für
+      // die grenze ändert, nur die liniendiagramme werden transparent»).
+      if ((l.schwerachse || traegt) && this._unauffaellig(l)) c.globalAlpha = Math.min(c.globalAlpha, 0.08);
       c.beginPath();
       p.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])));
       c.stroke();

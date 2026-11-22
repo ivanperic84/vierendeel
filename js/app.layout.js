@@ -388,6 +388,10 @@ export function leisteMelden(app) {
   // Noch nie offen: die gemessene Breite der offenen Leiste (99 px + 8).
   const b = offen ? kn : (breiteOffen ?? 107);
   v.style.setProperty('--wz-breite', `${kn}px`);
+  // Die Insel oben bleibt stehen (22. November, «die obere mittlere box
+  // sollte sich dann nicht bewegen»): die Kopfzeile rechnet wie die
+  // Bildmitte immer mit der Breite der OFFENEN Leiste.
+  v.style.setProperty('--wz-kopf', `${b}px`);
   v.style.setProperty('--wz-legende', `${offen ? kn : 0}px`);   // die Legende unten nur bei offener Leiste
   // Bei offener Leiste steht die Legende unten in der Mitte (21. November,
   // «wenn die layersteuerung ausfährt dann die untere resultatbox in die mitte ziehen»).

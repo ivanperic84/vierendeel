@@ -3367,6 +3367,7 @@ function aktualisiereModell(erg) {
   }
   // Die Zustandslinie (14. November) aus demselben Stabwerk.
   zustandSetzen(app, stabwerkGilt());
+  ansicht.trasseRadius = Number(werte.trasseRadius) || 0;
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die
@@ -8155,6 +8156,16 @@ export async function start() {
      * Eingabesatz aus), dann der MAST darin, dann das Feld. Umgekehrt
      * stuende die Mastwahl auf einem Tragwerk, das gleich weggelegt wird.
      */
+    // Klick auf die Trasse im 3D: die Insel mit den Grundwerten, der Radius im Fokus (22. November).
+    beiTrasse: () => {
+      const insel = ui.el('einwirkung-wahl');
+      if (!insel?.classList.contains('offen')) ui.el('pos-ek')?.click();
+      setTimeout(() => {
+        const f = [...(insel?.querySelectorAll('.kontext-feld') ?? [])]
+          .find((l) => /Radius/.test(l.textContent))?.querySelector('input');
+        f?.focus(); f?.select?.();
+      }, 120);
+    },
     beiMass: (feld, tab, bt) => {
       if (bt?.twId && bt.twId !== (werte.twId ?? 'T1')) {
         aendern('tragwerkAktiv', bt.twId);
