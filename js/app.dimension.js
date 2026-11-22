@@ -36,8 +36,10 @@ import { rechneStabwerk } from './app.stabwerk.js';
 import * as ui from './ui.js';
 
 export const EINSPANNUNGEN = [
-  { key: 'gebaut', label: 'wie gebaut', farbe: '#7c8de0' },
-  { key: 'grenze', label: 'bis Grenze Hakenschrauben', farbe: '#d6a33c' },
+  // 22. November, «ich verstehe nicht ganz was mit wie gebaut bedeutet in
+  // diesem kontext»: der Anschluss des Jochs am Masten, ausgeschrieben.
+  { key: 'gebaut', label: 'Anschluss gelenkig (wie gebaut)', farbe: '#7c8de0' },
+  { key: 'grenze', label: 'eingespannt bis Grenze Hakenschrauben', farbe: '#d6a33c' },
   { key: 'voll', label: 'voll eingespannt', farbe: '#4bbf8a' },
 ];
 /*
@@ -560,8 +562,8 @@ export function dialogDimension(app) {
         : `<div class="dm-empf nok">Keine Variante hält mit η ≤ ${g.toFixed(2)}.</div>`}
       ${abschnitt('Ausnutzung und Materialmasse', `${ok.length} Varianten · Klick auf einen Punkt zeigt die Zeile`)}
       ${diagrammSvg(ok, g, best)}
-      <div class="dm-legende">${EINSPANNUNGEN.filter((e) => ergebnis.some((x) => x.einsp === e.key)).map((e) => `<span><i style="background:${e.farbe}"></i>${esc(e.label)}</span>`).join('')}
-        <span>○ Joch variiert</span><span>□ Mast variiert</span><span>◆ Kombination</span></div>
+      <div class="dm-legende"><b>Farbe = Anschluss Joch am Masten:</b>${EINSPANNUNGEN.filter((e) => ergebnis.some((x) => x.einsp === e.key)).map((e) => `<span><i style="background:${e.farbe}"></i>${esc(e.label)}</span>`).join('')}</div>
+      <div class="dm-legende"><b>Form = was geändert wurde:</b><span>○ anderer Jochtyp (Masten wie eingegeben)</span><span>□ anderes Mastprofil (Joch wie eingegeben)</span><span>◆ Jochtyp und Mastprofil zusammen</span></div>
       <div id="dm-vergleich">${vergleichHtml()}</div>
       ${abschnitt('Varianten', 'zuerst die, die halten, nach Masse · ankreuzen zum Vergleich')}
       <div class="tabellenrahmen dm-tabelle"><table class="dt">
@@ -586,6 +588,9 @@ export function dialogDimension(app) {
         app.neuRechnen();
         app.meldeImBalken(`Übernommen: ${variantenText(v, app.werte)} · Strg+Z nimmt es zurück`);
         b.closest('tr')?.classList.add('uebernommen');
+        // Gleich zurück ins Modell (22. November, «wenn man einen fall
+        // übernimmt, dass man direkt in das modell zurück kommt»).
+        box.querySelector('.dialog-kopf [data-zu]')?.click();
       };
     });
     box.querySelectorAll('[data-dm-wahl]').forEach((c) => {

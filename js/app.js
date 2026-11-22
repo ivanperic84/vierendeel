@@ -3368,6 +3368,7 @@ function aktualisiereModell(erg) {
   // Die Zustandslinie (14. November) aus demselben Stabwerk.
   zustandSetzen(app, stabwerkGilt());
   ansicht.trasseRadius = Number(werte.trasseRadius) || 0;
+  ansicht.trasseZeigen = werte.trasseZeigen !== false;
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die
@@ -5908,10 +5909,20 @@ function zoomAufAnbauteil(i, sanft = false) {
  * lastfällen».
  */
 function zeigeLastfaelle() {
-  tabEingabe = 'lasten';
   ui.setzeKlapp('grp-komb', true);
-  neuRechnen();
+  /*
+   * >>> WIE VON HAND (22. November). <<< Weisung: «wenn ich lastfall
+   * anklicke (insel) dann wird die sidebar und der abschnitt nicht gleich
+   * animiert, wie wenn ich es von von hand mache.» Bisher rechnete der
+   * Sprung die ganze App neu (neuRechnen, ohne Gleiten). Jetzt derselbe Weg
+   * wie ein Klick auf den Reiter: die Leiste fährt aus, der Reiter gleitet
+   * herein, nur die Maske wird neu gezeichnet.
+   */
   if (zuSeite.links) seiteAusklappen('links');
+  const reiter = ui.el('tabs')?.querySelector('[data-tab="lasten"]');
+  if (tabEingabe !== 'lasten' && reiter) reiter.click();
+  else if (maskeNeu && letzte) { maskeNeu(); ui.schieberFuellenAlle(); }
+  else neuRechnen();
   maskenAnkerLoesen();
   /*
    * >>> DER GEWÄHLTE LASTFALL LEUCHTET AUF (21. November). <<< Weisung:

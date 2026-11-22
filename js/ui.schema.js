@@ -2555,6 +2555,13 @@ export const FELDER = [
     hinweis: 'Aus: die Seitenleisten zeigen nur Feld, Wert und gerechnete '
            + 'Notizen - kürzer, für den, der die Eingaben kennt. Der Titel '
            + 'am Feld bleibt.' },
+  // 22. November: «mach noch eine deaktivieren einstellung dieser darstellung unter optionen».
+  { key: 'trasseZeigen', gruppe: 'ansicht', optionenDialog: true,
+    typ: 'schalter', label: 'Trasse im 3D andeuten',
+    standard: true,
+    hinweis: 'Ein Gleis auf Geländehöhe am ersten Fahrdraht (sonst 3 m), '
+           + 'der Bogen nach dem Vorzeichen des Radius angedeutet - nur zur '
+           + 'Orientierung. Ein Klick auf den Radius öffnet die Eingabe.' },
   { key: 'tastenkuerzel', gruppe: 'ansicht', optionenDialog: true,
     typ: 'schalter', label: 'Tastenkürzel für Ansicht und Fenster',
     standard: true,
@@ -2696,7 +2703,7 @@ export const OPTIONEN_ABSCHNITTE = [
     keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { thema: 'einwirkung', titel: 'Widerstand', keys: ['gammaM0'] },
   { thema: 'ansicht', titel: 'Modellansicht',
-    keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
+    keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'trasseZeigen', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },
   { thema: 'ansicht', titel: 'Bedienung', keys: ['erklaertexte', 'tastenkuerzel', 'tasten'] },
 ];

@@ -5752,7 +5752,7 @@ export class Modellansicht {
   _trasseMalen(c, proj, t) {
     this._trasseTreffer = null;
     const g = this.szene?.grenzen;
-    if (!g || this.setzModus || (this.explosion ?? 0) > 0) return;
+    if (!g || this.trasseZeigen === false || this.setzModus || (this.explosion ?? 0) > 0) return;
     const fd = (this.szene.marken ?? []).filter((m) => m.fahrdraht && m.p
       && !(m.amMast && (m.abfang === 'einseitig' || m.abfang === 'beidseitig')))
       .sort((a, b) => a.p[0] - b.p[0]);
@@ -5777,17 +5777,31 @@ export class Modellansicht {
       c.stroke();
     };
     c.save();
-    c.strokeStyle = t.acc; c.globalAlpha = 0.8; c.lineWidth = 1.6 * s;
+    // Nur zur Orientierung (22. November, «mach die linien transparenter»).
+    c.strokeStyle = t.acc; c.globalAlpha = 0.3; c.lineWidth = 1.2 * s;
     zug(-0.7175); zug(0.7175);
-    c.setLineDash([6 * s, 4 * s]); c.globalAlpha = 0.6; c.lineWidth = 1 * s;
+    c.setLineDash([6 * s, 4 * s]); c.globalAlpha = 0.25; c.lineWidth = 0.9 * s;
     zug(0);
     c.setLineDash([]);
-    const pe = proj([x0 + dx(L) , L, z]);
+    // Die Anschrift am Ende, das im Bild links liegt (22. November, «nimm
+    // die benennung auf die linke seite wo wir mehr platz haben und lass das
+    // trasse weg, es ist selbsterklärend»).
+    // Der am weitesten links liegende Punkt des Gleises, der noch im Bild ist.
+    let pe = null;
+    const W = this.cv.width, H = this.cv.height, rand = 40 * s;
+    for (let i = 0; i <= 48; i++) {
+      const y = -L + (2 * L * i) / 48;
+      const p = proj([x0 + dx(y), y, z]);
+      if (!p || p[0] < rand || p[0] > W - rand || p[1] < rand || p[1] > H - rand) continue;
+      if (!pe || p[0] < pe[0]) pe = p;
+    }
     if (pe) {
-      const text = gerade ? 'Trasse gerade' : `Trasse R ${Rr > 0 ? '+' : ''}${Rr.toFixed(0)} m`;
+      const text = gerade ? 'gerade' : `R ${Rr > 0 ? '+' : ''}${Rr.toFixed(0)} m`;
       c.font = this._font(this.schrift);
       const w = c.measureText(text).width + 10 * s, h = 16 * s;
-      const bx = pe[0] + 6 * s, by = pe[1] - h / 2;
+      // Links vom Gleis, wenn Platz ist, sonst darüber.
+      const bx = pe[0] - w - 6 * s >= 4 * s ? pe[0] - w - 6 * s : pe[0] + 4 * s;
+      const by = pe[0] - w - 6 * s >= 4 * s ? pe[1] - h / 2 : pe[1] - h - 6 * s;
       c.globalAlpha = 0.85; c.fillStyle = t.viewerBg ?? t.bg;
       c.fillRect(bx, by, w, h);
       c.globalAlpha = 1; c.fillStyle = t.acc;

@@ -43737,6 +43737,27 @@ titel('320  Radius-Skizze, Trasse im 3D, Schwerachsen, Kamerafahrt, Explosion, D
   wahr('Insel bleibt beim Auf-/Zuklappen der Werkzeugleiste stehen', LQ.includes("v.style.setProperty('--wz-kopf', `${b}px`);"));
 }
 
+// ===========================================================================
+titel('321  Übersicht ruhig, Lastfall aus der Insel wie von Hand, Trasse links und abschaltbar, Dimensionieren klarer');
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const DQ = readFileSync(join(HIER, 'js', 'app.dimension.js'), 'utf8');
+  const SQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Übersicht: keine gestaffelten Zeilen mehr',
+       css.includes('.gleitet-r .kz, .gleitet-l .kz, .gleitet-r .lf-einfach, .gleitet-l .lf-einfach { animation: none; }'));
+  wahr('Lastfall aus der Insel: Klick auf den Reiter statt Neurechnung',
+       AQ.includes(`const reiter = ui.el('tabs')?.querySelector('[data-tab="lasten"]');`) && AQ.includes("if (tabEingabe !== 'lasten' && reiter) reiter.click();"));
+  wahr('Trasse: Anschrift ohne «Trasse», links, blasse Linien, Schalter in den Optionen',
+       RQ.includes("const text = gerade ? 'gerade' : `R ${Rr > 0 ? '+' : ''}${Rr.toFixed(0)} m`;")
+       && RQ.includes('c.globalAlpha = 0.3; c.lineWidth = 1.2 * s;') && RQ.includes('this.trasseZeigen === false')
+       && SQ.includes("{ key: 'trasseZeigen', gruppe: 'ansicht', optionenDialog: true,") && SQ.includes("'modellTransparenz', 'trasseZeigen'"));
+  wahr('Dimensionieren: Anschluss ausgeschrieben, Legende in Worten, «übernehmen» schliesst',
+       DQ.includes("label: 'Anschluss gelenkig (wie gebaut)'") && DQ.includes('<b>Form = was geändert wurde:</b>')
+       && DQ.includes("box.querySelector('.dialog-kopf [data-zu]')?.click();"));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

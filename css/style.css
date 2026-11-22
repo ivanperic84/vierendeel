@@ -4459,3 +4459,10 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
 }
 #viewer.wz-offen .legende:not(.gezogen) { left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%); }
 @media (prefers-reduced-motion: reduce) { #viewer .legende:not(.gezogen) { transition-duration: 0s; } }
+/* Übersicht ruhig (22. November, «das anwählen des übersicht sidebar wirkt
+   etwas unruhig da die einzelnen nachweiswerte stottern»): keine
+   gestaffelten Zeilen mehr - der Inhalt gleitet als Ganzes. */
+.gleitet-r .kz, .gleitet-l .kz, .gleitet-r .lf-einfach, .gleitet-l .lf-einfach { animation: none; }
+/* Legende des Dimensionierens in Worten (22. November). */
+.dm-legende b { font-weight: 500; color: var(--on2); margin-right: 2px; }
+.dm-legende + .dm-legende { margin-top: -6px; }
