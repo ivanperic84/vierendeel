@@ -807,7 +807,7 @@ export function radiusSkizze(R) {
   const mk = (id, farbe) => `<marker id="${id}" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="${farbe}"/></marker>`;
   return `<svg viewBox="0 0 120 112" width="120" height="112" role="img" aria-label="Vorzeichen des Radius: positiv biegt nach rechts, negativ nach links">
     <defs>${mk('rs-pfp', an(1))}${mk('rs-pfm', an(-1))}${mk('rs-ax', 'var(--dim)')}</defs>
-    <line x1="60" y1="92" x2="60" y2="8" stroke="${r === 0 ? 'var(--acc)' : 'var(--ol)'}" stroke-dasharray="3 3"/>
+    <line x1="60" y1="92" x2="60" y2="8" stroke="${r === 0 ? 'var(--acc)' : 'var(--ol)'}" stroke-dasharray="7 2 1.5 2"/>
     ${bogen(1)}${bogen(-1)}
     <line x1="14" y1="104" x2="40" y2="104" stroke="var(--dim)" marker-end="url(#rs-ax)"/>
     <text x="44" y="107" fill="var(--dim)" font-size="9">x</text>

@@ -47,7 +47,8 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          SIGNAL_CW, signalVorlage, laengsAchseVon, teilLaenge, teilLaengeSetzen , rueckhaltOpt } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
-         PROFILBEIWERTE } from './data.fl.js';
+         PROFILBEIWERTE, hatZustandsgleichung, montagezug, zugAusKern, reglierZusatzlast,
+         leiterzugKontext, EIGEN_PRAEFIX } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
@@ -351,6 +352,9 @@ export function maskenSignatur(werte, tab) {
     // Die Markierung der Anbauteile (Strg+Klick, 7. Oktober) ändert die Liste.
     [...atMarkiert].join(','),
     dwGliederung, dwOrdnung, [...dwWahl].join(','),
+    // Die Einzelleiter-Tabelle (22. November): Zahlen und eigene Leiter.
+    JSON.stringify([werte.eigeneLeiter ?? [], werte.einzelleiterAus ?? [], werte.leiterMontage ?? {},
+                    werte.flSpannweite, werte.schneeKlasse]),
     /*
      * DIE EIGENEN VORLAGEN GEHOEREN DAZU (Befund vom 19. September: «Nach
      * dem abspeichern eines bauteils wir dieser nicht sofort in die liste
@@ -1046,6 +1050,8 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
    */
   leisteAendern = onChange;
   verdrahteTragwerkfeld(container, werte, onChange);
+  // Einzelleiter (22. November).
+  einzelleiterVerdrahten(container, onChange);
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
       onChange('bearbeiten', !(aktuelleWerte ?? werte).bearbeiten));
@@ -2878,6 +2884,8 @@ export function feldHtml(f, wert, werte) {
                              f.vorgabefeld ? 'auflagerVorgabe' : 'auflagerLinks');
   } else if (f.typ === 'tragwerke') {
     inp = tragwerkfeldHtml(werte);
+  } else if (f.typ === 'einzelleiter') {
+    inp = einzelleiterHtml(werte);
   } else if (f.typ === 'bauform') {
     /*
      * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.
@@ -3082,6 +3090,109 @@ export function feldHtml(f, wert, werte) {
   return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
     <label for="${id}">${esc(label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
     ${inhalt}${optionsSkizze(f.key, wert, werte)}${notizHtml}${hinweis}</div>`;
+}
+
+// --- Einzelleiter (22. November) ---------------------------------------------
+
+/*
+ * >>> DIE EINZELLEITER IN DER SEITENLEISTE. <<< «unter der sidebar die
+ * auswahl der einzelleiter auswählbar machen und frei belegbare definieren
+ * können.» Oben die Leiter mit Zustandsgleichung: angeboten (Bausteinwahl),
+ * Montagezug von Hand (leer = Sortiment), Z bei +5 / −5 + Eis / −20 °C.
+ * Darunter die eigenen Leiter des Blattes, je eine Karte mit ihren Werten.
+ */
+const EL_FELDER = [
+  ['name', 'Name', '', 'text'], ['d', 'd', 'mm'], ['q', 'q', 'N/m'], ['A', 'A', 'mm²'],
+  ['E', 'E', 'N/mm²'], ['alpha', 'α_T', '10⁻⁶/K'], ['H10', 'Z 10 °C', 'kN'],
+];
+
+function einzelleiterHtml(w) {
+  const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
+  const aus = new Set(w.einzelleiterAus ?? []);
+  const L = leiterzugKontext()?.L ?? w.flSpannweite;
+  const zug = (id, T, zl = 0) => { try { return zugAusKern(id, T, zl); } catch { return null; } };
+  let eis = 0.007;
+  try { eis = reglierZusatzlast('schnee'); } catch { /* Vorgabe */ }
+  const leiter = flBauteile('drahtwerk').filter((b) => hatZustandsgleichung(b) && !/-x\d+$/.test(b.id));
+  const zeilen = leiter.map((b) => {
+    const hand = w.leiterMontage?.[b.id];
+    return `<tr${b.eigen ? ' class="el-eigen"' : ''}>
+      <td><label class="el-an"><input type="checkbox" data-el-an="${esc(b.id)}"${aus.has(b.id) ? '' : ' checked'}>
+        <span>${esc(b.name)}</span></label></td>
+      <td class="num">${b.eigen ? `<span class="dim">${f2(b.zug.H10)}</span>` : `<input type="number" step="0.1" min="0"
+        data-el-h="${esc(b.id)}" value="${hand ?? ''}" placeholder="${f2(montagezug(b, L))}">`}</td>
+      <td class="num">${f2(zug(b.id, 5))}</td><td class="num">${f2(zug(b.id, -5, eis))}</td>
+      <td class="num">${f2(zug(b.id, -20))}</td></tr>`;
+  }).join('');
+  const eigene = (w.eigeneLeiter ?? []).map((e) => `<div class="el-karte" data-el-eigen="${esc(e.id)}">
+      ${EL_FELDER.map(([k, t, u, art]) => `<label class="el-f${art === 'text' ? ' el-name' : ''}"><span>${esc(t)}${u ? ` <em>${esc(u)}</em>` : ''}</span>
+        <input ${art === 'text' ? 'type="text"' : 'type="number" step="any"'} data-el-k="${k}" value="${esc(String(e[k] ?? ''))}"></label>`).join('')}
+      <button type="button" class="el-weg" data-el-weg="${esc(e.id)}" title="Eigenen Leiter entfernen">×</button>
+    </div>`).join('');
+  return `<div class="el-block">
+    <div class="tabellenrahmen"><table class="dt el-tab"><thead><tr><th>Leiter (angeboten)</th>
+      <th class="num" title="Montagezug bei 10 °C; leer = Sortiment">Z 10 °C</th><th class="num">+5</th>
+      <th class="num" title="−5 °C mit Eis ${eis} kN/m">−5 + Eis</th><th class="num">−20</th></tr></thead>
+      <tbody>${zeilen}</tbody></table></div>
+    <p class="notiz">Z in kN bei L_FL ${esc(String(L))} m.</p>
+    ${eigene ? `<div class="el-eigene">${eigene}</div>` : ''}
+    <button type="button" class="btn btn-mini" data-el-neu>+ eigener Leiter</button>
+  </div>`;
+}
+
+/** Wird ein eigener Leiter irgendwo als Baustein benutzt? (dann nicht löschen) */
+function eigenerLeiterBenutzt(w, id) {
+  const { eigeneLeiter, ...rest } = w ?? {};
+  void eigeneLeiter;
+  return JSON.stringify(rest).includes(`"${id}"`);
+}
+
+function einzelleiterVerdrahten(container, onChange) {
+  const w = () => aktuelleWerte ?? {};
+  container.querySelectorAll('[data-el-an]').forEach((c) => {
+    c.addEventListener('change', () => {
+      const aus = new Set(w().einzelleiterAus ?? []);
+      if (c.checked) aus.delete(c.dataset.elAn); else aus.add(c.dataset.elAn);
+      onChange('einzelleiterAus', [...aus]);
+    });
+  });
+  container.querySelectorAll('[data-el-h]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const m = { ...(w().leiterMontage ?? {}) };
+      const v = Number(inp.value);
+      if (v > 0) m[inp.dataset.elH] = v; else delete m[inp.dataset.elH];
+      onChange('leiterMontage', m);
+    });
+  });
+  container.querySelector('[data-el-neu]')?.addEventListener('click', () => {
+    const liste = [...(w().eigeneLeiter ?? [])];
+    const n = 1 + Math.max(0, ...liste.map((e) => Number(String(e.id).slice(EIGEN_PRAEFIX.length)) || 0));
+    // Startwerte wie ein Cu 95 (gerundet) - zum Überschreiben.
+    liste.push({ id: `${EIGEN_PRAEFIX}${n}`, name: `Leiter ${n}`, d: 12, q: 8.4, A: 95, E: 108000, alpha: 17, H10: 3.7 });
+    onChange('eigeneLeiter', liste);
+  });
+  container.querySelectorAll('[data-el-eigen]').forEach((karte) => {
+    karte.querySelectorAll('[data-el-k]').forEach((inp) => {
+      inp.addEventListener('change', () => {
+        const k = inp.dataset.elK;
+        const v = k === 'name' ? inp.value.trim() : Number(inp.value);
+        if (k !== 'name' && !(v > 0)) { inp.value = ''; return; }
+        onChange('eigeneLeiter', (w().eigeneLeiter ?? []).map((e) =>
+          (e.id === karte.dataset.elEigen ? { ...e, [k]: v } : e)));
+      });
+    });
+  });
+  container.querySelectorAll('[data-el-weg]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.elWeg;
+      if (eigenerLeiterBenutzt(w(), id)) {
+        b.title = 'Wird noch als Baustein benutzt - zuerst aus den Anbauteilen nehmen.';
+        b.classList.add('el-gesperrt');
+        return;
+      }
+      onChange('eigeneLeiter', (w().eigeneLeiter ?? []).filter((e) => e.id !== id));
+    });
+  });
 }
 
 // --- Anbauteile -------------------------------------------------------------
@@ -8582,6 +8693,15 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
                                        { jochKey, jochKeys, knick: knickJe(erg) })
     : (einzelLastfall ? null : urteil.bauteile);
   const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
+  /*
+   * DER MASSGEBENDE FALL AUS DEM STABWERK (22. November): mit mehreren
+   * Abfangjochen nannte die Kopfzeile den Fall des GEWÄHLTEN Jochs aus dem
+   * Kern («Schnee leitend» neben η 0.861 von A2 mit «Wind +y») - je nach
+   * Klick ein anderer. Gilt das Stabwerk, steht der Fall des massgebenden
+   * Bauteils da.
+   */
+  const fallSw = swH && !einzelLastfall && bt?.massgebend?.bez
+    ? { label: bt.massgebend.bez, tempFall: 'der Kombination', gebrochen: [] } : null;
   const eKopf = imFall ? imFall.eta : bt ? bt.eta : eAn;
   const werKopf = imFall ? imFall.name
     : (bt?.massgebend && bt.liste.length > 1 ? bt.massgebend.name : null);
@@ -9034,12 +9154,12 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
          * nicht, ob Wind, Schnee oder ein Bruch dahintersteht - und genau
          * das entscheidet, was man am Bauwerk aendern muss.
          */''}
-      ${abFall ? `<span class="urteil-fall" title="${esc(
-          `${abFall.label} · Regliertemperatur nach ${abFall.tempFall}`
-          + (abFall.gebrochen?.length
-            ? ` · gebrochen: ${abFall.gebrochen.join(', ')}` : ''))}"
-        >massgebend: ${esc(abFall.label)}${
-          abFall.gebrochen?.length ? ' (Bruch)' : ''}</span>` : ''}
+      ${(fallSw ?? abFall) ? ((f) => `<span class="urteil-fall" title="${esc(
+          `${f.label} · Regliertemperatur nach ${f.tempFall}`
+          + (f.gebrochen?.length
+            ? ` · gebrochen: ${f.gebrochen.join(', ')}` : ''))}"
+        >massgebend: ${esc(f.label)}${
+          f.gebrochen?.length ? ' (Bruch)' : ''}</span>`)(fallSw ?? abFall) : ''}
       ${/*
          * DER KNOPF FOLGT DER ZAHL, DIE OBEN STEHT (Weisung, 9. September:
          * «den groesseren typ pruefen der die abfangkraft traegt»). Hier
@@ -9120,8 +9240,11 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
        */''}
     ${zeigtTrag && swH?.jeStab && !taK && !swH?.ausleger ? (() => {
       const teilName = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindeblech', UPE: 'Gurt UPE', gurt: 'Gurt' };
+      // Abfangjoche übereinander: die Stellen aller (22. November, «global»).
+      const keys = new Set(jochKeys.length > 1 ? jochKeys.map((j) => j.key) : [jochKey]);
+      const jochName = new Map(jochKeys.map((j) => [j.key, j.name]));
       const top = Object.values(swH.jeStab)
-        .filter((z) => ['gurt', 'blech', 'gurtU'].includes(z.rolle) && stabZuordnung(z.name).key === jochKey)
+        .filter((z) => ['gurt', 'blech', 'gurtU'].includes(z.rolle) && keys.has(stabZuordnung(z.name).key))
         .sort((a, b) => b.eta - a.eta).slice(0, 10);
       if (!top.length) return '';
       const xm = (z) => (Number.isFinite(z.x0) && Number.isFinite(z.x1) ? (z.x0 + z.x1) / 2 : null);
@@ -9135,7 +9258,7 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
       <tbody>${top.map((z, k) => `
         <tr class="klick" data-kz-stab="${esc(z.name)}" title="${esc(z.bez ?? '')}">
           <td>${k + 1}</td><td>${esc(z.name)}</td><td class="num">${xm(z) === null ? '–' : f2(xm(z))}</td>
-          <td>${esc(teilName[z.teil] ?? z.teil ?? '')}</td><td>${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
+          <td>${esc(teilName[z.teil] ?? z.teil ?? '')}${jochName.size > 1 ? ` ${esc(jochName.get(stabZuordnung(z.name).key) ?? '')}` : ''}</td><td>${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
           <td class="num stark ${ampelU(z.eta)}">${f3(z.eta)}</td>
         </tr>`).join('')}</tbody>
     </table></div>`, `${teilName[top[0].teil] ?? top[0].teil ?? ''} η ${f3(top[0].eta)}`, false);

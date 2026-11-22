@@ -201,7 +201,7 @@ export const BLATT_FELDER = [
   // Trasse: Radius und Spannweite gelten der Linie, nicht dem Mast
   'flSpannweite', 'trasseRadius', 'trasseWinkel',
   // Leiterzug-Kern (22. November): Systeme, Montagezüge, angebotene Einzelleiter.
-  'flSystemNfl', 'flSystemRfl', 'leiterMontage', 'einzelleiterAus',
+  'flSystemNfl', 'flSystemRfl', 'leiterMontage', 'einzelleiterAus', 'eigeneLeiter',
   // Ob der Dialog «Neues Tragwerk» danach fragt (29. September).
   'grundwerteFragen',
   // Einwirkungen aus den Linienkarten
@@ -2622,4 +2622,21 @@ export function mastZeichenplan(w, aktivId) {
     });
   });
   return plan;
+}
+
+/**
+ * Die Abfangjoche am Mastpaar des gewählten (mit ihm), von oben nach unten
+ * (20. November; hierher am 22. November, damit Anzeige und Stabwerk dieselbe
+ * Gruppe kennen - «die auswertung des tragwerks soll immer global erfolgen»).
+ */
+export function abfangjocheUebereinander(w) {
+  if (tragwerksart(w).key !== 'abfangjoch') return [];
+  const t0 = tragwerkeVon(w)[0];
+  const ids = new Set((mastenFuer(w, t0) ?? []).filter(Boolean).map((m) => m.id));
+  if (!ids.size) return [];
+  const liste = sichtbareTragwerke(w).filter((t) => tragwerksart(t).key === 'abfangjoch'
+    && (mastenFuer(w, t) ?? []).some((m) => m && ids.has(m.id)));
+  if (liste.length < 2) return [];
+  return liste.map((t) => ({ twId: t.id, name: tragwerkPos(w, t), H: anschlusshoehe(t) }))
+    .sort((a, b) => (Number(b.H) || 0) - (Number(a.H) || 0));
 }

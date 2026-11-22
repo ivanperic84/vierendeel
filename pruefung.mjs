@@ -1634,9 +1634,9 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const gT = U.GRUPPEN.find((g) => g.id === 'trasse');
     wahr('Die Trasse faengt zugeklappt an', gT.zugeklappt === true);
     // Drei Werte und seit dem 29. September der Schalter «nachfragen».
-    // 22. November: dazu System N-FL und R-FL.
+    // 22. November: dazu System N-FL und R-FL, dann die Einzelleiter.
     wahr('… und hat wirklich Felder darin',
-         U.sichtbareFelder('trasse', w).length === 6,
+         U.sichtbareFelder('trasse', w).length === 7,
          `${U.sichtbareFelder('trasse', w).length} Felder`);
     // Die Gruppe der Bauteile selbst bleibt offen - sie IST der Reiter.
     const gA = U.GRUPPEN.find((g) => g.id === 'anbau');
@@ -43912,6 +43912,62 @@ titel('328  Ausleger in der Höhe ziehen, die Leiter relativ mit; Kontextmenü k
   wahr('Kontextmenü: am Masten und am Anker nur das Bauteil, ins Leere allgemein «Neu …»',
        kq.includes('void t; void neuesAnMast;') && kq.includes('void imBereich; void tragwerkAbschnitt;')
        && !kq.includes('...kontextMast(app, mastId, twId)'));
+}
+
+// ===========================================================================
+titel('329  Abfangjoche übereinander global; Gleis Normalspur; eigene Einzelleiter');
+{
+  const SS = await import(J('core.stabseil.js'));
+  const C = await import(J('core.constants.js'));
+  const FL = await import(J('data.fl.js'));
+  const DA = await import(J('data.anbauteile.js'));
+  // (1) Der Ankernachweis findet Ankerfuss und Seil auch mit dem Präfix des Tragwerks.
+  const dat = {
+    knoten: [{ name: 'MAST_M1_ANK', x: 0, y: 0, z: -1 }, { name: 'T2_ANKER_M1_F', x: 0, y: -4, z: -7.5 }],
+    staebe: [], auflager: [{ knoten: 'T2_ANKER_M1_F' }], kombinationen: [],
+  };
+  const lsg = { u: new Map([['G', 1]]), auflagerkraefte: () => [{ knoten: 'T2_ANKER_M1_F', ux: 0, uy: 0, uz: 0 }] };
+  let gesehen = null;
+  const r = SS.ankerAusStabwerk(dat, lsg, [{ key: 'G', art: 'charakteristisch', anteile: [] }], 'M1',
+    { typ: 'U12' }, { je: new Map() }, {}, (k) => { gesehen = k; return { A: { nachweis: { eta: 0.1 } } }; });
+  wahr('Ankerfuss «T2_ANKER_M1_F» im Blatt gefunden (vorher fiel er auf die Kontrollrechnung des gewählten Jochs)',
+       r?.quelle === 'stabwerk' && Boolean(gesehen));
+  wahr('Die Gruppe der Abfangjoche steht an einer Stelle (core.constants.js) und gilt Anzeige wie Stabwerk',
+       typeof C.abfangjocheUebereinander === 'function'
+       && readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8').includes('abfangjocheUebereinander(werte)')
+       && APP_QUELLE().includes('jochKeys: g.jochKeys, knick })) : null;'));
+  const SV = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
+  wahr('Verformung: die Fahrdrähte aller Abfangjoche zählen (mehrere Präfixe)',
+       SV.includes('[].concat(opt.praefix).some((p) => String(f.knoten).startsWith(p))'));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Kopfzeile «massgebend» und höchstbeanspruchte Stellen aus dem Stabwerk, über alle Joche',
+       UQ.includes('const fallSw = swH && !einzelLastfall && bt?.massgebend?.bez')
+       && UQ.includes('const keys = new Set(jochKeys.length > 1 ? jochKeys.map((j) => j.key) : [jochKey]);'));
+  // (2) Gleis.
+  const R3 = await import(J('render.3d.js'));
+  pruef('Normalspur: Schienenmitten 1435 + 65 mm', R3.SPUR_MITTE, 1.5, 1e-12, 'm');
+  wahr('Gleisachse Strich-Punkt', readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8')
+       .includes('c.setLineDash([12 * s, 3 * s, 2 * s, 3 * s]); c.globalAlpha = 0.3; c.lineWidth = 0.9 * s;\n    zug(0);'));
+  // (3) Eigene Einzelleiter.
+  const e = { id: `${FL.EIGEN_PRAEFIX}1`, name: 'Probe', d: 12, q: 8.4, A: 95, E: 108000, alpha: 17, H10: 3.7 };
+  const b = FL.eigenerLeiterBauteil(e);
+  pruef('Eigener Leiter: Wind EK1 = 0.9 · 1.0 · d', b.windQuer.EK1, 0.9 * 0.012, 1e-9, 'kN/m');
+  pruef('… Einheitswind = 1.0 · d', b.windQuer.EK0, 0.012, 1e-9, 'kN/m');
+  pruef('… Gewicht q / 1000', b.eigengewicht, 0.0084, 1e-12, 'kN/m');
+  wahr('Ohne Durchmesser oder Gewicht kein Bauteil', FL.eigenerLeiterBauteil({ ...e, d: 0 }) === null);
+  FL.setzeEigeneLeiter([e]);
+  try {
+    wahr('… steht als Baustein in der Lasttabelle', FL.flBauteile('drahtwerk').some((x) => x.id === e.id)
+         && FL.getFlBauteil(e.id).name === 'Probe' && FL.hatZustandsgleichung(FL.getFlBauteil(e.id)));
+    const LZ = await import(J('core.leiterzug.js'));
+    pruef('… bei 10 °C gibt der Kern seinen Montagezug', LZ.einzelleiterZug(b.zug, 40, 10), 3.7, 1e-9, 'kN');
+    const teil = { ...DA.neuesAnbauteil('leiter-rfl', 10), module: [{ bauteil: e.id, x: 0, y: 0, z: 0, anzahl: 1 }] };
+    const ex = DA.expandiereAnbauteile([teil], { ek: 1, R: 0, spannweite: 40 });
+    pruef('… im Anbauteil: Gewicht über die Spannweite', Math.abs(ex[0]?.kraefte?.G?.Fz ?? NaN),
+          0.0084 * 40, 1e-6, 'kN');
+  } finally { FL.setzeEigeneLeiter([]); }
+  wahr('Gelöscht wird ein eigener Leiter nur, wenn ihn kein Anbauteil trägt', UQ.includes('if (eigenerLeiterBenutzt(w(), id)) {'));
+  wahr('eigeneLeiter gilt dem Blatt', C.BLATT_FELDER.includes('eigeneLeiter'));
 }
 
 console.log('\n' + '='.repeat(104));

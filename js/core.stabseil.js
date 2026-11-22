@@ -201,14 +201,24 @@ export function seilAusfall(dat, lsg, seile, faelle) {
 export function ankerAusStabwerk(dat, lsg, faelle, mastId, meta, seilInfo, satz, auswertung) {
   if (!meta?.typ) return null;
   const kn = new Map((dat.knoten ?? []).map((k) => [k.name, k]));
-  const F = kn.get(`ANKER_${mastId}_F`), M = kn.get(`MAST_${mastId}_ANK`);
+  /*
+   * >>> AUCH MIT DEM PRÄFIX DES TRAGWERKS (22. November). <<< Auf einem Blatt
+   * mit mehreren Tragwerken heissen Ankerfuss, Seil und Seilkopf «T2_ANKER_M1_F»
+   * (der Mast nicht). Gefunden wurde nur der Name ohne Präfix - der Nachweis
+   * fiel still auf die Kontrollrechnung des GEWÄHLTEN Tragwerks zurück, und
+   * je nach angeklicktem Joch stand eine andere Zahl da (Weisung «die
+   * auswertung des tragwerks soll immer global erfolgen»).
+   */
+  const namen = new Set([...(dat.knoten ?? []).map((k) => k.name), ...(dat.staebe ?? []).map((s) => s.name)]);
+  const voll = (roh) => (namen.has(roh) ? roh
+    : [...namen].find((n) => /^[A-Za-z]+\d+_/.test(n) && n.replace(/^[A-Za-z]+\d+_/, '') === roh) ?? roh);
+  const F = kn.get(voll(`ANKER_${mastId}_F`)), M = kn.get(voll(`MAST_${mastId}_ANK`));
   if (!F || !M) return null;
   const d = [F.x - M.x, F.y - M.y, F.z - M.z];
   const L = Math.hypot(...d);
   const e = d.map((v) => v / L);
   // Ein Seil hat am Masten seinen Seilkopf (Link «nur Zug»).
-  const seil = (dat.staebe ?? []).some((s) => s.name === `SEILKOPF_${mastId}`)
-    ? `ANKER_${mastId}` : null;
+  const seil = namen.has(voll(`SEILKOPF_${mastId}`)) ? voll(`ANKER_${mastId}`) : null;
   /*
    * >>> DOPPELANKER (9. Oktober): DIE RESULTIERENDE BEIDER SEILE. <<<
    * «die grenzlast auf 2x 67kN belassen» - nachgewiesen wird der Betrag der
@@ -218,7 +228,7 @@ export function ankerAusStabwerk(dat, lsg, faelle, mastId, meta, seilInfo, satz,
    * bekommt in der Regel mehr als die Hälfte.
    */
   const stabVon = (n) => (dat.staebe ?? []).find((s) => s.name === n);
-  const zweites = seil && stabVon(`SEILKOPF_${mastId}_2`) ? `ANKER_${mastId}_2` : null;
+  const zweites = seil && stabVon(voll(`SEILKOPF_${mastId}_2`)) ? voll(`ANKER_${mastId}_2`) : null;
   const achse = (n) => {
     const st = stabVon(n), a = kn.get(st?.von), b = kn.get(st?.bis);
     if (!a || !b) return null;

@@ -24,6 +24,44 @@ import { einzelleiterZug, kettenwerkZug } from './core.leiterzug.js';
 
 let DB = null;
 
+/*
+ * >>> FREI DEFINIERTE EINZELLEITER (22. November). <<< Weisung: «unter der
+ * sidebar die auswahl der einzelleiter auswählbar machen und frei belegbare
+ * definieren können.» Auf Rückfrage: Wind aus dem DURCHMESSER mit
+ * Formbeiwert 1.0 (w = q_ref · 1.0 · d je EK, Einheitswind 1.0 kN/m² - wie
+ * die Leiter ohne Mappenwert seit dem 8. Oktober), gespeichert IM BLATT
+ * (`eigeneLeiter`, reist mit Projektdatei und Ablage). Ein eigener Leiter ist
+ * ein Baustein wie jeder andere der Lasttabelle (Rolle «drahtwerk»); sein
+ * Zug kommt aus dem Leiterzug-Kern (Zustandsgleichung ab dem Montagezug).
+ */
+export const EIGEN_PRAEFIX = 'drahtwerk-eigen-';
+let EIGENE = [];
+
+/** Ein Eintrag der Liste `eigeneLeiter` als Bauteil der Lasttabelle (oder null). */
+export function eigenerLeiterBauteil(e) {
+  const zahl = (v) => (Number.isFinite(Number(v)) ? Number(v) : NaN);
+  const d = zahl(e?.d) / 1000, q = zahl(e?.q);
+  if (!String(e?.id ?? '').startsWith(EIGEN_PRAEFIX) || !(d > 0) || !(q > 0)) return null;
+  const w = (qr) => Math.round(qr * 1.0 * d * 1e6) / 1e6;
+  return {
+    id: e.id, gruppe: 'drahtwerk', rolle: 'drahtwerk', einheit: 'kN/m',
+    name: String(e.name || e.id), eigen: true,
+    eigengewicht: q / 1000,
+    windQuer: { EK0: w(1.0), EK1: w(0.9), EK2: w(1.1), EK3: w(1.3) },
+    windLaengs: { EK0: null, EK1: null, EK2: null, EK3: null },
+    leiterzug: zahl(e.H10) > 0 ? zahl(e.H10) : 0,
+    bemerkung: `frei definiert · d ${zahl(e.d)} mm, c = 1.0`,
+    zug: { n: 1, q, alpha: zahl(e.alpha) * 1e-6, E: zahl(e.E), AK: zahl(e.A), H10: zahl(e.H10) },
+  };
+}
+
+/** Die eigenen Leiter des Blattes setzen (bei jeder Rechnung, app.js). */
+export function setzeEigeneLeiter(liste) {
+  EIGENE = (Array.isArray(liste) ? liste : []).map(eigenerLeiterBauteil).filter(Boolean);
+  return EIGENE;
+}
+export const eigeneLeiter = () => EIGENE;
+
 export function setzeFlDB(obj) {
   // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
   obj = ausTabellen(obj, 'fl_bauteile');
@@ -57,7 +95,7 @@ function db() {
 export const flDB = () => db();
 
 export function flBauteile(rolle = null) {
-  const alle = db().bauteile;
+  const alle = EIGENE.length ? [...db().bauteile, ...EIGENE] : db().bauteile;
   return rolle ? alle.filter((b) => b.rolle === rolle) : alle;
 }
 
@@ -215,7 +253,7 @@ export function flPaarung(ts, fd, anzahl = 1) {
 }
 
 export function getFlBauteil(id) {
-  const b = db().bauteile.find((x) => x.id === id);
+  const b = db().bauteile.find((x) => x.id === id) ?? EIGENE.find((x) => x.id === id);
   if (!b) throw new Error(`Unbekanntes Fahrleitungsbauteil: ${id}`);
   return b;
 }

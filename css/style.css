@@ -4466,3 +4466,21 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
 /* Legende des Dimensionierens in Worten (22. November). */
 .dm-legende b { font-weight: 500; color: var(--on2); margin-right: 2px; }
 .dm-legende + .dm-legende { margin-top: -6px; }
+
+/* Einzelleiter in der Seitenleiste (22. November): Auswahl, Montagezug, eigene Leiter. */
+.el-block { display: flex; flex-direction: column; gap: 6px; }
+.el-tab td:first-child { white-space: nowrap; }
+.el-tab .el-an { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.el-tab input[type="number"] { width: 58px; font: inherit; text-align: right; padding: 1px 3px; }
+.el-tab tr.el-eigen td:first-child span { color: var(--acc); }
+.el-eigene { display: flex; flex-direction: column; gap: 6px; }
+.el-karte { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 8px; padding: 8px 26px 8px 8px; border: 1px solid var(--ol); border-radius: var(--m-r1, 8px); }
+.el-karte .el-f { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--dim); }
+.el-karte .el-f em { font-style: normal; opacity: .8; }
+.el-karte .el-name { grid-column: 1 / -1; }
+.el-karte input { width: 100%; min-width: 0; font: inherit; font-size: 11px; color: var(--on); }
+.el-karte .el-weg { position: absolute; top: 4px; right: 4px; border: 0; background: none;
+  color: var(--dim); cursor: pointer; font-size: 14px; line-height: 1; }
+.el-karte .el-weg.el-gesperrt { color: var(--fail); }
+.el-block > [data-el-neu] { align-self: flex-start; }

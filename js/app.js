@@ -62,7 +62,7 @@ import { APP_NAME, verortung, dateiStamm, fangeAufMasskette,
          TRAGWERKSARTEN,
          mastZeichenplan,
          gewaehlterMast,
-         gitterLaengenFest, havarieKwAufsBlatt } from './core.constants.js';
+         gitterLaengenFest, havarieKwAufsBlatt, abfangjocheUebereinander } from './core.constants.js';
 import { passeTraegerAn, hatTraeger, achsfolge, befestigungsArt } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -86,7 +86,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haeng
          globaleVorlagenLaden, globaleVorlagen, globaleVorlagenAn, globaleVorlageAblegen,
          setzeGlobaleVorlagen } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
-         setzeFlDB, setzeLeiterzugKontext } from './data.fl.js';
+         setzeFlDB, setzeLeiterzugKontext, setzeEigeneLeiter } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd, abfangStuetzweite,
@@ -892,7 +892,8 @@ function kombiEtaStabwerk() {
   letzte.kombi.lastfaelle.forEach((l) => {
     try {
       const h = g.h.imFall?.(l.key);
-      const m = h ? ui.etaImFall(bauteileMitStabwerk(bt, h, { jochKey: g.jochKey, knick })) : null;
+      // Alle Abfangjoche am Mastpaar (22. November, «global»).
+      const m = h ? ui.etaImFall(bauteileMitStabwerk(bt, h, { jochKey: g.jochKey, jochKeys: g.jochKeys, knick })) : null;
       if (m) je[l.key] = m;
     } catch { /* der Fall bleibt beim Kern */ }
   });
@@ -1294,18 +1295,8 @@ function profilBlatt() {
   return liste;
 }
 
-/** Die Abfangjoche am Mastpaar des gewählten (mit ihm), von oben nach unten. */
-function abfangUebereinander(w) {
-  if (tragwerksart(w).key !== 'abfangjoch') return [];
-  const t0 = tragwerkeVon(w)[0];
-  const ids = new Set((mastenFuer(w, t0) ?? []).filter(Boolean).map((m) => m.id));
-  if (!ids.size) return [];
-  const liste = sichtbareTragwerke(w).filter((t) => tragwerksart(t).key === 'abfangjoch'
-    && (mastenFuer(w, t) ?? []).some((m) => m && ids.has(m.id)));
-  if (liste.length < 2) return [];
-  return liste.map((t) => ({ twId: t.id, name: tragwerkPos(w, t), H: anschlusshoehe(t) }))
-    .sort((a, b) => (Number(b.H) || 0) - (Number(a.H) || 0));
-}
+
+const abfangUebereinander = abfangjocheUebereinander;
 
 function rechneTragwerk(werte, joch) {
   const profOG = getProfil(werte.profOG);
@@ -1731,6 +1722,7 @@ function mitJochLasten(w) { return tragwerksart(w).key !== 'einzelmast'; }
 function neuRechnen(neuZeichnen = true) {
   // Der Leiterzug-Kern rechnet mit Spannweite, Systemen und Montagezügen des
   // Blattes (22. November) - vor allem anderen, alle Leser holen ihn dort.
+  setzeEigeneLeiter(werte.eigeneLeiter);
   setzeLeiterzugKontext({ L: Number(werte.flSpannweite) || 40, nfl: werte.flSystemNfl || null,
                           rfl: werte.flSystemRfl || null, montage: werte.leiterMontage ?? {},
                           ueber1000: String(werte.schneeKlasse ?? '1.25') === '1.25' });

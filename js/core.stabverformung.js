@@ -371,7 +371,8 @@ function fahrdrahtWeg(dat, lsg, anteile, f) {
  * ========================================================================= */
 function fahrdrahtNachweis(dat, lsg, nurW, grenz, opt = {}) {
   const liste = (dat.fahrdraehte ?? [])
-    .filter((f) => !opt.praefix || String(f.knoten).startsWith(opt.praefix));
+    // Mehrere Präfixe (Abfangjoche übereinander, 22. November): jedes zählt.
+    .filter((f) => !opt.praefix || [].concat(opt.praefix).some((p) => String(f.knoten).startsWith(p)));
   if (!liste.length) return null;
   // Die Höhe über dem tiefsten Mastfuss des Modells (sonst über z = 0).
   const zMast = dat.knoten.filter((k) => /(?:^|_)MAST_/.test(k.name)).map((k) => k.z);
@@ -552,7 +553,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
   // Der Tragausleger dreht sich im Grundriss (14. November).
   let ausl = null;
   if (opt.ausleger) {
-    const d = auslegerVerdrehung(dat, lsg, faelle, opt.praefix ?? '');
+    const d = auslegerVerdrehung(dat, lsg, faelle, [].concat(opt.praefix ?? '')[0] ?? '');
     if (d) {
       const gradGrenz = kern.grenzen?.verdrehungGrad ?? VERFORMUNG_GRENZEN.verdrehungGrad;
       const g = gradGrenz * Math.PI / 180;

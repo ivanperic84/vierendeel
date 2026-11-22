@@ -43,7 +43,7 @@ import { rueckhaltVon, rueckhaltMaxVon } from './data.anbauteile.js';
 import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL, begrenzterHalt } from './core.stabrueckhalt.js';
 import { schraubenGrenzeEinsetzen, SCHRAUBE_FALL, SCHRAUBE_SKALA } from './core.stabschraube.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
-         tragwerkeVon, tragwerksart } from './core.constants.js';
+         tragwerkeVon, tragwerksart, abfangjocheUebereinander } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
 import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
@@ -492,9 +492,20 @@ export function rechneStabwerk(app, aufruf = {}) {
   const alleFaelle = eingaben.flatMap((s) => lastfaelle(s))
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
   // Im Blatt die Fahrdrähte des aktiven Tragwerks (4. Oktober).
-  const verformung = verformungAusStabwerk(erg.verformung ?? null, dat, lsg,
+  /*
+   * >>> ABFANGJOCHE ÜBEREINANDER: GLOBAL (22. November). <<< «die auswertung
+   * des tragwerks soll immer global erfolgen … sonst läuft man gefahr wenn
+   * man das ungünstigere joch angewählt hat, zu einer unterdimensionierung
+   * kommt.» Die Masten gehören allen Abfangjochen am Mastpaar: die Fahrdrähte
+   * ALLER zählen, und das Jochauflager als Messstelle ist das oberste - nicht
+   * das des gewählten.
+   */
+  const gruppe = abfangjocheUebereinander(werte);
+  const kernV = gruppe.length > 1 && erg.verformung ? gzgGlobal(erg.verformung, gruppe, satz) : erg.verformung;
+  const verformung = verformungAusStabwerk(kernV ?? null, dat, lsg,
     alleFaelle, erg.modell?.federn?.namen ?? {},
-    { praefix: eingaben.length > 1 ? `${satz.twId ?? 'T1'}_` : '',
+    { praefix: eingaben.length > 1
+        ? (gruppe.length > 1 ? gruppe.map((j) => `${j.twId}_`) : `${satz.twId ?? 'T1'}_`) : '',
       // Verdrehung des Tragauslegers um die Mastachse (14. November).
       ausleger: Boolean(bau?.tragausleger) });
 
@@ -880,6 +891,25 @@ export async function buegelGrenzfeder(app, melde = () => {}) {
   const p = 10 ** (Math.floor(Math.log10(roh)) - 1);
   const K = Math.floor(roh / p) * p;
   return { K, F: Flo ?? lauf(K), Fgrenz, gurte, schritte, Fstarr };
+}
+
+/**
+ * Messstelle «Jochauflager» auf die oberste Anschlusshöhe der Abfangjoche am
+ * Mastpaar heben (22. November). Die Höhen zählen am selben Masten vom selben
+ * Fuss; der Unterschied zur Höhe des gewählten wird aufgeschlagen.
+ */
+function gzgGlobal(kern, gruppe, satz) {
+  const Hs = gruppe.map((j) => Number(j.H) || 0);
+  const dz = Math.max(...Hs) - (Number(satz.mastH) || 0);
+  if (!(dz > 1e-9)) return kern;
+  const neu = { ...kern };
+  ['A', 'B'].forEach((e) => {
+    const k = kern[e];
+    if (k?.stelle?.was === 'Jochauflager') {
+      neu[e] = { ...k, stelle: { ...k.stelle, z: k.stelle.z + dz, global: true } };
+    }
+  });
+  return neu;
 }
 
 export function ankerFuerMast(sw, id, meta, satz) {

@@ -2449,6 +2449,9 @@ function blechLiegend(f) {
 }
 
 /** Stabname des Stabwerks in Worten, für den Wert am Zeiger (19. November). */
+/** Normalspur: 1435 mm Spurweite + 65 mm Schienenkopf - Abstand der Schienenmitten [m]. */
+export const SPUR_MITTE = 1.435 + 0.065;
+
 /** Zwei Hex-Farben mischen, t = 0 … 1. */
 function farbMisch(a, b, t) {
   const h = (x) => [1, 3, 5].map((i) => parseInt(String(x).slice(i, i + 2), 16) || 0);
@@ -5838,9 +5841,16 @@ export class Modellansicht {
     };
     c.save();
     // Nur zur Orientierung (22. November, «mach die linien transparenter»).
+    /*
+     * >>> NORMALSPUR, ACHSE STRICH-PUNKT (22. November). <<< «bei der
+     * gleisdarstellung eine achslinie verwenden strich punkt und beim abstand
+     * der beiden gleise die normalspur verwenden für den abstand.» Die
+     * Schienen stehen auf ihrer Kopfmitte: 1435 mm Spurweite (zwischen den
+     * Innenkanten) + 65 mm Schienenkopf = 1.500 m (`SPUR_MITTE`).
+     */
     c.strokeStyle = t.acc; c.globalAlpha = 0.3; c.lineWidth = 1.2 * s;
-    zug(-0.7175); zug(0.7175);
-    c.setLineDash([6 * s, 4 * s]); c.globalAlpha = 0.25; c.lineWidth = 0.9 * s;
+    zug(-SPUR_MITTE / 2); zug(SPUR_MITTE / 2);
+    c.setLineDash([12 * s, 3 * s, 2 * s, 3 * s]); c.globalAlpha = 0.3; c.lineWidth = 0.9 * s;
     zug(0);
     c.setLineDash([]);
     // Die Anschrift am Ende, das im Bild links liegt (22. November, «nimm

@@ -46,7 +46,7 @@ import { bestandAufsBlatt } from './core.bestand.js';
 import { ausTabellen } from './data.tabellen.js';
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
-         flPaarung, abfangkraft } from './data.fl.js';
+         flPaarung, abfangkraft, setzeEigeneLeiter } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
@@ -1257,6 +1257,9 @@ export function psiAnheben(w) {
 
 export function standAnheben(w) {
   if (!w || typeof w !== 'object') return w;
+  // Die eigenen Leiter des Blattes zuerst bekannt machen (22. November):
+  // Anbauteile, die sie tragen, werden beim Anheben schon gelesen.
+  if (Array.isArray(w.eigeneLeiter)) setzeEigeneLeiter(w.eigeneLeiter);
   w = psiAnheben(w);
   /*
    * Die vorhandenen Lastblöcke ZUERST nach der rechten Hand: danach baut

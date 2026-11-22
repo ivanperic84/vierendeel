@@ -2038,8 +2038,17 @@ export const FELDER = [
   { key: 'flSystemRfl', gruppe: 'trasse', typ: 'auswahl', label: 'System R-FL', standard: '',
     optionenAus: () => [{ wert: '', text: `Vorgabe · ${flSystem('rfl')?.name ?? '–'}` },
       ...flSysteme('rfl').map((s) => ({ wert: s.id, text: s.name }))],
-    hinweis: 'Tragseil und Fahrdraht nachgespannt - feste Züge. Gilt allen R-FL-Kettenwerken des Projekts. '
-           + 'Einzelleiter und ihr Montagezug: Grundwerte oben im 3D → «Einzelleiter …».' },
+    hinweis: 'Tragseil und Fahrdraht nachgespannt - feste Züge. Gilt allen R-FL-Kettenwerken des Projekts.' },
+  /*
+   * >>> EINZELLEITER IN DER SEITENLEISTE (22. November). <<< «unter der
+   * sidebar die auswahl der einzelleiter auswählbar machen und frei
+   * belegbare definieren können.» Je Leiter «angeboten», Montagezug von Hand
+   * und die Züge; darunter die eigenen Leiter des Blattes (data.fl.js).
+   */
+  { key: 'eigeneLeiter', gruppe: 'trasse', typ: 'einzelleiter', label: 'Einzelleiter', standard: [],
+    hinweis: 'Zustandsgleichung ab dem Montagezug bei 10 °C über die Spannweite L_FL. Ohne Häkchen '
+           + 'steht der Leiter nicht in der Bausteinwahl. Eigene Leiter: Wind aus dem Durchmesser mit '
+           + 'Formbeiwert 1.0, Gewicht q, Zug aus E, A, α_T und Montagezug; sie gelten dem ganzen Blatt.' },
   { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
     sym: 'R', einheit: 'm', standard: 0, schritt: 50,
     notiz: (w) => winkelNotiz(w),
