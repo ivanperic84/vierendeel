@@ -43692,6 +43692,23 @@ titel('318  Bewegung wie Android: Welle, Reiter gleiten, Kacheln gestaffelt, Dia
        && css.includes('@keyframes waechst') && css.includes('.welle, .panel-koerper.gleitet-r'));
 }
 
+// ===========================================================================
+titel('319  Havarie in der Achse auch an Teilen am Masten; Leisten fahren geschmeidig');
+{
+  const XQ = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Teile am Masten (Abfangjoch, Tragausleger) folgen dem Schalter «in der Achse»',
+       XQ.includes('satz.havarieInAchse === true ? [0, 0, 0]'));
+  wahr('Leistenfahrt: Ende nur am eigenen Übergang, Schiene erst am Ende, Inhalt mit fester Breite',
+       LQ.includes("e.propertyName !== 'grid-template-columns'") && LQ.includes('klasseSpaet: true')
+       && css.includes('.ws.animiert .panel > :not(.schiene) { min-width: var(--inhalt-breite, auto); }'));
+  wahr('3D zeichnet während der Fahrt nicht jedes Bild neu',
+       AQ.includes("if (ui.el('ws')?.classList.contains('animiert')) return;"));
+  wahr('Klappabschnitte öffnen weich nur beim Klick', css.includes('details.oeffnet[open] > :not(summary)'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

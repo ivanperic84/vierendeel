@@ -4417,3 +4417,21 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 /* Pillen der eingeklappten Leiste sind anklickbar (22. November). */
 .schiene-nw [data-pille] { cursor: pointer; transition: background var(--t-schnell), border-color var(--t-schnell); }
 .schiene-nw [data-pille]:hover { background: var(--s3); border-color: var(--acc); }
+
+/* Geschmeidig ein- und ausfahren (22. November). Der Inhalt behält während
+   der Fahrt seine Breite und blendet; Klappabschnitte öffnen weich. */
+:root { --t-fahrt: .42s cubic-bezier(.2, .8, .2, 1); }
+.ws.animiert { transition: grid-template-columns var(--t-fahrt); }
+.ws.animiert .panel > :not(.schiene) { min-width: var(--inhalt-breite, auto); }
+.panel.blendet-aus > :not(.schiene) { animation: inhalt-aus .22s ease-out forwards; }
+.panel.blendet-ein > :not(.schiene) { animation: inhalt-ein .36s ease-out .06s both; }
+@keyframes inhalt-aus { to { opacity: 0; transform: translateX(var(--fahrt-dx, -8px)); } }
+@keyframes inhalt-ein { from { opacity: 0; transform: translateX(var(--fahrt-dx, -8px)); } }
+.panel-rechts { --fahrt-dx: 8px; }
+.ws.zu-links .panel-links > .schiene, .ws.zu-rechts .panel-rechts > .schiene { animation: inhalt-ein .25s ease-out both; }
+details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve) both; }
+@keyframes klapp-auf { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ws.animiert { transition-duration: 0s; }
+  .panel.blendet-aus > *, .panel.blendet-ein > *, details[open] > * { animation: none !important; }
+}

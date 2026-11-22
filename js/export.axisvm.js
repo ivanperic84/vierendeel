@@ -1651,7 +1651,12 @@ function mastTeileEinsetzen(bau, satz, opt = {}) {
     expandiereAnbauteile([{ ...a, aktiv: true }], eo).forEach((tp) => {
       const r0 = [(Number(tp.x) || 0) - (Number(a.x) || 0), Number(tp.y) || 0, Number(tp.z) || 0];
       // Havarie am Ausleger in der Mastachse (20. November, `havarieX`).
-      const r = Number.isFinite(tp.havarieX) ? [tp.havarieX - (Number(a.x) || 0), r0[1], r0[2]] : r0;
+      // «Last aufs Tragwerk» (`havarieInAchse`) gilt auch hier (22. November,
+      // «checke diese einstellung»: an Teilen am Masten von Abfangjoch und
+      // Tragausleger blieb der Hebel stehen) - die Havarie greift dann am
+      // Anschluss auf der Mastachse an.
+      const r = satz.havarieInAchse === true ? [0, 0, 0]
+        : Number.isFinite(tp.havarieX) ? [tp.havarieX - (Number(a.x) || 0), r0[1], r0[2]] : r0;
       const kraft = (fall, F) => [0, 1, 2].forEach((j) => {
         if (!F[j]) return;
         const Fj = [0, 0, 0]; Fj[j] = F[j];

@@ -1305,15 +1305,28 @@ export function baueLayout(app) {
   // Beim Start eingeklappt: aufgeklappt wird auf die Vorgabebreite, nicht auf die Schiene.
   const offen = { links: links > SCHIENE ? links : wunschVon('links'), rechts: rechts > SCHIENE ? rechts : wunschVon('rechts') };
 
-  const setzeSeite = (seite, v) => {
+  const klasseSetzen = (seite, zu) => {
+    ws.classList.toggle('zu-' + seite, zu);
+    ui.el('split-' + seite).classList.toggle('zu', zu);
+    if (zu) zeichneSchienen(app);
+  };
+  /*
+   * >>> GESCHMEIDIG EIN- UND AUSFAHREN (22. November). <<<
+   * Weisung: «das ein und ausfahren der bereiche und insbesondere der
+   * sidebar geschmeidiger gestalten.» Gemessen ruckelte es, weil der Inhalt
+   * beim Einklappen sofort der Schiene wich und während der Fahrt jedes
+   * Bild neu umbrach. Jetzt behält der Inhalt seine Breite (er wird nur
+   * abgedeckt), blendet aus bzw. ein, und die Schiene kommt erst am Ende
+   * der Fahrt (`klasseSpaet`).
+   */
+  const setzeSeite = (seite, v, { klasseSpaet = false } = {}) => {
     if (seite === 'links') { links = v; setze('--sp-links', v); }
     else { rechts = v; setze('--sp-rechts', v); }
     const zu = v <= SCHIENE + 8;
     app.zuSeite[seite] = zu;
-    ws.classList.toggle('zu-' + seite, zu);
-    ui.el('split-' + seite).classList.toggle('zu', zu);
-    if (zu) zeichneSchienen(app);
-    app.ansicht?.passeGroesseAn();
+    if (!klasseSpaet) klasseSetzen(seite, zu);
+    // Während der Fahrt nicht neu zeichnen - das Ende tut es einmal.
+    if (!ws.classList.contains('animiert')) app.ansicht?.passeGroesseAn();
     // Die Werkzeugleiste im 3D klappt je nach Breite des Modellfensters (14. November).
     if (app.ansicht?.gruppen) zeichneModellWerkzeuge(app);
   };
@@ -1327,11 +1340,38 @@ export function baueLayout(app) {
 
   // Beim KLICKEN weich fahren, beim ZIEHEN nicht: eine Übergangszeit am
   // Mauszeiger fühlt sich wie Verzögerung an, nicht wie Führung.
-  const weich = (fn) => {
+  const weich = (fn, { seite = null, zu = false, danach = null } = {}) => {
+    const panel = seite ? ws.querySelector(seite === 'links' ? '.panel-links' : '.panel-rechts') : null;
+    if (panel) {
+      // Der Inhalt fährt mit seiner offenen Breite, statt jedes Bild umzubrechen.
+      const breit = zu ? panel.getBoundingClientRect().width : (offen[seite] || wunschVon(seite));
+      panel.style.setProperty('--inhalt-breite', `${Math.round(breit)}px`);
+      panel.classList.remove('blendet-ein', 'blendet-aus');
+      void panel.offsetWidth;
+      panel.classList.add(zu ? 'blendet-aus' : 'blendet-ein');
+    }
+    // Die Zeichenfläche behält ihr Bild (und ihre Mitte) bis zum Ende der Fahrt.
+    const cv = ui.el('canvas3d');
+    if (cv) {
+      const w = Math.round(cv.getBoundingClientRect().width);
+      cv.style.width = `${w}px`;
+      cv.style.marginLeft = `calc(50% - ${w / 2}px)`;
+    }
     ws.classList.add('animiert');
     fn();
-    const fertig = () => {
+    // Ausfahren: die Zielbreite steht erst nach `fn` fest.
+    if (panel && !zu) panel.style.setProperty('--inhalt-breite', `${seite === 'links' ? links : rechts}px`);
+    let einmal = false;
+    const fertig = (e) => {
+      // Nur das Ende DER Fahrt zählt - ein Übergang im Inhalt (Knopf,
+      // Hover) meldet sich ebenfalls hier und beendete sie zu früh.
+      if (e && (e.target !== ws || e.propertyName !== 'grid-template-columns')) return;
+      if (einmal) return;
+      einmal = true;
+      danach?.();
+      panel?.classList.remove('blendet-ein', 'blendet-aus');
       ws.classList.remove('animiert');
+      if (cv) { cv.style.width = ''; cv.style.marginLeft = ''; }
       ws.removeEventListener('transitionend', fertig);
       app.ansicht?.passeGroesseAn();
       // Steht die Fahrt, darf die Ansicht nachgeben: sonst bleibt das Joch
@@ -1340,25 +1380,29 @@ export function baueLayout(app) {
       app.ansicht?.passeEinWennAbgeschnitten();
     };
     ws.addEventListener('transitionend', fertig);
-    setTimeout(fertig, 400);           // falls der Übergang ausbleibt
+    setTimeout(() => fertig(), 520);           // falls der Übergang ausbleibt
   };
 
   const umschalten = (seite) => {
     const jetzt = seite === 'links' ? links : rechts;
-    weich(() => {
-      if (jetzt <= SCHIENE + 8) {
+    if (jetzt <= SCHIENE + 8) {
+      weich(() => {
         vonHandZu[seite] = false;
         const v = verteile();
         const ziel = seite === 'links' ? v.l : v.r;
         setzeSeite(seite, ziel > SCHIENE ? ziel : (offen[seite] || wunschVon(seite)));
-      } else { offen[seite] = jetzt; vonHandZu[seite] = true; setzeSeite(seite, SCHIENE); }
-    });
+      }, { seite, zu: false });
+    } else {
+      offen[seite] = jetzt; vonHandZu[seite] = true;
+      weich(() => setzeSeite(seite, SCHIENE, { klasseSpaet: true }),
+        { seite, zu: true, danach: () => klasseSetzen(seite, true) });
+    }
   };
   // Von der Schiene aus wieder ausfahren, und zwar auf einen bestimmten Reiter.
   ausklappen = (seite) => {
     if (!app.zuSeite[seite]) return;
     vonHandZu[seite] = false;
-    weich(() => setzeSeite(seite, offen[seite] || wunschVon(seite)));
+    weich(() => setzeSeite(seite, offen[seite] || wunschVon(seite)), { seite, zu: false });
   };
 
   const zieher = (id, seite) => {

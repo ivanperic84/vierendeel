@@ -8314,7 +8314,16 @@ export async function start() {
   verdrahteAblegen();
   neuRechnen();
   requestAnimationFrame(() => ansicht.passeGroesseAn());
-  new ResizeObserver(() => ansicht.passeGroesseAn()).observe(ui.el('viewer'));
+  /*
+   * Während eine Leiste fährt, zeichnet das 3D NICHT jedes Bild neu (22.
+   * November, «geschmeidiger»): gemessen 150-190 ms je Bild, die Fahrt lief
+   * mit 5-6 Bildern je Sekunde. Das Bild bleibt stehen (object-fit), das Ende
+   * der Fahrt passt die Grösse einmal an (`weich` in app.layout.js).
+   */
+  new ResizeObserver(() => {
+    if (ui.el('ws')?.classList.contains('animiert')) return;
+    ansicht.passeGroesseAn();
+  }).observe(ui.el('viewer'));
 
   // Die hinterlegte Zeichnung des Arbeitsstands (10. Oktober: sie ging beim
   // Neuladen verloren). Vor dem Startwunsch - «neu» soll sie wieder leeren.

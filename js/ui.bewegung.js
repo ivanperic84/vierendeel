@@ -62,6 +62,20 @@ function reiter(e) {
   }, 0);
 }
 
+/*
+ * >>> KLAPPABSCHNITTE OEFFNEN WEICH (22. November). <<< Nur beim Klick auf
+ * den Kopf - ein Neuaufbau der Maske (bei jeder Eingabe) soll nicht jedes
+ * Mal einblenden.
+ */
+function klappen(e) {
+  const s = e.target.closest?.('details > summary');
+  if (!s || still()) return;
+  const d = s.parentElement;
+  if (d.open) return;                 // schliesst - ohne Bewegung
+  d.classList.add('oeffnet');
+  setTimeout(() => d.classList.remove('oeffnet'), 400);
+}
+
 /** Ein Dialog wächst aus dem zuletzt angetippten Knopf heraus. */
 export function dialogAusKnopf(dlg) {
   if (!dlg || still() || !zuletzt) return;
@@ -79,4 +93,5 @@ export function bewegungStarten() {
   an = true;
   document.addEventListener('pointerdown', welle, true);
   document.addEventListener('click', reiter, true);
+  document.addEventListener('click', klappen, true);
 }

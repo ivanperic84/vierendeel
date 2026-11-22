@@ -16,6 +16,13 @@
  */
 export const AENDERUNGEN = [
   {
+    datum: '2026-11-22',
+    punkte: [
+      { text: 'Die Seitenleisten fahren geschmeidig ein und aus; das 3D-Bild bleibt während der Fahrt stehen. Klappabschnitte öffnen weich.' },
+      { text: 'Havarie «Last aufs Tragwerk übertragen (in der Achse)» gilt jetzt auch für Teile am Masten von Abfangjoch und Tragausleger.', rechnung: true },
+    ],
+  },
+  {
     datum: '2026-11-21',
     punkte: [
       { text: 'Ein Klick auf die Grundwerte oben im 3D fährt die Lastfall-Insel mit Wind, Reduktion, Spannweite, Radius und Schnee aus; ein zweiter Klick fährt sie wieder ein.' },
