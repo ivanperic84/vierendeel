@@ -508,7 +508,9 @@ export function zeichneModellWerkzeuge(app) {
        */
       // Das Abspielen steht nur in der Insel (21. November: «die
       // playfunktion hier unten weglassen»).
-      modiFuer(app.nachweisart).map((mo) =>
+      // Positionen zuletzt (22. November, «unter den resultat layern die
+      // position als letzte nehmen»), nach K und der Überhöhung.
+      modiFuer(app.nachweisart).filter((mo) => mo.key !== 'positionen').map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3), mo.label, mo.key === app.ansicht.modus, !gR)).join('') +
       /*
        * >>> KNICKFIGUR IN DER LEISTE (21. November). <<< «was noch umständlich
@@ -518,6 +520,18 @@ export function zeichneModellWerkzeuge(app) {
        * wenn er zum Stand fehlt) → schwingt → aus.
        */
       knickKnopf(app, gR, text)
+      /*
+       * >>> ÜBERHÖHUNG IN DREI STUFEN (22. November). <<< «einen button
+       * anfügen für den grad der überhöhung, die jetzige ist die stufe 1 und
+       * noch diese jeweils um 30% erhöehn für die nächsten zwei.» Ein Klick
+       * schaltet 1 → 2 → 3 → 1 (× 1.00 / 1.30 / 1.69), für die verformte
+       * Figur und die Knickfigur.
+       */
+      + text('wz-r-ueber', `Ü${(app.ueberStufe ?? 0) + 1}`,
+        `Überhöhung der Figur: Stufe ${(app.ueberStufe ?? 0) + 1} von 3 (× ${(1.3 ** (app.ueberStufe ?? 0)).toFixed(2)}) - Klick: nächste Stufe`,
+        (app.ueberStufe ?? 0) > 0, !gR)
+      + modiFuer(app.nachweisart).filter((mo) => mo.key === 'positionen').map((mo) =>
+        text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3), mo.label, mo.key === app.ansicht.modus, !gR)).join('')
       /*
        * >>> NUR AUFFÄLLIGE TEILE (19. November). <<< Weisung: «Nur
        * auffällige Teile schieber für die darstellung im modell bei den
@@ -603,6 +617,8 @@ export function zeichneModellWerkzeuge(app) {
       app.ansicht.explosionFahren(ziel, 650, (v) => { ef.value = Math.round(v * 100); });
     };
   }
+  const ue = ui.el('wz-r-ueber');
+  if (ue) ue.onclick = () => { app.ueberStufe = ((app.ueberStufe ?? 0) + 1) % 3; app.figurNeu?.(); zeichneModellWerkzeuge(app); };
   const kn = ui.el('wz-r-knick');
   if (kn) {
     kn.onclick = () => {

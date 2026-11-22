@@ -217,6 +217,9 @@ const app = {
   knickInfo: () => ({ gilt: knickGilt(), zeigen: knickZeigen, stabwerk: !!stabwerkGilt() }),
   knickRechnen: () => knickRechnen(),
   knickFigurSchalten: () => knickFigurSchalten(),
+  get ueberStufe() { return ueberStufe; },
+  set ueberStufe(v) { ueberStufe = v; },
+  figurNeu: () => { verformtMerk = null; if (letzte?.anzeige) aktualisiereModell(letzte.anzeige); else neuRechnen(); },
   inselSteuerung: () => inselSteuerung(),
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
@@ -2974,6 +2977,9 @@ function lastenNachFall(szene) {
  * Walzprofil-Einzelmasten aus dem Ersatzbalken und widersprach der Figur.
  */
 let verformtMerk = null;
+/** Stufe der Überhöhung 0, 1, 2 (× 1.3 je Stufe; 22. November). */
+let ueberStufe = 0;
+const ueberFaktor = () => 1.3 ** ueberStufe;
 /**
  * Rechnet das Stabwerk (Verfahren «Stabwerk» und ein Stabmodell vorhanden)?
  * Dann gibt es keinen Nachweisschnitt des Ersatzbalkens: Schnittkräfte am
@@ -3072,7 +3078,7 @@ function verformtSetzen(szene = null) {
    */
   const kn = knickGilt();
   if (kn && knickZeigen && kn.form) {
-    const merkK = `knick|${kn.kennung}|${kn.key}`;
+    const merkK = `knick|${kn.kennung}|${kn.key}|${ueberStufe}`;
     if (verformtMerk?.merk === merkK) { ansicht.verformt = verformtMerk.wert; return; }
     const fig = verformteFigur(roh.dat, { ...roh.lsg, u: new Map([['KNICK', kn.form]]) },
                                [{ lastfall: 'KNICK', faktor: 1 }]);
@@ -3082,7 +3088,7 @@ function verformtSetzen(szene = null) {
     const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
     const groesse = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
     const wert = fig.max > 1e-12 ? {
-      linien, faktor: (0.08 * groesse) / fig.max, fahrdraehte: [], spitzen: [], immer: true,
+      linien, faktor: ((0.08 * groesse) / fig.max) * ueberFaktor(), fahrdraehte: [], spitzen: [], immer: true,
       text: [`Knickfigur · α_cr = ${kn.alpha.toFixed(2)}`, kn.bez,
              'erste Eigenform, Massstab frei (normiert)'],
     } : null;
@@ -3095,7 +3101,7 @@ function verformtSetzen(szene = null) {
   const key = lf?.key;
   if (!lf) { ansicht.verformt = null; return; }
   const fFig = wegeFaktor(g);
-  const merk = `${g.h.kennung}|${key}|${fFig}|${werte.twId}|${(szene?.marken ?? []).filter((mk) => mk.fahrdraht).length}`;
+  const merk = `${g.h.kennung}|${key}|${fFig}|${werte.twId}|${(szene?.marken ?? []).filter((mk) => mk.fahrdraht).length}|${ueberStufe}`;
   if (verformtMerk?.merk === merk) { ansicht.verformt = verformtMerk.wert; return; }
   // Mit dem Faktor des Nachweises (ψ bei «umhüllend», 4. Oktober).
   const fig = verformteFigur(roh.dat, roh.lsg, wegeAnteile(g, lf));
@@ -3178,6 +3184,8 @@ function verformtSetzen(szene = null) {
     const roh6 = (0.08 * groesse) / figMax;
     const p10 = 10 ** Math.floor(Math.log10(roh6));
     faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
+    // Stufe 2 und 3: je 30 % mehr (22. November).
+    faktor *= ueberFaktor();
   }
   const wert = faktor > 0 ? {
     linien, faktor, fahrdraehte, spitzen,

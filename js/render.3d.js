@@ -2338,6 +2338,10 @@ const ACHSENKREUZ_HOCH = 92;
 
 const HAUPTSCHALTER = {
   profil: 'modell', blech: 'modell', anbau: 'modell', achse: 'modell',
+  // Seit dem 17. November getrennt - ohne Eintrag hier liess «Modell aus»
+  // die Lasten des Jochs stehen (22. November, «hier wird immernoch die last
+  // angezeigt obwohl da modell ausgeblendet ist»).
+  blechSteh: 'modell', blechLieg: 'modell',
   auflager: 'modell', mast: 'modell', masse: 'modell', raster: 'modell',
   // Die eingefuegte Zeichnung und ihre Masskette haengen an einer eigenen
   // Gruppe: sie kommen von aussen, nicht aus der Rechnung. Vorher stand die

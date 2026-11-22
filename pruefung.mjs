@@ -43758,6 +43758,22 @@ titel('321  Übersicht ruhig, Lastfall aus der Insel wie von Hand, Trasse links 
        && DQ.includes("box.querySelector('.dialog-kopf [data-zu]')?.click();"));
 }
 
+// ===========================================================================
+titel('322  Lasten gehen mit «Modell aus»; Positionen zuletzt; Überhöhung in drei Stufen');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Getrennte Blechebenen hängen am Hauptschalter «Modell» (sonst blieben die Jochlasten stehen)',
+       RQ.includes("blechSteh: 'modell', blechLieg: 'modell',"));
+  wahr('Resultate: Positionen nach K und der Überhöhung',
+       LQ.indexOf("text('wz-r-ueber'") > LQ.indexOf('knickKnopf(app, gR, text)\n')
+       && LQ.indexOf("mo.key === 'positionen').map") > LQ.indexOf("text('wz-r-ueber'"));
+  wahr('Überhöhung: Stufe 1 bis 3, je 30 % mehr, für Figur und Knickfigur',
+       AQ.includes('const ueberFaktor = () => 1.3 ** ueberStufe;') && AQ.includes('faktor *= ueberFaktor();')
+       && AQ.includes('((0.08 * groesse) / fig.max) * ueberFaktor()'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
