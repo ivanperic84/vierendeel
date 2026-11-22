@@ -1936,13 +1936,20 @@ export function achseZumPunkt(kette, t) {
  * hängt, wandert mit (`arm`, app.js). Der Punkt am Ende des Arms (das
  * Drahtwerk) bleibt in x ziehbar, wie seit dem 1. Oktober.
  */
-function armAmTraeger(kette, t) {
+function armAmTraeger(kette, t, { amMast = false } = {}) {
   const p = (kette?.belegung ?? []).find((b) => b.teil === t)?.punkt;
   const gl = p && (kette.glieder ?? []).find((g) => g.bis === p);
   if (!gl) return false;
   const waag = Math.abs(gl.bis.z - gl.von.z) < 1e-6
     && Math.hypot(gl.bis.x - gl.von.x, gl.bis.y - gl.von.y) > 1e-6;
   const vor = (kette.glieder ?? []).find((g) => g.bis === gl.von);
+  /*
+   * AM MASTEN IST DER MAST DER TRÄGER (22. November, «dies bei der montage an
+   * masten oder an hängestützen»): ein Aufbau (Ausleger, Konsole, Traverse),
+   * dessen Glied waagrecht an der Wurzel auf der Mastachse beginnt, zieht in
+   * der Höhe.
+   */
+  if (amMast && waag && !vor && t?.rolle === 'aufbau') return true;
   const senk = vor && Math.abs(vor.bis.z - vor.von.z) > 1e-6
     && Math.hypot(vor.bis.x - vor.von.x, vor.bis.y - vor.von.y) < 1e-6;
   return Boolean(waag && senk);
@@ -2016,7 +2023,7 @@ function zeichneMastteil(ctx, a, k, ort) {
     marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey, modul: t.modulIndex, leiter: t.rolle === 'drahtwerk', leiterN: leiterAnzahl(t), abzug: nurAbzug(t), abfang: t.abfangArt ?? null, abfangVz: t.abfangVz ?? 1,
                   text: t.rolle === 'drahtwerk' ? (nurAbzug(t) ? 'Abzug' : 'Leiter') : '',
                   fahrdraht: istFahrdraht(t), amMast: true,
-                  titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
+                  titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t, { amMast: true }) });
     teilEndeMarke(marken, a, t, pAn, teilKey);
     teilEndeKoerper(flaechen, a, t, pAn, opt);
     Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
@@ -2149,9 +2156,9 @@ function teilEndeMarke(marken, a, t, pAn, teilKey) {
                 zieh: { achse: ax, modul: t.modulIndex, last: null, ende: true } });
 }
 
-export function ziehAngabe(kette, t) {
+export function ziehAngabe(kette, t, opt = {}) {
   if (t?.art !== 'modul' && t?.art !== 'last') return null;
-  if (t.art === 'modul' && armAmTraeger(kette, t)) {
+  if (t.art === 'modul' && armAmTraeger(kette, t, opt)) {
     return { achse: 'z', arm: true, modul: t.modulIndex ?? null, last: null };
   }
   const achse = achseZumPunkt(kette, t);

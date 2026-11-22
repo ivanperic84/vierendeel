@@ -485,20 +485,16 @@ export function kontextMast(app, mastId, twId) {
    * Traeger gibt. Beim Einzelmasten waere «Masten ausschalten» der Auftrag,
    * das Tragwerk abzuschaffen.
    */
-  // Nicht am Tragausleger - er hängt immer am Masten (30. September).
-  if (t && tragwerksart(t).traeger && tragwerksart(t).key !== 'tragausleger') {
-    p.push('-');
-    p.push({ text: `Masten von ${tragwerkPos(app.werte, t)} (${tragwerkName(t, app.werte)}) `
-      + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
-      tun: () => app.aendern('tragwerkMasten', t.id) });
-  }
-  p.push('-', ...neuesAnMast(app, m));
   /*
-   * DIE TRAGWERKE DIESES MASTEN (30. September): «das kontextmenue beim 3d
-   * mit den optionen aus dem tragwerk (sidebar) ergänzen». Je Tragwerk,
-   * das der Mast trägt, dessen Einträge unter seinem Namen.
+   * >>> NUR DER MAST (22. November). <<< Weisung, mit Bild des Menüs am
+   * Anker: «diese kontextmenue auswahl reduzieren, so dass es übersichtlicher
+   * wird. primär sind die bearbeitenfunktionen des angeklicket bauteils.
+   * wenn man in die leere fläche klickt dann algemeiner halten zum beispiel
+   * neuer mast / Joch etc.» Neue Tragwerke, die Masten eines Tragwerks und
+   * seine Einträge stehen nicht mehr hier: das Tragwerk per Klick auf das
+   * Tragwerk, Neues per Klick ins Leere.
    */
-  traegt.forEach((tid) => p.push('-', ...tragwerkAbschnitt(app, tid)));
+  void t; void neuesAnMast;
   return p;
 }
 
@@ -531,9 +527,7 @@ export function kontextAnker(app, mastId, twId) {
       app.werte = { ...app.werte, mastAktiv: mastId };
       app.neuRechnen();
     } },
-    '-',
-    { kopf: name },
-    ...kontextMast(app, mastId, twId),
+    // Nur der Anker (22. November) - der Mast hat sein eigenes Menü.
   ];
 }
 
@@ -1023,14 +1017,9 @@ export function kontextGrund(app, k) {
         const x0 = lageVon(t), L = Number(t.L) || 0;
         return k.welt.x >= x0 - 0.3 && k.welt.x <= x0 + L + 0.3;
       });
-    if (imBereich.length) {
-      const aktivDa = imBereich.find((t) => t.id === (app.werte.twId ?? 'T1')) ?? imBereich[0];
-      p.push('-', ...tragwerkAbschnitt(app, aktivDa.id));
-      p.push('-');
-      p.push({ text: app.setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
-               tun: () => (app.setzen ? app.setzenEnde() : app.setzenStarten()) });
-      return p;
-    }
+    // Ins Leere geklickt ist allgemein (22. November): immer «Neu …», auch
+    // im Bereich eines Tragwerks - es bearbeitet man per Klick auf es selbst.
+    void imBereich; void tragwerkAbschnitt;
     p.push('-');
     p.push({ feld: { art: 'auswahl', label: `Neu bei x ${wo.toFixed(2)}`, wert: '',
                      optionen: [{ wert: '', text: 'Tragwerk wählen …' },

@@ -5008,9 +5008,20 @@ function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false, ar
      * die folgenden Module auf derselben Höhe und weiter aussen als der
      * Anschluss des Arms - das Drahtwerk am Ausleger - wandern um dasselbe dz.
      */
+    /*
+     * >>> RELATIV, AUCH DER TIEFER HÄNGENDE FAHRDRAHT (22. November). <<<
+     * «den ausleger in der höhe per drag and drop verschiebbbar machen, die
+     * leiter relativ mitziehen. dies bei der montage an masten oder an
+     * hängestützen.» Bisher wanderten nur Module auf DERSELBEN Höhe mit - der
+     * Fahrdraht 1.60 / 2.40 m unter dem Tragseil blieb stehen. Jetzt alle
+     * folgenden Module auf der Seite des Arms, die auf seiner Höhe oder
+     * darunter hängen; ihr Abstand zum Arm bleibt.
+     */
+    const xArm = Number(m[modul].x) || 0;
     const mit = arm && achse === 'z' && !kopie
-      ? m.map((x, k) => k > modul && Math.abs((Number(x.z) || 0) - alt) < 1e-6
-          && Math.abs(Number(x.x) || 0) > 1e-6 ? k : -1).filter((k) => k >= 0) : [];
+      ? m.map((x, k) => k > modul && (Number(x.z) || 0) <= alt + 1e-6
+          && Math.abs(Number(x.x) || 0) > 1e-6
+          && Math.sign(Number(x.x) || 0) === Math.sign(xArm || 1) ? k : -1).filter((k) => k >= 0) : [];
     mit.forEach((k) => { m[k] = { ...m[k], z: r((Number(m[k].z) || 0) + (neu - alt)) }; });
     if (mit.length) name = `${name} (mit ${mit.length} Teil${mit.length > 1 ? 'en' : ''} daran)`;
     // Mit Strg: das Modul bleibt, eine Kopie kommt an die neue Stelle.

@@ -33801,15 +33801,20 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
        /dialogTragwerk\(app, null, art, \{ mastA: m\.id, mastB: rechts\.id \}\)/.test(kq)
        && /dialogTragwerk\(app, null, art, \{ mastA: links\.id, mastB: m\.id \}\)/.test(kq)
        && /dialogTragwerk\(app, null, 'tragausleger', \{ mastA: m\.id \}\)/.test(kq));
-  wahr('… und die Einträge der Tragwerke, die er trägt',
-       /traegt\.forEach\(\(tid\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, tid\)\)\)/.test(kq));
+  // Seit dem 22. November nur noch der Mast selbst («primär sind die
+  // bearbeitenfunktionen des angeklicket bauteils»).
+  wahr('… aber am Masten nicht mehr: dort nur der Mast selbst (22. November)',
+       !/traegt\.forEach\(\(tid\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, tid\)\)\)/.test(kq)
+       && kq.includes('void t; void neuesAnMast;'));
   // Seit dem 6. Oktober («Kontextmenues kürzen … jenachdem wo man klickt»):
   // im Bereich eines Tragwerks nur dessen Abschnitt, an freier Stelle EINE
   // Auswahl «Neu bei x», die den Dialog mit der Vorbelegung öffnet.
   wahr('Auf dem Grund: der Dialog mit den Masten links und rechts der Stelle, im Bereich eines Tragwerks dessen Abschnitt',
        /dialogTragwerk\(app, null, v, vorbelegungAnStelle\(app, v, wo\)\)/.test(kq)
        && !/app\.aendern\('tragwerkNeu', \{ art: a\.key, xLage: wo \}\)/.test(kq)
-       && /p\.push\('-', \.\.\.tragwerkAbschnitt\(app, aktivDa\.id\)\)/.test(kq));
+       // ins Leere immer allgemein «Neu …» (22. November)
+       && !/p\.push\('-', \.\.\.tragwerkAbschnitt\(app, aktivDa\.id\)\)/.test(kq)
+       && kq.includes('void imBereich; void tragwerkAbschnitt;'));
   wahr('Der Dialog nimmt die Vorbelegung und rechnet Lage und Stützweite aus den Masten',
        /export function dialogTragwerk\(app, id = null, artVor = null, vor = \{\}\)/.test(dq)
        // Seit dem 30. Sept. mit den Kragarmen: L = Stützweite + c_A + c_B.
@@ -34187,8 +34192,9 @@ titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einze
   wahr('Ein alter Ausleger mit Masten aus steht wieder auf dem Masten',
        A.standAnheben({ ...ta, mastVorhanden: false }).mastVorhanden !== false);
   const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  // Seit dem 22. November steht «Masten ausschalten» gar nicht mehr im Menü des Masten.
   wahr('… und das Kontextmenü bietet «Masten ausschalten» dort nicht an',
-       kq.includes("tragwerksart(t).key !== 'tragausleger'"));
+       !kq.includes("app.aendern('tragwerkMasten', t.id)") || kq.includes("tragwerksart(t).key !== 'tragausleger'"));
   wahr('Mastnummer: das Beispiel ist eine ganze Zahl',
        /z\. B\. 14\)/.test(String(feld('mastNummer').hinweis)));
 
@@ -34205,9 +34211,9 @@ titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einze
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Ein Rechtsklick auf Stab oder Fundament des Ankers meldet «anker»',
        r3.includes("/^ANKER(FUNDAMENT)?_/.exec(teil)") && r3.includes(": anker ? 'anker'"));
-  wahr('Das Menü: bearbeiten, Seitenleiste, zoomen, entfernen, dann der Mast',
+  wahr('Das Menü: bearbeiten, Seitenleiste, zoomen, entfernen - nur der Anker (22. November)',
        ['Anker bearbeiten …', 'In der Seitenleiste bearbeiten', 'Auf den Anker zoomen',
-        'Anker entfernen', '...kontextMast(app, mastId, twId)'].every((t) => kq.includes(t))
+        'Anker entfernen'].every((t) => kq.includes(t)) && !kq.includes('...kontextMast(app, mastId, twId)')
        && kq.includes("k.was === 'anker' ? kontextAnker(app, m.id, twId)"));
 
   // Δz_F am Einzelmasten.
@@ -43873,6 +43879,39 @@ titel('327  EK 1-6 mit Höhenlage; Eislast folgt; Legende mit Lastfall und Farbe
   wahr('Legende: Lastfall unter der Skala, Farbe Skala / Verlauf (statt Nachweis / Resultat / frei)',
        LQ.includes("${esc(lastfallText(app))}${lf !== 'resultat'") && LQ.includes("[['resultat', 'Skala'],\n        ['verlauf', 'Verlauf']]")
        && RQ.includes("return farbMisch(this.flFreiVon ?? '#f3e2bd', this.flFrei ?? '#e0a030', Math.min(1, anteil));"));
+}
+
+// ===========================================================================
+titel('328  Ausleger in der Höhe ziehen, die Leiter relativ mit; Kontextmenü knapp');
+{
+  const CA = await import(J('core.anbauteile.js'));
+  const R3 = await import(J('render.3d.js'));
+  const zieh = (id, am, opt) => {
+    const teile = A.expandiereAnbauteile([{ ...A.neuesAnbauteil(id, 10), id: 'X' }],
+      { ek: 1, R: 600, spannweite: 50 });
+    const kette = CA.anbauKette(teile, { amMast: am });
+    return kette.belegung.map(({ teil: t }) => R3.ziehAngabe(kette, t, opt));
+  };
+  const mz = zieh('mast-nt-ausleger', true, { amMast: true });
+  wahr('NT-Ausleger am Masten: der Auslegerpunkt zieht in z und nimmt mit',
+       mz[0]?.achse === 'z' && mz[0]?.arm === true, JSON.stringify(mz));
+  wahr('… die Leiter auf Auslegerhöhe weiter in x', mz.slice(1, 3).every((z) => z?.achse === 'x' && !z.arm), JSON.stringify(mz.slice(1)));
+  const hz = zieh('hs-nt-ausleger', false, {});
+  wahr('Hängestütze mit NT-Ausleger unverändert: Arm in z', hz[1]?.achse === 'z' && hz[1]?.arm === true);
+  const q = APP_QUELLE();
+  wahr('Die App nimmt auch den tiefer hängenden Fahrdraht mit (auf der Höhe des Arms oder darunter, gleiche Seite)',
+       q.includes('(Number(x.z) || 0) <= alt + 1e-6') && q.includes('Math.sign(Number(x.x) || 0) === Math.sign(xArm || 1)'));
+  // Die Regel nachgerechnet an der Vorlage am Masten: Ausleger z 0 → +0.5.
+  const v = A.getVorlage('mast-nt-ausleger').module.map((x) => ({ ...x }));
+  const alt = Number(v[0].z) || 0, xArm = Number(v[0].x) || 0;
+  const mit = v.map((x, k) => k > 0 && (Number(x.z) || 0) <= alt + 1e-6 && Math.abs(Number(x.x) || 0) > 1e-6
+    && Math.sign(Number(x.x) || 0) === Math.sign(xArm || 1) ? k : -1).filter((k) => k >= 0);
+  wahr('… an der Vorlage: alle drei Leiter (Tragseil, Fahrdraht-Gewicht, Fahrdraht) wandern mit',
+       mit.length === v.length - 1, String(mit));
+  const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Kontextmenü: am Masten und am Anker nur das Bauteil, ins Leere allgemein «Neu …»',
+       kq.includes('void t; void neuesAnMast;') && kq.includes('void imBereich; void tragwerkAbschnitt;')
+       && !kq.includes('...kontextMast(app, mastId, twId)'));
 }
 
 console.log('\n' + '='.repeat(104));
