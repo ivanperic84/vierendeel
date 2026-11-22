@@ -49,7 +49,7 @@ import { EINWIRKUNGEN, lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { RUECKHALT_FALL, rueckhaltSchluessel, rueckhaltLastfaelle } from './core.stabrueckhalt.js';
 import { verortung, verortungKurz, tragwerksart,
          tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
-         anzahlTragwerke, anschlusshoehe, lageOrtsnull, stossEnden, stossMasse }
+         anzahlTragwerke, anschlusshoehe, lageOrtsnull, stossEnden, stossMasse, mastName }
   from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
@@ -2415,7 +2415,14 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     [a?.[1]?.id, b?.[1]?.id].forEach((id) => {
       if (id) mastAnbauVergeben.add(id);
     });
-    const mastNamen = { A: a?.[1]?.id ?? `${t.id}A`, B: b?.[1]?.id ?? `${t.id}B` };
+    /*
+     * DER MAST HEISST WIE IN DER ANWENDUNG (22. November): `mastName` statt
+     * der Kennung. Im Testlauf hiess der Mast des Tragauslegers im Blatt
+     * «M5» (Kennung), in Kacheln, Knicken und Fundament «MT1» - sie fanden
+     * ihn nicht. Bei den übrigen Masten sind beide meist gleich.
+     */
+    const nameVon = (m) => (m ? (mastName(werte, m) || m.id) : null);
+    const mastNamen = { A: nameVon(a?.[1]) ?? `${t.id}A`, B: nameVon(b?.[1]) ?? `${t.id}B` };
     /*
      * DIE ANSCHLUSSHOEHE STEHT IM NAMEN - in Millimetern ueber der
      * Blattnull. Zwei Joche, die gleich hoch anschliessen, bekommen
@@ -5813,7 +5820,13 @@ function dateiname(inp, opt, m, endung) {
  * waere genau der, der wieder nur das aktive Tragwerk ausleitet.
  */
 export function blattWennMehrere(inp, deps, opt = {}) {
-  if (anzahlTragwerke(inp) < 2 || !deps?.modellVon) return null;
+  /*
+   * Gezählt werden die SICHTBAREN (22. November): mit ausgeblendeten
+   * Nachbarn baute sonst ein «Blatt» aus einem einzigen Tragwerk, und darin
+   * hiess der Mast nach dem Jochende («A») statt nach dem Blatt («MT1») -
+   * Kacheln, Knicken und Anker fanden ihn nicht mehr.
+   */
+  if (anzahlTragwerke(inp) < 2 || (sichtbareTragwerke(inp) ?? []).length < 2 || !deps?.modellVon) return null;
   return stabmodellBlatt(inp, deps, opt);
 }
 

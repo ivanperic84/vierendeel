@@ -202,12 +202,34 @@ export function verbundeneTragwerke(werte, id) {
 
 /** Die Eingabe, die das Stabwerk rechnet - siehe `verbundeneTragwerke`. */
 export function rechenWerte(werte) {
+  /*
+   * >>> DAS GANZE BLATT IN EINEM STABWERK (22. November). <<< Weisung «die
+   * auswertung des tragwerks soll immer global erfolgen». Testlauf mit
+   * Einzelmast, Tragjoch, zwei Abfangjochen und Tragausleger: gerechnet
+   * wurde nur die Gruppe des gewählten Tragwerks - mit einem Joch gewählt
+   * fehlte die überschrittene Aufhängung des Auslegers (1.034) in Kopfzahl
+   * und Bericht, obwohl der Bericht «alle Tragwerke des Blattes in einem
+   * Modell» schrieb. Seit dem 3. Oktober rechnet der Ausleger im Blattmodell
+   * mit; getrennte Teile eines Blattes stören einander im Stabwerk nicht
+   * (gemessen: dieselben Zahlen je Teil). Die AxisVM-Datei führt ohnehin
+   * das ganze Blatt. Die Gruppenbildung darunter bleibt für Sonderfälle.
+   */
+  if (werte?.nurGruppe !== true) return werte;
   const alle = sichtbareTragwerke(werte) ?? [];
   const ta = (t) => (t.tragwerksart ?? 'joch') === 'tragausleger';
   if (alle.length < 2 || !alle.some(ta)) return werte;
   const gruppe = verbundeneTragwerke(werte, werte.twId ?? alle[0]?.id);
   if (alle.every((t) => gruppe.has(t.id))) return werte;
-  return { ...werte, weitere: (werte.weitere ?? []).filter((t) => gruppe.has(t.id)) };
+  /*
+   * >>> AUSBLENDEN, NICHT ENTFERNEN (22. November). <<< Testlauf mit einem
+   * Blatt aus Einzelmast, Tragjoch, zwei Abfangjochen und Tragausleger: die
+   * Gruppe ohne den Einzelmast bei x = 0 zählte ihre Masten neu - im Stabwerk
+   * hiess der Mast bei x = 10 «M1», der bei x = 30 «M2». Die Anzeige liest
+   * mit den Namen des Blattes und schrieb so die Ergebnisse dem falschen
+   * Masten zu (Kachel «M2» = Mast bei x = 30). Ausgeblendete Tragwerke zählen
+   * in `mastName` mit, gerechnet werden sie nicht.
+   */
+  return { ...werte, weitere: (werte.weitere ?? []).map((t) => (gruppe.has(t.id) ? t : { ...t, ausgeblendet: true })) };
 }
 
 export function reiheOhneStabmodell(werteRoh) {
@@ -501,13 +523,44 @@ export function rechneStabwerk(app, aufruf = {}) {
    * das des gewählten.
    */
   const gruppe = abfangjocheUebereinander(werte);
-  const kernV = gruppe.length > 1 && erg.verformung ? gzgGlobal(erg.verformung, gruppe, satz) : erg.verformung;
+  const kernV = mastLaengeAusModell(
+    gruppe.length > 1 && erg.verformung ? gzgGlobal(erg.verformung, gruppe, satz) : erg.verformung,
+    dat, erg.modell?.federn?.namen ?? {});
   const verformung = verformungAusStabwerk(kernV ?? null, dat, lsg,
     alleFaelle, erg.modell?.federn?.namen ?? {},
     { praefix: eingaben.length > 1
         ? (gruppe.length > 1 ? gruppe.map((j) => `${j.twId}_`) : `${satz.twId ?? 'T1'}_`) : '',
       // Verdrehung des Tragauslegers um die Mastachse (14. November).
       ausleger: Boolean(bau?.tragausleger) });
+
+  /*
+   * >>> DIE MASTSPITZE JEDES ÜBRIGEN MASTEN (22. November, «global»). <<<
+   * Die Gebrauchstauglichkeit des gewählten Tragwerks kennt nur seine
+   * Masten; im Testlauf stand mit dem Ausleger gewählt «erfüllt», obwohl die
+   * Spitze von M3 überschritten war. Für jeden anderen Mast des Blattes die
+   * Spitze L/100 (Länge aus dem Modell) - die Referenzhöhe bleibt dem
+   * gewählten Tragwerk, sie hängt an seinen Teilen.
+   */
+  if (verformung && kernV) {
+    const aktive = new Set(Object.values(erg.modell?.federn?.namen ?? {}).filter(Boolean));
+    const weitere = [];
+    mastenVon(werte).forEach((m) => {
+      const id = mastName(app.werte, m);
+      if (!id || aktive.has(id) || !mastZug(dat, id)) return;
+      const pseudo = mastLaengeAusModell({ spitze: kernV.spitze, grenzen: kernV.grenzen,
+        gruppen: { ...(kernV.gruppen ?? {}), fahrdraht: false }, A: { L: 0, stelle: null } }, dat, { A: id });
+      if (!(pseudo.A.L > 0)) return;
+      let v = null;
+      try { v = verformungAusStabwerk(pseudo, dat, lsg, alleFaelle, { A: id }, {}); } catch { v = null; }
+      if (v?.A?.massgebend) weitere.push({ name: id, ...v.A });
+    });
+    if (weitere.length) {
+      const g = weitere.filter((x) => Number.isFinite(x.eta));
+      verformung.weitere = weitere;
+      verformung.eta = Math.max(verformung.eta ?? 0, ...g.map((x) => x.eta));
+      verformung.ok = verformung.ok !== false && g.every((x) => x.ok !== false);
+    }
+  }
 
   /*
    * >>> DER TRAGAUSLEGER: AUFHÄNGUNG, KNICKEN, FUNDAMENT (28. September). <<<
@@ -644,6 +697,24 @@ export function rechneStabwerk(app, aufruf = {}) {
   }
 
   /*
+   * >>> DIE AUFHÄNGUNG JEDES TRAGAUSLEGERS (22. November). <<< Nicht nur des
+   * gewählten: das Urteil gilt dem ganzen Blatt (`auslegerJe`, Kopfzahl über
+   * `bauteileMitStabwerk` mit `global`).
+   */
+  const auslegerJe = {};
+  const sichtbarT = sichtbareTragwerke(werte) ?? [];
+  sichtbarT.filter((t) => tragwerksart(t).key === 'tragausleger').forEach((t) => {
+    const pre = bau?.tragausleger ? '' : `${t.id}_`;
+    const m = mastenFuer(werte, t)?.[0];
+    const id = m ? mastName(app.werte, m) : null;
+    let Vzul = 5;
+    try { Vzul = getTragausleger(Number(t.L))?.Vzul ?? 5; } catch { /* Vorgabe */ }
+    let a = null;
+    try { a = aufhaengungNachweis(dat, lsg, alleFaelle, Vzul, `${pre}AUFHAENGUNG`, seilInfo); } catch { a = null; }
+    if (a) auslegerJe[t.id] = { mast: id, aufhaengung: a };
+  });
+
+  /*
    * >>> DER ANKER AUS DEM STABWERK (30. September). <<<
    * Je Ende des gerechneten Tragwerks, mit Typ und Länge aus dem Kern und
    * der Kraft von hier (core.stabseil.js).
@@ -698,7 +769,13 @@ export function rechneStabwerk(app, aufruf = {}) {
     anschluss: anschlussKraefte(dat, lsg, alleFaelleS, anteileFuer),
     // Die Übersichtsskizze des Blattes der Reaktionskräfte (x–z).
     skizze: skizzeAusModell(dat),
+    // Die Aufhängungen stehen mit in der Zeile des Blattes (22. November).
+    reihe: [...(huelle.reihe ?? []), ...Object.values(auslegerJe)
+      .filter((a) => Number.isFinite(a.aufhaengung?.eta))
+      .map((a) => ({ name: `Aufhängung ${a.mast ?? ''}`.trim(), eta: a.aufhaengung.eta, art: 'aufhaengung' }))]
+      .sort((x, y) => (y.eta ?? 0) - (x.eta ?? 0)),
     ausleger,
+    auslegerJe,
     knick,
     fundamentJe,
     gitterJe, gespreiztJe,
@@ -908,6 +985,31 @@ function gzgGlobal(kern, gruppe, satz) {
     if (k?.stelle?.was === 'Jochauflager') {
       neu[e] = { ...k, stelle: { ...k.stelle, z: k.stelle.z + dz, global: true } };
     }
+  });
+  return neu;
+}
+
+/**
+ * >>> DIE MASTLÄNGE AUS DEM STABMODELL (22. November). <<< Testlauf: der
+ * geteilte Mast M3 (Tragjoch und zwei Abfangjoche, ohne eingetragene Länge)
+ * wurde an der Spitze mit 8.50 m (Tragjoch gewählt) bzw. 8.00 m (Abfangjoch
+ * gewählt) nachgewiesen - die Vorgabe des GEWÄHLTEN Tragwerks. Im Stabwerk
+ * steht er EINMAL, so hoch wie der längste Anspruch; diese Länge gilt der
+ * Mastspitze und dem Grenzwert L/100.
+ */
+function mastLaengeAusModell(kern, dat, namen) {
+  if (!kern || !dat) return kern;
+  const kn = new Map((dat.knoten ?? []).map((k) => [k.name, k]));
+  const neu = { ...kern };
+  ['A', 'B'].forEach((e) => {
+    const id = namen?.[e];
+    if (!id || !kern[e]) return;
+    const re = new RegExp(`(?:^|_)MAST_${id}_S[0-9]+$`);
+    const z = (dat.staebe ?? []).filter((st) => re.test(st.name))
+      .flatMap((st) => [kn.get(st.von)?.z, kn.get(st.bis)?.z]).filter(Number.isFinite);
+    if (z.length < 2) return;
+    const L = Math.max(...z) - Math.min(...z);
+    if (L > 0 && Math.abs(L - (Number(kern[e].L) || 0)) > 1e-6) neu[e] = { ...kern[e], L, ausModell: true };
   });
   return neu;
 }

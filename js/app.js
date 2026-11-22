@@ -830,7 +830,8 @@ function urteilAngezeigt(urteil, bem) {
   // Am Tragausleger trägt das Stabwerk auch den Vermerk (ui.urteilMitStabwerk).
   return { ...ui.urteilMitStabwerk(urteil, g.h),
            bauteile: bauteileMitStabwerk(urteil.bauteile, g.h,
-                                         { jochKey: g.jochKey, jochKeys: g.jochKeys, knick: ui.knickJe(bem) }) };
+                                         { jochKey: g.jochKey, jochKeys: g.jochKeys, knick: ui.knickJe(bem),
+                                           global: reiheName }) };
 }
 
 /**
@@ -893,7 +894,7 @@ function kombiEtaStabwerk() {
     try {
       const h = g.h.imFall?.(l.key);
       // Alle Abfangjoche am Mastpaar (22. November, «global»).
-      const m = h ? ui.etaImFall(bauteileMitStabwerk(bt, h, { jochKey: g.jochKey, jochKeys: g.jochKeys, knick })) : null;
+      const m = h ? ui.etaImFall(bauteileMitStabwerk(bt, h, { jochKey: g.jochKey, jochKeys: g.jochKeys, knick, global: reiheName })) : null;
       if (m) je[l.key] = m;
     } catch { /* der Fall bleibt beim Kern */ }
   });

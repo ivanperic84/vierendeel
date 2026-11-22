@@ -33240,15 +33240,18 @@ titel('148  Tragausleger neben anderen Tragwerken: gerechnet wird, was zusammenh
     return AS148.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
   };
   const rTa = rechne(frei);
-  wahr('>>> Der freie Ausleger wird gerechnet: Stabwerk mit Aufhängung, ohne Joch <<<',
+  // Seit dem 22. November rechnet das GANZE Blatt in einem Stabwerk
+  // («die auswertung des tragwerks soll immer global erfolgen») - vorher
+  // nur die Gruppe des gewählten Tragwerks.
+  wahr('>>> Der freie Ausleger wird gerechnet: Stabwerk mit Aufhängung, das Joch daneben im selben Stabwerk <<<',
        !rTa.ohneModell && !rTa.fehler && rTa.ausleger?.aufhaengung
-       && !Object.keys(rTa.jeStab).some((n) => /OG[LR]_S/.test(n)),
+       && Object.keys(rTa.jeStab).some((n) => /OG[LR]_S/.test(n)),
        rTa.ohneModell ?? rTa.fehler ?? `${rTa.staebe} Stäbe`);
   const aufJoch = C148.tauscheAktives(frei, 'T1');
   const rJ = rechne(aufJoch);
-  wahr('… und das Joch daneben ohne ihn (keine UPE im Stabwerk)',
-       !rJ.ohneModell && !rJ.fehler && !Object.keys(rJ.jeStab).some((n) => /(^|_)[VH]_S\d+$/.test(n))
-       && Object.keys(rJ.jeStab).some((n) => /OG[LR]_S/.test(n)),
+  wahr('… und mit dem Joch gewählt steht die Aufhängung des Auslegers trotzdem im Ergebnis (auslegerJe)',
+       !rJ.ohneModell && !rJ.fehler && Object.values(rJ.auslegerJe ?? {}).length === 1
+       && Math.abs(Object.values(rJ.auslegerJe)[0].aufhaengung.eta - rTa.ausleger.aufhaengung.eta) < 1e-9,
        rJ.ohneModell ?? rJ.fehler ?? `${rJ.staebe} Stäbe`);
 }
 
@@ -43935,7 +43938,7 @@ titel('329  Abfangjoche übereinander global; Gleis Normalspur; eigene Einzellei
   wahr('Die Gruppe der Abfangjoche steht an einer Stelle (core.constants.js) und gilt Anzeige wie Stabwerk',
        typeof C.abfangjocheUebereinander === 'function'
        && readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8').includes('abfangjocheUebereinander(werte)')
-       && APP_QUELLE().includes('jochKeys: g.jochKeys, knick })) : null;'));
+       && APP_QUELLE().includes('jochKeys: g.jochKeys, knick, global: reiheName })) : null;'));
   const SV = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
   wahr('Verformung: die Fahrdrähte aller Abfangjoche zählen (mehrere Präfixe)',
        SV.includes('[].concat(opt.praefix).some((p) => String(f.knoten).startsWith(p))'));

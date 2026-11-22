@@ -1232,6 +1232,60 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
            fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false,
            ausgeglichen: f.ausgeglichen === true });
   }
+  /*
+   * >>> DAS URTEIL GILT DEM GANZEN VERBUND (22. November). <<< «die
+   * auswertung des tragwerks soll immer global erfolgen … sonst läuft man
+   * gefahr wenn man das ungünstigere joch angewählt hat, zu einer
+   * unterdimensionierung kommt.» Mit `o.global` (Namen je Bauteil) kommen
+   * die übrigen Masten (Querschnitt, Knicken, Fundament) und Joche desselben
+   * Stabwerks dazu, die das gewählte Tragwerk nicht führt. Gemessen im
+   * Testlauf: mit einem Abfangjoch gewählt fehlte Knicken M3 2.639 im Kopf.
+   */
+  if (o.global && h?.bauteile) {
+    const da = new Set(liste.map((x) => x.name));
+    const jochDa = new Set([o.jochKey ?? 'tragwerk', ...(o.jochKeys ?? []).map((j) => j.key)]);
+    Object.entries(h.bauteile).forEach(([k, b]) => {
+      if (!Number.isFinite(b?.eta)) return;
+      if (k.startsWith('mast:')) {
+        const id = k.slice(5);
+        if (!da.has(`Mast ${id}`)) {
+          dazu({ key: 'mast', name: `Mast ${id}`, eta: b.eta, quelle: 'stabwerk', fall: b.fall,
+                 bez: b.bez, ueber: null, global: true });
+        }
+        const kS = h.knick?.[id];
+        if (kS && Number.isFinite(kS.eta) && !da.has(`Knicken ${id}`)) {
+          dazu({ key: 'knicken', name: `Knicken ${id}`, eta: kS.eta, quelle: 'stabwerk',
+                 fall: kS.fall, bez: kS.bez, ueber: null, global: true });
+        }
+        const f = h.fundamentJe?.[id];
+        if (f && Number.isFinite(f.eta) && !da.has(`Fundament ${id}`)) {
+          dazu({ key: 'fundament', name: `Fundament ${id}`, eta: f.eta, quelle: 'stabwerk',
+                 fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false,
+                 ausgeglichen: f.ausgeglichen === true, global: true });
+        }
+        return;
+      }
+      if (k.startsWith('tragwerk') && !jochDa.has(k) && !(jochDa.has('tragwerk') && k === 'tragwerk')) {
+        // Ein Tragausleger trägt sein Urteil über Gurt und Aufhängung (unten).
+        const n = typeof o.global === 'function' ? o.global(b) : (b.name ?? k);
+        if (!da.has(n)) {
+          dazu({ key: 'joch', name: n, eta: b.eta, quelle: 'stabwerk', fall: b.fall,
+                 bez: b.bez, ueber: null, global: true });
+        }
+      }
+    });
+  }
+  // Die Aufhängung jedes Tragauslegers des Blattes (22. November).
+  if (o.global && h?.auslegerJe) {
+    Object.entries(h.auslegerJe).forEach(([twId, a]) => {
+      const auf = a.aufhaengung;
+      if (!auf || !Number.isFinite(auf.eta)) return;
+      // Der gewählte Ausleger führt seine Aufhängung schon.
+      if (ta && ta.name === `Mast ${a.mast}` && liste.some((x) => x.key === 'aufhaengung')) return;
+      dazu({ key: 'aufhaengung', name: `Aufhängung ${a.mast ?? twId}`, eta: auf.eta, quelle: 'stabwerk',
+             fall: auf.fall, bez: auf.bez, ueber: auf.ueber === true, global: true });
+    });
+  }
   // Dieselbe Regel wie bauteilUrteil: ein nicht lieferbares Bauteil vor
   // jeder Zahl, sonst das grösste eta.
   const massgebend = liste.reduce((best, x) => {

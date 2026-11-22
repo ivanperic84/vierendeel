@@ -6766,7 +6766,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const swH = stabwerkFuehrt(opt, einzelLastfall);
   const vorlaeufig = stabwerkVorlaeufig(opt, einzelLastfall);
   const bt = swH
-    ? bauteileMitStabwerk(urteil?.bauteile, swH, { knick: knickJe(bem) })
+    ? bauteileMitStabwerk(urteil?.bauteile, swH, { knick: knickJe(bem), global: opt.stabwerk?.name ?? true })
     : (urteil?.bauteile ?? null);
   const eBem = bt?.eta ?? (bem?.mast?.A?.etaMitStabilitaet ?? 0);
   // Im Einzellastfall die Zahl des Falls - aus dem Stabwerk, wenn es gilt.
@@ -7047,6 +7047,12 @@ export function urteilMitGebrauch(basis, erg, art = 'beide', einzelLastfall = fa
     gEta = q.eta;
     wer = `Verformung ${namen[ende] || `Ende ${ende}`}`;
   });
+  // Die übrigen Masten des Blattes (22. November, «global»).
+  (v.weitere ?? []).forEach((q) => {
+    if (!(q.eta > gEta)) return;
+    gEta = q.eta;
+    wer = `Verformung ${q.name}`;
+  });
   if (!wer) return basis;
   const gOk = v.ok !== false;
   const gText = gOk ? 'Gebrauchstauglichkeit erfüllt'
@@ -7072,10 +7078,11 @@ export function gzgKacheln(erg) {
   // Dazu der Nachweis am Fahrdraht (4. Oktober, «ja nachweis auf
   // fahrdrahtpunkt umstellen») - eine Kachel neben denen der Masten.
   // Und die Verdrehung des Tragauslegers um die Mastachse (14. November).
-  ['fahrdraht', 'ausleger', 'A', 'B'].forEach((ende) => {
-    const q = erg.verformung[ende];
+  // Dazu die Mastspitzen der übrigen Masten des Blattes (22. November, «global»).
+  [...['fahrdraht', 'ausleger', 'A', 'B'].map((e) => [e, erg.verformung[e]]),
+   ...(erg.verformung.weitere ?? []).map((q) => ['weiter', q])].forEach(([ende, q]) => {
     if (!q?.massgebend) return;
-    const name = ende === 'fahrdraht' ? 'Fahrdraht' : ende === 'ausleger' ? 'Tragausleger'
+    const name = ende === 'weiter' ? q.name : ende === 'fahrdraht' ? 'Fahrdraht' : ende === 'ausleger' ? 'Tragausleger'
       : (namenV[ende] || `Ende ${ende}`);
     if (gesehenV.has(name)) return;
     gesehenV.add(name);
@@ -8690,7 +8697,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const ueber = (swH?.tragwerke ?? 1) > 1 ? (opt.abfangUeber ?? []) : [];
   const jochKeys = ueber.map((j) => ({ key: `tragwerk:${j.twId}`, name: j.name }));
   const bt = swH ? bauteileMitStabwerk(urteil.bauteile, swH,
-                                       { jochKey, jochKeys, knick: knickJe(erg) })
+                                       { jochKey, jochKeys, knick: knickJe(erg),
+                                         global: opt.stabwerk?.name ?? true })
     : (einzelLastfall ? null : urteil.bauteile);
   const imFall = einzelLastfall && swH ? etaImFall(bt) : null;
   /*
