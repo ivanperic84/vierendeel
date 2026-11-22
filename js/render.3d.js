@@ -5184,6 +5184,9 @@ export class Modellansicht {
     // zwei Zeichenketten je Fläche) fiel bisher bei jedem Bild für jede Fläche
     // an - beim langen Joch einige tausend Mal in der Sekunde.
     const farbSchluessel = `${this.modus}|${document.documentElement.dataset.thema ?? ''}`;
+    // Schraffur nur in einem Resultatplot mit sichtbaren Resultaten.
+    const schraffurAn = !this.setzModus && this.gruppen.resultate !== false
+      && PLOTS.some((x) => x.key === this.modus) && !this.zustand;
     liste.forEach((f) => {
       // Die Schattierung hängt an der Flächennormalen, und die dreht sich mit
       // dem Bauteil, nicht mit der Kamera. Sie wird deshalb einmal je Fläche
@@ -5225,6 +5228,31 @@ export class Modellansicht {
       c.globalAlpha = 1 - durch;
       c.fillStyle = f._farbe;
       c.fill();
+      /*
+       * >>> RASTER, WO DIE GRENZSPANNUNG ÜBERSCHRITTEN IST (22. November). <<<
+       * Weisung: «und noch einen raster für die grenzspannung einbauen, falls
+       * diese überschritten wird», auf Rückfrage «wie vorgeschlagen»: Flächen
+       * mit η > 1 (σ_v über f_yd) tragen zur Farbe eine Schraffur - in jedem
+       * Resultatplot, damit die Überschreitung auch bei M, V, N … sichtbar ist.
+       */
+      if (schraffurAn && Number(f.werte?.eta) > 1 + 1e-9 && durch < 0.9) {
+        c.save();
+        c.clip();
+        c.globalAlpha = 0.85;
+        c.strokeStyle = t.schraffur ?? '#ffffff';
+        c.lineWidth = 1 * this._s;
+        const d = 5 * this._s;
+        c.beginPath();
+        for (let k = xMin - (yMax - yMin); k < xMax; k += d) {
+          c.moveTo(k, yMax); c.lineTo(k + (yMax - yMin), yMin);
+        }
+        c.stroke();
+        c.restore();
+        // Der Pfad ist nach dem Wiederherstellen weg - neu für Kante/Hervorhebung.
+        c.beginPath();
+        f._2d.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+        c.closePath();
+      }
       /*
        * >>> DAS GEWAEHLTE TEIL LEUCHTET (6. Oktober). <<< Weisung im Wortlaut:
        * «Aktives Element farblich highlihten im 3d». Die Flaechen des

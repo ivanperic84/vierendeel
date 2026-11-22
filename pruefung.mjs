@@ -43774,6 +43774,15 @@ titel('322  Lasten gehen mit «Modell aus»; Positionen zuletzt; Überhöhung in
        && AQ.includes('((0.08 * groesse) / fig.max) * ueberFaktor()'));
 }
 
+// ===========================================================================
+titel('323  Schraffur, wo die Grenzspannung überschritten ist');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Flächen mit η > 1 tragen in jedem Resultatplot eine Schraffur',
+       RQ.includes('if (schraffurAn && Number(f.werte?.eta) > 1 + 1e-9 && durch < 0.9) {')
+       && RQ.includes('PLOTS.some((x) => x.key === this.modus) && !this.zustand;'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
