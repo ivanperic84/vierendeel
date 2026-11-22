@@ -4414,3 +4414,6 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
   .welle, .panel-koerper.gleitet-r, .panel-koerper.gleitet-l, .dialog.waechst,
   .gleitet-r .kz, .gleitet-l .kz { animation: none; }
 }
+/* Pillen der eingeklappten Leiste sind anklickbar (22. November). */
+.schiene-nw [data-pille] { cursor: pointer; transition: background var(--t-schnell), border-color var(--t-schnell); }
+.schiene-nw [data-pille]:hover { background: var(--s3); border-color: var(--acc); }

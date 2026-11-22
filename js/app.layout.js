@@ -1778,7 +1778,8 @@ export function zeichneSchienen(app) {
               * Tragwerk lesen. Der Tooltip sagt weiterhin, was sie ist.
               */
              g.teile.map(([k, v, titel]) =>
-               `<div class="${app.anzeigeKombi === 'umhuellend' ? stufe(v) : ''}"
+               `<div class="${app.anzeigeKombi === 'umhuellend' ? stufe(v) : ''}" role="button" tabindex="0"
+                     data-pille="${esc(k)}" data-pille-eta="${Number.isFinite(v) ? v.toFixed(3) : ''}"
                      title="${esc(`${g.titel} · ${titel}`)}: η = ${
                        Number.isFinite(v) ? v.toFixed(3)
                          : 'nicht geführt'}">
@@ -1787,5 +1788,35 @@ export function zeichneSchienen(app) {
                 </div>`).join('')}</span>`).join('')}</div>` : '');
   r.querySelectorAll('[data-reiter]').forEach((b) => {
     b.onclick = () => { app.tabAuswertung = b.dataset.reiter; app.zeichneAuswertung(); ausklappen('rechts'); };
+  });
+  /*
+   * >>> DIE PILLEN SIND ANKLICKBAR (22. November, «diese buttons anklickbar
+   * machen»). <<< Ein Klick klappt die Leiste auf, zeigt die Übersicht,
+   * rollt zur Kachel dieses Elements (gleiche Zahl, Name im Titel), lässt
+   * sie aufleuchten und zeigt ihren massgebenden Stab im 3D (Klick der Kachel).
+   */
+  r.querySelectorAll('[data-pille]').forEach((p) => {
+    const geh = () => {
+      const name = p.dataset.pille;
+      const eta = p.dataset.pilleEta;
+      app.tabAuswertung = 'uebersicht';
+      app.zeichneAuswertung();
+      ausklappen('rechts');
+      setTimeout(() => {
+        const wort = name.replace(/^Fu /, 'Fundament ');
+        const alle = [...(ui.el('auswertung')?.querySelectorAll('.kz') ?? [])];
+        const passt = (k) => (k.dataset.eta !== undefined && Number(k.dataset.eta).toFixed(3) === eta)
+          || (k.querySelector('.kz-w')?.textContent ?? '').trim().startsWith(eta);
+        const mitName = (k) => /^(Joch|TA)$/.test(name) || (k.textContent ?? '').includes(wort);
+        const k = alle.find((x) => passt(x) && mitName(x)) ?? alle.find(mitName);
+        if (!k) return;
+        k.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        k.classList.remove('blitz'); void k.offsetWidth; k.classList.add('blitz');
+        setTimeout(() => k.classList.remove('blitz'), 1400);
+        k.click();
+      }, 60);
+    };
+    p.onclick = geh;
+    p.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); geh(); } };
   });
 }

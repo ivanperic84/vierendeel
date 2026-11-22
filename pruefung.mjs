@@ -43682,6 +43682,9 @@ titel('318  Bewegung wie Android: Welle, Reiter gleiten, Kacheln gestaffelt, Dia
   wahr('Reiter links rechnet nicht neu, zeichnet nur die Maske (gemessen 460-830 → 45-130 ms)',
        AQ.includes('if (maskeNeu && letzte) { maskeNeu(); ui.schieberFuellenAlle(); } else neuRechnen();')
        && AQ.includes('maskeNeu = zeichneEingabe;'));
+  const LQs = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Pillen der eingeklappten Leiste anklickbar: Übersicht, Kachel gleicher Zahl, aufleuchten, Stab im 3D',
+       LQs.includes('data-pille="${esc(k)}"') && LQs.includes("r.querySelectorAll('[data-pille]').forEach((p) => {"));
   wahr('App startet die Bewegung und lässt Dialoge aus dem Knopf wachsen',
        AQ.includes('bewegungStarten();') && AQ.includes("dialogAusKnopf(n.querySelector('.dialog'));"));
   wahr('Stilblatt: Welle, Gleiten, Staffel, Wachsen, jeweils mit Ausnahme bei weniger Bewegung',
