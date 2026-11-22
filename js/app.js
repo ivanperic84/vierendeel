@@ -195,6 +195,8 @@ let ansicht = null;
 let station = null;
 let projekt = { id: null, name: 'Neues Tragjoch', projekt: '' };
 let tabEingabe = 'system';
+/** Die Maske allein neu zeichnen (Reiterwechsel links, 22. November). */
+let maskeNeu = null;
 let tabAuswertung = 'uebersicht';
 let thema = 'dunkel';
 
@@ -1748,6 +1750,7 @@ function neuRechnen(neuZeichnen = true) {
   // Änderung immer einen Durchgang hinterher.
   const zeichneEingabe = () => {
     if (!neuZeichnen) return;
+    maskeNeu = zeichneEingabe;
     /*
      * DIE ZUSATZSTUECKE DER MASKE GEHOEREN ZUM JOCH - bis auf eines.
      *
@@ -1832,8 +1835,18 @@ function neuRechnen(neuZeichnen = true) {
       return;
     }
     maskeSig = sig;
+    /*
+     * >>> EIN REITERWECHSEL RECHNET NICHT (22. November). <<< Frage: «die
+     * linke sidebar könnte geschmeidiger sein mit den animationen … oder
+     * liegt es an etwas anderem, das sie unruhig und blinkend wirkt?»
+     * Gemessen: ein Reiter links rechnete die ganze App neu (Kern,
+     * Kombinationen, Bild) - 460 bis 830 ms eingefroren, dann sprang der
+     * Inhalt. Rechts zeichnet ein Reiter nur. Jetzt auch links nur die Maske
+     * (mit den Ergebnissen der letzten Rechnung).
+     */
     ui.zeichneTabs(ui.el('tabs'), ui.eingabeTabs(), tabEingabe, (t) => {
-      tabEingabe = t; neuRechnen();
+      tabEingabe = t;
+      if (maskeNeu && letzte) { maskeNeu(); ui.schieberFuellenAlle(); } else neuRechnen();
     });
     /*
      * >>> DER NEUBAU BEHÄLT DIE ROLLSTELLUNG (3. Oktober). <<<

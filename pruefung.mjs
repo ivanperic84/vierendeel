@@ -43679,6 +43679,9 @@ titel('318  Bewegung wie Android: Welle, Reiter gleiten, Kacheln gestaffelt, Dia
   wahr('Modul ui.bewegung.js: Welle, Reiterrichtung, Dialog aus dem Knopf; mit «weniger Bewegung» nichts',
        BQ.includes('function welle(e)') && BQ.includes("'gleitet-r' : 'gleitet-l'") && BQ.includes('export function dialogAusKnopf(dlg)')
        && BQ.includes('prefers-reduced-motion: reduce'));
+  wahr('Reiter links rechnet nicht neu, zeichnet nur die Maske (gemessen 460-830 → 45-130 ms)',
+       AQ.includes('if (maskeNeu && letzte) { maskeNeu(); ui.schieberFuellenAlle(); } else neuRechnen();')
+       && AQ.includes('maskeNeu = zeichneEingabe;'));
   wahr('App startet die Bewegung und lässt Dialoge aus dem Knopf wachsen',
        AQ.includes('bewegungStarten();') && AQ.includes("dialogAusKnopf(n.querySelector('.dialog'));"));
   wahr('Stilblatt: Welle, Gleiten, Staffel, Wachsen, jeweils mit Ausnahme bei weniger Bewegung',
