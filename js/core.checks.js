@@ -1361,7 +1361,8 @@ export function hinweise(m, opt = {}) {
    * Jochreihe wäre das die gefährliche Art von falsch: er trägt von beiden
    * Seiten, gerechnet ist bisher eine.
    */
-  if ((m.tragwerkeAufBlatt ?? 1) > 1) {
+  // Mit dem Stabwerk rechnet das ganze Blatt (22. November) - dann gilt der Satz nicht.
+  if ((m.tragwerkeAufBlatt ?? 1) > 1 && !opt.stabwerk) {
     h.push(`${m.tragwerkeAufBlatt} Tragwerke auf diesem Querprofil — `
       + 'nachgewiesen ist nur das in der Liste angeklickte.');
   }
@@ -1426,7 +1427,13 @@ export function hinweise(m, opt = {}) {
    * im Mastnachweis. Der Hinweis sagt jetzt, was davon noch fehlt - die
    * Rahmenwirkung -, und welcher Nachbar nicht mitgerechnet werden konnte.
    */
-  if (gm.length) {
+  if (gm.length && opt.stabwerk) {
+    // Im Stabwerk ist der geteilte Mast EIN Stab für alle Tragwerke (22. November).
+    h.push(`${gm.length === 1 ? 'Ein Mast trägt' : `${gm.length} Masten tragen`} mehrere Tragwerke `
+      + `(x₀ = ${gm.map((p) => p.x.toFixed(2)).join(', ')} m) - im Stabwerk ist er ein Stab, `
+      + 'gekoppelt mit allen Tragwerken des Blattes (Rahmenwirkung enthalten). Die Kontrollrechnung '
+      + 'rechnet ihn mit den Jochkräften der Nachbarn bei starren Mastköpfen.');
+  } else if (gm.length) {
     const nb = m.nachbarJochlasten;
     const stelle = `${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
       + ` an einer Stelle, an der zwei Tragwerke zusammentreffen (x₀ = `

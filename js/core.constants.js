@@ -1994,6 +1994,8 @@ export function engeJochenden(w, soll = 0.10) {
     const gemeinsam = mastLagen(a).some(
       (x) => mastLagen(b).some((y) => Math.abs(x - y) <= 0.1));
     if (!gemeinsam) continue;
+    // Verschiedene Höhen stossen nicht (22. November, wie lagenEntflechten).
+    if (Math.abs((Number(anschlusshoehe(a, 'B')) || 0) - (Number(anschlusshoehe(b, 'A')) || 0)) >= 0.40 - 1e-9) continue;
     // Seit dem 2. Oktober endet ein Joch am Stoss 5 cm vor der Mastachse
     // (`stossMasse`) - gemessen wird am Gurt, wie er gerechnet wird.
     const ma = stossMasse(a, stossEnden(w, a)), mb = stossMasse(b, stossEnden(w, b));

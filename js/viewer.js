@@ -121,7 +121,7 @@ export function starte(daten) {
     <div class="v-gruppe"><h4>Lastfall</h4><select id="v-fall">
       <option value="huelle">umhüllend (alle Nachweisfälle)</option>
       ${(daten.faelle ?? []).map((l, i) => `<option value="${i}">${esc(l.gruppe ? `${l.gruppe}: ` : '')}${esc(l.bez)}${
-        Number.isFinite(l.eta) ? ` · η ${zahl(l.eta, 2)}` : ''}</option>`).join('')}</select>
+        Number.isFinite(l.eta) ? ` · η ${zahl(l.eta, 2)}` : Number.isFinite(l.wMax) ? ` · w ${zahl(l.wMax, 0)} mm` : ''}</option>`).join('')}</select>
       <div class="v-notiz">je Einwirkungsrichtung der massgebende Fall</div></div>
     <div class="v-gruppe"><h4>Teilmodell</h4><div class="v-blicke">
       ${[['alles', 'Alles'], ['joch', 'Jochträger'], ['mast', 'Masten']].map(([k, t]) =>

@@ -108,7 +108,9 @@ export function blattUrteil(d) {
       nimm({ key: `${tw.stabKey}|${teil}`, name: `${tw.pos} · ${TEIL_NAMEN[teil]}`,
              eta: t.eta, fall: t.fall, bez: t.bez, gruppe: 'tragwerk', stab: t.wo ?? null });
     });
-    const a = tw.art === 'tragausleger' ? sw.ausleger?.aufhaengung : null;
+    // Jeder Ausleger des Blattes (22. November, `auslegerJe`), sonst der gewählte.
+    const a = tw.art === 'tragausleger'
+      ? (sw.auslegerJe?.[tw.id]?.aufhaengung ?? sw.ausleger?.aufhaengung) : null;
     if (a) {
       nimm({ key: 'aufhaengung', name: `${tw.pos} · Aufhängung`, eta: a.eta,
              fall: a.fall, bez: a.bez, ueber: a.ueber ?? null, gruppe: 'tragwerk' });
@@ -504,7 +506,7 @@ function nachweise(d, U) {
   const h3 = (t) => `<h3>§.${++nr} ${t}</h3>`;
   const tw = (d.tragwerke ?? []).map((t) => {
     const teile = TEILE.map((teil) => teilAbschnitt(d, `${t.pos} · ${TEIL_NAMEN[teil]}`, t.stabKey, teil)).join('');
-    const a = t.art === 'tragausleger' ? sw.ausleger?.aufhaengung : null;
+    const a = t.art === 'tragausleger' ? (sw.auslegerJe?.[t.id]?.aufhaengung ?? sw.ausleger?.aufhaengung) : null;
     const la = t.art === 'tragausleger' ? sw.ausleger?.laengsanker : null;
     const auf = a ? `<h4>${esc(t.pos)} · Aufhängung — η = ${zahl(a.eta, 3)}</h4>
       <p>Senkrechter Anteil der Seilkräfte (${a.seile ?? 1} Seil${(a.seile ?? 1) > 1 ? 'e' : ''}),
@@ -598,7 +600,20 @@ function pruefungen(d) {
 
 function nichtGefuehrt(d) {
   const ng = d.nichtGefuehrt ?? [];
-  const hw = (d.tragwerke ?? []).flatMap((tw) => (tw.hinweise ?? []).map((h) => `${tw.pos}: ${h}`));
+  /*
+   * GLEICHE HINWEISE EINMAL, MIT ALLEN TRAGWERKEN (22. November, Testlauf):
+   * Hinweise zum ganzen Blatt standen je Tragwerk mehrfach da. Am
+   * Tragausleger fallen die Sätze seines Ersatzjochs der Kontrollrechnung
+   * weg (Blechstaffelung, Knicken des Jochs, Gurtenden) - sie gelten ihm nicht.
+   */
+  const ERSATZJOCH = /^(Blechstaffelung|Kein Knicknachweis des Jochs|Auflager an den Gurtenden|Gerechnet im räumlichen Stabwerk: Gurtwinkel)/;
+  const jeText = new Map();
+  (d.tragwerke ?? []).forEach((tw) => (tw.hinweise ?? []).forEach((h) => {
+    if (tw.art === 'tragausleger' && ERSATZJOCH.test(h)) return;
+    if (!jeText.has(h)) jeText.set(h, []);
+    if (!jeText.get(h).includes(tw.pos)) jeText.get(h).push(tw.pos);
+  }));
+  const hw = [...jeText].map(([h, wer]) => `${wer.join(', ')}: ${h}`);
   return `<section><h2>§ Nicht geführte Nachweise und Gültigkeit</h2>
     ${ng.length ? tabelle(['Nachweis', 'Was fehlt', 'Grund'], ng.map((g) =>
       [esc(g.titel), esc(g.was ?? ''), g.grund === 'ausgeschaltet' ? 'in der Eingabe ausgeschaltet' : 'im Werkzeug nicht enthalten']))

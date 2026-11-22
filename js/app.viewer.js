@@ -27,7 +27,7 @@ import { dateiSpeichern } from './store.js';
 import { zustandGeometrie, zustandAussen, zustandFall, ZL_PUNKTE } from './core.zustandslinien.js';
 import { versatz as zustandVersatz } from './app.zustand.js';
 import { fundamentNachweisText } from './ui.js';
-import { ekVonWindklasse } from './core.lasten.js';
+import { ekVonWindklasse, ekKlasseVon } from './core.lasten.js';
 
 /** Die Grössen, die je Lastfall wechseln (w und η w gelten der Hülle). */
 // Mit dem Weg w (21. November) für den Fall der Gebrauchstauglichkeit.
@@ -135,7 +135,12 @@ export function massgebendeFaelle(werte, faelle) {
     const sp = r.key === 'gzg' ? VIEWER_FELDER.indexOf('w') : 0;
     const eta = Math.max(0, ...w.tab.map((z) => (Number.isFinite(z[sp]) ? z[sp] : 0)));
     const b = best.get(r.key);
-    if (!b || eta > b.eta) best.set(r.key, { ...w, eta, gruppe: r.label, gruppeKey: r.key });
+    // Beim Gebrauchsfall ist die Zahl ein WEG in mm, kein η (Testlauf
+    // 22. November: «η 91.53» in der Auswahl) - sie heisst deshalb `wMax`.
+    if (!b || eta > (b.eta ?? b.wMax)) {
+      best.set(r.key, r.key === 'gzg' ? { ...w, eta: null, wMax: eta, gruppe: r.label, gruppeKey: r.key }
+                                      : { ...w, eta, gruppe: r.label, gruppeKey: r.key });
+    }
   });
   return RICHTUNG_FOLGE.filter((k) => best.has(k)).map((k) => best.get(k));
 }
@@ -186,7 +191,8 @@ export function fundamentDaten(d) {
 
 /** Die Hauptkennwerte des Querprofils (wie die Grundwerte über dem 3D). */
 export function kennwerteDaten(w) {
-  const ek = ekVonWindklasse(w.windKlasse);
+  // EK 1-6 wie in der Anwendung (22. November; vorher die alte Windstufe «EK1» neben «EK4» der App).
+  const ek = ekVonWindklasse(w.windKlasse) === 'EK0' ? 'EK0' : (ekKlasseVon(w) || ekVonWindklasse(w.windKlasse));
   const R = Number(w.trasseRadius) || 0;
   const k = [ek === 'EK0' ? 'Einheitswind' : ek, `Spannweite L_FL ${(Number(w.flSpannweite) || 0).toFixed(0)} m`,
     Math.abs(R) < 1e-9 || Math.abs(R) >= 1e5 ? 'gerades Gleis' : `Radius ${R.toFixed(0)} m`];

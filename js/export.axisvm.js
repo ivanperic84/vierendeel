@@ -2059,6 +2059,9 @@ export const BLECH_MASTABSTAND = 0.05;
  *
  * @returns {Map<string, {dx:number, mastDx:number, wegen:string}>}
  */
+/** Ab diesem Höhenunterschied am gemeinsamen Masten ist es kein Stoss [m]. */
+export const STOSS_HOEHE = 0.40;
+
 export function lagenEntflechten(alle, mastenJe, werte = null) {
   const versatz = new Map();
   /*
@@ -2111,6 +2114,15 @@ export function lagenEntflechten(alle, mastenJe, werte = null) {
           enden: paare.map(([e1, e2]) => `${e1}/${e2}`).join(', ') } });
       continue;
     }
+    /*
+     * >>> VERSCHIEDENE HÖHEN STOSSEN NICHT (22. November). <<< Testlauf:
+     * Tragjoch auf 7.50 m endet an M3, das Abfangjoch auf 7.00 m beginnt
+     * dort - es wurde um 10 cm geschoben, sein zweiter Mast stand im Modell
+     * bei 42.10 statt 42.00 m. Liegen die Anschlüsse am gemeinsamen Masten
+     * 0.40 m oder mehr auseinander, berühren sich die Endbleche nicht.
+     */
+    if (Math.abs((Number(anschlusshoehe(links, 'B')) || 0) - (Number(anschlusshoehe(rechts, 'A')) || 0))
+        >= STOSS_HOEHE - 1e-9) continue;
     const gl = gurt(links), gr = gurt(rechts);
     const ende = lageVon(links) + (versatz.get(links.id)?.dx ?? 0)
                + gl.versatzA + gl.L;

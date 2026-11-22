@@ -43047,8 +43047,8 @@ titel('297  Viewer: massgebende Fälle je Richtung, Liniendiagramm, Fundament, K
   const m = AV.massgebendeFaelle(w, f);
   wahr('Je Richtung der Fall mit dem grössten η (quer vor längs), charakteristisch fällt weg',
        m.map((x) => `${x.gruppeKey}:${x.key}`).join(' ') === 'quer:k2 laengs:k1', m.map((x) => x.key).join(' '));
-  const kw = AV.kennwerteDaten({ windKlasse: '0.9', flSpannweite: 40, trasseRadius: 600, windReduktion: true, schneeAktiv: false });
-  wahr('Hauptkennwerte: EK, Spannweite, Radius, Reduktion, Schnee',
+  const kw = AV.kennwerteDaten({ windKlasse: '0.9', schneeKlasse: '0.9', flSpannweite: 40, trasseRadius: 600, windReduktion: true, schneeAktiv: false });
+  wahr('Hauptkennwerte: EK (1-6 wie die App, 22. November), Spannweite, Radius, Reduktion, Schnee',
        kw.join(' | ') === 'EK1 | Spannweite L_FL 40 m | Radius 600 m | Wind × 0.74 | ohne Schnee', kw.join(' | '));
   // Die Linie im Viewer baut dieselbe Funktion wie die App.
   const ZW = await import(J('core.zustandwerte.js'));
@@ -43971,6 +43971,45 @@ titel('329  Abfangjoche übereinander global; Gleis Normalspur; eigene Einzellei
   } finally { FL.setzeEigeneLeiter([]); }
   wahr('Gelöscht wird ein eigener Leiter nur, wenn ihn kein Anbauteil trägt', UQ.includes('if (eigenerLeiterBenutzt(w(), id)) {'));
   wahr('eigeneLeiter gilt dem Blatt', C.BLATT_FELDER.includes('eigeneLeiter'));
+}
+
+// ===========================================================================
+titel('330  Abfangjoch: der Längszug der abgefangenen Leiter erzeugt keinen Zwang quer');
+{
+  const C = await import(J('core.constants.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const DA = await import(J('data.anbauteile.js'));
+  let abfDa = false;
+  try { abfDa = Boolean((await import(J('data.abfangjoche.js'))).getAbfangjoch?.('A160')); } catch { abfDa = false; }
+  if (abfDa) {
+    const bau = (einseitig) => {
+      let w = { ...typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90')), L: 20, xLage: 0,
+                mastVorhanden: true, twId: 'T1', havarieAus: true };
+      w = C.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 12.5, abfangTyp: 'A160', mastH: 7.0 });
+      w = C.tragwerkWeg(w, 'T1');
+      if (einseitig === false) w.abfangXEinseitig = false;
+      w.anbauteile = [{ ...DA.neuesAnbauteil('leiter-ts-nfl-abf', 4.0), ort: 'joch' },
+                      { ...DA.neuesAnbauteil('leiter-ts-nfl-abf', 8.5), ort: 'joch' }];
+      const s2 = N.rechensatzMitNachbarn(w);
+      const erg = berechne(s2, ...N.kernArgumente(s2));
+      return AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    };
+    const quer = (h) => h.roh.lsg.auflagerkraefte('G_Ablenk').filter((a) => /MAST_.*_F$/.test(a.knoten));
+    const neu = quer(bau(true)), alt = quer(bau(false));
+    pruef('Vorgabe: unter dem Leiterzug (rein längs) keine Querkraft am Mastfuss', Math.max(...neu.map((a) => Math.abs(a.ux))), 0, 1e-6, 'kN');
+    wahr('… und kein Moment quer', Math.max(...neu.map((a) => Math.abs(a.fiy))) < 1e-4,
+         `${Math.max(...neu.map((a) => Math.abs(a.fiy))).toExponential(2)} kNm`);
+    wahr('… längs praktisch unverändert gegenüber beiden Halten (0.1 %)',
+         neu.every((a, i) => Math.abs(a.uy - alt[i].uy) <= 1e-3 * Math.abs(alt[i].uy) + 1e-6
+           && Math.abs(a.fix - alt[i].fix) <= 1e-3 * Math.abs(alt[i].fix) + 1e-6),
+         neu.map((a, i) => `M_l ${alt[i].fix.toFixed(3)} → ${a.fix.toFixed(3)}`).join(', '));
+    wahr('Beide Masten halten (abgeschaltet): der Zwang wie bisher, gegengleich', Math.abs(alt[0].ux) > 1 && Math.abs(alt[0].ux + alt[1].ux) < 1e-6,
+         `F_x ${alt[0].ux.toFixed(2)} / ${alt[1].ux.toFixed(2)} kN`);
+  }
+  const Q = readFileSync(join(HIER, 'js', 'export.axisvm.abfang.js'), 'utf8');
+  wahr('Der Schalter reicht vom Satz bis zum Verbindungselement (Stabwerk und AxisVM-Datei)',
+       Q.includes('abfangXEinseitig: satz.abfangXEinseitig,') && Q.includes("kraftuebertragung: laengsHalt(linkBedingung(opt, 'abfangjoch', g), opt, ende, g),"));
 }
 
 console.log('\n' + '='.repeat(104));

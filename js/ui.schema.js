@@ -1873,6 +1873,20 @@ export const FELDER = [
            + '0 = eine halbe Mastbreite (HEB 240 → 0.120 m); gerechnet wird mit '
            + 'mindestens 0.005 m. Wirkt im Stabwerk und in der AxisVM-Ausleitung.' },
   /*
+   * >>> LÄNGSHALT NUR AN EINEM MASTEN (22. November). <<< Auf Rückfrage
+   * «ich tendiere zu der empfehlung» und «Ja, für alle»: am Abfangjoch hält
+   * der hintere Gurt nur am Masten A in Jochachse - der Längszug der
+   * abgefangenen Leiter erzeugt keinen Zwang quer mehr (export.axisvm.abfang.js,
+   * `laengsHalt`). Abschaltbar: dann halten beide Masten wie bis dahin.
+   */
+  { key: 'abfangXEinseitig', gruppe: 'aufl', typ: 'schalter',
+    label: 'Längshalt in Jochachse nur am Masten A', standard: true,
+    sichtbar: (w) => tragwerksart(w).key === 'abfangjoch',
+    hinweis: 'Der hintere Gurt hält nur am Masten A in Jochachse (x), am Masten B ist das '
+           + 'Verbindungselement in x frei. Sonst stemmt der Gurt unter dem Längszug der abgefangenen '
+           + 'Leiter die Masten auseinander (Zwang quer). Wind quer auf den Träger geht dann an Mast A. '
+           + 'Gilt im Stabwerk und in der AxisVM-Ausleitung.' },
+  /*
    * >>> ZWEITE FLANSCHKANTE, ALS OPTION (Weisung vom 16. September). <<<
    *
    * «als option ermöglichen, wobei ich nicht genau sagen kann wie sich die

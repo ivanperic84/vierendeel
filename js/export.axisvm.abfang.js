@@ -67,6 +67,27 @@ import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
 import { getGurtprofil } from './data.profiles.js';
 import { uKontur } from './core.profilgeometrie.js';
 import { linkBedingung, konsolLaenge } from './core.auflager.js';
+
+/*
+ * >>> DER LÄNGSZUG ERZEUGT KEINEN ZWANG QUER (22. November). <<< Frage:
+ * «untersuche beim abfangjoch den einfluss der längszugkraft (abgefangene
+ * leiter) und deren auswirkung auf die querkräfte in gleisquerrichtung …
+ * es ist schwer nachvollziehbar warum man so grosse momente in querrichtung
+ * erhält, wenn es in die längsrichtung die last hat.» Gemessen (zwei
+ * A160/12.5 m, Leiterzug 14.9 kN je Mast): der hintere Gurt hielt an BEIDEN
+ * Masten in Jochachse; der Träger biegt sich unter dem Längszug waagrecht,
+ * der Gurt will sich verkürzen und stemmt die Masten auseinander -
+ * F_x ±5.48 kN, M quer ±27.1 kNm je Mastfuss. Mit `abfangXEinseitig` hält
+ * er nur am Masten A in x (wie beim Tragjoch: «nur ein Knoten hält in
+ * Jochachse», 27. August): quer 0.00, längs unverändert.
+ */
+function laengsHalt(bed, opt, ende, g) {
+  // Vorgabe seit dem 22. November («Ja, für alle»): nur am Masten A.
+  if (opt?.abfangXEinseitig !== false && ende === 'B' && g === 'H' && bed?.x === 'Rigid') {
+    return { ...bed, x: 'Free' };
+  }
+  return bed;
+}
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
 import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
@@ -1201,7 +1222,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
           name: `LINK_${ende}${g}`, von: kAns, bis: kG,
           querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0],
           gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
-          kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),
+          kraftuebertragung: laengsHalt(linkBedingung(opt, 'abfangjoch', g), opt, ende, g),
         });
       }
       /*
@@ -1874,6 +1895,8 @@ export function abfangBau(satz, opt = {}) {
     abfangJs: satz.abfangJs,
     auflagerLinks: satz.auflagerLinks,
     auflagerVorgabe: opt.auflagerVorgabe,
+    // Längshalt nur am Masten A (22. November, siehe laengsHalt).
+    abfangXEinseitig: satz.abfangXEinseitig,
     L_FL: Number(satz.L_FL) || 0,
     R: Number(satz.R) || 0,
     ek: satz.ek,
