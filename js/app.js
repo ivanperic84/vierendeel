@@ -2973,6 +2973,8 @@ function fundamenteFaerben(szene) {
     if (!Number.isFinite(eta)) return;
     f.werte = { ...(f.werte ?? {}), eta };
     f.fundamentEta = eta;
+    // Auch am nicht gewählten Tragwerk in Farbe (Wert aus dem Stabwerk des Blattes).
+    if (Number.isFinite(g?.h?.fundamentJe?.[name]?.eta)) f.stabwerk = true;
     f.label = `Fundament ${name} · η ${eta.toFixed(3)}`;
   });
   return szene;

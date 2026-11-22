@@ -5264,10 +5264,12 @@ export class Modellansicht {
       if (schraffurAn && Number(f.werte?.eta) > 1 + 1e-9 && durch < 0.9) {
         c.save();
         c.clip();
-        c.globalAlpha = 0.85;
+        // Weniger prägnant (22. November, «etwas weniger prägnant ausbilden
+        // die schraffur»): vorher 0.85 deckend, 1 px, alle 5 px.
+        c.globalAlpha = 0.35;
         c.strokeStyle = t.schraffur ?? '#ffffff';
-        c.lineWidth = 1 * this._s;
-        const d = 5 * this._s;
+        c.lineWidth = 0.7 * this._s;
+        const d = 7 * this._s;
         c.beginPath();
         for (let k = xMin - (yMax - yMin); k < xMax; k += d) {
           c.moveTo(k, yMax); c.lineTo(k + (yMax - yMin), yMin);
