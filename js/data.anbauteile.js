@@ -867,6 +867,25 @@ export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier =
 }
 
 /**
+ * >>> DIE ÄNDERUNG BEI SCHNEE (22. November). <<< Wie `havarieAnteile`,
+ * aber für −5 °C mit Eis und ohne Bruch: die Ablenkkraft wächst mit dem
+ * Zug, die einseitige Abfangung zieht stärker. Beides als ÄNDERUNG gegenüber
+ * +5 °C (Gruppe `SchneeZug`, core.lasten.js).
+ */
+export function schneeAnteile({ id, n = 1, GxHier = 0, zugHier = 1, art = ABFANG_VORGABE, richtung = 1 }) {
+  let Z5 = 0, Zs = 0;
+  try {
+    Z5 = leiterzug(id);
+    Zs = abfangkraft(id, { tempFall: 'schnee' }).Z;
+  } catch { return { dFx: 0, dGy: 0 }; }
+  if (!(Z5 > 0)) return { dFx: 0, dGy: 0 };
+  const anteil = n * Math.max(0, zugHier);
+  const vz = Number(richtung) < 0 ? -1 : 1;
+  return { dFx: GxHier * (Zs / Z5 - 1),
+           dGy: art === 'einseitig' ? vz * (Zs - Z5) * anteil : 0 };
+}
+
+/**
  * Baugruppen in Einzellasten auflösen.
  *
  * @param {object[]} liste Anbauteile (Baugruppen und/oder freie Lastblöcke)
@@ -1723,6 +1742,10 @@ export function expandiereAnbauteile(liste, o = {}) {
         kraefte.G.Fy = h.Gy;
         kraefte.HavarieX.Fx = h.dFx;
         kraefte.HavarieY.Fy = h.Fy;
+        // Bei Schnee (−5 °C mit Eis) zieht der fix abgespannte Leiter stärker.
+        const hS = schneeAnteile(basis);
+        kraefte.SchneeZug.Fx = hS.dFx;
+        kraefte.SchneeZug.Fy = hS.dGy;
         // Jeder Kandidat, der dieses Modul trifft: der Leiter selbst oder,
         // bei einem Kettenwerk, auch sein Teilfall (|ts, |fd; 20. November).
         kandidaten.filter((c) => leiterTrifft(c.key, a, m, i)).forEach((eigen) => {

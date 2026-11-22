@@ -54,6 +54,7 @@ import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
+import { flSysteme, flSystem } from './data.fl.js';
 import { ablenkwinkel, istGerade, radiusAusWinkel,
          R_GERADE } from './core.trasse.js';
 
@@ -2023,6 +2024,22 @@ export const FELDER = [
     hinweis: 'Abstand zweier Aufhängungen der Fahrleitung, nicht der '
            + 'Jochabstand. Einflusslänge für Eigengewicht und Wind am Drahtwerk.'},
 
+  /*
+   * >>> FAHRLEITUNGSSYSTEM FÜR DAS PROJEKT (22. November). <<< «die
+   * systemauswahl definieren, am besten global für das projekt, da es
+   * verschiedene nfl und rfl gibt.» Die Kettenwerke N-FL bzw. R-FL nehmen
+   * ihren Zug aus dem gewählten System (core.leiterzug.js).
+   */
+  { key: 'flSystemNfl', gruppe: 'trasse', typ: 'auswahl', label: 'System N-FL', standard: '',
+    optionenAus: () => [{ wert: '', text: `Vorgabe · ${flSystem('nfl')?.name ?? '–'}` },
+      ...flSysteme('nfl').map((s) => ({ wert: s.id, text: s.name }))],
+    hinweis: 'Tragseil fix (Zug aus der Zustandsgleichung je Temperatur), Fahrdraht nachgespannt. '
+           + 'Gilt allen N-FL-Kettenwerken des Projekts.' },
+  { key: 'flSystemRfl', gruppe: 'trasse', typ: 'auswahl', label: 'System R-FL', standard: '',
+    optionenAus: () => [{ wert: '', text: `Vorgabe · ${flSystem('rfl')?.name ?? '–'}` },
+      ...flSysteme('rfl').map((s) => ({ wert: s.id, text: s.name }))],
+    hinweis: 'Tragseil und Fahrdraht nachgespannt - feste Züge. Gilt allen R-FL-Kettenwerken des Projekts. '
+           + 'Einzelleiter und ihr Montagezug: Grundwerte oben im 3D → «Einzelleiter …».' },
   { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
     sym: 'R', einheit: 'm', standard: 0, schritt: 50,
     notiz: (w) => winkelNotiz(w),

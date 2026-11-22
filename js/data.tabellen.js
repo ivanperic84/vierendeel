@@ -177,6 +177,8 @@ export const AUFBAU = {
     listen: [
       { name: 'gruppen', pfad: 'gruppen', schluessel: 'id' },
       { name: 'bauteile', pfad: 'bauteile', schluessel: 'id' },
+      // Die Fahrleitungssysteme für den Leiterzug-Kern (22. November).
+      { name: 'systeme', pfad: 'systeme', schluessel: 'id' },
     ],
   },
   anbauteile: {

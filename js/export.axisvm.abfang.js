@@ -1461,6 +1461,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       punkt.push({ name: `FH_${nm2}`, knoten: knA, richtung: 'Y', wert: Zab,
                    lastfall: 'Leiterzug',
                    abfangung: { temperaturabhaengig, ohneTabelle } });
+      // Die Änderung bei Schnee (−5 °C mit Eis; 22. November) - im Blatt
+      // die Gruppe SchneeZug, die die Fälle «Schnee leitend» greifen.
+      const zS = abfangAnbauLasten(t2, { ...lastOpt, tempFall: 'schnee' }).Z ?? Zab;
+      if (Math.abs(zS - Zab) > 1e-9) {
+        punkt.push({ name: `SZ_${nm2}`, knoten: knA, richtung: 'Y', wert: zS - Zab,
+                     lastfall: 'SchneeZug' });
+      }
     }
     if (Qx) {
       punkt.push({ name: `WX_${nm2}`, knoten: knA, richtung: 'X',
@@ -1753,6 +1760,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       { key: 'WindY', label: 'Wind in Gleisrichtung (Anbauteile)', art: 'Others' },
       { key: 'WindJoch', label: 'Wind auf den Jochtraeger', art: 'Others' },
       { key: 'SchneeJoch', label: 'Schnee auf den Jochtraeger', art: 'Others' },
+      ...(punkt.some((p2) => p2.lastfall === 'SchneeZug')
+        ? [{ key: 'SchneeZug', label: 'Leiterzug bei Schnee (Aenderung)', art: 'Others' }] : []),
       // Je reissendem Leiter die AENDERUNG des Leiterzugs (siehe oben).
       // Kurze Namen - AxisVM legt den Lastfall unter `label` an.
       ...havFaelle.filter((h) => h.mitLast).map((h) => ({
@@ -1843,6 +1852,7 @@ export const ABFANG_BLATTGRUPPE = {
   WindY: 'WindY',
   WindJoch: 'WindY',
   SchneeJoch: 'Schnee',
+  SchneeZug: 'SchneeZug',
 };
 
 /**

@@ -258,6 +258,20 @@ export const EINWIRKUNGEN = [
   { key: 'Schnee', label: 'Schnee',   kurz: 'S',      art: 'veraenderlich',
     richtung: 'z' },
   /*
+   * >>> DER LEITERZUG BEI SCHNEE (22. November). <<< «bei einseitig
+   * abgefangenen leitern gilt die temperatur und somit auch die
+   * leiterzugkraft in abhängigkeit der jeweiligen kombination», dann
+   * «den leiterzug berechnungskern einbauen … und die weitere
+   * nachweisrechnung hinterlegen». Wie die Havarie-Ablenkung trägt die
+   * Gruppe nur die ÄNDERUNG gegenüber dem ständigen Zustand (+5 °C): der
+   * fix abgespannte Leiter zieht bei −5 °C mit Eis stärker - die Ablenkkraft
+   * wächst, die einseitige Abfangung zieht mehr. Sie wirkt mit γ_G in den
+   * Fällen «Schnee leitend» und charakteristisch mit dem Schnee.
+   */
+  { key: 'SchneeZug', label: 'Leiterzug bei Schnee', kurz: 'S_Z', art: 'staendig',
+    richtung: 'x', intern: true,
+    bemerkung: 'Änderung des Leiterzugs bei −5 °C mit Eis gegenüber +5 °C (Ablenkung, einseitige Abfangung)' },
+  /*
    * >>> DER HAVARIEFALL ALS ZWEI EIGENE GRUPPEN (17. September). <<<
    *
    * Sie tragen nur, was der Havariefall GEGENUEBER DEM STAENDIGEN aendert
@@ -503,7 +517,7 @@ export function standardLastfaelle(inp) {
   ];
   if (s) {
     lf.push({ key: 'sk', bez: 'Schnee', art: 'charakteristisch',
-              nachweis: false, beiwerte: bw({ Schnee: 1 }) });
+              nachweis: false, beiwerte: bw({ Schnee: 1, SchneeZug: 1 }) });
   }
   /*
    * >>> DER WIND AUF BEIDE SEITEN - AUCH CHARAKTERISTISCH (17. September). <<<
@@ -562,7 +576,8 @@ export function standardLastfaelle(inp) {
         key: `schnee${suffix}`,
         bez: `Schnee leitend, Wind ${zeichen}y`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
-        beiwerte: bw({ G: g, WindY: vz * p, Schnee: q }),
+        tempFall: 'schnee',
+        beiwerte: bw({ G: g, WindY: vz * p, Schnee: q, SchneeZug: g }),
       });
     });
     // Der begleitende Wind auch in der Jochachse, beide Seiten (17. Sept.).
@@ -571,7 +586,8 @@ export function standardLastfaelle(inp) {
         key: `schneeX${suffix}`,
         bez: `Schnee leitend, Wind ${zeichen}x`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
-        beiwerte: bw({ G: g, WindX: vz * p, Schnee: q }),
+        tempFall: 'schnee',
+        beiwerte: bw({ G: g, WindX: vz * p, Schnee: q, SchneeZug: g }),
       });
     });
   }

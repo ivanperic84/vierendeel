@@ -4170,7 +4170,10 @@ function modulListeHtml(a, i, werte) {
            gruppe('aufbau', 'Aufbauten') +
            gruppe('drahtwerk', 'Leiter',
                   (b) => (einfach(b) || b.id === wert)
-                      && (!istKettenwerk(b) || (fremd && b.id === wert)));
+                      && (!istKettenwerk(b) || (fremd && b.id === wert))
+                      // Nur die gewählten Einzelleiter (22. November, «die
+                      // einzelleiter sollen auswählbar sein»); der eingesetzte bleibt.
+                      && (b.id === wert || !(werte?.einzelleiterAus ?? []).includes(b.id)));
   };
 
   /* =========================================================================

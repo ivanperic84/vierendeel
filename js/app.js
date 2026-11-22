@@ -86,7 +86,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haeng
          globaleVorlagenLaden, globaleVorlagen, globaleVorlagenAn, globaleVorlageAblegen,
          setzeGlobaleVorlagen } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
-         setzeFlDB } from './data.fl.js';
+         setzeFlDB, setzeLeiterzugKontext } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd, abfangStuetzweite,
@@ -1729,6 +1729,10 @@ let urteilKurz = null;
 function mitJochLasten(w) { return tragwerksart(w).key !== 'einzelmast'; }
 
 function neuRechnen(neuZeichnen = true) {
+  // Der Leiterzug-Kern rechnet mit Spannweite, Systemen und Montagezügen des
+  // Blattes (22. November) - vor allem anderen, alle Leser holen ihn dort.
+  setzeLeiterzugKontext({ L: Number(werte.flSpannweite) || 40, nfl: werte.flSystemNfl || null,
+                          rfl: werte.flSystemRfl || null, montage: werte.leiterMontage ?? {} });
   // Ein Gittermast trägt die Länge seines Typs (Gitter + Rohr), 3. Oktober.
   werte = gitterLaengenFest(werte);
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
@@ -2931,7 +2935,7 @@ function blattSzene(erg) {
  * stehen nur in einem Havariefall. Bei «umhüllend» bleibt alles.
  */
 const GRUPPEN_DER_LASTART = { staendig: ['G'], leiterzug: ['G'], windX: ['WindX'], windY: ['WindY'],
-  schnee: ['Schnee'], havarie: ['HavarieX', 'HavarieY'] };
+  schnee: ['Schnee', 'SchneeZug'], havarie: ['HavarieX', 'HavarieY'] };
 function lastenNachFall(szene) {
   if (!szene) return szene;
   const bw = fallBeiwerte();
@@ -3041,7 +3045,7 @@ function wegeAnteile(g, lf) {
  * Faktor der Figur) und was sie bedeuten.
  */
 const FIGUR_GRUPPE = { G: 'ständig', WindX: 'Wind quer', WindY: 'Wind längs', Schnee: 'Schnee',
-                       HavarieX: 'Havarie', HavarieY: 'Havarie längs' };
+                       SchneeZug: 'Leiterzug bei Schnee', HavarieX: 'Havarie', HavarieY: 'Havarie längs' };
 function figurGrundlage(lf, f = 1) {
   const z = (v) => (Math.round(Math.abs(v) * 100) / 100).toFixed(2);
   const bw = Object.entries(lf?.beiwerte ?? {}).filter(([, v]) => v)

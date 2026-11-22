@@ -200,6 +200,8 @@ export const BLATT_FELDER = [
   'linie', 'ortschaft', 'km',
   // Trasse: Radius und Spannweite gelten der Linie, nicht dem Mast
   'flSpannweite', 'trasseRadius', 'trasseWinkel',
+  // Leiterzug-Kern (22. November): Systeme, Montagezüge, angebotene Einzelleiter.
+  'flSystemNfl', 'flSystemRfl', 'leiterMontage', 'einzelleiterAus',
   // Ob der Dialog «Neues Tragwerk» danach fragt (29. September).
   'grundwerteFragen',
   // Einwirkungen aus den Linienkarten

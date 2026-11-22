@@ -158,7 +158,7 @@ function abfangVarianteFuer(varianten, lf) {
 function tragjochFallFuer(alle, fa) {
   const bw = fa.beiwerte ?? { g: 1, w: 0, s: 0 };
   const beiwerte = { G: bw.g, WindX: bw.w * (fa.windX ?? 0), WindY: bw.w * (fa.windY ?? 0),
-                     Schnee: bw.s, HavarieX: 0, HavarieY: 0 };
+                     Schnee: bw.s, SchneeZug: fa.fall === 'schnee' ? bw.g : 0, HavarieX: 0, HavarieY: 0 };
   const passend = alle.find((lf) => leitVon(lf) === fa.fall
     && (fa.fall === 'havarie'
       || (Math.sign(lf.beiwerte?.WindY ?? 0) === (fa.windY ?? 0)

@@ -20,6 +20,7 @@
  */
 
 import { ausTabellen } from './data.tabellen.js';
+import { einzelleiterZug, kettenwerkZug } from './core.leiterzug.js';
 
 let DB = null;
 
@@ -352,8 +353,74 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
   };
 }
 
-/** Leiterzugkraft eines Drahtwerks [kN], bei T + 5 °C. */
-export const leiterzug = (id) => getFlBauteil(id).leiterzug ?? 0;
+/* ===========================================================================
+ * >>> DER LEITERZUG AUS DEM KERN (22. November). <<<
+ * ===========================================================================
+ * Weisung: «den leiterzug berechnungskern einbauen und die leiterzugkräfte
+ * nur anhand diesen berechnenen und die weitere nachweisrechnung
+ * hinterlegen. die systemauswahl definieren, am besten global für das
+ * projekt». Auf die Vorschläge «Ja, so bauen».
+ *
+ * Steht der Kontext (Spannweite, gewählte Systeme, Montagezüge - von der
+ * Anwendung je Rechnung gesetzt, `setzeLeiterzugKontext`), kommt JEDER
+ * Leiterzug aus core.leiterzug.js: der Einzelleiter aus seiner
+ * Zustandsgleichung, das Kettenwerk aus dem gewählten N-FL- bzw. R-FL-System.
+ * Ohne Kontext (Prüfstand, Testdaten) oder ohne Kernwerte gilt wie bisher
+ * die Spalte «leiterzug» bzw. die Reglage.
+ */
+let KONTEXT = null;
+export function setzeLeiterzugKontext(k) { KONTEXT = k ?? null; }
+export const leiterzugKontext = () => KONTEXT;
+
+/** Die Fahrleitungssysteme des Sortiments, wahlweise einer Art ('nfl' | 'rfl'). */
+export function flSysteme(art = null) {
+  return (DB?.systeme ?? []).filter((s) => !art || s.art === art);
+}
+/** Das gewählte System einer Art, sonst die Vorgabe, sonst das erste. */
+export function flSystem(art, id = null) {
+  const l = flSysteme(art);
+  return l.find((s) => s.id === id) ?? l.find((s) => s.standard === true) ?? l[0] ?? null;
+}
+
+/** Ein Einzelleiter mit Werten der Zustandsgleichung? */
+export const hatZustandsgleichung = (b) => Number(b?.zug?.q) > 0
+  && !/^drahtwerk-[nr]-fl/.test(String(b?.id ?? ''));
+
+/** Montagezug bei 10 °C eines Einzelleiters [kN] - von Hand, sonst aus dem Sortiment. */
+export function montagezug(b, L = KONTEXT?.L) {
+  const basis = String(b?.id ?? '').replace(/-x\d+$/, '');
+  const hand = Number(KONTEXT?.montage?.[basis]);
+  if (hand > 0) return hand;
+  return Number(L) > 35 && Number(b?.zug?.H10weit) > 0 ? Number(b.zug.H10weit) : Number(b?.zug?.H10);
+}
+
+/**
+ * Zug eines Drahtwerks aus dem Kern [kN] bei T [°C] und Eislast zl [kN/m],
+ * oder `null` (kein Kontext, keine Kernwerte).
+ */
+export function zugAusKern(id, T, zl = 0) {
+  if (!KONTEXT || !Number.isFinite(T)) return null;
+  const b = typeof id === 'string' ? getFlBauteil(id) : id;
+  const sid = String(b?.id ?? '');
+  const L = Number(KONTEXT.L) > 0 ? Number(KONTEXT.L) : 45;
+  if (hatZustandsgleichung(b)) {
+    const H10 = montagezug(b, L);
+    if (!(H10 > 0)) return null;
+    return (Number(b.zug.n) || 1) * einzelleiterZug({ ...b.zug, H10 }, L, T, zl);
+  }
+  const m = /^drahtwerk-([nr])-fl/.exec(sid);
+  if (!m) return null;
+  const art = m[1] === 'n' ? 'nfl' : 'rfl';
+  const sys = flSystem(art, art === 'nfl' ? KONTEXT.nfl : KONTEXT.rfl);
+  if (!sys) return null;
+  const a = abfangArt(b);
+  const n = Number(/-x(\d+)$/.exec(sid)?.[1] ?? 1);
+  const z = kettenwerkZug(sys, L, T, zl);
+  return n * ((a.ts ? z.ts : 0) + (a.fd ? z.fd : 0));
+}
+
+/** Leiterzugkraft eines Drahtwerks [kN], bei T + 5 °C - aus dem Kern, wenn er gilt. */
+export const leiterzug = (id) => zugAusKern(id, 5) ?? getFlBauteil(id).leiterzug ?? 0;
 
 /* ===========================================================================
  * DIE REGLAGETABELLE - ZUGKRAFT JE TEMPERATUR
@@ -574,6 +641,12 @@ export function abfangkraft(id, { tempFall = 'tragsicherheit' } = {}) {
    * dann nicht beschreiben, wenn eine dalaege.
    */
   const zl = reglierZusatzlast(tempFall);
+  // Aus dem Kern, wenn er gilt (22. November) - für fix wie beweglich.
+  const kern = zugAusKern(id, T, zl);
+  if (kern !== null) {
+    return { Z: kern, Z5, art: a.art, T, zusatzlast: zl, temperaturabhaengig: fixDabei,
+             ausTabelle: false, ausKern: true, ohneTabelle: false };
+  }
   const ausTab = fixDabei ? reglageZug(id, T, { zusatzlast: zl }) : null;
   const ohneTabelle = fixDabei && ausTab === null && !(T === 5 && zl === 0);
   return { Z: ausTab ?? Z5, Z5, art: a.art, T, zusatzlast: zl,

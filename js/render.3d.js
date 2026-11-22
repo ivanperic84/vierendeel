@@ -126,7 +126,7 @@ export function haltVektor(halt, p, teil, name, laenge) {
 }
 
 export const LASTART_VON_GRUPPE = {
-  G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee',
+  G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee', SchneeZug: 'schnee',
   HavarieX: 'havarie', HavarieY: 'havarie',
 };
 

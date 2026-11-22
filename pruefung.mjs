@@ -952,9 +952,11 @@ titel('15  Lastfälle');
        chars.map((x) => x.key).join(',')
          === 'gk,ablk,sk,wyk,wykm,wxk,wxkm,gwk,gwkm,gwkx,gwkxm',
        chars.map((x) => x.bez).join(' · '));
-  wahr('Jede Einzellastart trägt genau eine Gruppe',
-       ['sk', 'wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
-         .filter((v) => v !== 0).length === 1));
+  // 22. November: «Schnee» trägt dazu die Änderung des Leiterzugs (SchneeZug).
+  wahr('Jede Einzellastart trägt genau eine Gruppe (Schnee mit seinem Leiterzug)',
+       ['wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
+         .filter((v) => v !== 0).length === 1)
+       && Object.entries(holen('sk').beiwerte).filter(([, v]) => v !== 0).map(([k]) => k).join(',') === 'Schnee,SchneeZug');
   // Weisung vom 16. September: alle Tragwerksteile zusammen, die
   // Ablenkkraft fuer sich.
   wahr('Ständig zeigt das Tragwerk, der zweite Fall die Ablenkkräfte',
@@ -964,9 +966,10 @@ titel('15  Lastfälle');
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
          .every((x) => x.nachweis === false && !x.beiwerte.G));
   // Seit dem 17. September zwei mehr: der Havariefall (intern).
-  wahr('Sechs Gruppen: G, Wind x, Wind y, Schnee, Havarie x, Havarie y',
-       L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee,HavarieX,HavarieY'
-       && L.EINWIRKUNGEN.filter((e) => e.intern).length === 2,
+  // Seit dem 22. November die Änderung des Leiterzugs bei Schnee (intern).
+  wahr('Sieben Gruppen: G, Wind x, Wind y, Schnee, Leiterzug bei Schnee, Havarie x, Havarie y',
+       L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee,SchneeZug,HavarieX,HavarieY'
+       && L.EINWIRKUNGEN.filter((e) => e.intern).length === 3,
        L.EINWIRKUNGEN.map((e) => e.label).join(' · '));
 
   // Die charakteristischen Lastfälle: alle Beiwerte 1.00 bzw. 0
@@ -1631,8 +1634,9 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const gT = U.GRUPPEN.find((g) => g.id === 'trasse');
     wahr('Die Trasse faengt zugeklappt an', gT.zugeklappt === true);
     // Drei Werte und seit dem 29. September der Schalter «nachfragen».
+    // 22. November: dazu System N-FL und R-FL.
     wahr('… und hat wirklich Felder darin',
-         U.sichtbareFelder('trasse', w).length === 4,
+         U.sichtbareFelder('trasse', w).length === 6,
          `${U.sichtbareFelder('trasse', w).length} Felder`);
     // Die Gruppe der Bauteile selbst bleibt offen - sie IST der Reiter.
     const gA = U.GRUPPEN.find((g) => g.id === 'anbau');
@@ -23572,7 +23576,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   // Fünfzehn seit dem 3. Oktober: die Gittermasten.
   // Sechzehn seit dem 7. Oktober: die Fundamentlasten je Gelände.
   // Siebzehn seit dem 8. Oktober: die gespreizten Masten.
-  pruef('Siebzehn Abschnitte', K.ABSCHNITTE.length, 17, 1e-12, 'Stk');
+  // Achtzehn seit dem 22. November: die Fahrleitungssysteme.
+  pruef('Achtzehn Abschnitte', K.ABSCHNITTE.length, 18, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23656,7 +23661,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle siebzehn Abschnitte', gesamt.abschnitte.length, 17, 1e-12, 'Stk');
+    pruef('… ueber alle achtzehn Abschnitte', gesamt.abschnitte.length, 18, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23777,8 +23782,9 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     // Elf seit dem 3. Oktober: die Gittermasten bei den Masten; zwoelf seit
     // dem 7. Oktober: die Fundamentlasten je Gelaende.
     // Dreizehn seit dem 8. Oktober: die gespreizten Masten.
-    wahr('Sortiment: dreizehn Abschnitte in sechs Dateien',
-         sort.length === 13 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    // Vierzehn seit dem 22. November: die Fahrleitungssysteme.
+    wahr('Sortiment: vierzehn Abschnitte in sechs Dateien',
+         sort.length === 14 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -43804,6 +43810,47 @@ titel('325  Markierung des massgebenden Stabes fein: Schimmer, haarfeine Kante, 
   wahr('Keine 2.4-px-Kante mehr; Schimmer und 0.9-px-Kante, Anschrift über stabWort',
        !RQ.includes('c.lineWidth = (m.vorschau ? 1.6 : 2.4) * s;') && RQ.includes('c.globalAlpha = m.vorschau ? 0.12 : 0.22; c.fill();')
        && RQ.includes("const wort = stabWort(m.name);"));
+}
+
+// ===========================================================================
+titel('326  Leiterzug-Kern: Zustandsgleichung wie die Durchhang-App, Systeme, Zug je Kombination');
+{
+  const LZ = await import(J('core.leiterzug.js'));
+  const FLK = await import(J('data.fl.js'));
+  // Die Werte der Leiter stehen im Sortiment (Betreiberdaten, nicht hier).
+  // Verglichen wird gegen die Durchhang-App (gemessen 22. November, L 40 m,
+  // Montage 10 °C, Eis 7 N/m).
+  const s8 = FLK.flSysteme('nfl').find((x) => x.id === 'nfl-stcu50-cu107-8');
+  let cu95 = null;
+  try { cu95 = FLK.getFlBauteil('drahtwerk-cu-95')?.zug ?? null; } catch { cu95 = null; }
+  if (s8 && cu95?.q) {
+    pruef('N-FL StCu 50 · 8 kN, Tragseil +5 °C (App 6.130)', LZ.nflTragseilZug(s8, 40, 5), 6.130, 1e-9, 'kN');
+    pruef('… −5 °C mit Eis (App 7.600)', LZ.nflTragseilZug(s8, 40, -5, 0.007), 7.600, 1e-9, 'kN');
+    pruef('… −20 °C (App 7.830)', LZ.nflTragseilZug(s8, 40, -20), 7.830, 1e-9, 'kN');
+    pruef('Cu 95: +5 °C (App 4.0237)', LZ.einzelleiterZug(cu95, 40, 5), 4.0237, 5e-5, 'kN');
+    pruef('… −5 °C mit Eis (App 6.5531)', LZ.einzelleiterZug(cu95, 40, -5, 0.007), 6.5531, 5e-5, 'kN');
+    pruef('… −20 °C (App 6.5215)', LZ.einzelleiterZug(cu95, 40, -20), 6.5215, 5e-5, 'kN');
+    pruef('Bei 10 °C gibt der Einzelleiter seinen Montagezug zurück', LZ.einzelleiterZug(cu95, 40, 10), cu95.H10, 1e-9, 'kN');
+    FLK.setzeLeiterzugKontext({ L: 40, nfl: 'nfl-stcu50-cu107-8', rfl: null, montage: {} });
+    try {
+      pruef('Kettenwerk N-FL mit Kontext: Z(+5) = Ts 6.13 + Fd', FLK.leiterzug('drahtwerk-n-fl-ts-stcu-50-fd-cu-107'), 6.13 + s8.hFd, 1e-9, 'kN');
+      pruef('… Schnee: Ts 7.60 + Fd', FLK.abfangkraft('drahtwerk-n-fl-ts-stcu-50-fd-cu-107', { tempFall: 'schnee' }).Z, 7.60 + s8.hFd, 1e-9, 'kN');
+      pruef('Cu 95 (2) mit Kontext: 2 × Einzelleiter', FLK.leiterzug('drahtwerk-cu-95-x2'), 2 * LZ.einzelleiterZug(cu95, 40, 5), 1e-9, 'kN');
+      FLK.setzeLeiterzugKontext({ L: 40, nfl: null, rfl: null, montage: { 'drahtwerk-cu-95': cu95.H10 + 1 } });
+      pruef('Montagezug von Hand gilt', FLK.leiterzug('drahtwerk-cu-95'), LZ.einzelleiterZug({ ...cu95, H10: cu95.H10 + 1 }, 40, 5), 1e-9, 'kN');
+    } finally { FLK.setzeLeiterzugKontext(null); }
+  }
+  // Ohne Daten: die Formeln an sich (erfundener Leiter) - bei 10 °C der Montagezug.
+  const erf = { q: 5, alpha: 1e-5, E: 100000, AK: 50, H10: 3 };
+  pruef('Erfundener Leiter: bei 10 °C der Montagezug', LZ.einzelleiterZug(erf, 40, 10), 3, 1e-9, 'kN');
+  wahr('… kälter zieht stärker', LZ.einzelleiterZug(erf, 40, -20) > LZ.einzelleiterZug(erf, 40, 5));
+  wahr('R-FL: feste Züge', JSON.stringify(LZ.kettenwerkZug({ art: 'rfl', hTs: 12, hFd: 10 }, 40, -20)) === '{"ts":12,"fd":10}');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'core.lasten.js'), 'utf8');
+  wahr('Die App setzt den Kontext bei jeder Rechnung', AQ.includes('setzeLeiterzugKontext({ L: Number(werte.flSpannweite) || 40'));
+  wahr('Schnee leitend greift die Änderung des Leiterzugs mit γ_G',
+       LQ.includes('beiwerte: bw({ G: g, WindY: vz * p, Schnee: q, SchneeZug: g }),')
+       && LQ.includes('beiwerte: bw({ G: g, WindX: vz * p, Schnee: q, SchneeZug: g }),'));
 }
 
 console.log('\n' + '='.repeat(104));

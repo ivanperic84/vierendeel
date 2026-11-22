@@ -824,6 +824,22 @@ export const ABSCHNITTE = [
         ]),
       ], { notiz: 'Nur fix abgefangene Leiter.' }),
       /*
+       * >>> DIE ZUSTANDSGLEICHUNG DES EINZELLEITERS (22. November). <<<
+       * Weisung: «den leiterzug berechnungskern einbauen und die
+       * leiterzugkräfte nur anhand diesen berechnen». Mit diesen Werten
+       * rechnet core.leiterzug.js den Zug je Temperatur; ohne sie gilt die
+       * Reglage darüber.
+       */
+      satz('zug', 'Zustandsgleichung', [
+        zahl('n', 'Anzahl Leiter', null, { von: 1, bis: 8 }),
+        zahl('q', 'Gewicht je Leiter', 'N/m', { von: 0, bis: 100 }),
+        zahl('alpha', 'Wärmedehnzahl', '1/K', { von: 0, bis: 1 }),
+        zahl('E', 'E-Modul', 'N/mm²', { von: 0, bis: 300000 }),
+        zahl('AK', 'Querschnitt', 'mm²', { von: 0, bis: 2000 }),
+        zahl('H10', 'Montagezug bei 10 °C', 'kN', { von: 0, bis: 60 }),
+        zahl('H10weit', 'Montagezug bei 10 °C, Spannweite über 35 m', 'kN', { von: 0, bis: 60 }),
+      ], { notiz: 'Nur Einzelleiter (fix abgespannt). Kettenwerke nehmen ihren Zug aus dem System.' }),
+      /*
        * >>> LÄNGE STATT PUNKT (7. Oktober). <<< Weisung: «was mehr sinn machen
        * würde bei den tragenden anbauteilen, ist wenn man die gesamtlänge
        * eingibt und der Lastangriffspunkt dann automatisch in der mitte des
@@ -925,6 +941,33 @@ export const ABSCHNITTE = [
    * Wind quer zum Gleis trifft. Bei Tragwerksteilen gelten Fläche und Masse
    * je Meter und werden mit der Länge multipliziert.
    * ---------------------------------------------------------------------- */
+  /*
+   * >>> FAHRLEITUNGSSYSTEME (22. November). <<< «die systemauswahl
+   * definieren, am besten global für das projekt, da es verschiedene nfl und
+   * rfl gibt.» Je System die Werte der Zustandsgleichung (N-FL) bzw. die
+   * festen Züge (R-FL); gewählt wird je Projekt unter Lasten → Trasse.
+   */
+  {
+    key: 'flsysteme', db: 'fl_bauteile', tabelle: 'systeme', liste: 'systeme',
+    titel: 'Fahrleitungssysteme', herkunft: 'sortiment', schluessel: 'id',
+    notiz: 'N-FL: Tragseil fix (Zustandsgleichung ab 10 °C), Fahrdraht nachgespannt. '
+         + 'R-FL: beide nachgespannt, feste Züge.',
+    felder: [
+      text('id', 'Kurzzeichen', { pflicht: true }),
+      text('name', 'Bezeichnung', { pflicht: true }),
+      f('art', 'Art', 'wahl', { wahl: ['nfl', 'rfl'], pflicht: true }),
+      zahl('MFL', 'Gewicht Ts belastet (mit Fd, Klemmen)', 'N/m', { von: 0, bis: 100 }),
+      zahl('MTS', 'Gewicht Ts unbelastet', 'N/m', { von: 0, bis: 100 }),
+      zahl('E', 'E-Modul Tragseil', 'N/mm²', { von: 0, bis: 300000 }),
+      zahl('AL', 'Wärmedehnzahl Tragseil', '1/K', { von: 0, bis: 1 }),
+      zahl('AK', 'Querschnitt Tragseil', 'mm²', { von: 0, bis: 2000 }),
+      zahl('hTsUb', 'Tragseil unbelastet bei 10 °C', 'kN', { von: 0, bis: 60 }),
+      zahl('hTs', 'Tragseil (R-FL, fest)', 'kN', { von: 0, bis: 60 }),
+      zahl('hFd', 'Fahrdraht (nachgespannt)', 'kN', { von: 0, bis: 60 }),
+      bool('standard', 'Vorgabe', { notiz: 'Gilt, solange im Projekt nichts gewählt ist (je Art eines).' }),
+      text('bemerkung', 'Bemerkung'),
+    ],
+  },
   {
     key: 'signalteile', db: 'anbauteile', tabelle: 'signalteile', liste: 'signalteile',
     titel: 'Signalteile', herkunft: 'sortiment', schluessel: 'id',

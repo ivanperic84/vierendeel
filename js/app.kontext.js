@@ -10,7 +10,7 @@
  */
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
 import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
-import { flBauteile, getFlBauteil } from './data.fl.js';
+import { flBauteile, getFlBauteil, hatZustandsgleichung, montagezug, zugAusKern, leiterzugKontext } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { anbauGruppe } from './data.anbauteile.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, ekVonWindklasse } from './core.lasten.js';
@@ -729,10 +729,69 @@ export function kontextTrasse(app) {
     if (hy) teil.push(`längs ${f2(m.windY)} (Tabelle ${f2(tab?.gleis)})`);
     hand.push({ info: `Mastwind ${mastName(w, m) || m.id}: ${teil.join(' · ')} kN/m` });
   });
+  /*
+   * EINZELLEITER UND MONTAGEZUG (22. November): welche Einzelleiter unter den
+   * Anbauteilen angeboten werden und mit welchem Montagezug bei 10 °C der
+   * Kern rechnet.
+   */
+  const leiterPunkt = [{ text: 'Einzelleiter und Montagezug …', tun: () => dialogEinzelleiter(app) }];
   const handBlock = hand.length ? ['-', { kopf: 'Lasten von Hand (nicht aus der Datenbank)' }, ...hand.map((h) => ({ ...h, warn: true })),
     { text: 'Zurücksetzen auf die Datenbankwerte', warn: true, tun: () => app.lastenZuruecksetzen() }] : [];
   return [
-    ...kontextTrasseFelder(app, w, ja), ...handBlock];
+    ...kontextTrasseFelder(app, w, ja), ...leiterPunkt, ...handBlock];
+}
+
+/**
+ * >>> EINZELLEITER: ANGEBOTEN UND MONTAGEZUG (22. November). <<< Weisung:
+ * «die einzelleiter sollen auswählbar sein welche das man unter den
+ * anbauteilen auswähl haben will», dazu der Montagezug je Leiter («für
+ * einzelleiter wo man die montage leiterzugkraft eingeben kann … es sollte
+ * aber einfach zu bedienen sein»). Je Leiter ein Häkchen und ein Feld;
+ * daneben die Züge, mit denen gerechnet wird.
+ */
+export function dialogEinzelleiter(app) {
+  const leiter = () => flBauteile('drahtwerk').filter((b) => hatZustandsgleichung(b) && !/-x\d+$/.test(b.id));
+  const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
+  const body = () => {
+    const w = app.werte;
+    const aus = new Set(w.einzelleiterAus ?? []);
+    const L = leiterzugKontext()?.L ?? w.flSpannweite;
+    return `<p class="notiz">Zustandsgleichung ab dem Montagezug bei 10 °C über die Spannweite L_FL ${esc(String(L))} m.
+      Leer: Montagezug aus dem Sortiment. Ohne Häkchen steht der Leiter nicht in der Bausteinwahl.</p>
+      <div class="tabellenrahmen"><table class="dt"><thead><tr><th>angeboten</th><th>Leiter</th>
+        <th class="num">Montagezug 10 °C [kN]</th><th class="num">Z +5 °C</th><th class="num">Z −5 °C + Eis</th><th class="num">Z −20 °C</th></tr></thead>
+      <tbody>${leiter().map((b) => {
+        const hand = w.leiterMontage?.[b.id];
+        let z5 = null, zs = null, z20 = null;
+        try { z5 = zugAusKern(b.id, 5); zs = zugAusKern(b.id, -5, 0.007); z20 = zugAusKern(b.id, -20); } catch { /* ohne Kontext */ }
+        return `<tr><td><input type="checkbox" data-el-an="${esc(b.id)}"${aus.has(b.id) ? '' : ' checked'}></td>
+          <td>${esc(b.name)}</td>
+          <td class="num"><input type="number" step="0.1" min="0" data-el-h="${esc(b.id)}" value="${hand ?? ''}"
+            placeholder="${f2(montagezug(b, L))}" style="width:70px"></td>
+          <td class="num">${f2(z5)}</td><td class="num">${f2(zs)}</td><td class="num">${f2(z20)}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  };
+  app.dialog('Einzelleiter', `<div id="el-rahmen">${body()}</div>`, '', 'dialog-breit');
+  const rahmen = document.getElementById('el-rahmen');
+  const verdrahten = () => {
+    rahmen.querySelectorAll('[data-el-an]').forEach((c) => {
+      c.onchange = () => {
+        const aus = new Set(app.werte.einzelleiterAus ?? []);
+        if (c.checked) aus.delete(c.dataset.elAn); else aus.add(c.dataset.elAn);
+        app.aendern('einzelleiterAus', [...aus]);
+      };
+    });
+    rahmen.querySelectorAll('[data-el-h]').forEach((inp) => {
+      inp.onchange = () => {
+        const m = { ...(app.werte.leiterMontage ?? {}) };
+        const v = Number(inp.value);
+        if (v > 0) m[inp.dataset.elH] = v; else delete m[inp.dataset.elH];
+        app.aendern('leiterMontage', m);
+        rahmen.innerHTML = body(); verdrahten();
+      };
+    });
+  };
+  verdrahten();
 }
 
 /*

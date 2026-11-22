@@ -697,7 +697,7 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
 /** Die Einwirkungsgruppen der Datei je Beiwert-Schluessel des Kerns. */
 export const GRUPPEN_JE_BEIWERT = {
   G: ['G', 'G_Anbau', 'G_Ablenk'],
-  WindX: ['WindX'], WindY: ['WindY'], Schnee: ['Schnee'],
+  WindX: ['WindX'], WindY: ['WindY'], Schnee: ['Schnee'], SchneeZug: ['SchneeZug'],
   HavarieX: ['HavarieX'], HavarieY: ['HavarieY'],
 };
 
