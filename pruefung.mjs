@@ -43769,9 +43769,11 @@ titel('322  Lasten gehen mit «Modell aus»; Positionen zuletzt; Überhöhung in
   wahr('Resultate: Positionen nach K und der Überhöhung',
        LQ.indexOf("text('wz-r-ueber'") > LQ.indexOf('knickKnopf(app, gR, text)\n')
        && LQ.indexOf("mo.key === 'positionen').map") > LQ.indexOf("text('wz-r-ueber'"));
-  wahr('Überhöhung: Stufe 1 bis 3, je 30 % mehr, für Figur und Knickfigur',
-       AQ.includes('const ueberFaktor = () => 1.3 ** ueberStufe;') && AQ.includes('faktor *= ueberFaktor();')
-       && AQ.includes('((0.08 * groesse) / fig.max) * ueberFaktor()'));
+  wahr('Überhöhung: Stufe 1 bis 3, je 50 % mehr, für Figur, Knickfigur und Zustandslinie',
+       AQ.includes('const ueberFaktor = () => 1.5 ** ueberStufe;') && AQ.includes('faktor *= ueberFaktor();')
+       && AQ.includes('((0.08 * groesse) / fig.max) * ueberFaktor()')
+       && readFileSync(join(HIER, 'js', 'core.zustandwerte.js'), 'utf8').includes('* (Number(o.ueber) > 0 ? Number(o.ueber) : 1) : 0;')
+       && readFileSync(join(HIER, 'js', 'app.zustand.js'), 'utf8').includes('ueber: app.ueberFaktor?.() ?? 1 })'));
 }
 
 // ===========================================================================

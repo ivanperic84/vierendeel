@@ -524,11 +524,12 @@ export function zeichneModellWerkzeuge(app) {
        * >>> ÜBERHÖHUNG IN DREI STUFEN (22. November). <<< «einen button
        * anfügen für den grad der überhöhung, die jetzige ist die stufe 1 und
        * noch diese jeweils um 30% erhöehn für die nächsten zwei.» Ein Klick
-       * schaltet 1 → 2 → 3 → 1 (× 1.00 / 1.30 / 1.69), für die verformte
-       * Figur und die Knickfigur.
+       * schaltet 1 → 2 → 3 → 1. Nachtrag: «hier mit 50% jeweils überhöhen
+       * anstatt den 30% und auch für die liniendiagramme soll es gültigkeit
+       * haben» - × 1.00 / 1.50 / 2.25, Figur, Knickfigur und Zustandslinie.
        */
       + text('wz-r-ueber', `Ü${(app.ueberStufe ?? 0) + 1}`,
-        `Überhöhung der Figur: Stufe ${(app.ueberStufe ?? 0) + 1} von 3 (× ${(1.3 ** (app.ueberStufe ?? 0)).toFixed(2)}) - Klick: nächste Stufe`,
+        `Überhöhung von Figur und Liniendiagramm: Stufe ${(app.ueberStufe ?? 0) + 1} von 3 (× ${(1.5 ** (app.ueberStufe ?? 0)).toFixed(2)}) - Klick: nächste Stufe`,
         (app.ueberStufe ?? 0) > 0, !gR)
       + modiFuer(app.nachweisart).filter((mo) => mo.key === 'positionen').map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3), mo.label, mo.key === app.ansicht.modus, !gR)).join('')
@@ -618,7 +619,7 @@ export function zeichneModellWerkzeuge(app) {
     };
   }
   const ue = ui.el('wz-r-ueber');
-  if (ue) ue.onclick = () => { app.ueberStufe = ((app.ueberStufe ?? 0) + 1) % 3; app.figurNeu?.(); zeichneModellWerkzeuge(app); };
+  if (ue) ue.onclick = () => { app.ueberStufe = ((app.ueberStufe ?? 0) + 1) % 3; if (zl.an) app.zustandNeu(true); app.figurNeu?.(); zeichneModellWerkzeuge(app); };
   const kn = ui.el('wz-r-knick');
   if (kn) {
     kn.onclick = () => {

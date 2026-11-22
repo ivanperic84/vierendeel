@@ -218,6 +218,7 @@ const app = {
   knickRechnen: () => knickRechnen(),
   knickFigurSchalten: () => knickFigurSchalten(),
   get ueberStufe() { return ueberStufe; },
+  ueberFaktor: () => ueberFaktor(),
   set ueberStufe(v) { ueberStufe = v; },
   figurNeu: () => { verformtMerk = null; if (letzte?.anzeige) aktualisiereModell(letzte.anzeige); else neuRechnen(); },
   inselSteuerung: () => inselSteuerung(),
@@ -2977,9 +2978,9 @@ function lastenNachFall(szene) {
  * Walzprofil-Einzelmasten aus dem Ersatzbalken und widersprach der Figur.
  */
 let verformtMerk = null;
-/** Stufe der Überhöhung 0, 1, 2 (× 1.3 je Stufe; 22. November). */
+/** Stufe der Überhöhung 0, 1, 2 (× 1.5 je Stufe; 22. November: «hier mit 50% jeweils überhöhen anstatt den 30%»). */
 let ueberStufe = 0;
-const ueberFaktor = () => 1.3 ** ueberStufe;
+const ueberFaktor = () => 1.5 ** ueberStufe;
 /**
  * Rechnet das Stabwerk (Verfahren «Stabwerk» und ein Stabmodell vorhanden)?
  * Dann gibt es keinen Nachweisschnitt des Ersatzbalkens: Schnittkräfte am
@@ -3184,7 +3185,7 @@ function verformtSetzen(szene = null) {
     const roh6 = (0.08 * groesse) / figMax;
     const p10 = 10 ** Math.floor(Math.log10(roh6));
     faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
-    // Stufe 2 und 3: je 30 % mehr (22. November).
+    // Stufe 2 und 3: je 50 % mehr (22. November).
     faktor *= ueberFaktor();
   }
   const wert = faktor > 0 ? {

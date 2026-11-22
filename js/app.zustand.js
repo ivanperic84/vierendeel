@@ -116,7 +116,8 @@ export function zustandSetzen(app, g) {
     }
     return true;
   };
-  const z0 = zustandBauen({ geo, aussen, faelle, groesse, eb: zl.eb, sicht, ax: zl.ax, dx, dz, fyd });
+  const z0 = zustandBauen({ geo, aussen, faelle, groesse, eb: zl.eb, sicht, ax: zl.ax, dx, dz, fyd,
+    ueber: app.ueberFaktor?.() ?? 1 });   // Überhöhung in Stufen (22. November)
   if (!z0) { ansicht.zustand = null; return; }
   const { k, huelle, groesseM } = z0;
   // Reaktionen zum Diagramm.

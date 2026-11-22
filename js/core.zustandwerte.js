@@ -257,7 +257,8 @@ export function zustandBauen(o) {
    * Bezugsgrösse je Art (ZL_BEZUG): 0.04 kNm stehen dann als Strich da.
    */
   const bezug = zlBezug(k);
-  const skal = vmax > 1e-9 ? 0.08 * groesseM / Math.max(vmax, bezug) : 0;
+  // Überhöhung in Stufen (22. November, «auch für die liniendiagramme»): × 1 / 1.5 / 2.25.
+  const skal = vmax > 1e-9 ? (0.08 * groesseM / Math.max(vmax, bezug)) * (Number(o.ueber) > 0 ? Number(o.ueber) : 1) : 0;
   const linien = reihen.map(({ s, r, i }) => ({
     name: s.n,
     pkt: r.map((x, p) => {
