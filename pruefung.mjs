@@ -44246,6 +44246,8 @@ titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.
        RK.includes('export const PROFILSCHNITT_FAKTOR = 2;') && RK.includes('profilschnitt: true'));
   const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
   const KX = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Insel: Abstand klimatisch / geometrisch, Schnee mit Wert zuerst, Erklärung hinter ⓘ',
+       KX.includes('{ abstand: true }') && KX.includes("text: `s ${k.sk.toFixed(2)} kN/m²`") && KX.includes('data-ki'));
   wahr('Insel: EK oben, Wind und Schnee darunter, EK «–» ohne passende Klasse, Panel baut sich neu',
        !KX.includes('ekEinzeln') && KX.includes("label: 'EK', wert: ek, grau: !ek") && KX.includes('function grundwerteNeu(app)'));
   wahr('Projekt löschen mit Warnfenster und Kreuz vor dem Knopf',

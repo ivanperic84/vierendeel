@@ -4516,3 +4516,9 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
 
 /* EK ohne passende Klasse (Wind/Schnee von Hand), 23. November. */
 .kontext-feld select.grau { opacity: .5; }
+
+/* Grundwerte der Insel (23. November): Abstand klimatisch / geometrisch, ⓘ am Kopf. */
+.kontext-abstand { height: 10px; }
+.kontext-ib { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 4px; }
+.kontext-ib:hover { color: var(--acc); }
+.kontext-erkl { white-space: normal; max-width: 300px; }

@@ -119,7 +119,13 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
    */
   n.innerHTML = echte.map((p, i) => {
     if (p === '-') return '<hr>';
+    // Kopf mit ⓘ (23. November): die Erklärung klappt darunter auf, statt im Feld zu stehen.
+    if (p.kopf && p.erkl) return `<div class="kontext-kopf">${esc(p.kopf)}
+        <button type="button" class="kontext-ib" data-ki aria-label="Erklärung">ⓘ</button></div>
+      <div class="kontext-info kontext-erkl" hidden>${esc(p.erkl)}</div>`;
     if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
+    // Kleiner Abstand zwischen zwei Feldgruppen (23. November).
+    if (p.abstand) return '<div class="kontext-abstand"></div>';
     // Eine Skizze (22. November) - fertiges, selbst erzeugtes SVG, kein Fremdtext.
     if (p.skizze) return `<div class="kontext-skizze">${p.skizze}</div>`;
     // Eine Zeile Auskunft, nichts zum Anklicken (9. Oktober).
@@ -179,6 +185,9 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
       kontextSchliessen(app);
       p?.tun?.();
     });
+  });
+  n.querySelectorAll('[data-ki]').forEach((b2) => {
+    b2.onclick = (e) => { e.stopPropagation(); const d = b2.parentElement.nextElementSibling; if (d) d.hidden = !d.hidden; };
   });
   n.querySelectorAll('[data-kc]').forEach((b2) => {
     b2.addEventListener('click', () => {
@@ -893,7 +902,12 @@ function grundwerteNeu(app) {
 
 function kontextTrasseFelder(app, w, ja) {
   return [
-    { kopf: 'Grundwerte (ganzes Blatt)' },
+    { kopf: 'Grundwerte (ganzes Blatt)',
+      erkl: 'EK setzt Wind und Schnee zusammen: EK1/EK4 q 0.90, EK2/EK5 1.10, EK3/EK6 1.30 kN/m²; '
+        + 'EK1-3 Schnee unter 1000 m ü. M. (s 0.90 kN/m²), EK4-6 über 1000 m (s 1.25 kN/m²). '
+        + 'Wind und Schnee lassen sich darunter einzeln stellen; passt das Paar zu keiner EK '
+        + '(Einheitswind 1.0 kN/m² der alten Norm, ohne Formbeiwert), steht bei der EK «–». '
+        + 'Reduktion × 0.74: Wind in dicht überbautem Gebiet. Die Werte gelten dem ganzen Blatt.' },
     /*
      * >>> EK OBEN, WIND UND SCHNEE DARUNTER (23. November). <<< Mit Bild der
      * Insel: «hier ek auswählen können oder den wind und den schnee
@@ -911,7 +925,7 @@ function kontextTrasseFelder(app, w, ja) {
       const ek = ekKlasseVon(w);
       return { feld: { art: 'auswahl', label: 'EK', wert: ek, grau: !ek,
                        optionen: [...(ek ? [] : [{ wert: '', text: '–' }]),
-                         ...EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label }))] },
+                         ...EK_KLASSEN.map((k) => ({ wert: k.key, text: k.key }))] },
         tun: (v) => {
           if (!v) return;
           if (istEinheitswind(app.werte)) app.aendern('einheitswind', false);
@@ -922,7 +936,7 @@ function kontextTrasseFelder(app, w, ja) {
     })(),
     { feld: { art: 'auswahl', label: 'Wind', wert: String(w.windKlasse ?? '0.9'),
               optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
-                text: k.einheit ? 'Einheitswind 1.0 (alte Norm)' : `q ${k.qp.toFixed(2)} kN/m² (${k.ek}/EK${Number(k.ek.slice(2)) + 3})` })) },
+                text: k.einheit ? 'q 1.00 kN/m² Einheitswind' : `q ${k.qp.toFixed(2)} kN/m²` })) },
       tun: (v) => {
         if (v === '1.0') app.aendern('einheitswind', true);
         else {
@@ -934,11 +948,12 @@ function kontextTrasseFelder(app, w, ja) {
       } },
     { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? String(w.schneeKlasse ?? '1.25') : '',
               optionen: [{ wert: '', text: 'aus' },
-                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `${k.hoch ? 'über' : 'unter'} 1000 m · s ${k.sk.toFixed(2)}` }))] },
+                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `s ${k.sk.toFixed(2)} kN/m²` }))] },
       tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); grundwerteNeu(app); } },
     { feld: { art: 'auswahl', label: 'Reduktion × 0.74', wert: w.windReduktion ? '1' : '',
               optionen: ja },
       tun: (v) => app.aendern('windReduktion', v === '1') },
+    { abstand: true },
     { feld: { art: 'zahl', label: 'Spannweite L_FL', wert: w.flSpannweite ?? 40,
               einheit: 'm', schritt: 1 },
       tun: (v) => { if (v > 0) app.aendern('flSpannweite', v); } },
