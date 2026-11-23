@@ -2817,6 +2817,14 @@ body.datei-ueber::after {
 }
 .kontext-feld input { font-family: var(--f-mono); text-align: right; }
 .kontext-feld i { font-style: normal; color: var(--dim); }
+/* Ebenen als Schalterreihe im Kontextmenue (23. November). */
+.kontext-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 8px 5px; max-width: 260px; }
+.kontext-chip {
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  color: var(--dim); font: inherit; font-size: 10.5px; padding: 2px 7px; cursor: pointer;
+}
+.kontext-chip.an { border-color: var(--acc); color: var(--acc); background: var(--acc-s); }
+.kontext-chip:hover { border-color: var(--acc); }
 
 /*
  * DIE DREI HANDLUNGEN AM TRAGWERK - rechts, als Zeichen (3. September).
@@ -4484,3 +4492,20 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
   color: var(--dim); cursor: pointer; font-size: 14px; line-height: 1; }
 .el-karte .el-weg.el-gesperrt { color: var(--fail); }
 .el-block > [data-el-neu] { align-self: flex-start; }
+
+/* --- Lastbeiwerte beim Ueberfahren einer Kombination (23. November) ------- */
+.lf-tip {
+  position: fixed; z-index: 260; pointer-events: none; max-width: 340px;
+  background: var(--glas, var(--s1)); backdrop-filter: blur(14px);
+  border: 1px solid var(--ol2); border-radius: var(--m-r1);
+  box-shadow: 0 8px 26px rgba(0,0,0,.35); padding: 7px 9px;
+  font-size: 10.5px; color: var(--on2);
+}
+.lf-tip .lft-kopf { font-weight: 600; margin-bottom: 4px; }
+.lf-tip .lft-kopf span { font-weight: 400; color: var(--dim); }
+.lf-tip .lft-formel { font-family: var(--f-mono); margin-bottom: 5px; white-space: nowrap; }
+.lf-tip .lft-tab { border-collapse: collapse; width: 100%; }
+.lf-tip .lft-tab td { padding: 1px 4px 1px 0; color: var(--dim); }
+.lf-tip .lft-tab td:nth-child(2) { font-family: var(--f-mono); }
+.lf-tip .lft-tab td:last-child { font-family: var(--f-mono); text-align: right; color: var(--on2); }
+.lf-tip .lft-tab td.minus { color: var(--acc); }

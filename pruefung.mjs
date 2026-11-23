@@ -33809,9 +33809,11 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
        && /dialogTragwerk\(app, null, 'tragausleger', \{ mastA: m\.id \}\)/.test(kq));
   // Seit dem 22. November nur noch der Mast selbst («primär sind die
   // bearbeitenfunktionen des angeklicket bauteils»).
-  wahr('… aber am Masten nicht mehr: dort nur der Mast selbst (22. November)',
+  // Seit dem 23. November wieder mit «Neues Tragwerk an diesem Mast» (Rückfrage
+  // zum Ausbau), weiter ohne die Einträge der Tragwerke, die er trägt.
+  wahr('… am Masten: Neues Tragwerk an ihm, aber keine Tragwerk-Abschnitte (23. November)',
        !/traegt\.forEach\(\(tid\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, tid\)\)\)/.test(kq)
-       && kq.includes('void t; void neuesAnMast;'));
+       && kq.includes("p.push('-', ...neuesAnMast(app, m));"));
   // Seit dem 6. Oktober («Kontextmenues kürzen … jenachdem wo man klickt»):
   // im Bereich eines Tragwerks nur dessen Abschnitt, an freier Stelle EINE
   // Auswahl «Neu bei x», die den Dialog mit der Vorbelegung öffnet.
@@ -43917,8 +43919,15 @@ titel('328  Ausleger in der Höhe ziehen, die Leiter relativ mit; Kontextmenü k
   wahr('… an der Vorlage: alle drei Leiter (Tragseil, Fahrdraht-Gewicht, Fahrdraht) wandern mit',
        mit.length === v.length - 1, String(mit));
   const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
-  wahr('Kontextmenü: am Masten und am Anker nur das Bauteil, ins Leere allgemein «Neu …»',
-       kq.includes('void t; void neuesAnMast;') && kq.includes('void imBereich; void tragwerkAbschnitt;')
+  // Am 23. November wieder ausgebaut («das kontextmenue wurde zu fest
+  // zurückgebaut»): Mast mit Anker / Bauteil hier / Neues Tragwerk, Joch mit
+  // Bauteil hier / Typ / Länge, ins Leere Einzelmast, Lastfall, Ebenen. Der
+  // Anker bleibt ohne die Einträge des Masten.
+  wahr('Kontextmenü (23. November): Mast, Joch und Leere mit den gewählten Befehlen, Anker nur das Bauteil',
+       kq.includes("'Anker setzen …'") && kq.includes('Bauteil hier am Masten setzen')
+       && kq.includes("'Bauteil hier setzen …'") && kq.includes("label: ab ? 'Abfangjoch-Typ' : 'Jochtyp'")
+       && kq.includes('Einzelmast bei x') && kq.includes("label: 'Lastfall'") && kq.includes("{ kopf: 'Ebenen' }, { chips }")
+       && kq.includes('void imBereich; void tragwerkAbschnitt;')
        && !kq.includes('...kontextMast(app, mastId, twId)'));
 }
 
@@ -44195,6 +44204,26 @@ titel('336  Ankerfundament: zulässige Lasten mit Ankerplatte, Zug / Druck, klei
   const SN = readFileSync(join(HIER, 'js', 'core.stabnachweis.js'), 'utf8');
   wahr('Stabwerk rechnet es je Anker (ankerfundamentJe), Urteil führt «Fundament A…»',
        SW.includes('ankerfundamentJe[a.id] = { ...n, quer }') && SN.includes('name: `Fundament A${id}`'));
+}
+
+// ===========================================================================
+// 284. Lastbeiwerte beim Überfahren einer Kombination (23. November)
+//      «zudem noch die kombination mit den lastfaktoren einblenden wenn man
+//      über die kombination mit der maus fährt.»
+// ===========================================================================
+{
+  const E = await import(J('ui.einfach.js'));
+  const { standardLastfaelle } = await import(J('core.lasten.js'));
+  const lf = standardLastfaelle({ gammaG: 1.3, gammaQ: 1.3, psi0: 0.65, schneeAktiv: true });
+  const k = lf.find((l) => l.nachweis && /Schnee leitend/.test(l.bez) && (l.beiwerte?.WindX ?? 0) > 0);
+  const h = E.lastfallFaktorenHtml({ lastfaelle: lf }, k);
+  wahr('Karte nennt E_d mit den Beiwerten des Falls (G 1.30, W_x 0.65, S 1.30)',
+       h.includes('1.30 · G') && h.includes('+ 0.65 · W_x') && h.includes('+ 1.30 · S'), h.slice(0, 200));
+  const km = lf.find((l) => (l.beiwerte?.WindY ?? 0) < 0 && l.nachweis);
+  wahr('… negatives Vorzeichen als «−»', E.lastfallFaktorenHtml({ lastfaelle: lf }, km).includes('− 1.30 · W_y'));
+  const html = E.kombiEinfachHtml({ lastfaelle: lf.map((l) => ({ ...l, eta: 0.5 })) });
+  wahr('Jede Nachweiszeile der Lastfallliste trägt die Karte (data-lf-tip)',
+       (html.match(/data-lf-tip=/g) ?? []).length >= lf.filter((l) => l.nachweis).length);
 }
 
 console.log('\n' + '='.repeat(104));

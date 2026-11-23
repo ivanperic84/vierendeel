@@ -48,6 +48,22 @@ export function setzenStarten(app, vorwahl = null) {
   app.zeichneBalken();
 }
 
+/*
+ * >>> SETZEN AN DER ANGEKLICKTEN STELLE (23. November). <<< Weisung: «das
+ * kontextmenue wurde zu fest zurückgebaut, kann man das wieder etwas
+ * ausbauen mit nützlichen befehlen», auf Rückfrage «Joch: Bauteil hier
+ * setzen» und «Bauteil am Masten setzen». Der Rechtsklick kennt schon die
+ * Stelle (Weltpunkt `w`); derselbe Weg wie ein Klick im Modus «Bauteil
+ * setzen», nur ohne den zweiten Klick. `bei` ist die Stelle im Bildschirm -
+ * dort öffnet die Auswahl.
+ */
+export function setzenAnStelle(app, w, bei = null, opt = {}) {
+  setzenStarten(app);
+  const r = ui.el('viewer')?.getBoundingClientRect();
+  if (r && Array.isArray(bei)) app.setzenPunkt = { x: bei[0] - r.left, y: bei[1] - r.top };
+  stelleGewaehlt(app, w, opt);
+}
+
 export function setzenEnde(app) {
   app.setzen = null;
   app.ansicht.beiStelle = null;
@@ -75,7 +91,7 @@ export function setzenEnde(app) {
  * Jochachse ist immer noch eindeutig gemeint, und wer daneben klickt, bekommt
  * eine Meldung statt eines Bauteils an falscher Stelle.
  */
-export function stelleAus(app, w) {
+export function stelleAus(app, w, opt = {}) {
   const m = app.letzte?.erg?.modell;
   if (!m || !w) return null;
   const L = m.L, h = m.h ?? 0.4;
@@ -124,7 +140,9 @@ export function stelleAus(app, w) {
    * Bild laufen hier durch (Knopf, Kontextmenue, Kachel ziehen, Vorwahl).
    */
   const einzel = m.tragwerksart === 'einzelmast';
-  if (!einzel && xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
+  // `nurMast` (23. November): aus dem Kontextmenü des Masten - dort ist der
+  // Mast gemeint, auch knapp unter dem Joch.
+  if (!opt.nurMast && !einzel && xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
     const roh = lokalNachBlatt(t, Math.max(0, Math.min(L, xl)));
     const xb = fangeAufMasskette(roh, m.masskette ?? []);
     /*
@@ -168,8 +186,8 @@ export function stelleAus(app, w) {
   return null;
 }
 
-function stelleGewaehlt(app, w) {
-  let st = stelleAus(app, w);
+function stelleGewaehlt(app, w, opt = {}) {
+  let st = stelleAus(app, w, opt);
   /*
    * >>> WER AUF EIN ANDERES JOCH ZEIGT, MEINT DIESES JOCH. <<<
    *
@@ -193,7 +211,7 @@ function stelleGewaehlt(app, w) {
     const ziel = tragwerkBeiX(app.werte, w.x);
     if (ziel && ziel.id !== (app.werte.twId ?? 'T1')) {
       app.aendern('tragwerkAktiv', ziel.id);
-      st = stelleAus(app, w);
+      st = stelleAus(app, w, opt);
     }
   }
   if (!st) {

@@ -16,6 +16,9 @@ import { anbauGruppe } from './data.anbauteile.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, EK_KLASSEN, ekKlasseVon, ekVonWindklasse } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
+import { lastfallName } from './ui.einfach.js';
+import { sortimentstypen } from './data.tragjoche.js';
+import { abfangjoche } from './data.abfangjoche.js';
 import { LEICHT, mehrAn } from './stufe.js';
 import * as ui from './ui.js';
 
@@ -121,6 +124,10 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
     if (p.skizze) return `<div class="kontext-skizze">${p.skizze}</div>`;
     // Eine Zeile Auskunft, nichts zum Anklicken (9. Oktober).
     if (p.info) return `<div class="kontext-info${p.warn ? ' warn' : ''}">${esc(p.info)}</div>`;
+    // Schalter in einer Reihe (23. November, Ebenen im Leeren): bleiben offen.
+    if (p.chips) return `<div class="kontext-chips">${p.chips.map((c, j) =>
+      `<button type="button" class="kontext-chip${c.an ? ' an' : ''}" data-kc="${i}:${j}"
+         aria-pressed="${c.an}">${esc(c.text)}</button>`).join('')}</div>`;
     if (p.feld) {
       const f = p.feld;
       const eingabe = f.art === 'auswahl'
@@ -173,6 +180,14 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
       p?.tun?.();
     });
   });
+  n.querySelectorAll('[data-kc]').forEach((b2) => {
+    b2.addEventListener('click', () => {
+      const [a, j] = b2.dataset.kc.split(':').map(Number);
+      const an = echte[a]?.chips?.[j]?.tun?.();
+      b2.classList.toggle('an', Boolean(an));
+      b2.setAttribute('aria-pressed', String(Boolean(an)));
+    });
+  });
   n.querySelectorAll('[data-kf]').forEach((el) => {
     const p = echte[+el.dataset.kf];
     const ev = el.tagName === 'SELECT' ? 'change' : 'change';
@@ -219,7 +234,7 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
 }
 
 /** Die Einträge zu einem Tragwerk - im Modell wie in der Leiste dieselben. */
-export function kontextTragwerk(app, id) {
+export function kontextTragwerk(app, id, k = null) {
   const alle = tragwerkeSortiert(app.werte);
   const t = alle.find((x) => x.id === id);
   if (!t) return [];
@@ -252,6 +267,11 @@ export function kontextTragwerk(app, id) {
   }
   if (alle.some(versteckt)) {
     p.push({ text: 'Alle wieder einblenden', tun: () => alleZeigen(app) });
+  }
+  // «Joch: Bauteil hier setzen» (23. November): an der angeklickten Stelle,
+  // die Auswahl öffnet dort (wie im Modus «Bauteil setzen»).
+  if (k?.welt && Number.isFinite(k.welt.x) && tragwerksart(t).traeger && !versteckt(t)) {
+    p.push({ text: 'Bauteil hier setzen …', tun: () => app.setzenAnStelle(k.welt, k.bei) });
   }
   /*
    * «ABFANGJOCH DARÜBER SETZEN» ist weg (30. September): «den Punkt
@@ -294,6 +314,38 @@ export function kontextTragwerk(app, id) {
              kontextSchliessen(app);
              artRueckfrage(app, t, id, v);
            } });
+  /*
+   * >>> TYP UND LÄNGE DIREKT (23. November). <<< Auf Rückfrage zum Ausbau
+   * des Kontextmenüs «Joch: Typ und Länge direkt». Derselbe Weg wie die
+   * Seitenleiste: erst das Tragwerk zum gerechneten machen, dann `typ`
+   * bzw. `abfangTyp` und `L` - die Regeln (Sortiment, Standardlänge) gelten
+   * dort. Das Menü bleibt offen; die Felder zeigen den Stand beim Öffnen.
+   */
+  const art = tragwerksart(t).key;
+  const aktivMachen = () => {
+    if ((app.werte.twId ?? 'T1') !== id) app.aendern('tragwerkAktiv', id);
+  };
+  if (art === 'joch' || art === 'abfangjoch') {
+    const ab = art === 'abfangjoch';
+    const typen = ab
+      ? abfangjoche().map((a) => ({ wert: a.typ, text: `${a.typ}${(a.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''}` }))
+      : sortimentstypen().map((j) => ({ wert: j.typ, text: `${j.typ}${(j.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''}` }));
+    const jetzt = ab ? t.abfangTyp : t.typ;
+    if (typen.length) {
+      p.push({ feld: { art: 'auswahl', label: ab ? 'Abfangjoch-Typ' : 'Jochtyp', wert: jetzt ?? '',
+                       optionen: typen.some((o) => o.wert === jetzt) ? typen
+                         : [{ wert: jetzt ?? '', text: jetzt ?? '–' }, ...typen] },
+               tun: (v) => {
+                 // Mit dem jetzigen Stand vergleichen - das Menü bleibt offen.
+                 const nun = tragwerkeVon(app.werte).find((x) => x.id === id);
+                 if (!v || v === (ab ? nun?.abfangTyp : nun?.typ)) return;
+                 aktivMachen(); app.aendern(ab ? 'abfangTyp' : 'typ', v);
+               } });
+    }
+    p.push({ feld: { art: 'zahl', label: ab ? 'Trägerlänge' : 'Jochlänge', einheit: 'm', schritt: 0.5,
+                     wert: Number(t.L) || 0 },
+             tun: (v) => { if (!(v > 0)) return; aktivMachen(); app.aendern('L', v); } });
+  }
   /*
    * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
    *
@@ -436,7 +488,7 @@ export function alleZeigen(app) {
  * Gemeint ist, wer den Masten TRÄGT. Bei einem geteilten das gerechnete,
  * wenn es ihn trägt — dieselbe Regel wie in der Leiste; sonst der erste.
  */
-export function kontextMast(app, mastId, twId) {
+export function kontextMast(app, mastId, twId, k = null) {
   const m = mastenVon(app.werte).find((x) => x.id === mastId);
   if (!m) return [];
   const traegt = m.traegt ?? [];
@@ -494,7 +546,23 @@ export function kontextMast(app, mastId, twId) {
    * seine Einträge stehen nicht mehr hier: das Tragwerk per Klick auf das
    * Tragwerk, Neues per Klick ins Leere.
    */
-  void t; void neuesAnMast;
+  /*
+   * >>> WIEDER AUSGEBAUT (23. November). <<< Weisung: «das kontextmenue
+   * wurde zu fest zurückgebaut, kann man das wieder etwas ausbauen mit
+   * nützlichen befehlen wenn man im 3d auf die jeweiligen bauteile oder ins
+   * leere klickt.» Auf Rückfrage am Masten: «profil drehen, falls nicht schon
+   * vorhanden» (steht: «Steg drehen»), «Anker setzen/bearbeiten», «Bauteil am
+   * Masten setzen», «Neues Tragwerk an diesem Mast».
+   */
+  void t;
+  p.push('-');
+  p.push({ text: m.anker ? `Anker bearbeiten (${m.anker.typ || 'Anker'}) …` : 'Anker setzen …',
+           tun: () => dialogAnker(app, mastId) });
+  if (k?.welt && Number.isFinite(k.welt.z)) {
+    p.push({ text: `Bauteil hier am Masten setzen …`,
+             tun: () => app.setzenAnStelle(k.welt, k.bei, { nurMast: true }) });
+  }
+  p.push('-', ...neuesAnMast(app, m));
   return p;
 }
 
@@ -1029,6 +1097,36 @@ export function kontextGrund(app, k) {
                kontextSchliessen(app);
                dialogTragwerk(app, null, v, vorbelegungAnStelle(app, v, wo));
              } });
+    // «Neuer Einzelmast hier» (23. November) - ohne den Umweg über die Auswahl.
+    p.push({ text: `Einzelmast bei x ${wo.toFixed(2)} …`,
+             tun: () => dialogTragwerk(app, null, 'einzelmast', vorbelegungAnStelle(app, 'einzelmast', wo)) });
+  }
+  /*
+   * >>> LASTFALL UND EBENEN IM LEEREN (23. November). <<< Auf Rückfrage zum
+   * Ausbau: «Lastfall wählen», «Ebenen ein/aus». Der Lastfall geht denselben
+   * Weg wie eine Zeile der Lastfallliste (`anzeigeKombi`); die Ebenen
+   * schalten dieselben Merker wie die Werkzeugleiste. Das Menü bleibt dabei
+   * offen - man schaltet oft mehrere.
+   */
+  const lf = (app.letzte?.kombi?.lastfaelle ?? []).filter((l) => l.nachweis === true);
+  if (lf.length) {
+    p.push('-');
+    p.push({ feld: { art: 'auswahl', label: 'Lastfall', wert: app.anzeigeKombi ?? 'umhuellend',
+                     optionen: [{ wert: 'umhuellend', text: 'umhüllend (alle Fälle)' },
+                       ...lf.map((l) => ({ wert: l.key, text: lastfallName(app.letzte.kombi, l) }))] },
+             tun: (v) => { app.anzeigeKombi = v; app.neuRechnen(false); } });
+  }
+  const eb = app.ansicht?.ebenen;
+  if (eb) {
+    const da = app.ansicht.szene ? app.ansicht.ebenenVorhanden?.() : null;
+    const zeichneNeu = () => { app.ansicht.zeichne(); app.zeichneModellWerkzeuge?.(); };
+    const chip = (key, text) => ((!da || key === 'last' || key === 'zeichnung' || da.has(key))
+      ? { text, an: Boolean(eb[key]),
+          tun: () => { eb[key] = !eb[key]; zeichneNeu(); return Boolean(eb[key]); } } : null);
+    const chips = [chip('last', 'Lasten'), chip('anbau', 'Anbauteile'), chip('mast', 'Masten'),
+      chip('profil', 'Gurte'), chip('masse', 'Masse'),
+      app.ansicht.zeichnung ? chip('zeichnung', 'Zeichnung') : null].filter(Boolean);
+    if (chips.length) p.push({ kopf: 'Ebenen' }, { chips });
   }
   p.push('-');
   p.push({ text: app.setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
@@ -1091,11 +1189,11 @@ export function kontextImModell(app, k) {
     const m = k.mastEnde === 'B' ? b : a;
     punkte = !m ? []
       : k.was === 'anker' ? kontextAnker(app, m.id, twId)
-      : kontextMast(app, m.id, twId);
+      : kontextMast(app, m.id, twId, k);
   } else if (k.was === 'anbauteil' && k.anbauteil !== null) {
     punkte = kontextAnbauteil(app, k.anbauteil);
   } else if (k.was === 'tragwerk') {
-    punkte = kontextTragwerk(app, twId);
+    punkte = kontextTragwerk(app, twId, k);
   } else {
     punkte = kontextGrund(app, k);
   }

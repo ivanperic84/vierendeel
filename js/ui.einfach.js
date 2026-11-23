@@ -24,6 +24,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g,
 
 /** Gruppe einer Kachel: aus der Überschrift ihrer Reihe, sonst aus dem Titel. */
 import { EINFACH } from './stufe.js';
+import { EINWIRKUNGEN } from './core.lasten.js';
 
 export function gruppeVon(titel, kopf = '') {
   const t = String(titel ?? '');
@@ -363,6 +364,75 @@ export function lastfallName(kombi, k) {
   return i >= 0 ? `LF${i + 1} · ${k.bez}` : (k.bez ?? '');
 }
 
+/*
+ * >>> DIE LASTBEIWERTE BEIM ÜBERFAHREN (23. November). <<< Weisung: «zudem
+ * noch die kombination mit den lastfaktoren einblenden wenn man über die
+ * kombination mit der maus fährt.» Je Zeile der Lastfallliste trägt
+ * `data-lf-tip` eine kleine Karte: E_d als Summe mit den Beiwerten des Falls
+ * (aus `k.beiwerte`, dieselben Zahlen wie die Matrix «Lastfälle und
+ * Beiwerte»), darunter je Einwirkung eine Zeile. Gezeigt von
+ * `lfTipVerdrahten` als schwebendes Feld neben der Zeile - die Seitenleiste
+ * schneidet nichts ab.
+ */
+const LF_NAMEN = {
+  G: 'Ständig (Eigengewicht, Ablenkung)', WindX: 'Wind quer zum Gleis (x)', WindY: 'Wind längs zum Gleis (y)',
+  Schnee: 'Schnee / Eis', SchneeZug: 'Leiterzug bei Schnee (−5 °C + Eis)',
+  HavarieX: 'Havarie: Ablenkung bei −20 °C', HavarieY: 'Havarie: Längszug des Leiters',
+};
+const f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+export function lastfallFaktorenHtml(kombi, k) {
+  const bw = k?.beiwerte;
+  if (!bw) return '';
+  const keys = [...EINWIRKUNGEN.map((e) => e.key), ...(kombi?.einwirkungen ?? []).map((e) => e.key)]
+    .filter((x, i, a) => a.indexOf(x) === i);
+  const da = keys.filter((x) => Math.abs(Number(bw[x]) || 0) > 1e-9);
+  if (!da.length) return '';
+  const kurz = (x) => EINWIRKUNGEN.find((e) => e.key === x)?.kurz ?? x;
+  const formel = da.map((x, i) => {
+    const b = Number(bw[x]);
+    const z = `${f2(Math.abs(b))} · ${kurz(x)}`;
+    return i === 0 ? (b < 0 ? `− ${z}` : z) : `${b < 0 ? '−' : '+'} ${z}`;
+  }).join(' ');
+  const art = k.art === 'charakteristisch' ? 'charakteristisch'
+    : k.art === 'gebrauchstauglichkeit' ? 'Gebrauchstauglichkeit'
+    : k.art === 'aussergewoehnlich' ? 'aussergewöhnlich' : (k.nachweis ? 'Tragsicherheit' : '');
+  return `<div class="lft-kopf">${esc(lastfallName(kombi, k))}${art ? ` <span>· ${esc(art)}</span>` : ''}</div>
+    <div class="lft-formel">E<sub>d</sub> = ${esc(formel)}</div>
+    <table class="lft-tab">${da.map((x) => `<tr><td>${esc(LF_NAMEN[x] ?? x)}</td><td>${esc(kurz(x))}</td>
+      <td class="${Number(bw[x]) < 0 ? 'minus' : ''}">${f2(Number(bw[x]))}</td></tr>`).join('')}</table>`;
+}
+const tipAttr = (kombi, k) => {
+  const h = lastfallFaktorenHtml(kombi, k);
+  return h ? ` data-lf-tip="${esc(h)}"` : '';
+};
+export { tipAttr as lastfallTipAttr };
+
+/** Das schwebende Feld; einmal am Dokument, für jede Zeile mit `data-lf-tip`. */
+export function lfTipVerdrahten() {
+  if (typeof document === 'undefined' || document._lfTip) return;
+  document._lfTip = true;
+  let tip = null, ueber = null;
+  const weg = () => { tip?.remove(); tip = null; ueber = null; };
+  document.addEventListener('mouseover', (e) => {
+    const z = e.target?.closest?.('[data-lf-tip]');
+    if (z === ueber) return;
+    weg();
+    if (!z) return;
+    ueber = z;
+    tip = document.createElement('div');
+    tip.className = 'lf-tip';
+    tip.innerHTML = z.dataset.lfTip;
+    document.body.appendChild(tip);
+    const r = z.getBoundingClientRect(), t = tip.getBoundingClientRect();
+    let x = r.right + 8;
+    if (x + t.width > window.innerWidth - 6) x = Math.max(6, r.left - t.width - 8);
+    const y = Math.min(Math.max(6, r.top), window.innerHeight - t.height - 6);
+    tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+  });
+  document.addEventListener('pointerdown', weg, true);
+  window.addEventListener('scroll', weg, true);
+}
+
 export function lastfallEinfach(bez) {
   const b = String(bez ?? '');
   const seite = /\+/.test(b) ? 1 : (/[−-]\s*[xy]/.test(b) ? -1 : 0);
@@ -414,7 +484,7 @@ export function lastfallEinfach(bez) {
  * unter den Bemessungsfällen, je Nachweis mit seinem Fall; anwählen lässt er
  * sich nicht (das 3D zeigt die Bemessungsfälle).
  */
-function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend') {
+function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend', kombi = null) {
   if (!gzg?.length) return '';
   const zeilen = gzg.map((g) => {
     const f = Number.isFinite(g.eta) ? farbe(g.eta) : '';
@@ -423,7 +493,8 @@ function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend') {
     // gebrauchstauglichkeit angewählt wird sollte dieser gleich wie die anderen
     // dargestellt werden im modell und in der übersicht»): der Betriebswind
     // derselben Richtung (ψ 0.70).
-    const wahl = g.key ? ` role="button" tabindex="0" data-lf-wahl="${esc(g.key)}"` : '';
+    const lf = g.key ? (kombi?.lastfaelle ?? []).find((x) => x.key === g.key) : null;
+    const wahl = g.key ? ` role="button" tabindex="0" data-lf-wahl="${esc(g.key)}"${lf ? tipAttr(kombi, lf) : ''}` : '';
     return `<div class="lf-einfach lf-gzg${g.key && gewaehlt === g.key ? ' gewaehlt' : ''}"${wahl} title="${esc(`${g.was ?? ''} · ${g.fallBez ?? g.bez ?? ''}`)}">
       <span>${esc(g.name)}${g.fallText || fall ? ` <span class="ab-leise">· ${esc(g.fallText ?? fall)}</span>` : ''}</span>
       <span class="ef-wert ${f}">${Number.isFinite(g.eta) ? prozent(g.eta) : '–'}</span></div>`;
@@ -446,7 +517,7 @@ function einzelLastenHtml(kombi, gewaehlt) {
   if (!einzeln.length) return '';
   return `<div class="sec-klein">Einzelne Lasten (charakteristisch)</div>${einzeln.map((k) => `
     <div class="lf-einfach lf-einzel${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
-      data-lf-wahl="${esc(k.key)}" title="${esc(k.bez)} - charakteristisch, kein Nachweis; im 3D zeigen">
+      data-lf-wahl="${esc(k.key)}"${tipAttr(kombi, k)}>
       <span>${esc(EINFACH ? (/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez) : lastfallName(kombi, k))}</span><span></span></div>`).join('')}`;
 }
 
@@ -463,7 +534,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
     const e = eta(k);
     const f = Number.isFinite(e) ? farbe(e) : '';
     return `<div class="lf-einfach${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
-        data-lf-wahl="${esc(k.key)}" title="${esc(k.bez)} - im 3D zeigen">
+        data-lf-wahl="${esc(k.key)}"${tipAttr(kombi, k)}>
       <span>${esc(text)}</span>
       <span class="ef-wert ${f}">${Number.isFinite(e) ? prozent(e) : '–'}</span></div>`;
   };
@@ -477,7 +548,7 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
     ${block('Längs zum Gleis', je.laengs)}
     ${block('Weitere', je.weitere)}
     ${block('Havarie (Leiterriss)', je.havarie)}
-    ${gzgEinfachHtml(gzg, gewaehlt)}
+    ${gzgEinfachHtml(gzg, gewaehlt, kombi)}
     ${einzelLastenHtml(kombi, gewaehlt)}
     <div class="lf-matrix-knopf"><button type="button" class="btn btn-mini" data-lf-fenster
       title="Die Tabelle aller Kombinationen mit den Beiwerten je Einwirkung">Alle Kombinationen mit Lastbeiwerten …</button></div>`;

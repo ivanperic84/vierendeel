@@ -14,7 +14,7 @@ import { STAND } from './version.js';
 import { uebungenVorbereiten } from './app.uebungen.js';
 import { herausgeberVorbereiten } from './herausgeber.js';
 import { SPRACHEN, sprache, spracheSetzen, uebersetzerStarten } from './sprache.js';
-import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach, lastfallName } from './ui.einfach.js';
+import { einfachesErgebnis, begriffeVerdrahten, kombiEinfachHtml, lastfallEinfach, lastfallName, lfTipVerdrahten } from './ui.einfach.js';
 import { EINFACH, STUFE, LEICHT, STUFEN_TITEL, VERMERK, VERMERK_SCHULUNG, nutzungHtml, exportErlaubt, herkunftMarkieren, herkunftHinweis } from './stufe.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -156,7 +156,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
 import { zeichnungArbeitsstand, zeichnungBeimStart, zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen } from './app.layout.js';
-import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
+import { setzenStarten, setzenEnde, setzenAnStelle, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
          setzWahlZeigen, setzWahlWeg, signalZusammenstellen, gruppenKopie } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
@@ -274,6 +274,7 @@ const app = {
   anbauAuswahlBearbeiten: (...a) => anbauAuswahlBearbeiten(...a),
   setzenEnde: (...a) => setzenEnde(app, ...a),
   setzenStarten: (...a) => setzenStarten(app, ...a),
+  setzenAnStelle: (...a) => setzenAnStelle(app, ...a),
   zeichneAuswertung: (...a) => zeichneAuswertung(...a),
   zeigeAnbauteil: (...a) => zeigeAnbauteil(...a),
   zeigeLastfaelle: () => zeigeLastfaelle(),
@@ -8079,6 +8080,7 @@ export async function start() {
    * Vermerk, dass hier kein geprüfter Nachweis entsteht.
    */
   document.documentElement.dataset.stufe = STUFE;
+  lfTipVerdrahten();
   if (EINFACH) { begriffeVerdrahten(); await uebungenVorbereiten(); await herausgeberVorbereiten(); }
   if (LEICHT) {
     document.title = `${APP_NAME} · ${STUFEN_TITEL[STUFE]}`;

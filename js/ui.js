@@ -36,7 +36,7 @@ import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
 import { LEICHT, EINFACH, feldRecht, gruppeErlaubt, auswertungErlaubt, feldEinfach, vorlageErlaubt } from './stufe.js';
-import { begriffeInMaske, BEGRIFFE_ZEIGEN } from './ui.einfach.js';
+import { begriffeInMaske, BEGRIFFE_ZEIGEN, lastfallTipAttr } from './ui.einfach.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -11599,8 +11599,7 @@ export function kombiMatrixHtml(kombi, normensatz, opt = {}) {
     return `
     ${abschnitt('Lastfälle', satz)}
     <div class="lf-kurz">${oben.map((k) => `
-      <button type="button" class="lf-kurzzeile${massg(k) ? ' aktiv' : ''}" data-lf-wahl="${esc(k.key)}"
-          title="Anklicken: diesen Lastfall im 3D, oben und rechts zeigen">
+      <button type="button" class="lf-kurzzeile${massg(k) ? ' aktiv' : ''}" data-lf-wahl="${esc(k.key)}"${lastfallTipAttr(kombi, k)}>
         <span class="lf-kurz-n">LF${nr.get(k)} · ${esc(k.bez)}${massg(k) ? ' · <b>massgebend</b>' : ''}</span>
         <span class="lf-kurz-eta ${ampel(etaVon(k))}">${f3(etaVon(k))}</span>
       </button>`).join('')}
