@@ -173,6 +173,8 @@ export function eintragAuswerten(e) {
       laenge: Number(m.laenge) || null, steg: m.steg ?? '',
       eta: r?.eta ?? null, bez: r?.bez ?? '', knick: h.knick?.[name]?.eta ?? null,
       anker: anker ? { typ: anker.typ ?? anker.name ?? 'Anker', eta: anker.eta ?? null } : null,
+      // Die Geometrie des Ankers (h, a, Typ) für die Skizze - wie im Reaktionsblatt.
+      ankerGeo: m.anker && typeof m.anker === 'object' ? m.anker : null,
       unterbau: m.unterbau?.an === true,
       fundament: f ? {
         typ: f.typ?.typ ?? String(f.typ ?? ''), eta: f.eta ?? null, ok: f.ok,
@@ -232,12 +234,24 @@ export function eintragAuswerten(e) {
  */
 export function eintragSkizze(r) {
   if (!r?.skizze?.linien?.length) return '';
+  const lageVonZeile = (id) => (r.reaktionen ?? []).find((y) => y.art === 'mast' && y.id === id)?.x;
   const zeilen = (r.reaktionen ?? []).map((z) => {
     const m = (r.masten ?? []).find((x) => x.name === z.id);
     // Stegrichtung fürs Profilzeichen (nur Walzprofile; Gitter- und gespreizte Masten ohne).
     const steg = z.art === 'mast' && m && /^HE[BMA] /.test(m.profil) ? (m.steg === 'quer' ? 'quer' : 'jochachse') : null;
-    return { ...z, steg, xModell: z.x, name: z.art === 'mast' ? (m?.anzeige ?? z.id)
-      : z.art === 'anker' ? `A${m?.anzeige ?? z.id}` : z.id };
+    /*
+     * DER ANKER AUSGESCHRIEBEN UND GEZEICHNET (23. November, im Wortlaut:
+     * «Anker MT1 · U12 längs benennen und in der zeichnung sollte dieser auch
+     * beim tragausleger schematisch ersichlich sein wie bei den jochen»): die
+     * Geometrie des Masten (`ankerGeo`) für die Strebe, der Name mit Typ.
+     */
+    if (z.art === 'anker') {
+      const laengs = Math.abs((z.x ?? 0) - (lageVonZeile(z.id) ?? z.x)) < 0.1;
+      const typ = m?.ankerGeo?.typ ?? m?.anker?.typ ?? '';
+      return { ...z, xModell: z.x, anker: m?.ankerGeo ?? null,
+               nameVoll: `Anker ${m?.anzeige ?? z.id}\n${[typ, laengs ? 'längs' : ''].filter(Boolean).join(' ')}` };
+    }
+    return { ...z, steg, xModell: z.x, name: z.art === 'mast' ? (m?.anzeige ?? z.id) : z.id };
   });
   const lage = new Map(zeilen.filter((z) => z.art === 'mast').map((z) => [z.id, z]));
   // Kopf des Masten aus den Maststäben der Skizze (art 3) an seiner Stelle.
@@ -245,7 +259,28 @@ export function eintragSkizze(r) {
     .filter((l) => l[4] === 3 && Math.abs(l[0] - x) < 0.35 && Math.abs(l[2] - x) < 0.35)
     .flatMap((l) => [l[1], l[3]]));
   const titel = [];
+  /*
+   * >>> ABFANGJOCHE ÜBEREINANDER: EIN TITEL, DAS MASSGEBENDE (23. November). <<<
+   * Weisung, mit Bild: «die abfangjoche wenn sie übereinander sind kann man
+   * zusammennehmen und nur den massgebenden aufführen». Am selben Mastpaar
+   * steht ein Titel «A1 / A2 Abfangjoch» mit Bautyp und η des massgebenden.
+   */
+  const gruppen = new Map();
   (r.tragwerke ?? []).forEach((t) => {
+    if (t.key !== 'abfangjoch') return;
+    const k = [...t.masten].sort().join('|');
+    gruppen.set(k, [...(gruppen.get(k) ?? []), t]);
+  });
+  const ersetzt = new Set();
+  gruppen.forEach((g) => {
+    if (g.length < 2) return;
+    const mg = g.reduce((b, t) => ((t.eta ?? 0) > (b.eta ?? 0) ? t : b), g[0]);
+    g.forEach((t) => ersetzt.add(t));
+    ersetzt.delete(mg);
+    mg.titelPos = `${g.map((t) => t.pos).join(' / ')}`;
+    mg.titelZusatz = ` (${mg.pos})`;
+  });
+  (r.tragwerke ?? []).filter((t) => !ersetzt.has(t)).forEach((t) => {
     const xs = t.masten.map((n) => lage.get(n)).filter(Boolean);
     if (!xs.length) return;
     const fuss = xs[0];
@@ -256,7 +291,7 @@ export function eintragSkizze(r) {
     const e = Math.max(t.eta ?? 0, t.aufhaengung ?? 0);
     const eta = Number.isFinite(t.eta) ? ` · η ${zahl(e)}` : '';
     // Zwei- bis dreizeilig (23. November): Position und Art, Bautyp, η.
-    titel.push({ text: `${t.pos} ${t.art}\n${t.bau}${eta ? `\n${eta.replace(/^ · /, '')}` : ''}`, x: t.key === 'tragausleger' ? x + 2 : x,
+    titel.push({ text: `${t.titelPos ?? t.pos} ${t.art}\n${t.bau}${eta ? `\n${eta.replace(/^ · /, '')}${t.titelZusatz ?? ''}` : ''}`, x: t.key === 'tragausleger' ? x + 2 : x,
                  z: fuss.z + t.H + 0.6, amp: ampelVon(e) });
   });
   (r.masten ?? []).forEach((m) => {

@@ -380,8 +380,18 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
         + gelenk(p1[0], p1[1])
         // Die Anschrift weg vom Masten, damit sie nicht an seine stösst.
         // Mit Profilzeichen am Mastfuss (23. November) steht die Ankeranschrift über dem Grund.
-        + `<text x="${r1(p1[0] + (p1[0] < p0[0] ? -6 : 6))}" y="${r1(p1[1] + (unten > 16 ? -4 : 18))}" text-anchor="${
-          p1[0] < p0[0] ? 'end' : 'start'}">${esc(z.name)}${laengs ? ' (längs)' : ''}</text>`;
+        + (() => {
+          const txt = z.nameVoll ?? `${z.name}${laengs ? ' (längs)' : ''}`;
+          const zz = txt.split('\n');
+          const lw = Math.max(...zz.map((t) => t.length)) * 5.2;
+          // Weg vom Masten; passt die Anschrift dort nicht ins Bild, auf die andere Seite (23. November).
+          let links = p1[0] < p0[0];
+          if (!links && p1[0] + 6 + lw > breite) links = true;
+          if (links && p1[0] - 6 - lw < 0) links = false;
+          const xt = p1[0] + (links ? -6 : 6), yt = p1[1] + (unten > 16 ? -4 - 10 * (zz.length - 1) : 18);
+          return `<text x="${r1(xt)}" y="${r1(yt)}" text-anchor="${links ? 'end' : 'start'}">${
+            zz.map((t, i) => `<tspan x="${r1(xt)}" dy="${i ? 10 : 0}">${esc(t)}</tspan>`).join('')}</text>`;
+        })();
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
   }).join('');
@@ -394,7 +404,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     ? (anbau.linien ?? []).map((l) => strich(' class="sk-anbau-fein"', l[0], l[1], l[2], l[3])).join('')
       + (anbau.leiter ?? []).map((p) => (p[2]
         ? `<line class="sk-abzug" x1="${r1(X(p[0]) - 2.5)}" y1="${r1(Z(p[1]))}" x2="${r1(X(p[0]) + 2.5)}" y2="${r1(Z(p[1]))}"/>`
-        : `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.7"/>`)).join('')
+        : `<circle class="sk-leiter sk-leiter-fein" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.6"/>`)).join('')
       + (anbau.kasten ?? []).map((p) => `<rect class="sk-kasten" x="${r1(X(p[0]) - 3)}" y="${r1(Z(p[1]) - 3)}" width="6" height="6"/>`).join('')
     : (skizze.leiter ?? []).map((p) =>
       `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.9"/>`).join('');
@@ -416,8 +426,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}
-      .sk-fuss{font:9px sans-serif}.sk-anbau-fein{stroke:#1d5fa8;stroke-width:0.8}.sk-abzug{stroke:#c0640a;stroke-width:1.3}
-      .sk-kasten{fill:none;stroke:#1d5fa8;stroke-width:0.9}.sk-steg{fill:none;stroke:#111;stroke-width:1.3}.sk-eta{font-weight:700}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
+      .sk-fuss{font:9px sans-serif}.sk-anbau-fein{stroke:#1d5fa8;stroke-width:0.7;stroke-opacity:.38}.sk-abzug{stroke:#c0640a;stroke-width:1.2;stroke-opacity:.45}
+      .sk-leiter-fein{fill-opacity:.45}.sk-kasten{fill:none;stroke:#1d5fa8;stroke-width:0.8;stroke-opacity:.45}.sk-steg{fill:none;stroke:#111;stroke-width:1.3}.sk-eta{font-weight:700}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
     ${linien}${leiter}${neu}${marken}${titel}</svg>`;
 }
 
