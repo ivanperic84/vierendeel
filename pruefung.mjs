@@ -44207,10 +44207,7 @@ titel('336  Ankerfundament: zulässige Lasten mit Ankerplatte, Zug / Druck, klei
 }
 
 // ===========================================================================
-// 284. Lastbeiwerte beim Überfahren einer Kombination (23. November)
-//      «zudem noch die kombination mit den lastfaktoren einblenden wenn man
-//      über die kombination mit der maus fährt.»
-// ===========================================================================
+titel('337  Lastbeiwerte beim Überfahren einer Kombination (ui.einfach.js)');
 {
   const E = await import(J('ui.einfach.js'));
   const { standardLastfaelle } = await import(J('core.lasten.js'));
@@ -44224,6 +44221,39 @@ titel('336  Ankerfundament: zulässige Lasten mit Ankerplatte, Zug / Druck, klei
   const html = E.kombiEinfachHtml({ lastfaelle: lf.map((l) => ({ ...l, eta: 0.5 })) });
   wahr('Jede Nachweiszeile der Lastfallliste trägt die Karte (data-lf-tip)',
        (html.match(/data-lf-tip=/g) ?? []).length >= lf.filter((l) => l.nachweis).length);
+}
+
+// ===========================================================================
+titel('338  Projektauswertung als Excel (projektMappe, app.projekt.js)');
+{
+  const PA = await import(J('app.projekt.js'));
+  const X = await import(J('export.xlsx.js'));
+  const w = standardwerte();
+  const r = PA.eintragAuswerten({ id: 'p1', name: 'Startjoch', projekt: 'P', werte: { ...w, km: '12.345' } });
+  const kaputt = PA.eintragAuswerten({ id: 'p2', name: 'Kaputt', werte: { weitere: 'x' } });
+  const res = { projekt: 'P', datum: '23.11.2026', eintraege: [r, kaputt] };
+  const bl = PA.projektMappe(res, { fassung: 'x' });
+  wahr('Blätter Übersicht, Fundamente, Masten, Joche, Parameter',
+       ['Übersicht', 'Fundamente', 'Masten', 'Joche', 'Parameter'].every((n, i) => bl[i]?.name === n), bl.map((b) => b.name).join(', '));
+  const fu = bl[1].rows, ma = bl[2].rows, jo = bl[3].rows;
+  const L = PA.projektListen(res);
+  wahr('Eine Zeile je Fundament, Mast, Joch - dieselben Listen wie das Blatt',
+       fu.length - 1 === L.fund.length && ma.length - 1 === L.mast.length && jo.length - 1 === L.joch.length);
+  const iEta = fu[0].findIndex((c) => c?.v === 'η');
+  wahr('Fundament-η als Zahl mit Ampelstil = η des Eintrags',
+       fu.slice(1).every((z, k) => typeof z[iEta]?.v === 'number' && Math.abs(z[iEta].v - L.fund[k].f.eta) < 6e-4
+                                   && [13, 14, 15].includes(z[iEta].s)));
+  wahr('km als Zahl', fu[1][1]?.v === 12.345);
+  wahr('Übersicht nennt den nicht gerechneten Eintrag', JSON.stringify(bl[0].rows).includes('Kaputt'));
+  wahr('Kopfzeile fest, Autofilter über die ganze Liste', bl[1].fest === 1 && /^A1:[A-Z]+\d+$/.test(bl[1].filter)
+       && bl[1].filter.endsWith(String(fu.length)));
+  const datei = X.arbeitsmappe(bl);
+  const teile = X.entpacke(datei);
+  const wb = new TextDecoder().decode(teile.find((t) => t.name === 'xl/workbook.xml').inhalt);
+  const st = new TextDecoder().decode(teile.find((t) => t.name === 'xl/styles.xml').inhalt);
+  wahr('Mappe: Filtername je Liste, 16 Zellstile (Ampel 13-15)',
+       (wb.match(/_xlnm\._FilterDatabase/g) ?? []).length === 4 && st.includes('<cellXfs count="16">')
+       && (st.slice(st.indexOf('<cellXfs')).match(/<xf /g) ?? []).length === 16);
 }
 
 console.log('\n' + '='.repeat(104));

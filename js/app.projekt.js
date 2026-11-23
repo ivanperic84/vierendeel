@@ -35,6 +35,7 @@ import { anbauKette, bezugsHoehe } from './core.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { ekKlasseVon } from './core.lasten.js';
 import { seitAusgang } from './core.protokoll.js';
+import { XLS_AMPEL } from './export.xlsx.js';
 
 /** Die Grössen des Fundaments als Spalten der Liste, in dieser Reihenfolge. */
 export const PROJEKT_GROESSEN = [
@@ -379,11 +380,16 @@ const STIL = `
                  .bruch { page-break-before: always; } }
 `;
 
-/** Die Projektauswertung als eigenständige HTML-Seite. */
-export function projektBlattHtml(res, { fassung = '' } = {}) {
+/** km als Zahl (zum Ordnen), sonst leer. */
+const kmZahlVon = (r) => { const v = parseFloat(String(r.km ?? '').replace(/[^0-9.+-]/g, '')); return Number.isFinite(v) ? v : ''; };
+
+/*
+ * >>> DIE LISTEN EINER AUSWERTUNG AN EINER STELLE (23. November). <<< Blatt
+ * (`projektBlattHtml`) und Excel-Mappe (`projektMappe`) lesen dieselben
+ * Zeilen - dieselben Zahlen in beiden Ausgaben.
+ */
+export function projektListen(res) {
   const ok = res.eintraege.filter((r) => !r.fehler);
-  const idx = (r) => res.eintraege.indexOf(r);
-  const kmZahl = (r) => { const v = parseFloat(String(r.km ?? '').replace(/[^0-9.+-]/g, '')); return Number.isFinite(v) ? v : ''; };
   /*
    * Die Ankerfundamente stehen mit in der Fundamentliste (23. November): Pos.
    * «A M1», η für V in der Spalte V, für H in der Spalte H_l - je der
@@ -404,6 +410,133 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   const mast = ok.flatMap((r) => (r.masten ?? []).map((m) => ({ r, m, eta: Math.max(m.eta ?? 0, m.knick ?? 0) })));
   const joch = ok.flatMap((r) => (r.tragwerke ?? []).filter((t) => t.key !== 'einzelmast')
     .map((t) => ({ r, t, eta: Math.max(t.eta ?? 0, t.aufhaengung ?? 0) })));
+  const da = new Set();
+  fund.forEach((x) => x.f.nachweise.forEach((n) => da.add(n.key)));
+  const spalten = PROJEKT_GROESSEN.filter((g) => da.has(g.key));
+  return { ok, fund, mast, joch, spalten };
+}
+
+/*
+ * >>> DIE PROJEKTAUSWERTUNG ALS EXCEL (23. November). <<< Weisung «und
+ * dann mit der projektauswertung weiter», auf Rückfrage «Excel-Ausgabe»
+ * (Block 2 des Auftrags «Projektauswertung Vorbemessung»). Dieselben Listen
+ * wie das Blatt (`projektListen`), als Zahlen statt Text, damit sich in
+ * Excel filtern, ordnen und weiterrechnen lässt: Übersicht (Grundlagen,
+ * Kennzahlen, nicht gerechnete), Fundamente (je Grösse η, Einwirkung,
+ * zulässig), Masten, Joche / Ausleger, Parameter je Eintrag, Änderungen
+ * seit Ausgangszustand. η-Zellen in der Ampel der Anwendung (0.90 / 1.00),
+ * Kopfzeile fest, Autofilter.
+ */
+export function projektMappe(res, { fassung = '' } = {}) {
+  const { ok, fund, mast, joch, spalten } = projektListen(res);
+  const H = (t) => ({ v: t, s: 1 });
+  const ETA = (e) => (Number.isFinite(e) ? { v: Math.round(e * 1000) / 1000, s: XLS_AMPEL[ampelVon(e)] } : '');
+  const Z2 = (v) => (Number.isFinite(v) ? { v: Math.round(v * 100) / 100, s: 4 } : '');
+  const T = (v) => ({ v: String(v ?? ''), s: 9 });
+  const km = (r) => { const z = kmZahlVon(r); return z === '' ? T(r.km ?? '') : { v: z, s: 3 }; };
+  const filter = (rows, kopf) => `A${kopf}:${spalteBuchstabe(Math.max(...rows.map((r) => r.length)) - 1)}${rows.length}`;
+
+  /* Übersicht */
+  const kenn = (titel, liste, etaVon, wer) => {
+    const z = (a) => liste.filter((x) => ampelVon(etaVon(x)) === a).length;
+    const max = liste.reduce((b, x) => (!b || (etaVon(x) ?? 0) > (etaVon(b) ?? 0) ? x : b), null);
+    return [T(titel), liste.length, z('ok'), z('warn'), z('fail'), ETA(max ? etaVon(max) : NaN), T(max ? wer(max) : '–')];
+  };
+  const gleich = (p) => {
+    const v = new Set(ok.map((r) => paramText(p, r.param?.[p.key])));
+    return v.size <= 1 ? [...v][0] ?? '–' : 'je Eintrag (Blatt Parameter)';
+  };
+  const uebersicht = [
+    [{ v: `Projektauswertung ${res.projekt ?? ''}`.trim(), s: 8 }],
+    [`${res.datum ?? ''}${fassung ? ` · ${fassung}` : ''} · ${APP_NAME}`],
+    [],
+    [H('Grundlagen'), H('')],
+    [T('Einträge'), T(`${res.eintraege.length} (gerechnet ${ok.length}${res.abgebrochen ? ', abgebrochen' : ''})`)],
+    [T('Rechnung'), T('Stabwerk je Blatt')],
+    [T('Fundamente'), T('charakteristisch gegen Standardlasten, Ablauf')],
+    ...PARAM.filter((p) => !p.blatt).map((p) => [T(p.kopf), T(gleich(p))]),
+    [],
+    [H('Gruppe'), H('Anzahl'), H('η ≤ 0.90'), H('0.90 < η ≤ 1.00'), H('η > 1.00'), H('η max'), H('massgebend')],
+    kenn('Fundamente', fund, (x) => x.f.eta, (x) => `${x.r.name} · ${x.m.anzeige} · ${x.f.typ} · ${x.f.massgebend?.was ?? ''}`),
+    kenn('Masten', mast, (x) => x.eta,
+         (x) => `${x.r.name} · ${x.m.anzeige} · ${x.m.profil}${x.m.knick !== null && x.m.knick >= (x.m.eta ?? 0) ? ' · Knicken' : ''}`),
+    kenn('Joche / Ausleger', joch, (x) => x.eta, (x) => `${x.r.name} · ${x.t.pos} ${x.t.art} ${x.t.bau}`),
+  ];
+  const fehlend = res.eintraege.filter((r) => r.fehler);
+  if (fehlend.length) {
+    uebersicht.push([], [H('Nicht gerechnet'), H('Grund')], ...fehlend.map((r) => [T(r.name), T(r.fehler)]));
+  }
+  uebersicht.push([], [{ v: 'Ampel wie in der Anwendung: grün η ≤ 0.90, gelb bis 1.00, rot darüber. '
+    + 'Fundamente charakteristisch, Masten und Joche Bemessung (Stabwerk).', s: 11 }]);
+
+  /* Fundamente: je Grösse η, Einwirkung, zulässig */
+  const fKopf = [H('Eintrag'), H('km'), H('Pos.'), H('Fundament'), H('Mast'),
+    ...spalten.flatMap((g) => [H(`η ${g.kopf}`), H(`${g.kopf} Einw.`), H(`${g.kopf} zul.`)]),
+    H('massgebend'), H('η'), H('Bemerkung')];
+  const fRows = [fKopf, ...fund.map(({ r, m, f }) => [T(r.name), km(r), T(m.anzeige), T(f.typ), T(m.profil),
+    ...spalten.flatMap((g) => {
+      const n = f.nachweise.find((x) => x.key === g.key);
+      if (!n) return ['', '', ''];
+      // Ein Anteil, der nur den Ablauf lenkt, trägt keine Ampel (wie grau im Blatt).
+      return [n.lenkt ? { v: Math.round((n.eta ?? 0) * 1000) / 1000, s: 3 } : ETA(n.eta), Z2(n.wert), Z2(n.zul)];
+    }),
+    T(f.massgebend?.was ?? ''), ETA(f.eta),
+    T([f.ausgeglichen ? 'mit abgeminderten Werten' : '',
+       f.nachweise.some((n) => n.lenkt) ? 'η ohne Ampel: lenkt den Ablauf, kein Nachweis' : ''].filter(Boolean).join(' · '))])];
+
+  /* Masten */
+  const mKopf = [H('Eintrag'), H('km'), H('Pos.'), H('Profil'), H('L [m]'), H('Steg'), H('η Querschnitt'), H('η Knicken'),
+    H('Anker'), H('η Anker'), H('Ankerfundament'), H('η Ankerfund.'), H('Fundament'), H('η Fundament'), H('Lastfall'), H('η')];
+  const mRows = [mKopf, ...mast.map(({ r, m, eta }) => [T(r.name), km(r), T(m.anzeige), T(m.profil), Z2(m.laenge),
+    T(m.steg === 'quer' ? 'quer' : 'Jochachse'), ETA(m.eta), ETA(m.knick),
+    T(m.anker?.typ ?? ''), ETA(m.anker?.eta), T(m.ankerFundament?.typ ?? ''), ETA(m.ankerFundament?.eta),
+    T(m.fundament?.typ ?? (m.unterbau ? 'Unterbau' : '')), ETA(m.fundament?.eta), T(m.bez ?? ''), ETA(eta)])];
+
+  /* Joche / Ausleger */
+  const jKopf = [H('Eintrag'), H('km'), H('Pos.'), H('Art'), H('Bautyp'), H('H [m]'), H('Masten'),
+    H('η Träger'), H('η Aufhängung'), H('Lastfall'), H('η')];
+  const jRows = [jKopf, ...joch.map(({ r, t, eta }) => [T(r.name), km(r), T(t.pos), T(t.art), T(t.bau), Z2(t.H),
+    T(t.masten.join(' – ')), ETA(t.eta), ETA(t.aufhaengung), T(t.bez ?? ''), ETA(eta)])];
+
+  /* Parameter je Eintrag */
+  const pRows = [[H('Eintrag'), H('km'), H('Projekt'), H('Bemerkung'), ...PARAM.map((p) => H(p.kopf))],
+    ...ok.map((r) => [T(r.name), km(r), T(r.projekt), T(r.bemerkung), ...PARAM.map((p) => {
+      const v = r.param?.[p.key];
+      return p.zahl !== undefined && Number.isFinite(v) ? { v, s: p.zahl ? 10 : 9 } : T(paramText(p, v));
+    })])];
+
+  const blaetter = [
+    { name: 'Übersicht', rows: uebersicht, breiten: [22, 34, 12, 16, 12, 10, 60] },
+    { name: 'Fundamente', rows: fRows, fest: 1, filter: filter(fRows, 1),
+      breiten: [18, 10, 8, 18, 12, ...spalten.flatMap(() => [8, 9, 9]), 16, 8, 30] },
+    { name: 'Masten', rows: mRows, fest: 1, filter: filter(mRows, 1),
+      breiten: [18, 10, 8, 14, 8, 10, 11, 10, 12, 9, 14, 10, 16, 11, 34, 8] },
+    { name: 'Joche', rows: jRows, fest: 1, filter: filter(jRows, 1),
+      breiten: [18, 10, 8, 14, 18, 8, 12, 10, 12, 34, 8] },
+    { name: 'Parameter', rows: pRows, fest: 1, filter: filter(pRows, 1),
+      breiten: [18, 10, 16, 30, ...PARAM.map(() => 12)] },
+  ];
+  const geaendert = res.eintraege.flatMap((r) => (r.aenderungen ?? []).map((a) => ({ r, a })));
+  if (geaendert.length) {
+    const aRows = [[H('Eintrag'), H('km'), H('Bauteil'), H('Angabe'), H('Ausgang'), H('jetzt')],
+      ...geaendert.map(({ r, a }) => [T(r.name), km(r), T(a.wer), T(a.feld), T(a.alt || '–'), T(a.neu || '–')])];
+    blaetter.push({ name: 'Änderungen', rows: aRows, fest: 1, filter: filter(aRows, 1), breiten: [18, 10, 16, 16, 18, 18] });
+  }
+  return blaetter;
+}
+
+/** Spaltenbuchstabe zu einem Index ab 0 (A, B, …, AA). */
+function spalteBuchstabe(i) {
+  let s = ''; i += 1;
+  while (i > 0) { const r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = (i - r - 1) / 26; }
+  return s;
+}
+
+/** Die Projektauswertung als eigenständige HTML-Seite. */
+export function projektBlattHtml(res, { fassung = '' } = {}) {
+  const { ok, fund, mast, joch, spalten } = projektListen(res);
+  const idx = (r) => res.eintraege.indexOf(r);
+  const kmZahl = kmZahlVon;
   /* ---------- Kennzahlen je Gruppe ---------- */
   const kenn = (titel, liste, etaVon, wer) => {
     const z = (a) => liste.filter((x) => ampelVon(etaVon(x)) === a).length;
@@ -454,9 +587,6 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   const fehlerZeile = fehlend.length ? `<p class="hinweis fehler">Nicht gerechnet: ${esc(fehlend.map((r) =>
     `${r.name} (${r.fehler})`).join('; '))}</p>` : '';
   /* ---------- Listen ---------- */
-  const da = new Set();
-  fund.forEach((x) => x.f.nachweise.forEach((n) => da.add(n.key)));
-  const spalten = PROJEKT_GROESSEN.filter((g) => da.has(g.key));
   const attr = (r, typ, eta) => `class="zeile" data-amp="${ampelVon(eta)}" data-ziel="pos-${idx(r)}"
     data-eta="${Number.isFinite(eta) ? eta : -1}" data-km="${kmZahl(r)}" data-typ="${esc(typ)}" data-eintrag="${esc(r.name)}"`;
   const kopfZellen = (r, nr) => `<td data-w="${esc(r.name)}">${esc(r.name)}</td><td class="n" data-w="${kmZahl(r)}">${esc(r.km)}</td>

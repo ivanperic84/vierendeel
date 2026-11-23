@@ -138,7 +138,7 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="13">
+<cellXfs count="16">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
@@ -152,6 +152,9 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
 <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="2" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="2" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="164" fontId="2" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 <dxfs count="0"/>
@@ -182,7 +185,15 @@ function zelle(wert, zeile, spalteIdx) {
   return `<c r="${ref}"${attrS} t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
 }
 
-function blattXml(rows, breiten) {
+/*
+ * >>> AMPEL, FILTER, FESTER KOPF (23. November, Projektauswertung als
+ * Excel). <<< Stil 13 / 14 / 15 = η (0.000, fett) grün / gelb / rot; ein
+ * Blatt kann `filter` (z. B. 'A3:K40', Autofilter über der Kopfzeile) und
+ * `fest` (Zeilen oben, die beim Rollen stehen bleiben) tragen.
+ */
+export const XLS_AMPEL = { ok: 13, warn: 14, fail: 15 };
+
+function blattXml(rows, breiten, opt = {}) {
   const cols = breiten
     ? `<cols>${breiten.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
     : '';
@@ -192,9 +203,10 @@ function blattXml(rows, breiten) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <sheetPr><outlinePr summaryBelow="1" summaryRight="1"/></sheetPr>
-<sheetViews><sheetView workbookViewId="0" showGridLines="1"/></sheetViews>
+<sheetViews><sheetView workbookViewId="0" showGridLines="1">${opt.fest
+    ? `<pane ySplit="${opt.fest}" topLeftCell="A${opt.fest + 1}" activePane="bottomLeft" state="frozen"/>` : ''}</sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="15"/>${cols}
-<sheetData>${body}</sheetData></worksheet>`;
+<sheetData>${body}</sheetData>${opt.filter ? `<autoFilter ref="${x(opt.filter)}"/>` : ''}</worksheet>`;
 }
 
 /**
@@ -275,7 +287,10 @@ ${blaetter.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" 
       inhalt: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets>${blaetter.map((b, i) => `<sheet name="${x(blattname(b.name))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>
+<sheets>${blaetter.map((b, i) => `<sheet name="${x(blattname(b.name))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${
+  blaetter.some((b) => b.filter) ? `<definedNames>${blaetter.map((b, i) => (b.filter
+    ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${x(blattname(b.name).replace(/'/g, "''"))}'!${
+        String(b.filter).split(':').map((r) => r.replace(/^([A-Z]+)(\d+)$/, '$$$1$$$2')).join(':')}</definedName>` : '')).join('')}</definedNames>` : ''}
 </workbook>`,
     },
     {
@@ -289,7 +304,7 @@ ${blaetter.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.op
     { name: 'xl/styles.xml', inhalt: STYLES_XML },
     ...blaetter.map((b, i) => ({
       name: `xl/worksheets/sheet${i + 1}.xml`,
-      inhalt: blattXml(b.rows, b.breiten),
+      inhalt: blattXml(b.rows, b.breiten, { filter: b.filter, fest: b.fest }),
     })),
   ];
   return zip(dateien);

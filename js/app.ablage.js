@@ -24,7 +24,8 @@ import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { abschnitt, esc, icon } from './design.js';
 import * as store from './store.js';
-import { projektAuswerten, projektBlattHtml } from './app.projekt.js';
+import { projektAuswerten, projektBlattHtml, projektMappe } from './app.projekt.js';
+import { arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { seitAusgang } from './core.protokoll.js';
 import { berichtZeigen } from './app.bericht.js';
 import { STAND } from './version.js';
@@ -1147,7 +1148,11 @@ async function projektAuswertungZeigen(app, projektName) {
   berichtZeigen(html, 'Projektauswertung', { optionen: [], zustand: {}, bauen: () => html,
     aktionen: [{ key: 'pa-html', label: 'Als HTML sichern',
                  titel: 'Die Auswertung als eigenständige HTML-Datei sichern (sortier- und filterbar, zum Weitergeben)',
-                 tun: () => store.dateiSpeichern(html, name, 'text/html') }] });
+                 tun: () => store.dateiSpeichern(html, name, 'text/html') },
+               // Excel (23. November, Rückfrage «Excel-Ausgabe»): dieselben Listen als Zahlen.
+               { key: 'pa-xlsx', label: 'Als Excel sichern',
+                 titel: 'Übersicht, Fundamente, Masten, Joche, Parameter und Änderungen als Excel-Mappe (filterbar, Ampel)',
+                 tun: () => herunterladen(arbeitsmappe(projektMappe(res, { fassung })), name.replace(/\.html$/, '.xlsx')) }] });
   if (res.abgebrochen) app.meldeImBalken(`Projektauswertung abgebrochen nach ${res.eintraege.length} Einträgen.`);
 }
 
