@@ -17,6 +17,7 @@
  */
 
 import { zip, entpacke } from './export.xlsx.js';
+import { protokollNachfuehren, ausgangSetzen } from './core.protokoll.js';
 
 const DB_NAME = 'tragjoch';
 const DB_VERSION = 3;
@@ -175,7 +176,14 @@ const neueId = () =>
  */
 export async function sichern(e) {
   const jetzt = new Date().toISOString();
+  // Ausgangszustand und Protokoll der Bauteiltypen (23. November, core.protokoll.js):
+  // verglichen mit dem vorher gespeicherten Stand desselben Eintrags.
+  let vorher = null;
+  if (e.id) { try { vorher = await tx('readonly', (st) => st.get(e.id)); } catch { vorher = null; } }
+  const prot = protokollNachfuehren(vorher ?? null, e, jetzt);
   const satz = {
+    ausgang: prot.ausgang,
+    protokoll: prot.protokoll,
     id: e.id ?? neueId(),
     name: (e.name ?? '').trim() || 'Ohne Namen',
     projekt: (e.projekt ?? '').trim(),
@@ -185,6 +193,17 @@ export async function sichern(e) {
     erstellt: e.erstellt ?? jetzt,
     geaendert: jetzt,
   };
+  await tx('readwrite', (st) => st.put(satz));
+  return satz;
+}
+
+/**
+ * Den jetzigen gespeicherten Stand als Ausgangszustand übernehmen (23. November,
+ * «dann kann man auch den ausgangzustand auch anpassen nachträglich»).
+ */
+export async function ausgangUebernehmen(id, grund = '') {
+  const s = await laden(id);
+  const satz = { ...s, ...ausgangSetzen(s, grund) };
   await tx('readwrite', (st) => st.put(satz));
   return satz;
 }

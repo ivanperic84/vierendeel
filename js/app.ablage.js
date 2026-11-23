@@ -25,6 +25,7 @@ import { getTragjoch } from './data.tragjoche.js';
 import { abschnitt, esc, icon } from './design.js';
 import * as store from './store.js';
 import { projektAuswerten, projektBlattHtml } from './app.projekt.js';
+import { seitAusgang } from './core.protokoll.js';
 import { berichtZeigen } from './app.bericht.js';
 import { STAND } from './version.js';
 import * as ui from './ui.js';
@@ -437,6 +438,7 @@ export async function zeichneSchublade(app) {
               <button class="btn btn-mini" data-laden="${esc(e.id)}">Laden</button>
               <button class="btn btn-mini" data-zuordnen="${esc(e.id)}" title="Einem Projekt zuordnen">${icon('projekte', 11)}</button>
               <button class="btn btn-mini" data-kopie="${esc(e.id)}" title="Kopie anlegen">Kopie</button>
+              <button class="btn btn-mini" data-protokoll="${esc(e.id)}" title="Ausgangszustand und Änderungsprotokoll der Bauteiltypen">Protokoll</button>
               <button class="btn btn-mini" data-eintrag-aus="${esc(e.id)}" title="Nur dieses Tragwerk ausleiten">${icon('export', 11)}</button>
               <button class="btn btn-mini btn-fail" data-loeschen="${esc(e.id)}" title="Löschen">×</button>
             </td></tr>`).join('')}
@@ -686,6 +688,7 @@ export async function zeichneSchublade(app) {
   auf('[data-projekt-aus]', (b) => dialogAusleiten(app, 
     alle.filter((e) => (e.projekt ?? '') === b.dataset.projektAus).map((e) => e.id)));
   auf('[data-projekt-druck]', (b) => projektlisteDrucken(app, b.dataset.projektDruck));
+  auf('[data-protokoll]', (b) => protokollDialog(app, b.dataset.protokoll));
   auf('[data-projekt-auswertung]', (b) => projektAuswertungZeigen(app, b.dataset.projektAuswertung));
   auf('[data-vorlage-an]', async (b) => {
     const v = await store.vorlageLaden(b.dataset.vorlageAn);
@@ -1079,6 +1082,41 @@ async function dialogZuordnen(app, s) {
  * jeden Eintrag des Projekts mit dem Stabwerk, mit Fortschritt und Abbruch;
  * ein Eintrag, der nicht rechnet, steht mit Grund im Blatt.
  */
+/*
+ * >>> PROTOKOLL DER BAUTEILTYPEN (23. November, core.protokoll.js). <<<
+ * Ausgangszustand, Abweichungen davon und jede gespeicherte Änderung; der
+ * jetzige gespeicherte Stand lässt sich als neuer Ausgangszustand übernehmen
+ * («es kann sein das der skill ein tragwerk falsch interpretiert und ich es
+ * dann von hand anpasse»).
+ */
+async function protokollDialog(app, id) {
+  const s = await store.laden(id);
+  const dat = (d) => (d ? new Date(d).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' }) : '–');
+  const zeile = (a) => `<tr><td>${esc(a.wer)}</td><td>${esc(a.feld)}</td><td>${esc(a.alt || '–')}</td><td><b>${esc(a.neu || '–')}</b></td></tr>`;
+  const tab = (l) => (l.length ? `<table class="ab-tabelle"><thead><tr><th>Bauteil</th><th>Angabe</th><th>vorher</th><th>nachher</th></tr></thead>
+    <tbody>${l.map(zeile).join('')}</tbody></table>` : '<p class="notiz">keine</p>');
+  const seit = seitAusgang(s);
+  const prot = [...(s.protokoll ?? [])].reverse();
+  const d = app.dialog(`Protokoll · ${s.name}`, `
+    <p class="notiz">Ausgangszustand vom ${esc(dat(s.ausgang?.datum))}${s.ausgang?.vonHand ? ' (von Hand gesetzt'
+      + `${s.ausgang.grund ? `: ${esc(s.ausgang.grund)}` : ''})` : ''}. Verglichen werden die Bauteiltypen
+      (Tragwerke, Masten, Fundamente, Anker) des gespeicherten Stands.</p>
+    <h3>Geändert seit Ausgangszustand</h3>${tab(seit)}
+    <h3>Protokoll</h3>${prot.length ? prot.map((p) => `<p class="notiz"><b>${esc(dat(p.datum))}</b> · ${esc(
+      p.art === 'ausgang' ? 'Ausgangszustand angelegt' : p.art === 'ausgang-neu' ? `Ausgangszustand neu gesetzt${p.grund ? ` (${p.grund})` : ''}`
+        : 'gespeichert mit Änderung')}</p>${p.aenderungen?.length ? tab(p.aenderungen) : ''}`).join('') : '<p class="notiz">leer</p>'}
+    <div class="feld"><label for="pr-grund">Grund (für einen neuen Ausgangszustand)</label>
+      <input id="pr-grund" type="text" placeholder="z. B. Querprofil falsch gedeutet, Mast von Hand berichtigt"></div>`,
+  `<button class="btn btn-acc" data-ok title="Den jetzigen gespeicherten Stand als Ausgangszustand übernehmen">Als Ausgangszustand übernehmen</button>
+   <button class="btn" data-zu>Schliessen</button>`);
+  d.node.querySelector('[data-ok]').onclick = async () => {
+    await store.ausgangUebernehmen(id, ui.el('pr-grund')?.value ?? '');
+    d.zu();
+    app.meldeImBalken(`Ausgangszustand von «${s.name}» neu gesetzt.`);
+    zeichneSchublade(app);
+  };
+}
+
 async function projektAuswertungZeigen(app, projektName) {
   const eintraege = (await store.liste())
     .filter((e) => (e.projekt ?? '') === projektName)

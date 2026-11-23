@@ -34,6 +34,7 @@ import { normalisiereAnbauteil, expandiereAnbauteile, istSignalModul } from './d
 import { anbauKette, bezugsHoehe } from './core.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { ekKlasseVon } from './core.lasten.js';
+import { seitAusgang } from './core.protokoll.js';
 
 /** Die Grössen des Fundaments als Spalten der Liste, in dieser Reihenfolge. */
 export const PROJEKT_GROESSEN = [
@@ -124,7 +125,10 @@ function anbauGeometrie(w) {
  * steht im Ergebnis (`fehler`), damit ein Eintrag den Lauf nicht abbricht.
  */
 export function eintragAuswerten(e) {
-  const kopf = { id: e.id, name: e.name ?? '', projekt: e.projekt ?? '', bemerkung: e.bemerkung ?? '' };
+  const kopf = { id: e.id, name: e.name ?? '', projekt: e.projekt ?? '', bemerkung: e.bemerkung ?? '',
+                 // Änderungen der Bauteiltypen gegenüber dem Ausgangszustand (23. November).
+                 aenderungen: (() => { try { return seitAusgang(e); } catch { return []; } })(),
+                 ausgangDatum: e.ausgang?.datum ?? null, ausgangVonHand: e.ausgang?.vonHand === true };
   let w;
   // Wie beim Laden: anheben, dann geht ein Einzelmast im Joch auf, das ihn trägt.
   try { w = einzelmastenAufgehen(standAnheben({ ...standardwerte(), ...(e.werte ?? {}) })).werte; } catch (f) {
@@ -329,7 +333,7 @@ const STIL = `
   .pos h3 { font-size: 11.5px; margin: 0 0 4px; } .pos .ort { color: #666; font-weight: 400; }
   .pos-in { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .pos table { width: auto; min-width: 300px; }
-  .fehler { color: #b3261e; } .kommentar { margin: 0 0 4px; font-style: italic; color: #333; }
+  .aenderung { margin: 0 0 4px; color: #7a4a00; } .fehler { color: #b3261e; } .kommentar { margin: 0 0 4px; font-style: italic; color: #333; }
   .fuss { margin-top: 12px; font-size: 9px; color: #777; }
   .hinweis { font-size: 9px; color: #555; margin: 3px 0; }
   @media print { .wahl { display: none; } .liste[hidden] { display: block; } .rollen { overflow: visible; }
@@ -380,6 +384,12 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   </tbody></table>`;
   const abweichend = new Set(PARAM.filter((p) => gleich(p) === null).map((p) => p.key));
   const fehlend = res.eintraege.filter((r) => r.fehler);
+  // Änderungsprotokoll der Bauteiltypen (23. November): was seit dem Ausgangszustand geändert ist.
+  const geaendert = res.eintraege.flatMap((r) => (r.aenderungen ?? []).map((a) => ({ r, a })));
+  const aenderungTabelle = geaendert.length ? `<h2>Änderungen seit Ausgangszustand</h2>
+    <table><thead><tr><th>km</th><th>Eintrag</th><th>Bauteil</th><th>Angabe</th><th>Ausgang</th><th>jetzt</th></tr></thead><tbody>
+    ${geaendert.map(({ r, a }) => `<tr><td>${esc(r.km)}</td><td>${esc(r.name)}</td><td>${esc(a.wer)}</td><td>${esc(a.feld)}</td>
+      <td>${esc(a.alt || '–')}</td><td><b>${esc(a.neu || '–')}</b></td></tr>`).join('')}</tbody></table>` : '';
   const PA = PARAM.filter((p) => p.blatt || abweichend.has(p.key));
   const jeEintrag = PA.length ? `<div class="rollen"><table><thead><tr><th>Eintrag</th><th>km</th>
       ${PA.map((p) => `<th title="${esc(p.titel)}">${esc(p.kopf)}</th>`).join('')}</tr></thead><tbody>
@@ -457,6 +467,9 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
           `L_FL ${paramText(PARAM.find((p) => p.key === 'lfl'), r.param?.lfl)} m`,
           `R ${paramText(PARAM.find((p) => p.key === 'radius'), r.param?.radius)}`].filter(Boolean).join(' · '))}</span></h3>
       ${r.bemerkung ? `<p class="kommentar">${esc(r.bemerkung)}</p>` : ''}
+      ${r.aenderungen?.length ? `<p class="aenderung"><b>Geändert seit Ausgangszustand${r.ausgangDatum
+        ? ` (${esc(new Date(r.ausgangDatum).toLocaleDateString('de-CH'))})` : ''}:</b> ${esc(r.aenderungen.map((a) =>
+        `${a.wer} ${a.feld === 'neu' || a.feld === 'entfernt' ? a.feld : `${a.feld} ${a.alt || '–'} → ${a.neu || '–'}`}`).join(' · '))}</p>` : ''}
       <div class="pos-in"><div>${eintragSkizze(r)}<p class="hinweis">Profilzeichen am Mastfuss (Grundriss):
         H = Steg in der Jochachse, I = Steg quer zur Jochachse.</p></div>
         <table><thead><tr><th></th><th>Bauteil</th><th class="n">η</th><th>massgebend</th></tr></thead>
@@ -473,7 +486,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     <div><h2>Grundlagen</h2>${gemein}${jeEintrag ? `<p class="hinweis">Je Eintrag (Spannweite und Radius gelten dem Blatt):</p>${jeEintrag}` : ''}</div>
     <div><h2>Kennzahlen</h2>${kennzahlen}
       <p class="hinweis">Anzahl Positionen je Bereich des Erfüllungsgrads η. Masten mit Knicken, Joche mit Aufhängung.</p>
-      ${fehlerZeile}</div>
+      ${fehlerZeile}${aenderungTabelle}</div>
   </div>
   <h2>Auswertung</h2>
   <div class="wahl">

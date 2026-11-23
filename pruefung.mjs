@@ -44126,6 +44126,47 @@ titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (
        AB.includes('data-projekt-auswertung=') && AB.includes("label: 'Als HTML sichern'") && AQ.length > 0);
 }
 
+// ===========================================================================
+titel('335  Ausgangszustand und Änderungsprotokoll der Bauteiltypen (core.protokoll.js)');
+{
+  const PR = await import(J('core.protokoll.js'));
+  const PA5 = await import(J('app.projekt.js'));
+  const C5 = await import(J('core.constants.js'));
+  const w0 = standardwerte();
+  const st0 = PR.bauteilStand(w0);
+  wahr('Stand nennt Tragwerk und Masten mit ihren Typen',
+       Object.keys(st0.tragwerke).length === 1 && Object.keys(st0.masten).length === 2
+       && Object.values(st0.masten)[0].Profil === 'HEB 240', JSON.stringify(st0));
+  // Erstes Speichern: Ausgangszustand, Protokoll «angelegt».
+  const s1 = PR.protokollNachfuehren(null, { werte: w0 }, '2026-11-23T10:00:00Z');
+  wahr('Erstes Speichern legt den Ausgangszustand an', s1.ausgang.datum === '2026-11-23T10:00:00Z'
+       && s1.protokoll.length === 1 && s1.protokoll[0].art === 'ausgang');
+  // Mast M2 auf HEB 240 geändert und gespeichert.
+  const w1 = { ...w0, masten: C5.mastenVon(w0).map((m, i) => (i === 1 ? { ...m, profil: 'HEB 260' } : m)) };
+  const vorher = { werte: w0, ...s1 };
+  const s2 = PR.protokollNachfuehren(vorher, { werte: w1 }, '2026-11-23T11:00:00Z');
+  const ae = s2.protokoll.at(-1)?.aenderungen ?? [];
+  wahr('Eine Änderung am Masten kommt ins Protokoll, der Ausgang bleibt',
+       s2.ausgang.datum === s1.ausgang.datum && ae.length === 1 && ae[0].feld === 'Profil'
+       && ae[0].alt === 'HEB 240' && ae[0].neu === 'HEB 260', JSON.stringify(ae));
+  const s3 = PR.protokollNachfuehren({ werte: w1, ...s2 }, { werte: w1 }, '2026-11-23T12:00:00Z');
+  wahr('Speichern ohne Änderung an den Bauteiltypen schreibt nichts', s3.protokoll.length === s2.protokoll.length);
+  wahr('seitAusgang nennt die Abweichung', PR.seitAusgang({ werte: w1, ...s2 }).length === 1);
+  const neu = PR.ausgangSetzen({ werte: w1, ...s2 }, 'Skill falsch gedeutet', '2026-11-23T13:00:00Z');
+  wahr('Ausgangszustand von Hand neu gesetzt: vermerkt, danach keine Abweichung',
+       neu.ausgang.vonHand === true && neu.protokoll.at(-1).art === 'ausgang-neu'
+       && neu.protokoll.at(-1).grund === 'Skill falsch gedeutet'
+       && PR.seitAusgang({ werte: w1, ...neu }).length === 0);
+  const r = PA5.eintragAuswerten({ id: 'p', name: 'E', werte: w1, ...s2 });
+  const html = PA5.projektBlattHtml({ projekt: 'P', datum: 'x', eintraege: [r] });
+  wahr('Projektauswertung: Änderungen seit Ausgangszustand je Position und als Liste',
+       r.aenderungen.length === 1 && html.includes('Änderungen seit Ausgangszustand')
+       && html.includes('Geändert seit Ausgangszustand') && html.includes('HEB 240 → HEB 260'));
+  const ST = readFileSync(join(HIER, 'js', 'store.js'), 'utf8');
+  wahr('store.sichern führt das Protokoll, ausgangUebernehmen setzt den Ausgang neu',
+       ST.includes('protokollNachfuehren(vorher ?? null, e, jetzt)') && ST.includes('export async function ausgangUebernehmen'));
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
