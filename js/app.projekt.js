@@ -30,6 +30,7 @@ import { APP_NAME, sichtbareTragwerke, tragwerksart, tragwerkPos, tragwerkName,
          mastenVon, mastName, mastenFuer, anschlusshoehe, mastAnzeigeKarte, mastAnzeigeText,
          einzelmastenAufgehen } from './core.constants.js';
 import { esc } from './design.js';
+import { ekKlasseVon } from './core.lasten.js';
 
 /** Die Grössen des Fundaments als Spalten der Liste, in dieser Reihenfolge. */
 export const PROJEKT_GROESSEN = [
@@ -107,8 +108,30 @@ export function eintragAuswerten(e) {
       zeile: zeile ? { x: zeile.x, z: zeile.z } : null,
     };
   });
-  return { ...kopf, ...ort, tragwerke, masten, skizze: h.skizze ?? null, reaktionen: h.reaktionen ?? [],
-           windKlasse: w.windKlasse ?? '', schnee: w.schneeAktiv === true };
+  // Länge des Masten aus dem Modell (Maststäbe der Skizze), wo die Liste keine führt.
+  const kopfZ = (x, z0) => Math.max(z0, ...(h.skizze?.linien ?? [])
+    .filter((l) => l[4] === 3 && Math.abs(l[0] - x) < 0.35 && Math.abs(l[2] - x) < 0.35)
+    .flatMap((l) => [l[1], l[3]]));
+  masten.forEach((m) => {
+    if (!m.laenge && m.zeile) { const L = kopfZ(m.zeile.x, m.zeile.z) - m.zeile.z; if (L > 0.5) m.laenge = L; }
+  });
+  /*
+   * DIE EINGABEPARAMETER DES BLATTES (23. November, «die globalen
+   * eingabeparameter angeben»): was für alle Tragwerke des Eintrags gilt.
+   */
+  const nw = w.nachweise ?? {};
+  const param = {
+    ek: ekKlasseVon(w) || (String(w.windKlasse) === '1.0' ? 'Einheitswind' : `Wind ${w.windKlasse ?? ''}`),
+    schnee: w.schneeAktiv === true ? 'ja' : 'nein',
+    lfl: Number(w.flSpannweite) || 0,
+    radius: Number(w.trasseRadius) || 0,
+    reduktion: w.windReduktion === true ? '× 0.74' : '–',
+    havarie: w.havarieAus === true ? 'aus' : 'ein',
+    th2: w.theorie2 === true ? 'ja' : 'nein',
+    knicken: nw.knickenMast === false ? 'aus' : 'ein',
+    stahl: [w.stahl, w.stahlMast && w.stahlMast !== w.stahl ? `Mast ${w.stahlMast}` : ''].filter(Boolean).join(' · '),
+  };
+  return { ...kopf, ...ort, tragwerke, masten, param, skizze: h.skizze ?? null, reaktionen: h.reaktionen ?? [] };
 }
 
 /**
@@ -154,77 +177,160 @@ export function eintragSkizze(r) {
 }
 
 /* ---------------------------------------------------------------------- */
+/*
+ * >>> TECHNISCHER KOPF, AUSWAHL, ORDNEN (23. November). <<< Mit Bild der
+ * ersten Fassung, im Wortlaut: «den oberen teil technischer gestalten und
+ * die globalen eingabeparameter angeben. unten die auswahl ermögliche
+ * zwischen fundamente / masten / joche für die auswertung. ordnen nach km
+ * und oder typ ermöglichen neben den erfüllungsgraden.»
+ * Oben statt der Kacheln eine Tabelle der Kennzahlen je Bauteilgruppe und
+ * die Eingabeparameter (gemeinsame als Zeile, je Eintrag als Tabelle).
+ * Unten drei Listen (Fundamente, Masten, Joche) mit Umschalter; geordnet
+ * nach einem ersten und einem zweiten Schlüssel (η, km, Typ, Eintrag),
+ * der Spaltenkopf sortiert weiter einzeln.
+ */
+const PARAM = [
+  { key: 'ek', kopf: 'EK', titel: 'Einwirkungsklasse (Wind und Höhenlage)' },
+  { key: 'schnee', kopf: 'Schnee', titel: 'Schnee leitend gerechnet' },
+  { key: 'lfl', kopf: 'L_FL [m]', titel: 'Spannweite der Fahrleitung', zahl: 1 },
+  { key: 'radius', kopf: 'R [m]', titel: 'Radius der Trasse (0 = gerade)', zahl: 0 },
+  { key: 'reduktion', kopf: 'Wind red.', titel: 'Windreduktion dicht überbautes Gebiet' },
+  { key: 'havarie', kopf: 'Havarie', titel: 'Havariefall gerechnet' },
+  { key: 'th2', kopf: 'Th. 2. O.', titel: 'Theorie 2. Ordnung' },
+  { key: 'knicken', kopf: 'Knicken', titel: 'Knicknachweis der Masten' },
+  { key: 'stahl', kopf: 'Stahl', titel: 'Stahlgüte' },
+];
+const paramText = (p, v) => (p.zahl !== undefined && Number.isFinite(v)
+  ? (p.key === 'radius' && !v ? 'gerade' : v.toFixed(p.zahl)) : String(v ?? '–'));
 
 const STIL = `
-  @page { size: A4 landscape; margin: 11mm; }
-  body { font: 11px/1.4 system-ui, sans-serif; color: #111; background: #fff; margin: 18px; }
-  h1 { font-size: 18px; margin: 0 0 2px; } h2 { font-size: 14px; margin: 18px 0 6px; }
-  .unter { color: #555; margin: 0 0 12px; }
-  .zus { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 4px; }
-  .k { border: 1px solid #d3d6dc; border-radius: 6px; padding: 6px 10px; min-width: 120px; }
-  .k b { display: block; font-size: 17px; } .k span { color: #555; font-size: 10px; }
+  @page { size: A4 landscape; margin: 10mm; }
+  body { font: 10.5px/1.35 system-ui, sans-serif; color: #111; background: #fff; margin: 16px; }
+  h1 { font-size: 16px; margin: 0 0 2px; } h2 { font-size: 12.5px; margin: 14px 0 5px; text-transform: uppercase; letter-spacing: .04em; color: #333; }
+  .unter { color: #555; margin: 0 0 8px; }
+  .kopf { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .kopf { grid-template-columns: 1fr; } }
   table { border-collapse: collapse; width: 100%; font-size: 10px; }
-  th, td { border: 1px solid #d0d3d8; padding: 3px 5px; vertical-align: top; }
-  thead th { background: #eef0f3; text-align: left; font-weight: 600; position: sticky; top: 0; }
+  th, td { border: 1px solid #d0d3d8; padding: 2px 5px; vertical-align: top; }
+  thead th { background: #eef0f3; text-align: left; font-weight: 600; }
+  .t-info th { background: #f6f7f9; font-weight: 600; text-align: left; width: 38%; }
   thead th.s { cursor: pointer; user-select: none; } thead th.s:hover { background: #e2e6ec; }
   .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .n small { display: block; color: #666; font-size: 9px; }
-  .lenkt { color: #9aa0a8; }
+  .n small { display: block; color: #666; font-size: 8.5px; }
+  .lenkt { color: #9aa0a8; } .lenkt b { color: #9aa0a8; }
   .ok b, b.ok { color: #1c7a3d; } .warn b, b.warn { color: #a86400; } .fail b, b.fail { color: #b3261e; }
-  td.amp { font-weight: 700; } td.amp.ok { color: #1c7a3d; } td.amp.warn { color: #a86400; } td.amp.fail { color: #b3261e; }
-  .marke { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 9px; font-weight: 700; }
-  .marke.ok { background: #e3f3e8; color: #1c7a3d; } .marke.warn { background: #fdf0db; color: #a86400; }
-  .marke.fail { background: #fbe3e1; color: #b3261e; } .marke.leer { background: #eee; color: #666; }
-  .filter { margin: 6px 0; display: flex; gap: 6px; align-items: center; }
-  .filter button { font: inherit; border: 1px solid #c8ccd2; background: #fff; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
-  .filter button.an { background: #2f3b8f; color: #fff; border-color: #2f3b8f; }
+  td.amp { font-weight: 700; } td.amp.ok, .ok-t { color: #1c7a3d; } td.amp.warn, .warn-t { color: #a86400; }
+  td.amp.fail, .fail-t { color: #b3261e; }
+  .abw { background: #fff7e6; }
+  .wahl { margin: 6px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid #c8ccd2; border-radius: 5px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; border-right: 1px solid #c8ccd2; background: #fff; padding: 3px 10px; cursor: pointer; }
+  .seg button:last-child { border-right: 0; } .seg button.an { background: #2f3b8f; color: #fff; }
+  .wahl select { font: inherit; padding: 2px 4px; }
+  .liste[hidden] { display: none; }
   tr.zeile { cursor: pointer; } tr.zeile:hover td { background: #f5f7fb; }
-  .pos { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d3d6dc; border-radius: 6px;
-         padding: 8px 10px; margin: 10px 0; }
-  .pos h3 { font-size: 12.5px; margin: 0 0 4px; } .pos .ort { color: #666; font-weight: 400; }
-  .pos-in { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .rollen { overflow-x: auto; }
+  .pos { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d3d6dc; border-radius: 4px;
+         padding: 6px 8px; margin: 8px 0; }
+  .pos h3 { font-size: 11.5px; margin: 0 0 4px; } .pos .ort { color: #666; font-weight: 400; }
+  .pos-in { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .pos table { width: auto; min-width: 300px; }
   .fehler { color: #b3261e; }
-  .rollen { overflow-x: auto; } @media print { .rollen { overflow: visible; } }
-  .fuss { margin-top: 14px; font-size: 9.5px; color: #777; }
-  .hinweis { font-size: 9.5px; color: #555; margin: 4px 0; }
-  @media print { .filter { display: none; } thead th { position: static; } .bruch { page-break-before: always; } }
+  .fuss { margin-top: 12px; font-size: 9px; color: #777; }
+  .hinweis { font-size: 9px; color: #555; margin: 3px 0; }
+  @media print { .wahl { display: none; } .liste[hidden] { display: block; } .rollen { overflow: visible; }
+                 .bruch { page-break-before: always; } }
 `;
 
 /** Die Projektauswertung als eigenständige HTML-Seite. */
 export function projektBlattHtml(res, { fassung = '' } = {}) {
   const ok = res.eintraege.filter((r) => !r.fehler);
-  const fund = ok.flatMap((r) => (r.masten ?? []).filter((m) => m.fundament)
-    .map((m) => ({ r, m, f: m.fundament })));
-  const zaehle = (a) => fund.filter((x) => ampelVon(x.f.eta) === a).length;
-  const maxF = fund.reduce((b, x) => (!b || (x.f.eta ?? 0) > (b.f.eta ?? 0) ? x : b), null);
-  const bauteile = ok.flatMap((r) => [
-    ...(r.tragwerke ?? []).map((t) => ({ r, name: `${t.pos} ${t.art}`, eta: Math.max(t.eta ?? 0, t.aufhaengung ?? 0) })),
-    ...(r.masten ?? []).map((m) => ({ r, name: `Mast ${m.anzeige}`, eta: Math.max(m.eta ?? 0, m.knick ?? 0, m.anker?.eta ?? 0) }))]);
-  const maxB = bauteile.reduce((b, x) => (!b || x.eta > b.eta ? x : b), null);
-  const ueberB = bauteile.filter((x) => x.eta > 1);
+  const idx = (r) => res.eintraege.indexOf(r);
+  const kmZahl = (r) => { const v = parseFloat(String(r.km ?? '').replace(/[^0-9.+-]/g, '')); return Number.isFinite(v) ? v : ''; };
+  const fund = ok.flatMap((r) => (r.masten ?? []).filter((m) => m.fundament).map((m) => ({ r, m, f: m.fundament })));
+  const mast = ok.flatMap((r) => (r.masten ?? []).map((m) => ({ r, m, eta: Math.max(m.eta ?? 0, m.knick ?? 0) })));
+  const joch = ok.flatMap((r) => (r.tragwerke ?? []).filter((t) => t.key !== 'einzelmast')
+    .map((t) => ({ r, t, eta: Math.max(t.eta ?? 0, t.aufhaengung ?? 0) })));
+  /* ---------- Kennzahlen je Gruppe ---------- */
+  const kenn = (titel, liste, etaVon, wer) => {
+    const z = (a) => liste.filter((x) => ampelVon(etaVon(x)) === a).length;
+    const max = liste.reduce((b, x) => (!b || (etaVon(x) ?? 0) > (etaVon(b) ?? 0) ? x : b), null);
+    return `<tr><th>${titel}</th><td class="n">${liste.length}</td><td class="n ok-t">${z('ok')}</td>
+      <td class="n warn-t">${z('warn')}</td><td class="n fail-t">${z('fail')}</td>
+      <td class="n amp ${ampelVon(max ? etaVon(max) : NaN)}">${zahl(max ? etaVon(max) : NaN)}</td>
+      <td>${max ? esc(wer(max)) : '–'}</td></tr>`;
+  };
+  const kennzahlen = `<table><thead><tr><th>Gruppe</th><th class="n">Anzahl</th><th class="n">η ≤ 0.90</th>
+      <th class="n">≤ 1.00</th><th class="n">&gt; 1.00</th><th class="n">η max</th><th>massgebend</th></tr></thead><tbody>
+    ${kenn('Fundamente', fund, (x) => x.f.eta, (x) => `${x.r.name} · ${x.m.anzeige} · ${x.f.typ} · ${x.f.massgebend?.was ?? ''}`)}
+    ${kenn('Masten', mast, (x) => x.eta, (x) => `${x.r.name} · ${x.m.anzeige} · ${x.m.profil}${x.m.knick !== null && x.m.knick >= (x.m.eta ?? 0) ? ' · Knicken' : ''}`)}
+    ${kenn('Joche / Ausleger', joch, (x) => x.eta, (x) => `${x.r.name} · ${x.t.pos} ${x.t.art} ${x.t.bau}`)}
+  </tbody></table>`;
+  /* ---------- Eingabeparameter ---------- */
+  const gleich = (p) => { const v = new Set(ok.map((r) => paramText(p, r.param?.[p.key]))); return v.size <= 1 ? [...v][0] ?? '–' : null; };
+  const gemein = `<table class="t-info"><tbody>
+    <tr><th>Projekt</th><td>${esc(res.projekt || 'Ohne Projekt')}</td></tr>
+    <tr><th>Einträge</th><td>${res.eintraege.length} (gerechnet ${ok.length}${res.abgebrochen ? ', abgebrochen' : ''})</td></tr>
+    <tr><th>Rechenverfahren</th><td>Räumliches Stabwerk über das ganze Blatt je Eintrag</td></tr>
+    <tr><th>Fundamente</th><td>charakteristisch gegen zulässige Standardlasten, Fundamentablauf</td></tr>
+    ${PARAM.map((p) => { const v = gleich(p); return `<tr><th title="${esc(p.titel)}">${esc(p.titel)}</th>
+      <td>${v === null ? '<i>je Eintrag verschieden (Tabelle unten)</i>' : esc(v)}</td></tr>`; }).join('')}
+    <tr><th>Stand</th><td>${esc(res.datum)} · ${esc(fassung)}</td></tr></tbody></table>`;
+  const abweichend = new Set(PARAM.filter((p) => gleich(p) === null).map((p) => p.key));
+  const jeEintrag = `<div class="rollen"><table><thead><tr><th>Eintrag</th><th>km</th>
+      ${PARAM.map((p) => `<th title="${esc(p.titel)}">${esc(p.kopf)}</th>`).join('')}</tr></thead><tbody>
+    ${res.eintraege.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.km)}</td>${r.fehler
+      ? `<td colspan="${PARAM.length}" class="fehler">nicht gerechnet: ${esc(r.fehler)}</td>`
+      : PARAM.map((p) => `<td class="${abweichend.has(p.key) ? 'abw' : ''}">${esc(paramText(p, r.param?.[p.key]))}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>`;
+  /* ---------- Listen ---------- */
   const da = new Set();
   fund.forEach((x) => x.f.nachweise.forEach((n) => da.add(n.key)));
   const spalten = PROJEKT_GROESSEN.filter((g) => da.has(g.key));
-  const idx = (r) => res.eintraege.indexOf(r);
-  const zellen = (f) => spalten.map((g) => {
-    const n = f.nachweise.find((x) => x.key === g.key);
-    if (!n) return '<td class="n">–</td>';
-    const a = n.lenkt ? 'lenkt' : ampelVon(n.eta);
-    return `<td class="n ${a}" data-w="${n.lenkt ? -1 : (n.eta ?? 0)}" title="${esc(`${n.kurz}: ${zahl(n.wert)} von ${zahl(n.zul)} ${n.einheit}${n.bez ? ` · ${n.bez}` : ''}${n.lenkt ? ' · lenkt den Ablauf, kein Nachweis' : ''}`)}"><b>${zahl(n.eta)}</b><small>${zahl(n.wert, 1)} / ${zahl(n.zul, 1)}</small></td>`;
-  }).join('');
-  const zeilen = fund.map(({ r, m, f }) => {
-    const a = ampelVon(f.eta);
-    return `<tr class="zeile" data-amp="${a}" data-ziel="pos-${idx(r)}">
-      <td data-w="${esc(r.name)}">${esc(r.name)}</td><td data-w="${esc(r.km)}">${esc(r.km)}</td>
-      <td data-w="${esc(m.anzeige)}"><b>${esc(m.anzeige)}</b></td>
-      <td>${esc(m.profil)}${m.laenge ? ` · ${m.laenge.toFixed(2)} m` : ''}</td>
-      <td>${esc(f.typ)}</td>
-      ${zellen(f)}
-      <td title="${esc(f.massgebend?.bez ?? '')}">${esc(f.massgebend?.was ?? '')}${f.massgebend
-        ? `<br><small>${zahl(f.massgebend.wert, 1)} / ${zahl(f.massgebend.zul, 1)} ${esc(f.massgebend.einheit ?? '')}</small>` : ''}</td>
-      <td class="n amp ${a}" data-w="${f.eta ?? 0}">${zahl(f.eta)}${f.ausgeglichen ? '<small>ausgeglichen</small>' : ''}</td></tr>`;
-  }).join('');
+  const attr = (r, typ, eta) => `class="zeile" data-amp="${ampelVon(eta)}" data-ziel="pos-${idx(r)}"
+    data-eta="${Number.isFinite(eta) ? eta : -1}" data-km="${kmZahl(r)}" data-typ="${esc(typ)}" data-eintrag="${esc(r.name)}"`;
+  const kopfZellen = (r, nr) => `<td data-w="${esc(r.name)}">${esc(r.name)}</td><td class="n" data-w="${kmZahl(r)}">${esc(r.km)}</td>
+    <td data-w="${esc(nr)}"><b>${esc(nr)}</b></td>`;
+  const fundZeilen = fund.map(({ r, m, f }) => `<tr ${attr(r, f.typ, f.eta)}>${kopfZellen(r, m.anzeige)}
+      <td data-w="${esc(f.typ)}">${esc(f.typ)}</td><td>${esc(m.profil)}</td>
+      ${spalten.map((g) => {
+        const n = f.nachweise.find((x) => x.key === g.key);
+        if (!n) return '<td class="n" data-w="-1">–</td>';
+        return `<td class="n ${n.lenkt ? 'lenkt' : ampelVon(n.eta)}" data-w="${n.lenkt ? -1 : (n.eta ?? 0)}" title="${esc(`${n.kurz}: ${zahl(n.wert)} von ${zahl(n.zul)} ${n.einheit}${n.bez ? ` · ${n.bez}` : ''}${n.lenkt ? ' · lenkt den Ablauf, kein Nachweis' : ''}`)}"><b>${zahl(n.eta)}</b><small>${zahl(n.wert, 1)} / ${zahl(n.zul, 1)}</small></td>`;
+      }).join('')}
+      <td title="${esc(f.massgebend?.bez ?? '')}">${esc(f.massgebend?.was ?? '')}</td>
+      <td class="n amp ${ampelVon(f.eta)}" data-w="${f.eta ?? 0}">${zahl(f.eta)}${f.ausgeglichen ? '<small>ausgeglichen</small>' : ''}</td></tr>`).join('');
+  const mastZeilen = mast.map(({ r, m, eta }) => `<tr ${attr(r, m.profil, eta)}>${kopfZellen(r, m.anzeige)}
+      <td data-w="${esc(m.profil)}">${esc(m.profil)}</td><td class="n" data-w="${m.laenge ?? 0}">${m.laenge ? m.laenge.toFixed(2) : '–'}</td>
+      <td>${esc(m.steg === 'quer' ? 'quer' : 'Jochachse')}</td>
+      <td class="n ${ampelVon(m.eta)}" data-w="${m.eta ?? 0}"><b>${zahl(m.eta)}</b></td>
+      <td class="n ${ampelVon(m.knick)}" data-w="${m.knick ?? -1}"><b>${zahl(m.knick)}</b></td>
+      <td>${m.anker ? `${esc(m.anker.typ)} <b class="${ampelVon(m.anker.eta)}">${zahl(m.anker.eta)}</b>` : '–'}</td>
+      <td>${esc(m.bez ?? '')}</td>
+      <td class="n amp ${ampelVon(eta)}" data-w="${eta}">${zahl(eta)}</td></tr>`).join('');
+  const jochZeilen = joch.map(({ r, t, eta }) => `<tr ${attr(r, `${t.art} ${t.bau}`, eta)}>${kopfZellen(r, t.pos)}
+      <td data-w="${esc(t.art)}">${esc(t.art)}</td><td data-w="${esc(t.bau)}">${esc(t.bau)}</td>
+      <td class="n" data-w="${t.H}">${t.H ? t.H.toFixed(2) : '–'}</td><td>${esc(t.masten.join(' – '))}</td>
+      <td class="n ${ampelVon(t.eta)}" data-w="${t.eta ?? 0}"><b>${zahl(t.eta)}</b></td>
+      <td class="n" data-w="${t.aufhaengung ?? -1}">${t.aufhaengung !== null ? `<b class="${ampelVon(t.aufhaengung)}">${zahl(t.aufhaengung)}</b>` : '–'}</td>
+      <td>${esc(t.bez ?? '')}</td>
+      <td class="n amp ${ampelVon(eta)}" data-w="${eta}">${zahl(eta)}</td></tr>`).join('');
+  const kopfR = '<th class="s">Eintrag</th><th class="s n">km</th><th class="s">Pos.</th>';
+  const listen = `
+  <div class="liste" data-liste="fund"><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th><th>Mast</th>
+    ${spalten.map((g) => `<th class="s n">${esc(g.kopf)}</th>`).join('')}<th>massgebend</th><th class="s n">η</th></tr></thead>
+    <tbody>${fundZeilen}</tbody></table></div>
+    <p class="hinweis">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten; je Grösse η, darunter
+      Einwirkung / zulässig [kN, kNm]. Grau: lenkt den Fundamentablauf, kein Nachweis. η nach dem Ablauf.</p></div>
+  <div class="liste" data-liste="mast" hidden><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Profil</th>
+    <th class="s n">L [m]</th><th>Steg</th><th class="s n">η Querschn.</th><th class="s n">η Knicken</th><th>Anker</th>
+    <th>Lastfall</th><th class="s n">η</th></tr></thead><tbody>${mastZeilen}</tbody></table></div>
+    <p class="hinweis">Bemessung (Tragsicherheit) aus dem Stabwerk; η = Maximum aus Querschnitt und Knicken (SIA 263).</p></div>
+  <div class="liste" data-liste="joch" hidden><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Art</th>
+    <th class="s">Bautyp</th><th class="s n">H [m]</th><th>Masten</th><th class="s n">η Träger</th><th class="s n">η Aufhäng.</th>
+    <th>Lastfall</th><th class="s n">η</th></tr></thead><tbody>${jochZeilen}</tbody></table></div>
+    <p class="hinweis">Gurte und Bindebleche aus dem Stabwerk (Tragsicherheit); am Tragausleger dazu die Aufhängung gegen V_zul.</p></div>`;
+  /* ---------- Positionen ---------- */
   const positionen = res.eintraege.map((r, i) => {
     if (r.fehler) {
       return `<div class="pos" id="pos-${i}"><h3>${esc(r.name)}</h3><p class="fehler">Nicht gerechnet: ${esc(r.fehler)}</p></div>`;
@@ -241,75 +347,96 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td class="n amp ${ampelVon(m.fundament?.eta)}">${zahl(m.fundament?.eta)}</td>
       <td>${esc(m.fundament?.massgebend?.was ?? '')}</td></tr>`).join('');
     return `<div class="pos" id="pos-${i}">
-      <h3>${esc(r.name)} <span class="ort">${esc([r.linie && `Linie ${r.linie}`, r.km && `km ${r.km}`, r.ortschaft]
-        .filter(Boolean).join(' · '))}</span></h3>
+      <h3>${esc(r.name)} <span class="ort">${esc([r.linie && `Linie ${r.linie}`, r.km && `km ${r.km}`, r.ortschaft,
+        r.param?.ek].filter(Boolean).join(' · '))}</span></h3>
       <div class="pos-in"><div>${eintragSkizze(r)}</div>
         <table><thead><tr><th></th><th>Bauteil</th><th class="n">η</th><th>massgebend</th></tr></thead>
         <tbody>${tz}${mz}</tbody></table></div></div>`;
   }).join('');
-  const fehler = res.eintraege.filter((r) => r.fehler);
+  const ordnen = (id) => `<select data-ordnen="${id}">${[['eta', 'η (absteigend)'], ['km', 'km'], ['typ', 'Typ'],
+    ['eintrag', 'Eintrag']].map(([k, t], i) => `<option value="${k}"${(id === 1 ? i === 0 : false) ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
   return `<!doctype html><html lang="de"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Projektauswertung ${esc(res.projekt)}</title><style>${STIL}</style></head><body>
-  <h1>Projektauswertung · Fundamente und Tragwerke</h1>
-  <p class="unter"><b>${esc(res.projekt || 'Ohne Projekt')}</b> · ${res.eintraege.length} Einträge
-    · ${esc(res.datum)} · ${esc(fassung)}</p>
-  <h2>Zusammenfassung</h2>
-  <div class="zus">
-    <div class="k"><b>${fund.length}</b><span>Fundamente ausgewertet</span></div>
-    <div class="k"><b class="ok">${zaehle('ok')}</b><span>η ≤ 0.90</span></div>
-    <div class="k"><b class="warn">${zaehle('warn')}</b><span>0.90 &lt; η ≤ 1.00</span></div>
-    <div class="k"><b class="fail">${zaehle('fail')}</b><span>η &gt; 1.00</span></div>
-    <div class="k"><b class="${ampelVon(maxF?.f.eta)}">${zahl(maxF?.f.eta)}</b><span>grösstes Fundament: ${esc(maxF ? `${maxF.r.name} · ${maxF.m.anzeige}` : '–')}</span></div>
-    <div class="k"><b class="${ampelVon(maxB?.eta)}">${zahl(maxB?.eta)}</b><span>grösstes Tragwerksteil: ${esc(maxB ? `${maxB.r.name} · ${maxB.name}` : '–')}</span></div>
+  <h1>Projektauswertung</h1>
+  <p class="unter">${esc(res.projekt || 'Ohne Projekt')} · ${res.eintraege.length} Einträge · ${esc(res.datum)}</p>
+  <div class="kopf">
+    <div><h2>Grundlagen</h2>${gemein}</div>
+    <div><h2>Kennzahlen</h2>${kennzahlen}
+      <p class="hinweis">Ampel: η ≤ 0.90 · 0.90 &lt; η ≤ 1.00 · η &gt; 1.00. Masten mit Knicken, Joche mit Aufhängung.</p></div>
   </div>
-  ${ueberB.length ? `<p class="hinweis fail"><b>Tragwerksteile mit η &gt; 1.00:</b> ${esc(ueberB.map((x) => `${x.r.name} · ${x.name} ${zahl(x.eta)}`).join(', '))}</p>` : ''}
-  ${fehler.length ? `<p class="hinweis fehler"><b>Nicht gerechnet:</b> ${esc(fehler.map((r) => `${r.name} (${r.fehler})`).join('; '))}</p>` : ''}
-  <h2>Fundamente – Erfüllungsgrad je Einwirkung</h2>
-  <p class="hinweis">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten des Fundamenttyps;
-    je Grösse η (darunter Einwirkung / zulässig). Graue Werte lenken den Fundamentablauf und zählen nicht ins η.
-    η gesamt nach dem Fundamentablauf. Ampel: bis 0.90 · bis 1.00 · darüber.</p>
-  <div class="filter">Zeigen: <button class="an" data-f="alle">alle</button><button data-f="fail">η &gt; 1.00</button>
-    <button data-f="warn">0.90-1.00</button><button data-f="ok">≤ 0.90</button>
-    <span style="color:#777">· Spaltenkopf sortiert · Zeile springt zur Skizze</span></div>
-  <div class="rollen"><table id="liste"><thead><tr><th class="s">Eintrag</th><th class="s">km</th><th class="s">Mast</th><th>Profil</th>
-    <th>Fundament</th>${spalten.map((g) => `<th class="s n">${esc(g.kopf)}</th>`).join('')}
-    <th>massgebend</th><th class="s n">η</th></tr></thead><tbody>${zeilen}</tbody></table></div>
+  <h2>Eingabeparameter je Eintrag</h2>${jeEintrag}
+  ${abweichend.size ? '<p class="hinweis">Hinterlegt: Werte, die zwischen den Einträgen abweichen.</p>' : ''}
+  <h2>Auswertung</h2>
+  <div class="wahl">
+    <span class="seg" data-seg="liste"><button class="an" data-l="fund">Fundamente</button><button data-l="mast">Masten</button><button data-l="joch">Joche</button></span>
+    <span class="seg" data-seg="amp"><button class="an" data-f="alle">alle</button><button data-f="fail">&gt; 1.00</button><button data-f="warn">0.90-1.00</button><button data-f="ok">≤ 0.90</button></span>
+    <label>Ordnen nach ${ordnen(1)}</label><label>dann nach <select data-ordnen="2"><option value="">–</option>
+      <option value="eta">η (absteigend)</option><option value="km">km</option><option value="typ">Typ</option><option value="eintrag">Eintrag</option></select></label>
+  </div>
+  ${listen}
   <h2 class="bruch">Positionen</h2>
-  <p class="hinweis">Je Eintrag die Übersicht quer zum Gleis aus dem Stabmodell, mit Bautyp und η über den Bauteilen
-    und Fundamenttyp mit η unter den Mastfüssen (Farbe nach der Ampel).</p>
+  <p class="hinweis">Übersicht quer zum Gleis aus dem Stabmodell: über den Bauteilen Bautyp und η, unter den Mastfüssen
+    Fundamenttyp und η (Farbe nach der Ampel).</p>
   ${positionen}
-  <p class="fuss">Gerechnet je Eintrag mit dem Stabwerk über das ganze Blatt, mit der gespeicherten Windstufe
-    und den gespeicherten Einstellungen. ${esc(APP_NAME)} ${esc(fassung)}.</p>
+  <p class="fuss">${esc(APP_NAME)} ${esc(fassung)}.</p>
   <script>
   (function () {
-    var t = document.getElementById('liste'); if (!t) return;
-    var tb = t.tBodies[0];
-    document.querySelectorAll('.filter button').forEach(function (b) {
-      b.onclick = function () {
-        document.querySelectorAll('.filter button').forEach(function (x) { x.classList.toggle('an', x === b); });
-        Array.prototype.forEach.call(tb.rows, function (r) {
-          r.style.display = b.dataset.f === 'alle' || r.dataset.amp === b.dataset.f ? '' : 'none'; });
-      };
-    });
-    Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th, i) {
-      if (!th.classList.contains('s')) return;
-      var ab = th.classList.contains('n');
-      th.onclick = function () {
-        ab = !ab;
-        var rows = Array.prototype.slice.call(tb.rows);
-        rows.sort(function (a, b) {
-          var x = a.cells[i].dataset.w, y = b.cells[i].dataset.w;
-          var nx = parseFloat(x), ny = parseFloat(y);
-          var c = isNaN(nx) || isNaN(ny) ? String(x).localeCompare(String(y), 'de', { numeric: true }) : nx - ny;
-          return ab ? -c : c;
-        });
+    var listen = document.querySelectorAll('.liste');
+    var aktiv = function () { return document.querySelector('.liste:not([hidden]) tbody'); };
+    var filter = 'alle';
+    var wert = function (r, k) {
+      if (k === 'eta') return -parseFloat(r.dataset.eta);
+      if (k === 'km') { var v = parseFloat(r.dataset.km); return isNaN(v) ? Infinity : v; }
+      return k === 'typ' ? r.dataset.typ : r.dataset.eintrag;
+    };
+    var vgl = function (a, b) { return typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'de', { numeric: true }); };
+    var ordne = function () {
+      var k1 = document.querySelector('[data-ordnen="1"]').value, k2 = document.querySelector('[data-ordnen="2"]').value;
+      listen.forEach(function (l) {
+        var tb = l.querySelector('tbody'), rows = Array.prototype.slice.call(tb.rows);
+        rows.sort(function (a, b) { return vgl(wert(a, k1), wert(b, k1)) || (k2 ? vgl(wert(a, k2), wert(b, k2)) : 0); });
         rows.forEach(function (r) { tb.appendChild(r); });
+      });
+    };
+    var zeige = function () {
+      listen.forEach(function (l) { Array.prototype.forEach.call(l.querySelector('tbody').rows, function (r) {
+        r.style.display = filter === 'alle' || r.dataset.amp === filter ? '' : 'none'; }); });
+    };
+    document.querySelectorAll('[data-seg="liste"] button').forEach(function (b) {
+      b.onclick = function () {
+        document.querySelectorAll('[data-seg="liste"] button').forEach(function (x) { x.classList.toggle('an', x === b); });
+        listen.forEach(function (l) { l.hidden = l.dataset.liste !== b.dataset.l; });
       };
     });
-    Array.prototype.forEach.call(tb.rows, function (r) {
-      r.onclick = function () { var z = document.getElementById(r.dataset.ziel); if (z) z.scrollIntoView({ behavior: 'smooth' }); };
+    document.querySelectorAll('[data-seg="amp"] button').forEach(function (b) {
+      b.onclick = function () {
+        document.querySelectorAll('[data-seg="amp"] button').forEach(function (x) { x.classList.toggle('an', x === b); });
+        filter = b.dataset.f; zeige();
+      };
     });
+    document.querySelectorAll('[data-ordnen]').forEach(function (s) { s.onchange = ordne; });
+    listen.forEach(function (l) {
+      var t = l.querySelector('table'), tb = t.tBodies[0];
+      Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th, i) {
+        if (!th.classList.contains('s')) return;
+        var ab = th.classList.contains('n');
+        th.onclick = function () {
+          ab = !ab;
+          var rows = Array.prototype.slice.call(tb.rows);
+          rows.sort(function (a, b) {
+            var x = a.cells[i].dataset.w, y = b.cells[i].dataset.w, nx = parseFloat(x), ny = parseFloat(y);
+            var c = isNaN(nx) || isNaN(ny) ? String(x).localeCompare(String(y), 'de', { numeric: true }) : nx - ny;
+            return ab ? -c : c;
+          });
+          rows.forEach(function (r) { tb.appendChild(r); });
+        };
+      });
+      Array.prototype.forEach.call(tb.rows, function (r) {
+        r.onclick = function () { var z = document.getElementById(r.dataset.ziel); if (z) z.scrollIntoView({ behavior: 'smooth' }); };
+      });
+    });
+    ordne();
   })();
   </script></body></html>`;
 }

@@ -44103,8 +44103,17 @@ titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (
   wahr('Ein Eintrag, der nicht rechnet, bricht den Lauf nicht ab (fehler)', Boolean(kaputt.fehler));
   const html = PA.projektBlattHtml({ projekt: 'P', datum: '23.11.2026', eintraege: [r, kaputt] }, { fassung: 'x' });
   wahr('Blatt: eine Zeile je Fundament, Spalten je Grösse, Skizze je Position, Fehler genannt',
-       (html.match(/<tr class="zeile"/g) ?? []).length === 2 && html.includes('>M_q<') && html.includes('>H_l<')
+       (html.match(/<tr class="zeile"/g) ?? []).length === 5   // 2 Fundamente, 2 Masten, 1 Joch && html.includes('>M_q<') && html.includes('>H_l<')
        && html.includes('id="pos-0"') && html.includes('Nicht gerechnet') && html.includes('class="rk-skizze"'));
+  // 23. November: technischer Kopf, Listen Fundamente / Masten / Joche, Ordnen nach km und Typ.
+  wahr('Grundlagen mit den Eingabeparametern (EK, L_FL, Radius …) und Tabelle je Eintrag',
+       html.includes('Einwirkungsklasse (Wind und Höhenlage)') && html.includes('Eingabeparameter je Eintrag')
+       && r.param?.ek === 'EK4' && r.param.lfl === 40);
+  wahr('Drei Listen (Fundamente, Masten, Joche) mit Umschalter und Ordnen nach η / km / Typ / Eintrag',
+       ['data-liste="fund"', 'data-liste="mast"', 'data-liste="joch"', 'data-ordnen="1"', 'data-ordnen="2"',
+        'data-km=', 'data-typ='].every((t) => html.includes(t)));
+  wahr('Masten mit Länge aus dem Modell', r.masten.every((m) => Math.abs(m.laenge - 8.5) < 0.05),
+       r.masten.map((m) => m.laenge).join(', '));
   wahr('Skizze: Bautyp mit η über dem Tragwerk, Fundamenttyp mit η unter dem Mastfuss',
        /Tragjoch J90 · 20\.00 m · η [0-9.]+/.test(html) && /sk-fuss sk-(ok|warn|fail)/.test(html));
   const AQ = APP_QUELLE();
