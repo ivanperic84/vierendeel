@@ -421,6 +421,7 @@ export async function zeichneSchublade(app) {
         <button class="btn btn-mini" data-projekt-aus="${esc(k)}" title="Dieses Projekt als Paket ausleiten">Ausleiten</button>
         <button class="btn btn-mini" data-projekt-druck="${esc(k)}" title="Liste aller Tragwerke dieses Projekts drucken">Liste</button>
         <button class="btn btn-mini" data-projekt-auswertung="${esc(k)}" title="Alle Einträge dieses Projekts rechnen: Fundamente je Einwirkung, Skizze je Position mit Bautyp und η - als Blatt und HTML-Datei">Auswertung</button>
+        <button class="btn btn-mini btn-fail" data-projekt-loeschen="${esc(k)}" title="Das ganze Projekt mit allen Einträgen löschen (mit Rückfrage)">Löschen</button>
       </summary>
       <div class="ab-rollen"><table class="ab-tabelle">
         <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
@@ -691,6 +692,8 @@ export async function zeichneSchublade(app) {
   auf('[data-projekt-druck]', (b) => projektlisteDrucken(app, b.dataset.projektDruck));
   auf('[data-protokoll]', (b) => protokollDialog(app, b.dataset.protokoll));
   auf('[data-projekt-auswertung]', (b) => projektAuswertungZeigen(app, b.dataset.projektAuswertung));
+  auf('[data-projekt-loeschen]', (b) => projektLoeschenDialog(app, b.dataset.projektLoeschen,
+    alle.filter((e) => (e.projekt ?? '') === b.dataset.projektLoeschen)));
   auf('[data-vorlage-an]', async (b) => {
     const v = await store.vorlageLaden(b.dataset.vorlageAn);
     if (!confirm(`Vorlage «${v.name}» anwenden? Profile, Trasse, Anbauteile und ` +
@@ -1036,6 +1039,45 @@ async function ablageAusleiten(app, ids, teile = { zeichnungen: true }) {
     : (projekte.length === 1 ? `${rein(projekte[0])}_${drin.length}x` : 'Ablage');
   const daten = await store.alsPaket({ eintraege: ids.length > 0, ...teile }, ids);
   store.dateiSpeichern(daten, `${APP_NAME}-${teilName}-${tag}.zip`, 'application/zip');
+}
+
+/*
+ * >>> GANZES PROJEKT LÖSCHEN (23. November). <<< Weisung: «gesamte projekte
+ * löschen können mit warn modal zur bestätigung». Das Fenster nennt Projekt,
+ * Zahl und Namen der Einträge und dass es nicht rückgängig zu machen ist;
+ * «Zuerst ausleiten» sichert das Projekt als Paket, «Projekt löschen» ist
+ * erst nach dem Kreuz «Ich habe verstanden» frei. Gelöscht wird jeder
+ * Eintrag mit seiner Zeichnung (`store.loeschen`); der Arbeitsstand bleibt
+ * im Fenster, verliert aber den Bezug zur Ablage.
+ */
+function projektLoeschenDialog(app, projektName, eintraege) {
+  if (!eintraege.length) return;
+  const name = projektName || 'Ohne Projekt';
+  const n = eintraege.length;
+  const d = app.dialog('Projekt löschen', `
+    <p class="ab-warn"><b>«${esc(name)}»</b> mit <b>${n} ${n === 1 ? 'Eintrag' : 'Einträgen'}</b>
+      wird endgültig gelöscht - samt hinterlegten Zeichnungen. Das lässt sich
+      <b>nicht rückgängig machen</b>.</p>
+    <ul class="notiz" style="max-height:160px;overflow:auto;margin:6px 0 10px">${eintraege.map((e) =>
+      `<li>${esc(e.name || '(ohne Namen)')}${e.werte?.km ? ` · km ${esc(e.werte.km)}` : ''}</li>`).join('')}</ul>
+    <label class="dlg-nicht-mehr"><input type="checkbox" id="pl-ok"> Ich habe verstanden, das Projekt wird gelöscht</label>`,
+    `<button class="btn" data-pl-aus title="Das Projekt vorher als Paket sichern">Zuerst ausleiten …</button>
+     <button class="btn btn-fail" data-pl-los disabled>Projekt löschen</button>
+     <button class="btn" data-zu>Abbrechen</button>`);
+  const los = d.node.querySelector('[data-pl-los]');
+  d.node.querySelector('#pl-ok').onchange = (ev) => { los.disabled = !ev.target.checked; };
+  d.node.querySelector('[data-pl-aus]').onclick = () => { d.zu(); dialogAusleiten(app, eintraege.map((e) => e.id)); };
+  los.onclick = async () => {
+    los.disabled = true;
+    for (const e of eintraege) await store.loeschen(e.id);
+    if (eintraege.some((e) => e.id === app.projekt.id)) {
+      app.projekt = { ...app.projekt, id: null };
+      app.aktualisiereProjektKnopf?.();
+    }
+    d.zu();
+    zeichneSchublade(app);
+    app.meldeImBalken(`Projekt «${name}» gelöscht (${n} ${n === 1 ? 'Eintrag' : 'Einträge'}).`);
+  };
 }
 
 /** Ein Tragwerk einem Projekt zuordnen - Auswahl der vorhandenen oder neu. */

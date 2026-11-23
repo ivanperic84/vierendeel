@@ -28,7 +28,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bautei
 import { bestandAufsBlatt } from './core.bestand.js';
 import { unterbauVon } from './data.unterbau.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
-         lastfaelle, ekVonWindklasse, mitTrasse, ekKlasseVon } from './core.lasten.js';
+         lastfaelle, ekVonWindklasse, mitTrasse, ekKlasseVon, ekFelder } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm, gitterBemDiagramm,
          mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
@@ -4008,6 +4008,14 @@ function aendern(key, wert) {
     return aendern('auflagerLinks', wert === 'eingespannt' || wert === 'grenze'
       ? { ...JSON.parse(JSON.stringify(JOCH_EINGESPANNT)), ...(wert === 'grenze' ? { schraubenGrenze: true } : {}) }
       : null);
+  }
+  // EK 1-6 und Schalter Einheitswind (23. November): schreiben Wind-, Grund-
+  // und Schneestufe gemeinsam (`ekFelder`, core.lasten.js).
+  if (key === 'ekWahl' || key === 'einheitswind') {
+    const f = ekFelder(werte, key === 'ekWahl' ? { ek: wert } : { einheit: wert === true });
+    werte = { ...werte, windKlasseVorher: f.windKlasseVorher };
+    if (f.schneeKlasse !== String(werte.schneeKlasse ?? '1.25')) aendern('schneeKlasse', f.schneeKlasse);
+    return aendern('windKlasse', f.windKlasse);
   }
   if (key === 'bestandesschutz') {
     return aendern('nachweise', { ...(werte.nachweise ?? {}), bestandesschutz: wert === true });

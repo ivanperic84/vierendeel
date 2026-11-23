@@ -9246,63 +9246,16 @@ Ein Seil fällt aus: in «${a.schlaff.bez}» müsste es ${f2(Math.abs(a.schlaff.
     ${zeigtTrag ? rueckhaltInfoHtml(swG) : ''}
     ${zeigtTrag ? buegelBlockHtml(opt, urteil) : ''}
     ${zeigtTrag ? bestandBlockHtml(swG) : ''}
-    ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und
-         keine Stellen des Ersatzjochs. */''}
-    ${erg.ausleger?.fehler ? '' : klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
-            `<div class="kennzahlen">${sg.join('')}</div>`,
-            ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`
-               : taK ? `max M_y ${f2(Math.abs(taK.gurt.M))} kNm`
-               : `max M_y ${f2(x.MyMax)} kNm`)}
     ${/*
-       * Am Tragausleger stuenden hier die Stationen des Phantomjochs - mit
-       * oder ohne Stabwerk. Die Stabliste des Stabwerks steht im Reiter
-       * «Schnitt».
+       * >>> SCHNITTGRÖSSEN UND HÖCHSTBEANSPRUCHTE STELLEN WEG (23. November). <<<
+       * Frage: «für was braucht man diese wenn man den plott im modell machen
+       * kann? was war dazumal die idee?» - beide stammen aus der ersten Fassung
+       * (20. August, Ersatzbalken, ohne Farbplot): die Stationen zum
+       * Anspringen und die Extremwerte des Ersatzbalkens; «Schnittgrössen»
+       * zeigte bis zuletzt die Kontrollrechnung, nicht das Stabwerk. Auf
+       * Rückfrage «Beide weg». Der Plot im 3D (η, M, V, N …) und die
+       * Nachweiskacheln (Klick fährt zum massgebenden Stab) zeigen beides.
        */''}
-    ${/*
-       * >>> AUS DEM STABWERK, WENN ES GILT (6. Oktober). <<< «Die Auswertung
-       * H unter Höchstbeanspruchte Stellen checken, ist noch aus dem
-       * Balkenmodell und nicht stabtragwerk.» Mit gültigem Stabwerk stehen hier
-       * die zehn höchstbeanspruchten Stäbe des Jochs (Gurte, Bleche) mit Lage,
-       * Teil und Fall; ein Klick zeigt den Stab im Modell. Ohne Stabwerk
-       * bleiben die Stationen des Ersatzbalkens.
-       */''}
-    ${zeigtTrag && swH?.jeStab && !taK && !swH?.ausleger ? (() => {
-      const teilName = { OG: 'Obergurt', UG: 'Untergurt', blech: 'Bindeblech', UPE: 'Gurt UPE', gurt: 'Gurt' };
-      // Abfangjoche übereinander: die Stellen aller (22. November, «global»).
-      const keys = new Set(jochKeys.length > 1 ? jochKeys.map((j) => j.key) : [jochKey]);
-      const jochName = new Map(jochKeys.map((j) => [j.key, j.name]));
-      const top = Object.values(swH.jeStab)
-        .filter((z) => ['gurt', 'blech', 'gurtU'].includes(z.rolle) && keys.has(stabZuordnung(z.name).key))
-        .sort((a, b) => b.eta - a.eta).slice(0, 10);
-      if (!top.length) return '';
-      const xm = (z) => (Number.isFinite(z.x0) && Number.isFinite(z.x1) ? (z.x0 + z.x1) / 2 : null);
-      // Zugeklappt (Audit 21. November, Block 4: 451 px offen); im Kopf
-      // die höchste Stelle.
-      return klapp('uebersicht-hoechst', 'Höchstbeanspruchte Stellen', `
-    <p class="notiz" style="margin:0 0 4px">Aus dem Stabwerk · anklicken zeigt den Stab.</p>
-    <div class="tabellenrahmen"><table class="dt">
-      <thead><tr><th>#</th><th>Stab</th><th class="num">x [m]</th><th>Teil</th><th>massgebend</th>
-        <th class="num">η</th></tr></thead>
-      <tbody>${top.map((z, k) => `
-        <tr class="klick" data-kz-stab="${esc(z.name)}" title="${esc(z.bez ?? '')}">
-          <td>${k + 1}</td><td>${esc(z.name)}</td><td class="num">${xm(z) === null ? '–' : f2(xm(z))}</td>
-          <td>${esc(teilName[z.teil] ?? z.teil ?? '')}${jochName.size > 1 ? ` ${esc(jochName.get(stabZuordnung(z.name).key) ?? '')}` : ''}</td><td>${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
-          <td class="num stark ${ampelU(z.eta)}">${f3(z.eta)}</td>
-        </tr>`).join('')}</tbody>
-    </table></div>`, `${teilName[top[0].teil] ?? top[0].teil ?? ''} η ${f3(top[0].eta)}`, false);
-    })() : ''}
-    ${zeigtTrag && !swH?.jeStab && !taK && !swH?.ausleger && !erg.ausleger?.fehler ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
-    <div class="tabellenrahmen"><table class="dt">
-      <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
-        <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>
-        <th class="num">η Blech</th><th class="num">η</th></tr></thead>
-      <tbody>${stellen.map((s) => `
-        <tr class="klick${s.i === aktiveStation ? ' aktiv' : ''}" data-station="${s.i}" data-x="${s.x}">
-          <td>${s.i}</td><td class="num">${f2(s.x)}</td><td>${esc(s.teil)}</td>
-          <td class="num">${f3(s.etaEcken)}</td><td class="num">${f3(s.etaBleche)}</td>
-          <td class="num stark ${ampelU(s.eta)}">${f3(s.eta)}</td>
-        </tr>`).join('')}</tbody>
-    </table></div>` : ''}
     ${pruefungenHtml(urteil)}
     ${hinweise.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
         `<div class="hinweisliste">${hinweise.map((h) =>

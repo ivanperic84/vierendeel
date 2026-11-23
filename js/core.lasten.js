@@ -92,6 +92,28 @@ export function ekKlasseVon(w) {
     && k.schnee === String(w?.schneeKlasse ?? '1.25'))?.key ?? '';
 }
 
+/*
+ * >>> EK 1-6 OHNE EIGENE WINDWAHL (23. November). <<< Weisung: «die ek kann
+ * man jetzt von 1 bis 6 einstellen, es macht daher keinen sinn beim wind
+ * separat die ek einzugeben.» Auf Rückfrage «Schalter neben der EK»: der
+ * Einheitswind (alte Norm, `windKlasse` '1.0') ist ein Schalter; die EK
+ * dahinter bleibt gemerkt (`windKlasseVorher`) - sie bestimmt weiter die
+ * Höhenlage des Schnees und kommt zurück, wenn der Schalter aus geht.
+ */
+export const istEinheitswind = (w) => String(w?.windKlasse ?? '') === '1.0';
+/** Die EK eines Blattes, beim Einheitswind die gemerkte Grundstufe. */
+export function ekBasisVon(w) {
+  const wind = istEinheitswind(w) ? String(w?.windKlasseVorher ?? '0.9') : String(w?.windKlasse ?? '0.9');
+  return EK_KLASSEN.find((k) => k.wind === wind && k.schnee === String(w?.schneeKlasse ?? '1.25'))?.key
+    ?? EK_KLASSEN.find((k) => k.wind === wind)?.key ?? 'EK1';
+}
+/** Die Felder, die eine Wahl von EK bzw. Einheitswind schreibt. */
+export function ekFelder(w, { ek = null, einheit = null } = {}) {
+  const k = EK_KLASSEN.find((x) => x.key === (ek ?? ekBasisVon(w))) ?? EK_KLASSEN[0];
+  const e = einheit ?? istEinheitswind(w);
+  return { windKlasse: e ? '1.0' : k.wind, windKlasseVorher: k.wind, schneeKlasse: k.schnee };
+}
+
 /** Einwirkungsklasse zu einer Windstufe – die Lasttabelle spricht in EK. */
 export const ekVonWindklasse = (key) =>
   WIND_KLASSEN.find((k) => k.key === key)?.ek ?? 'EK2';

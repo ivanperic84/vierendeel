@@ -167,7 +167,7 @@ const SCHULUNG_BEARBEITEN = [
   'ankerTyp', 'ankerH', 'ankerA', 'ankerRichtung', 'ankerSeite',
   'flSpannweite', 'trasseRadius',
   // 16. November: «hier noch die windreduktion angeben».
-  'windKlasse', 'windReduktion', 'schneeAktiv', 'schneeKlasse',
+  'windKlasse', 'ekWahl', 'einheitswind', 'windReduktion', 'schneeAktiv', 'schneeKlasse',
 ];
 /*
  * >>> IN DER SCHULUNG STEHT NUR, WAS MAN ÄNDERN KANN (15. November). <<<
@@ -226,6 +226,8 @@ export const EINFACH_TEXT = {
   flSpannweite: { label: 'Abstand zum nächsten Masten (Gleisrichtung)', hinweis: 'Je grösser, desto mehr Leitung hängt am Tragwerk.' },
   trasseRadius: { label: 'Kurvenradius des Gleises', hinweis: 'Leer oder sehr gross = gerades Gleis.' },
   windKlasse: { label: 'Windzone', hinweis: 'Höhere Zone = stärkerer Wind.' },
+  ekWahl: { label: 'Windzone und Höhenlage (EK)', hinweis: 'EK1-3 unter, EK4-6 über 1000 m ü. M.; höhere Zahl = stärkerer Wind.' },
+  einheitswind: { label: 'Einheitswind (alte Norm)', hinweis: null },
   windReduktion: { label: 'Windreduktion (dicht überbautes Gebiet, Wind × 0.74)' },
   schneeAktiv: { label: 'Mit Schnee rechnen', hinweis: null },
   schneeKlasse: { label: 'Schneezone', hinweis: null },

@@ -13,7 +13,7 @@ import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, se
 import { flBauteile, getFlBauteil, hatZustandsgleichung, montagezug, zugAusKern, leiterzugKontext, reglierZusatzlast } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { anbauGruppe } from './data.anbauteile.js';
-import { WIND_KLASSEN, SCHNEE_KLASSEN, EK_KLASSEN, ekKlasseVon, ekVonWindklasse } from './core.lasten.js';
+import { WIND_KLASSEN, SCHNEE_KLASSEN, EK_KLASSEN, ekKlasseVon, ekVonWindklasse, ekBasisVon, istEinheitswind } from './core.lasten.js';
 import { mastWindBeide } from './data.masten.js';
 import { esc } from './design.js';
 import { lastfallName } from './ui.einfach.js';
@@ -886,16 +886,15 @@ export function radiusSkizze(R) {
 function kontextTrasseFelder(app, w, ja) {
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
-    // Schnelleingabe EK 1-6 (22. November): Windstufe und Höhenlage zusammen.
-    { feld: { art: 'auswahl', label: 'EK', wert: ekKlasseVon(w),
-              optionen: [...(ekKlasseVon(w) ? [] : [{ wert: '', text: 'frei / Einheitswind' }]),
-                ...EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label }))] },
-      tun: (v) => { const k = EK_KLASSEN.find((x) => x.key === v); if (!k) return;
-        app.aendern('windKlasse', k.wind); app.aendern('schneeKlasse', k.schnee); } },
-    { feld: { art: 'auswahl', label: 'Wind', wert: w.windKlasse ?? '0.9',
-              optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
-                text: k.einheit ? 'Einheitswind 1.0' : `${k.ek} · q ${k.qp.toFixed(2)}` })) },
-      tun: (v) => app.aendern('windKlasse', v) },
+    // EK 1-6 (22. November), ohne eigene Windwahl (23. November: «es macht
+    // daher keinen sinn beim wind separat die ek einzugeben»); der
+    // Einheitswind der alten Norm als Schalter daneben.
+    { feld: { art: 'auswahl', label: 'EK', wert: ekBasisVon(w),
+              optionen: EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label })) },
+      tun: (v) => app.aendern('ekWahl', v) },
+    { feld: { art: 'auswahl', label: 'Einheitswind (alt)', wert: istEinheitswind(w) ? '1' : '',
+              optionen: ja },
+      tun: (v) => app.aendern('einheitswind', v === '1') },
     { feld: { art: 'auswahl', label: 'Reduktion × 0.74', wert: w.windReduktion ? '1' : '',
               optionen: ja },
       tun: (v) => app.aendern('windReduktion', v === '1') },

@@ -53,7 +53,7 @@ import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
          mastLaengeFuer, jochEingespannt } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
-         NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
+         NORMENSAETZE, ekVonWindklasse, EK_KLASSEN, ekBasisVon, istEinheitswind } from './core.lasten.js';
 import { flSysteme, flSystem } from './data.fl.js';
 import { ablenkwinkel, istGerade, radiusAusWinkel,
          R_GERADE } from './core.trasse.js';
@@ -2148,8 +2148,27 @@ export const FELDER = [
   // --- Verteilte Einwirkungen ---------------------------------------------
   { key: 'lastHerkunft', optionenDialog: true, gruppe: 'ein', typ: 'auswahl', label: 'Herkunft der Lasten',
     standard: 'tabelle', optionen: opt(LASTHERKUNFT) },
-  { key: 'windKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Windbelastung',
-    standard: '0.9', optionen: opt(WIND_KLASSEN),
+  /*
+   * >>> EK 1-6 STATT EIGENER WINDWAHL (23. November). <<< «die ek kann man
+   * jetzt von 1 bis 6 einstellen, es macht daher keinen sinn beim wind
+   * separat die ek einzugeben.» Das Feld zeigt die EK (`ekBasisVon`), der
+   * Einheitswind ist ein Schalter darunter; geschrieben wird über `aendern`
+   * ('ekWahl', 'einheitswind') in `windKlasse`, `windKlasseVorher`,
+   * `schneeKlasse`. Gespeichert bleibt `windKlasse` wie bisher.
+   */
+  // Gespeichert wird weiter die Windstufe (Startwert EK1-Wind 0.9); die Maske
+  // zeigt sie über die EK (23. November).
+  { key: 'windKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Windbelastung', versteckt: true,
+    standard: '0.9', optionen: opt(WIND_KLASSEN) },
+  { key: 'windKlasseVorher', gruppe: 'ein', typ: 'text', label: 'Windstufe hinter dem Einheitswind',
+    versteckt: true, standard: '0.9' },
+  { key: 'ekWahl', gruppe: 'ein', typ: 'auswahl', label: 'Einwirkungsklasse (EK)',
+    optionen: opt(EK_KLASSEN), wertAus: (w) => ekBasisVon(w),
+    sichtbar: (w) => w.lastHerkunft === 'tabelle',
+    hinweis: 'Windstufe (EK1/4 q 0.90, EK2/5 1.10, EK3/6 1.30 kN/m²) und Höhenlage '
+      + '(EK1-3 Schnee unter, EK4-6 über 1000 m ü. M.) zusammen; gilt dem ganzen Blatt.' },
+  { key: 'einheitswind', gruppe: 'ein', typ: 'schalter', label: 'Einheitswind (alte Norm)',
+    wertAus: (w) => istEinheitswind(w),
     sichtbar: (w) => w.lastHerkunft === 'tabelle',
     // Am Einzelmasten gibt es kein Joch - die Klasse waehlt dort trotzdem,
     // und zwar die Zeile der Mastwindtabelle und die Windkraefte der
@@ -2157,12 +2176,7 @@ export const FELDER = [
     // einem Tragwerk, das keines hat.
     // Der Hinweis steht fest da (die Maske baut ihn nicht bei jeder Wahl neu):
     // er nennt deshalb beide Fälle. Einheitswind (3. Oktober) - Regel in data.fl.js.
-    hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
-      ? 'Wählt die Zeile der Lasttabelle für den Mastwind und die '
-      + 'Windkräfte der Anbauteile; der Staudruck dient der Einordnung.'
-      : 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
-      + 'der Einordnung.')
-      + ' Einheitswind (alte Norm): 1.0 kN/m², ohne Formbeiwert — die Werte '
+    hinweis: () => 'Einheitswind (alte Norm): 1.0 kN/m², ohne Formbeiwert — die Werte '
       + 'der alten Mastberechnung für Joche, Masten, Leiter und Anbauteile '
       + '(Spalte EK0 der Datenbasis); wo sie keinen Wert führt, aus der '
       + 'Angriffsfläche hergeleitet. Für den Vergleich im Bestandesschutz. '

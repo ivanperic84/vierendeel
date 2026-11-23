@@ -17,7 +17,7 @@ import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen, ankerIstDoppelt,
 import { ankerfundamenttypen, STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
 import { getTragjoch, laengenbereich, tragjoche, sortimentstypen } from './data.tragjoche.js';
 import { esc } from './design.js';
-import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
+import { WIND_KLASSEN, ekVonWindklasse, EK_KLASSEN, ekBasisVon, istEinheitswind } from './core.lasten.js';
 import { signalteile, signalFlaeche, SIGNAL_CW } from './data.anbauteile.js';
 import { istBildUrl } from './data.katalog.js';
 import { windAusFlaeche } from './data.fl.js';
@@ -543,7 +543,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
      * (`grundwerteFragen`, in der Maske unter *Lasten → Trasse* wieder
      * einzuschalten).
      */
-    ek: String(app.werte.windKlasse ?? '0.9'),
+    // EK 1-6 und Einheitswind (23. November) statt der Windstufe allein.
+    ek: ekBasisVon(app.werte), einheit: istEinheitswind(app.werte),
     spw: Number(app.werte.flSpannweite) || 40,
     R: Number(app.werte.trasseRadius) || 0,
     nichtMehr: false,
@@ -742,7 +743,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
 
   /** Kurzform der Grundwerte - für die Zeile, wenn nicht mehr gefragt wird. */
   const grundwerteKurz = () => {
-    const ek = WIND_KLASSEN.find((k) => k.key === e.ek)?.ek ?? e.ek;
+    const ek = e.einheit ? `Einheitswind (${e.ek})` : e.ek;
     return `${ek} · Spannweite ${e.spw.toFixed(1)} m · `
       + (istGerade(e.R) ? 'gerades Gleis' : `Radius ${e.R.toFixed(0)} m`);
   };
@@ -754,12 +755,14 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     }
     return `<fieldset class="dlg-grundwerte">
       <legend>Grundwerte des Querprofils — gelten allen Tragwerken</legend>
-      <div class="feld"><label for="dlg-tw-ek">Windbelastung</label>
-        <select id="dlg-tw-ek">${WIND_KLASSEN.map((k) =>
+      <div class="feld"><label for="dlg-tw-ek">Einwirkungsklasse (EK)</label>
+        <select id="dlg-tw-ek">${EK_KLASSEN.map((k) =>
           `<option value="${esc(k.key)}"${k.key === e.ek ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
         </select>
-        <small class="hinweis">Aus der Linienkarte — sie wählt den Wind auf Joch,
-          Masten und Anbauteile.</small></div>
+        <label class="dlg-nicht-mehr"><input type="checkbox" id="dlg-tw-einheit"${e.einheit ? ' checked' : ''}>
+          Einheitswind (alte Norm)</label>
+        <small class="hinweis">Aus der Linienkarte — Wind auf Joch, Masten und
+          Anbauteile und die Höhenlage für den Schnee.</small></div>
       <div class="feld"><label for="dlg-tw-spw">Spannweite der Fahrleitung</label>
         <input id="dlg-tw-spw" type="number" step="1" min="1" value="${e.spw.toFixed(1)}">
         <small class="hinweis">m · Abstand zweier Aufhängungen, nicht der
@@ -974,6 +977,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     zahl('#dlg-tw-r', 'R');
     const ek = n.querySelector('#dlg-tw-ek');
     if (ek) ek.onchange = () => { e = { ...e, ek: ek.value }; };
+    const eh = n.querySelector('#dlg-tw-einheit');
+    if (eh) eh.onchange = () => { e = { ...e, einheit: eh.checked }; };
     const nm = n.querySelector('#dlg-tw-nichtmehr');
     if (nm) nm.onchange = () => { e = { ...e, nichtMehr: nm.checked }; };
     n.querySelectorAll('input[name="dlg-tw-teile"]').forEach((r) => {
@@ -983,7 +988,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       blattBleibt = true;
       d.zu();
       if (!neuesTragwerk && grundwerteFragen) {
-        if (e.ek !== String(app.werte.windKlasse ?? '0.9')) app.aendern('windKlasse', e.ek);
+        if (e.ek !== ekBasisVon(app.werte)) app.aendern('ekWahl', e.ek);
+        if (e.einheit !== istEinheitswind(app.werte)) app.aendern('einheitswind', e.einheit);
         if (e.spw > 0 && e.spw !== Number(app.werte.flSpannweite)) app.aendern('flSpannweite', e.spw);
         if (e.R !== (Number(app.werte.trasseRadius) || 0)) app.aendern('trasseRadius', e.R);
         if (e.nichtMehr) app.aendern('grundwerteFragen', false);
@@ -1001,7 +1007,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
          * sich geändert hat, damit der Verlauf keine leeren Schritte führt.
          */
         if (grundwerteFragen) {
-          if (e.ek !== String(app.werte.windKlasse ?? '0.9')) app.aendern('windKlasse', e.ek);
+          if (e.ek !== ekBasisVon(app.werte)) app.aendern('ekWahl', e.ek);
+        if (e.einheit !== istEinheitswind(app.werte)) app.aendern('einheitswind', e.einheit);
           if (e.spw > 0 && e.spw !== Number(app.werte.flSpannweite)) app.aendern('flSpannweite', e.spw);
           if (e.R !== (Number(app.werte.trasseRadius) || 0)) app.aendern('trasseRadius', e.R);
           if (e.nichtMehr) app.aendern('grundwerteFragen', false);

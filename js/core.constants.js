@@ -205,7 +205,7 @@ export const BLATT_FELDER = [
   // Ob der Dialog «Neues Tragwerk» danach fragt (29. September).
   'grundwerteFragen',
   // Einwirkungen aus den Linienkarten
-  'windKlasse', 'schneeKlasse', 'schneeAktiv',
+  'windKlasse', 'windKlasseVorher', 'schneeKlasse', 'schneeAktiv',
   // Wind × 0.74 im grossflächigen Überbauungsgebiet (6. Oktober).
   'windReduktion',
   // Rückhaltekraft der Leiter am Joch (10. Oktober) - eine Annahme des Blattes.

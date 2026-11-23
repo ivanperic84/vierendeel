@@ -1595,7 +1595,8 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
   {
     const wM = { ...w, mastVorhanden: true, schneeAktiv: true };
     const kw = U.sichtbareFelder('ein', wM).map((f) => f.key);
-    wahr('Wind: Stufe zuerst, dann Joch und beide Mastrichtungen', kw[0] === 'windKlasse'
+    // Seit dem 23. November die EK (1-6) und der Schalter Einheitswind statt der Windstufe.
+    wahr('Wind: EK zuerst, Einheitswind, dann Joch und beide Mastrichtungen', kw[0] === 'ekWahl' && kw[1] === 'einheitswind'
          && ['wkManuell', 'mastWindX', 'mastWindY'].every((k) => kw.includes(k)), kw.join(', '));
     const ks = U.sichtbareFelder('schnee', wM).map((f) => f.key);
     wahr('Schnee: ja/nein, Klasse, Last', ks.join(',') === 'schneeAktiv,schneeKlasse,skManuell', ks.join(', '));
@@ -33685,7 +33686,8 @@ titel('158  Nachweiskachel zeigt den massgebenden Stab; Grundwerte beim neuen Tr
        ['dlg-tw-ek', 'dlg-tw-spw', 'dlg-tw-r', 'dlg-tw-nichtmehr'].every((id) => dq.includes(`id="${id}"`))
        && /In diesem Projekt nicht mehr nachfragen/.test(dq));
   wahr('… und schreibt sie ins Blatt, das Kästchen als grundwerteFragen = false',
-       /app\.aendern\('windKlasse', e\.ek\)/.test(dq) && /app\.aendern\('flSpannweite', e\.spw\)/.test(dq)
+       /app\.aendern\('ekWahl', e\.ek\)/.test(dq) && /app\.aendern\('einheitswind', e\.einheit\)/.test(dq)
+       && /app\.aendern\('flSpannweite', e\.spw\)/.test(dq)
        && /app\.aendern\('trasseRadius', e\.R\)/.test(dq)
        && /if \(e\.nichtMehr\) app\.aendern\('grundwerteFragen', false\)/.test(dq));
 }
@@ -43456,7 +43458,9 @@ titel('308  Audit 21. November, Block 4: Seitenleisten kürzer und ohne fremde B
        !/`\$\{(unter|sub|n\.profil\.name)\} · Stabwerk`/.test(UQ));
   wahr('«Nicht geführte Nachweise» mit Umlaut', UQ.includes("'Nicht geführte Nachweise'") && !UQ.includes("'Nicht gefuehrte Nachweise'"));
   wahr('Konstruktionsprüfungen zugeklappt, verletzte im Kopf', /verletzt: \$\{alle\.filter\(\(c\) => !c\.ok\)\.map\(\(c\) => c\.id\)/.test(UQ));
-  wahr('Höchstbeanspruchte Stellen zugeklappt', UQ.includes("klapp('uebersicht-hoechst', 'Höchstbeanspruchte Stellen'"));
+  // 23. November: die Klappe ist weg («Beide weg»).
+  wahr('Höchstbeanspruchte Stellen und Schnittgrössen nicht mehr in der Übersicht',
+       !UQ.includes("klapp('uebersicht-hoechst'") && !UQ.includes("klapp('uebersicht-schnittgroessen'"));
   wahr('Bügelschrauben bei ausgeschalteter Gruppe nur als Zeile', UQ.includes("klapp('uebersicht-buegel-aus'"));
   wahr('Einzelmast: Kontrollrechnung des Masten zugeklappt unter dem Stabwerk',
        UQ.includes("klapp('einzelmast-kontrolle', 'Kontrollrechnung · Mast über die Höhe'"));
@@ -43958,8 +43962,7 @@ titel('329  Abfangjoche übereinander global; Gleis Normalspur; eigene Einzellei
        SV.includes('[].concat(opt.praefix).some((p) => String(f.knoten).startsWith(p))'));
   const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Kopfzeile «massgebend» und höchstbeanspruchte Stellen aus dem Stabwerk, über alle Joche',
-       UQ.includes('const fallSw = swH && !einzelLastfall && bt?.massgebend?.bez')
-       && UQ.includes('const keys = new Set(jochKeys.length > 1 ? jochKeys.map((j) => j.key) : [jochKey]);'));
+       UQ.includes('const fallSw = swH && !einzelLastfall && bt?.massgebend?.bez'));
   // (2) Gleis.
   const R3 = await import(J('render.3d.js'));
   pruef('Normalspur: Schienenmitten 1435 + 65 mm', R3.SPUR_MITTE, 1.5, 1e-12, 'm');
@@ -44221,6 +44224,29 @@ titel('337  Lastbeiwerte beim Überfahren einer Kombination (ui.einfach.js)');
   const html = E.kombiEinfachHtml({ lastfaelle: lf.map((l) => ({ ...l, eta: 0.5 })) });
   wahr('Jede Nachweiszeile der Lastfallliste trägt die Karte (data-lf-tip)',
        (html.match(/data-lf-tip=/g) ?? []).length >= lf.filter((l) => l.nachweis).length);
+}
+
+// ===========================================================================
+titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.js)');
+{
+  const L = await import(J('core.lasten.js'));
+  const w = { windKlasse: '1.1', schneeKlasse: '1.25' };
+  wahr('EK aus Wind und Schnee (1.1 / über 1000 m = EK5)', L.ekBasisVon(w) === 'EK5');
+  const e = L.ekFelder(w, { einheit: true });
+  wahr('Einheitswind an: windKlasse 1.0, die Grundstufe bleibt gemerkt', e.windKlasse === '1.0' && e.windKlasseVorher === '1.1');
+  const w2 = { ...w, ...e };
+  wahr('… EK mit Einheitswind weiter lesbar (EK5)', L.istEinheitswind(w2) && L.ekBasisVon(w2) === 'EK5');
+  const e2 = L.ekFelder(w2, { ek: 'EK1' });
+  wahr('EK wechseln bei Einheitswind: Schnee unter 1000 m, Wind bleibt 1.0', e2.windKlasse === '1.0'
+       && e2.schneeKlasse === '0.9' && e2.windKlasseVorher === '0.9');
+  const e3 = L.ekFelder({ ...w2, ...e2 }, { einheit: false });
+  wahr('Einheitswind aus: zurück auf die Stufe der EK', e3.windKlasse === '0.9');
+  const RK = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
+  wahr('Profilschnitt × 3 unter dem Fundament (Linie, nicht anklickbar)',
+       RK.includes('export const PROFILSCHNITT_FAKTOR = 3;') && RK.includes('profilschnitt: true'));
+  const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  wahr('Projekt löschen mit Warnfenster und Kreuz vor dem Knopf',
+       AB.includes('data-projekt-loeschen') && AB.includes('data-pl-los disabled') && AB.includes("id=\"pl-ok\""));
 }
 
 // ===========================================================================
