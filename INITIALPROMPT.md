@@ -5,7 +5,31 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-## Stand 21. November 2026 - hier weitermachen
+## Stand 23. November 2026 - hier weitermachen
+
+**Alles gepusht bis `8435441`** (Weisung «Ja, pushen», 23. November), Arbeitsbaum sauber, Pruefstand **7707** gruen,
+`durchlauf.mjs` ohne Bruch. `Versand/`: Einzeldatei und Schulung `…_2026-11-23.html`, Datenpaket
+`Vierendeel_Datenpaket_2026-11-23.json` (mit Ankerfundamenten; das vom 22. ist veraltet), COM_Bruecke unveraendert.
+
+Gebaut am 22./23. November (Einzelheiten und Wortlaut in CLAUDE.md, *Entschieden*, oberste Zeilen):
+- **Testlauf Blatt mit fuenf Tragwerken:** Stabwerk ueber das ganze Blatt, Auswertung global; Abfangjoch mit
+  Laengshalt nur an Mast A; Fundamentkoerper im 3D gefaerbt.
+- **Fahrdrahtabzug am Joch:** nur abgezogener Leiter ist durchgehend (nie abgefangen), Vorlage `mast-fd-abzug`
+  am Mast und am Joch; abgezogener Fahrdraht reisst mit seinem gleichnamigen Kettenwerk.
+- **Projektauswertung** (neues Modul `js/app.projekt.js`, Knopf «Auswertung» je Projekt in der Ablage): rechnet
+  jeden Eintrag mit dem Stabwerk; Blatt / HTML mit Grundlagen, Kennzahlen, Listen Fundamente / Masten / Joche
+  (Ordnen nach η, km, Typ), Skizze je Position mit Bautyp, η, Stegrichtung, allen Anbauteilen, Anker.
+- **Aenderungsprotokoll der Bauteiltypen** (`js/core.protokoll.js`): Ausgangszustand beim ersten Speichern,
+  Protokoll je Speichern, Knopf «Protokoll» in der Ablage mit «Als Ausgangszustand uebernehmen».
+- **Ankerfundament** (`js/core.ankerfundament.js`): zulaessige Lasten mit Ankerplatte aus dem Bausortiment ab
+  2019 (Werte nur oertlich in `data/masten.json`, Tabelle `ankerfundamente`), Zug / Druck je Zustand, kleinster
+  Typ oder von Hand; im Urteil, als Kachel, in der Projektauswertung.
+
+**Offen** (siehe CLAUDE.md, *Offene Punkte*, «Für später»): Projektauswertung weiter nach dem Prompt des
+Auftraggebers (Excel-Ausgabe, Gruppierung, Streckenband nach km - Bloecke 2-4); Joch 57/58 der Stufe-1-Ablage
+(Pfad nicht genannt); Audit-Block 5 (Form, Kontrast). Kein laufender Auftrag - beim Auftraggeber nachfragen.
+
+### Davor (21. November)
 
 **Abends am 21. November:** Audit-Bloecke 1, 3, 4 gepusht (bis `9bef97c`). Danach, oertlich committet und **nicht gepusht**: ein Knopf «Dimensionieren» mit Auswahl je Gruppe (alte Jochtypen nie empfohlen), Vorauswahl mit dem Kern bis η 1.10 und Massengrenze +30 % (beide einstellbar), Lastfall oben als einzeilige «Insel», Figur schwingt im Knopf w, Knopf «Knick» in Resultate, Lasten ausgeblendeter Bauteile weg. Danach Audit-Block 2 (Startzustand: neues Abfangjoch mit Anker η 0.820, Tragausleger HEM 240 η 0.746, P2 nur ohne Mass-Tabelle, Typenliste, Lastfallnamen). Dann die Insel mit ‹ › × ▶ und Aufleuchten des Lastfalls in der Seitenleiste. Die Insel faehrt mit den Grundwerten aus. Insel weich, ohne Pfeile, springt nicht beim Ueberfahren, zweizeilig, kompakt; Werkzeugleiste als eine Box, ohne Bildlaufleiste; Lastfaelle wie in der Matrix benannt; Insel, Leiste, Legende einheitlich, Modell springt nicht; oben was, unten Skala; Grundwerte wieder in der durchsichtigen Insel; alle Fenster gleich durchsichtig; Bewegung wie Android (ui.bewegung.js), Reiter links ohne Neurechnung, Pillen der Schiene anklickbar, Leisten geschmeidig, Havarie in der Achse auch an Mastteilen. Offen (Rueckfrage): Leiterzug einseitig abgefangener Leiter je Kombination (Schnee leitend nimmt Z(+5) statt Z(-5)+Eis). Trasse im 3D mit Radius, Dimensionieren gespeichert; offen: Raster fuer die Grenzspannung (Rueckfrage). Pruefstand **7707** (23. November: Ankerfundament nach Bausortiment (Ankerplatte, kleinster Typ); Ausgangszustand und Aenderungsprotokoll der Bauteiltypen (core.protokoll.js); Projektauswertung kompakt, eta fett, Stegrichtung; Projektauswertung in der Ablage (Grundlagen, Kennzahlen, Listen Fundamente / Masten / Joche mit Ordnen, Skizze je Position, Blatt und HTML); Fahrdrahtabzug am Joch, nur abgezogener Leiter durchgehend, reisst mit seinem Kettenwerk; 22. November: Fundamentkoerper im 3D gefaerbt; Testlauf mit fuenf Tragwerken - Stabwerk ueber das ganze Blatt, Auswertung global, Abfangjoch Laengshalt nur an Mast A; Abfangjoche im selben Feld global, Gleis Normalspur, eigene Einzelleiter; Kontextmenue knapp, Ausleger in der Hoehe ziehen; Leiterzug-Kern core.leiterzug.js eingebaut), gepusht am 22. November bis 450d005 (danach oertlich: Ueberhoehung in Stufen). Naechster Schritt: Audit-Block 5 (Form, Kontrast, Animation) - beim Auftraggeber nachfragen.
 
