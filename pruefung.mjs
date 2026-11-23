@@ -44077,6 +44077,42 @@ titel('333  Der abgezogene Fahrdraht reisst mit seinem Kettenwerk (Stelle «*»)
        liste.length === 1 && liste[0].teile.length === 2 && /abgezogen/.test(liste[0].name), liste.map((e) => e.name).join(' | '));
 }
 
+// ===========================================================================
+titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (app.projekt.js)');
+{
+  const PA = await import(J('app.projekt.js'));
+  const AS4 = await import(J('app.stabwerk.js'));
+  const N4 = await import(J('core.nachbarn.js'));
+  const V4 = await import(J('core.vierendeel.js'));
+  const w = standardwerte();
+  const r = PA.eintragAuswerten({ id: 'p1', name: 'Startjoch', projekt: 'P', werte: w });
+  const s = N4.rechensatzMitNachbarn(w);
+  const h = AS4.rechneStabwerk({ werte: w, letzte: { erg: V4.berechne(s, ...N4.kernArgumente(s)) }, stabwerk: null },
+                              { ohneBestand: true });
+  wahr('Gerechnet ohne Fehler, zwei Masten mit Fundament', !r.fehler && r.masten.length === 2
+       && r.masten.every((m) => m.fundament), r.fehler ?? '');
+  wahr('Fundament-η je Mast = das η des Stabwerks (fundamentJe)',
+       r.masten.every((m) => Math.abs(m.fundament.eta - h.fundamentJe[m.name].eta) < 1e-12));
+  wahr('… jede Grösse mit Einwirkung, zulässig und η, lenkende gekennzeichnet',
+       r.masten[0].fundament.nachweise.length >= 6
+       && r.masten[0].fundament.nachweise.every((n) => Number.isFinite(n.zul) && 'wert' in n && 'lenkt' in n));
+  wahr('Tragwerk und Masten mit η aus der Zeile des Stabwerks (reihe, knick)',
+       Math.abs(r.tragwerke[0].eta - h.reihe.find((x) => x.art === 'tragwerk').eta) < 1e-12
+       && r.masten.every((m) => Math.abs(m.knick - h.knick[m.name].eta) < 1e-12));
+  const kaputt = PA.eintragAuswerten({ id: 'p2', name: 'Kaputt', werte: { weitere: 'x' } });
+  wahr('Ein Eintrag, der nicht rechnet, bricht den Lauf nicht ab (fehler)', Boolean(kaputt.fehler));
+  const html = PA.projektBlattHtml({ projekt: 'P', datum: '23.11.2026', eintraege: [r, kaputt] }, { fassung: 'x' });
+  wahr('Blatt: eine Zeile je Fundament, Spalten je Grösse, Skizze je Position, Fehler genannt',
+       (html.match(/<tr class="zeile"/g) ?? []).length === 2 && html.includes('>M_q<') && html.includes('>H_l<')
+       && html.includes('id="pos-0"') && html.includes('Nicht gerechnet') && html.includes('class="rk-skizze"'));
+  wahr('Skizze: Bautyp mit η über dem Tragwerk, Fundamenttyp mit η unter dem Mastfuss',
+       /Tragjoch J90 · 20\.00 m · η [0-9.]+/.test(html) && /sk-fuss sk-(ok|warn|fail)/.test(html));
+  const AQ = APP_QUELLE();
+  const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  wahr('Knopf «Auswertung» je Projekt in der Ablage, Ergebnis als Blatt und HTML-Datei',
+       AB.includes('data-projekt-auswertung=') && AB.includes("label: 'Als HTML sichern'") && AQ.length > 0);
+}
+
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

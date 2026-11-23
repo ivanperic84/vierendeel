@@ -241,7 +241,8 @@ export function reaktionenKurzHtml(daten) {
  * Gelenk. Ein Anker in Gleisrichtung läge in dieser Ansicht auf dem
  * Masten; er wird seitlich umgeklappt gezeichnet und so angeschrieben.
  */
-export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false, bestandGrau = false } = {}) {
+export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false, bestandGrau = false,
+                                           fuss = null } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
   // Mitte des Tragwerks - umgeklappte Anker zeigen von ihr weg (21. November).
@@ -306,13 +307,18 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
     for (let i = 0; i < 8 && belegt.some((b) => Math.abs(b.x - x) < (b.w + w) / 2
       && Math.abs(b.y - y) < 11); i += 1) y -= 11;
     belegt.push({ x, y, w });
-    return `<text class="sk-titel" x="${r1(x)}" y="${r1(y)}" text-anchor="middle">${esc(t.text)}</text>`;
+    // Projektauswertung (23. November): der Titel trägt die Farbe seiner Ampel.
+    return `<text class="sk-titel${t.amp ? ` sk-${t.amp}` : ''}" x="${r1(x)}" y="${r1(y)}" text-anchor="middle">${esc(t.text)}</text>`;
   }).join('');
   const marken = liste.map((z) => {
     if (z.art === 'mast') {
       const x = X(z.xModell ?? z.x), y = Z(z.z);
+      // Projektauswertung (23. November): unter dem Namen Fundamenttyp und η.
+      const f = fuss?.get?.(z.id);
       return einspannung(x, y)
-        + `<text x="${r1(x)}" y="${r1(y + 18)}" text-anchor="middle">${esc(z.name)}</text>`;
+        + `<text x="${r1(x)}" y="${r1(y + 18)}" text-anchor="middle">${esc(z.name)}</text>`
+        + (f ? `<text class="sk-fuss sk-${f.amp}" x="${r1(Math.max(f.text.length * 2.7 + 2,
+          Math.min(breite - f.text.length * 2.7 - 2, x)))}" y="${r1(y + 29)}" text-anchor="middle">${esc(f.text)}</text>` : '');
     }
     if (z.art === 'anker') {
       const mast = liste.find((m) => m.art === 'mast' && m.id === z.id);
@@ -364,7 +370,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       .sk-anker{stroke:#111;stroke-width:1.2}.sk-umgeklappt{stroke-dasharray:6 3}
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
-      .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}</style>
+      .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}
+      .sk-fuss{font:bold 9px sans-serif}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
     ${linien}${leiter}${neu}${marken}${titel}</svg>`;
 }
 

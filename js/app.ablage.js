@@ -24,6 +24,9 @@ import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 import { abschnitt, esc, icon } from './design.js';
 import * as store from './store.js';
+import { projektAuswerten, projektBlattHtml } from './app.projekt.js';
+import { berichtZeigen } from './app.bericht.js';
+import { STAND } from './version.js';
 import * as ui from './ui.js';
 import { standardwerte } from './ui.schema.js';
 
@@ -415,6 +418,7 @@ export async function zeichneSchublade(app) {
         <span class="sec-r">${liste.length} Tragwerk${liste.length === 1 ? '' : 'e'}</span>
         <button class="btn btn-mini" data-projekt-aus="${esc(k)}" title="Dieses Projekt als Paket ausleiten">Ausleiten</button>
         <button class="btn btn-mini" data-projekt-druck="${esc(k)}" title="Liste aller Tragwerke dieses Projekts drucken">Liste</button>
+        <button class="btn btn-mini" data-projekt-auswertung="${esc(k)}" title="Alle Einträge dieses Projekts rechnen: Fundamente je Einwirkung, Skizze je Position mit Bautyp und η - als Blatt und HTML-Datei">Auswertung</button>
       </summary>
       <div class="ab-rollen"><table class="ab-tabelle">
         <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
@@ -682,6 +686,7 @@ export async function zeichneSchublade(app) {
   auf('[data-projekt-aus]', (b) => dialogAusleiten(app, 
     alle.filter((e) => (e.projekt ?? '') === b.dataset.projektAus).map((e) => e.id)));
   auf('[data-projekt-druck]', (b) => projektlisteDrucken(app, b.dataset.projektDruck));
+  auf('[data-projekt-auswertung]', (b) => projektAuswertungZeigen(app, b.dataset.projektAuswertung));
   auf('[data-vorlage-an]', async (b) => {
     const v = await store.vorlageLaden(b.dataset.vorlageAn);
     if (!confirm(`Vorlage «${v.name}» anwenden? Profile, Trasse, Anbauteile und ` +
@@ -1067,6 +1072,47 @@ async function dialogZuordnen(app, s) {
  * aelteren Fassung stammen. Laesst sich einer nicht rechnen, steht der
  * vermerkte Wert mit Kennzeichnung da.
  */
+/*
+ * >>> PROJEKTAUSWERTUNG (23. November, app.projekt.js). <<< Weisung: «auswertung
+ * projekt ermöglichen mit auflistung der erfüllungsgrade der einwirkungen auf
+ * die fundamente …», auf Rückfrage «Beides» (Blatt und HTML-Datei). Rechnet
+ * jeden Eintrag des Projekts mit dem Stabwerk, mit Fortschritt und Abbruch;
+ * ein Eintrag, der nicht rechnet, steht mit Grund im Blatt.
+ */
+async function projektAuswertungZeigen(app, projektName) {
+  const eintraege = (await store.liste())
+    .filter((e) => (e.projekt ?? '') === projektName)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { numeric: true }));
+  if (!eintraege.length) { alert('Das Projekt hat keine Tragwerke.'); return; }
+  let abbruch = false;
+  const kasten = document.createElement('div');
+  kasten.className = 'projekt-lauf';
+  kasten.innerHTML = `<b>Projektauswertung</b> <span data-lauf-text>…</span>
+    <button class="btn btn-mini" data-lauf-ab>Abbrechen</button>`;
+  Object.assign(kasten.style, { position: 'fixed', left: '50%', top: '18px', transform: 'translateX(-50%)',
+    zIndex: 9999, background: 'var(--s2, #222)', color: 'var(--on, #fff)', border: '1px solid var(--ol, #555)',
+    borderRadius: '10px', padding: '8px 14px', display: 'flex', gap: '10px', alignItems: 'center' });
+  document.body.appendChild(kasten);
+  kasten.querySelector('[data-lauf-ab]').onclick = () => { abbruch = true; };
+  let res;
+  try {
+    res = await projektAuswerten(eintraege, {
+      fortschritt: (i, n, name) => { kasten.querySelector('[data-lauf-text]').textContent = `${i + 1} / ${n} · ${name ?? ''}`; },
+      abgebrochen: () => abbruch,
+    });
+  } finally { kasten.remove(); }
+  res.projekt = projektName;
+  res.datum = heute();
+  const fassung = `v2.0 · ${STAND.datum} · ${STAND.fassung}`;
+  const html = projektBlattHtml(res, { fassung });
+  const name = `Projektauswertung_${String(projektName || 'Projekt').replace(/[^\p{L}\p{N}._-]+/gu, '_')}.html`;
+  berichtZeigen(html, 'Projektauswertung', { optionen: [], zustand: {}, bauen: () => html,
+    aktionen: [{ key: 'pa-html', label: 'Als HTML sichern',
+                 titel: 'Die Auswertung als eigenständige HTML-Datei sichern (sortier- und filterbar, zum Weitergeben)',
+                 tun: () => store.dateiSpeichern(html, name, 'text/html') }] });
+  if (res.abgebrochen) app.meldeImBalken(`Projektauswertung abgebrochen nach ${res.eintraege.length} Einträgen.`);
+}
+
 async function projektlisteDrucken(app, projektName) {
   const eintraege = (await store.liste())
     .filter((e) => (e.projekt ?? '') === projektName)
