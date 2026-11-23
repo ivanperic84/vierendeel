@@ -131,7 +131,7 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
     if (p.feld) {
       const f = p.feld;
       const eingabe = f.art === 'auswahl'
-        ? `<select data-kf="${i}">${(f.optionen ?? []).map((o) =>
+        ? `<select data-kf="${i}"${f.grau ? ' class="grau" title="Wind und Schnee von Hand - keine EK passt"' : ''}>${(f.optionen ?? []).map((o) =>
             `<option value="${esc(o.wert)}"${String(o.wert) === String(f.wert)
               ? ' selected' : ''}>${esc(o.text)}</option>`).join('')}</select>`
         : f.art === 'text'
@@ -883,18 +883,59 @@ export function radiusSkizze(R) {
   </svg>`;
 }
 
+/** Das Grundwerte-Panel der Insel neu aufbauen (nach einer Wahl, die andere Felder ändert). */
+function grundwerteNeu(app) {
+  const ziel = kontextMenue?.inselZu ? kontextMenue.parentElement : null;
+  if (!ziel) return;
+  kontextSchliessen(app);
+  kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel });
+}
+
 function kontextTrasseFelder(app, w, ja) {
   return [
     { kopf: 'Grundwerte (ganzes Blatt)' },
-    // EK 1-6 (22. November), ohne eigene Windwahl (23. November: «es macht
-    // daher keinen sinn beim wind separat die ek einzugeben»); der
-    // Einheitswind der alten Norm als Schalter daneben.
-    { feld: { art: 'auswahl', label: 'EK', wert: ekBasisVon(w),
-              optionen: EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label })) },
-      tun: (v) => app.aendern('ekWahl', v) },
-    { feld: { art: 'auswahl', label: 'Einheitswind (alt)', wert: istEinheitswind(w) ? '1' : '',
-              optionen: ja },
-      tun: (v) => app.aendern('einheitswind', v === '1') },
+    /*
+     * >>> EK OBEN, WIND UND SCHNEE DARUNTER (23. November). <<< Mit Bild der
+     * Insel: «hier ek auswählen können oder den wind und den schnee
+     * unabhängig.», dann «eingabeart streichen. man kann dann direkt das ek
+     * auswählen und unten passt sich der wert für den wind und schnee an,
+     * wenn man von hand einen dieser werte anpasst, dann wird der obige ek
+     * ausgegraut oder ein strich wird angezeigt.» Die EK setzt Windstufe und
+     * Höhenlage; Wind (auch Einheitswind) und Schnee lassen sich darunter
+     * einzeln stellen. Passt das Paar zu keiner EK (Einheitswind), zeigt die
+     * EK «–» und steht ausgegraut. Nach jeder Wahl baut sich das Panel neu
+     * (`grundwerteNeu`) - vorher blieb die EK stehen, wenn man den Schnee
+     * umstellte.
+     */
+    (() => {
+      const ek = ekKlasseVon(w);
+      return { feld: { art: 'auswahl', label: 'EK', wert: ek, grau: !ek,
+                       optionen: [...(ek ? [] : [{ wert: '', text: '–' }]),
+                         ...EK_KLASSEN.map((k) => ({ wert: k.key, text: k.label }))] },
+        tun: (v) => {
+          if (!v) return;
+          if (istEinheitswind(app.werte)) app.aendern('einheitswind', false);
+          app.aendern('ekWahl', v);
+          if (!app.werte.schneeAktiv) app.aendern('schneeAktiv', true);
+          grundwerteNeu(app);
+        } };
+    })(),
+    { feld: { art: 'auswahl', label: 'Wind', wert: String(w.windKlasse ?? '0.9'),
+              optionen: WIND_KLASSEN.map((k) => ({ wert: k.key,
+                text: k.einheit ? 'Einheitswind 1.0 (alte Norm)' : `q ${k.qp.toFixed(2)} kN/m² (${k.ek}/EK${Number(k.ek.slice(2)) + 3})` })) },
+      tun: (v) => {
+        if (v === '1.0') app.aendern('einheitswind', true);
+        else {
+          if (istEinheitswind(app.werte)) app.aendern('einheitswind', false);
+          const ek = EK_KLASSEN.find((k) => k.wind === v && k.schnee === String(app.werte.schneeKlasse ?? '1.25'));
+          if (ek) app.aendern('ekWahl', ek.key);
+        }
+        grundwerteNeu(app);
+      } },
+    { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? String(w.schneeKlasse ?? '1.25') : '',
+              optionen: [{ wert: '', text: 'aus' },
+                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `${k.hoch ? 'über' : 'unter'} 1000 m · s ${k.sk.toFixed(2)}` }))] },
+      tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); grundwerteNeu(app); } },
     { feld: { art: 'auswahl', label: 'Reduktion × 0.74', wert: w.windReduktion ? '1' : '',
               optionen: ja },
       tun: (v) => app.aendern('windReduktion', v === '1') },
@@ -909,10 +950,6 @@ function kontextTrasseFelder(app, w, ja) {
         const sk = document.querySelector('.insel-panel .kontext-skizze');
         if (sk) sk.innerHTML = radiusSkizze(v);
       } },
-    { feld: { art: 'auswahl', label: 'Schnee', wert: w.schneeAktiv ? (w.schneeKlasse ?? '1.25') : '',
-              optionen: [{ wert: '', text: 'aus' },
-                ...SCHNEE_KLASSEN.map((k) => ({ wert: k.key, text: `${k.hoch ? 'über' : 'unter'} 1000 m · s ${k.sk.toFixed(2)}` }))] },
-      tun: (v) => { app.aendern('schneeAktiv', Boolean(v)); if (v) app.aendern('schneeKlasse', v); } },
     // Breit rechts neben den Feldern, schmal darunter (Stilblatt).
     { skizze: radiusSkizze(w.trasseRadius) },
   ];

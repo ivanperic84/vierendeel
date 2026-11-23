@@ -4513,3 +4513,6 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
 /* Warnung im Fenster «Projekt löschen» (23. November). */
 .ab-warn { border-left: 3px solid var(--fail); padding: 6px 10px; margin: 0 0 6px;
   background: color-mix(in srgb, var(--fail) 10%, transparent); border-radius: var(--m-r1); }
+
+/* EK ohne passende Klasse (Wind/Schnee von Hand), 23. November. */
+.kontext-feld select.grau { opacity: .5; }

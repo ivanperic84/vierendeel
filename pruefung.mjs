@@ -39712,8 +39712,8 @@ titel('247  Mehrfachauswahl, Kontextfenster der Leiste, Trasse in der Fussleiste
   UI247.setzeAnbauMarkiert([]);
   wahr('Ohne Markierung gilt das Fenster dem Teil allein', K247.kontextAnbauSeite(app, 2)[0].kopf !== '2 markierte Anbauteile');
   const t = K247.kontextTrasse({ werte: { windKlasse: '0.9', flSpannweite: 40, trasseRadius: 600 }, aendern: () => {} });
-  // 22. November: dazu die Schnelleingabe EK 1-6.
-  wahr('Trassenfenster: EK, Wind, Reduktion, Spannweite, Radius, Schnee', t.filter((x) => x.feld).length === 6);
+  // 22. November: dazu die Schnelleingabe EK 1-6; 23. November: Eingabe EK / einzeln davor.
+  wahr('Trassenfenster: EK, Wind, Schnee, Reduktion, Spannweite, Radius', t.filter((x) => x.feld).length === 6);
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Leeres Zahlenfeld wird beim Tippen nicht geschrieben, erst beim Verlassen',
        uq.includes('const leerBeimTippen') && (uq.match(/auchBeimVerlassen\(inp,/g) ?? []).length === 4);
@@ -44242,9 +44242,12 @@ titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.
   const e3 = L.ekFelder({ ...w2, ...e2 }, { einheit: false });
   wahr('Einheitswind aus: zurück auf die Stufe der EK', e3.windKlasse === '0.9');
   const RK = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
-  wahr('Profilschnitt × 3 unter dem Fundament (Linie, nicht anklickbar)',
-       RK.includes('export const PROFILSCHNITT_FAKTOR = 3;') && RK.includes('profilschnitt: true'));
+  wahr('Profilschnitt × 2, 0.6 m unter dem Fundament (Linie, nicht anklickbar)',
+       RK.includes('export const PROFILSCHNITT_FAKTOR = 2;') && RK.includes('profilschnitt: true'));
   const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  const KX = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Insel: EK oben, Wind und Schnee darunter, EK «–» ohne passende Klasse, Panel baut sich neu',
+       !KX.includes('ekEinzeln') && KX.includes("label: 'EK', wert: ek, grau: !ek") && KX.includes('function grundwerteNeu(app)'));
   wahr('Projekt löschen mit Warnfenster und Kreuz vor dem Knopf',
        AB.includes('data-projekt-loeschen') && AB.includes('data-pl-los disabled') && AB.includes("id=\"pl-ok\""));
 }

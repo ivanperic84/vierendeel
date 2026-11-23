@@ -479,7 +479,9 @@ export function gespreiztFlaechen(G, { x, zFuss, achse = 'y', opt = {} }) {
 }
 
 /** Vergrösserung des Profilschnitts unter dem Masten (23. November). */
-export const PROFILSCHNITT_FAKTOR = 3;
+export const PROFILSCHNITT_FAKTOR = 2;
+/** Abstand des Profilschnitts unter dem Fundamentklotz [m] (23. November: «weiter unten … etwas kleiner»). */
+export const PROFILSCHNITT_TIEFE = 0.6;
 
 export function mastKoerper(o) {
   const flaechen = [];
@@ -707,12 +709,13 @@ export function mastKoerper(o) {
    * damit man visuell sieht wie der mast ausgerichtet ist.» Auf Rückfrage
    * «Vergrössert am Boden»: der Umriss des Querschnitts (mit Stegrichtung,
    * dasselbe Polygon wie der Körper) dreifach vergrössert flach unter dem
-   * Fundament - er ragt über den Klotz hinaus und ist aus jeder Sicht zu
+   * Fundament (nachgeführt: «profil weiter unten darstellen und etwas
+   * kleiner» - × 2, 0.6 m unter dem Klotz) - er ragt über den Klotz hinaus und ist aus jeder Sicht zu
    * lesen. Nur Bild, nicht anklickbar (Linie, keine Fläche); nur an
    * Walzprofilen (Gittermast und gespreizter Mast haben kein I-Bild).
    */
   if (!gitterG && !profil.gespreizt && poly?.length >= 3) {
-    const zB = zFuss - fkHoch - 0.005;
+    const zB = zFuss - fkHoch - PROFILSCHNITT_TIEFE;
     const k = PROFILSCHNITT_FAKTOR * MM;
     const pkt = poly.map((p) => [x + p[0] * k, p[1] * k, zB]);
     linien.push({ gruppe: 'mast', mast: true, profilschnitt: true,
