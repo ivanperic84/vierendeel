@@ -248,7 +248,9 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   // Mitte des Tragwerks - umgeklappte Anker zeigen von ihr weg (21. November).
   const mitte = (g.x0 + g.x1) / 2;
   // Platz für die Titel über dem höchsten Bauteil.
-  if ((daten?.titel ?? []).length) g.z1 += Math.max(1.2, (g.z1 - g.z0) * 0.12);
+  // Mehrzeilige Titel (23. November) brauchen mehr Platz darüber.
+  const zeilenMax = Math.max(1, ...(daten?.titel ?? []).map((t) => String(t.text).split('\n').length));
+  if ((daten?.titel ?? []).length) g.z1 += Math.max(1.2 * zeilenMax, (g.z1 - g.z0) * 0.12 * zeilenMax);
   const liste = zeilen ?? [];
   // Umgeklappte Anker brauchen Platz neben dem Masten.
   liste.filter((z) => z.art === 'anker').forEach((z) => {
@@ -301,12 +303,23 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
    */
   const belegt = [];
   const titel = (daten?.titel ?? []).map((t) => {
-    const w = t.text.length * 5.1 + 6;
+    // Mehrzeilig mit Zeilenumbruch (Projektauswertung, 23. November): die
+    // unterste Zeile steht am Anker, die übrigen darüber.
+    const zeilenT = String(t.text).split('\n');
+    const n = zeilenT.length;
+    const w = Math.max(...zeilenT.map((z) => z.length)) * 5.1 + 6;
     let x = X(t.x), y = Z(t.z) - 4;
     x = Math.max(w / 2 + 2, Math.min(breite - w / 2 - 2, x));
-    for (let i = 0; i < 8 && belegt.some((b) => Math.abs(b.x - x) < (b.w + w) / 2
-      && Math.abs(b.y - y) < 11); i += 1) y -= 11;
-    belegt.push({ x, y, w });
+    const hoch = 10 * n + 1;
+    for (let i = 0; i < 12 && belegt.some((b) => Math.abs(b.x - x) < (b.w + w) / 2
+      && y > b.y - b.h - 1 && y - hoch < b.y + 1); i += 1) y -= 11;
+    belegt.push({ x, y, w, h: hoch });
+    if (n > 1) {
+      // Nur der Erfüllungsgrad fett und farbig (23. November, «hier nur den erfüllungsgrad fett schreiben»).
+      return `<text class="sk-titel" x="${r1(x)}" y="${r1(y - 10 * (n - 1))}" text-anchor="middle">${
+        zeilenT.map((z, i) => `<tspan x="${r1(x)}" dy="${i ? 10 : 0}"${t.amp && /^η /.test(z)
+          ? ` class="sk-eta sk-${t.amp}"` : ''}>${esc(z)}</tspan>`).join('')}</text>`;
+    }
     // Projektauswertung (23. November): der Titel trägt die Farbe seiner Ampel.
     return `<text class="sk-titel${t.amp ? ` sk-${t.amp}` : ''}" x="${r1(x)}" y="${r1(y)}" text-anchor="middle">${esc(t.text)}</text>`;
   }).join('');
@@ -315,10 +328,29 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       const x = X(z.xModell ?? z.x), y = Z(z.z);
       // Projektauswertung (23. November): unter dem Namen Fundamenttyp und η.
       const f = fuss?.get?.(z.id);
-      return einspannung(x, y)
+      /*
+       * >>> DIE AUSRICHTUNG DES MASTEN (23. November). <<< «die ausrichtung
+       * der masten müsste in den abbildungen ersichtlich sein»: ein kleines
+       * Profil im Grundriss links neben dem Fuss - Steg in der Jochachse
+       * liegt waagrecht (H), Steg quer steht (I).
+       */
+      const steg = z.steg === 'jochachse' || z.steg === 'quer' ? (() => {
+        const gx = x - 8 - String(z.name ?? '').length * 3.2, gy = y + 14, a = 4;
+        return z.steg === 'jochachse'
+          ? `<path class="sk-steg" d="M${r1(gx - a)} ${r1(gy - a)}v${2 * a}M${r1(gx + a)} ${r1(gy - a)}v${2 * a}M${r1(gx - a)} ${r1(gy)}h${2 * a}"/>`
+          : `<path class="sk-steg" d="M${r1(gx - a)} ${r1(gy - a)}h${2 * a}M${r1(gx - a)} ${r1(gy + a)}h${2 * a}M${r1(gx)} ${r1(gy - a)}v${2 * a}"/>`;
+      })() : '';
+      return einspannung(x, y) + steg
         + `<text x="${r1(x)}" y="${r1(y + 18)}" text-anchor="middle">${esc(z.name)}</text>`
-        + (f ? `<text class="sk-fuss sk-${f.amp}" x="${r1(Math.max(f.text.length * 2.7 + 2,
-          Math.min(breite - f.text.length * 2.7 - 2, x)))}" y="${r1(y + 29)}" text-anchor="middle">${esc(f.text)}</text>` : '');
+        + (f ? (() => {
+          // Zeilen mit Zeilenumbruch (23. November): Typ, darunter η.
+          const zz = String(f.text).split('\n');
+          const hw = Math.max(...zz.map((t) => t.length)) * 2.7 + 2;
+          const xf = Math.max(hw, Math.min(breite - hw, x));
+          return `<text class="sk-fuss" x="${r1(xf)}" y="${r1(y + 29)}" text-anchor="middle">${
+            zz.map((t, i) => `<tspan x="${r1(xf)}" dy="${i ? 10 : 0}"${/^η /.test(t)
+              ? ` class="sk-eta sk-${f.amp}"` : ''}>${esc(t)}</tspan>`).join('')}</text>`;
+        })() : '');
     }
     if (z.art === 'anker') {
       const mast = liste.find((m) => m.art === 'mast' && m.id === z.id);
@@ -371,7 +403,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}
-      .sk-fuss{font:bold 9px sans-serif}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
+      .sk-fuss{font:9px sans-serif}.sk-steg{fill:none;stroke:#111;stroke-width:1.3}.sk-eta{font-weight:700}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
     ${linien}${leiter}${neu}${marken}${titel}</svg>`;
 }
 

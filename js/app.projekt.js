@@ -49,7 +49,7 @@ const zahl = (v, n = 2) => (Number.isFinite(v) ? v.toFixed(n) : '–');
  * steht im Ergebnis (`fehler`), damit ein Eintrag den Lauf nicht abbricht.
  */
 export function eintragAuswerten(e) {
-  const kopf = { id: e.id, name: e.name ?? '', projekt: e.projekt ?? '' };
+  const kopf = { id: e.id, name: e.name ?? '', projekt: e.projekt ?? '', bemerkung: e.bemerkung ?? '' };
   let w;
   // Wie beim Laden: anheben, dann geht ein Einzelmast im Joch auf, das ihn trägt.
   try { w = einzelmastenAufgehen(standAnheben({ ...standardwerte(), ...(e.werte ?? {}) })).werte; } catch (f) {
@@ -144,7 +144,9 @@ export function eintragSkizze(r) {
   if (!r?.skizze?.linien?.length) return '';
   const zeilen = (r.reaktionen ?? []).map((z) => {
     const m = (r.masten ?? []).find((x) => x.name === z.id);
-    return { ...z, xModell: z.x, name: z.art === 'mast' ? (m?.anzeige ?? z.id)
+    // Stegrichtung fürs Profilzeichen (nur Walzprofile; Gitter- und gespreizte Masten ohne).
+    const steg = z.art === 'mast' && m && /^HE[BMA] /.test(m.profil) ? (m.steg === 'quer' ? 'quer' : 'jochachse') : null;
+    return { ...z, steg, xModell: z.x, name: z.art === 'mast' ? (m?.anzeige ?? z.id)
       : z.art === 'anker' ? `A${m?.anzeige ?? z.id}` : z.id };
   });
   const lage = new Map(zeilen.filter((z) => z.art === 'mast').map((z) => [z.id, z]));
@@ -161,7 +163,8 @@ export function eintragSkizze(r) {
       ? fuss.x : xs.reduce((a, b) => a + b.x, 0) / xs.length;
     if (t.key === 'einzelmast') return;      // der Einzelmast steht beim Masten
     const eta = Number.isFinite(t.eta) ? ` · η ${zahl(t.eta)}` : '';
-    titel.push({ text: `${t.pos} ${t.art} ${t.bau}${eta}`, x: t.key === 'tragausleger' ? x + 2 : x,
+    // Zwei- bis dreizeilig (23. November): Position und Art, Bautyp, η.
+    titel.push({ text: `${t.pos} ${t.art}\n${t.bau}${eta ? `\n${eta.replace(/^ · /, '')}` : ''}`, x: t.key === 'tragausleger' ? x + 2 : x,
                  z: fuss.z + t.H + 0.6, amp: ampelVon(t.eta) });
   });
   (r.masten ?? []).forEach((m) => {
@@ -169,11 +172,11 @@ export function eintragSkizze(r) {
     if (!z) return;
     const e = Math.max(m.eta ?? 0, m.knick ?? 0);
     const len = m.laenge ? ` · ${m.laenge.toFixed(2)} m` : '';
-    titel.push({ text: `${m.profil}${len} · η ${zahl(e)}`, x: z.x, z: kopfZ(z.x, z.z) + 0.25, amp: ampelVon(e) });
+    titel.push({ text: `${m.profil}${len.replace(/^ · /, '\n')}\nη ${zahl(e)}`, x: z.x, z: kopfZ(z.x, z.z) + 0.25, amp: ampelVon(e) });
   });
   const fuss = new Map((r.masten ?? []).filter((m) => m.fundament).map((m) => [m.name,
-    { text: `${m.fundament.typ} · η ${zahl(m.fundament.eta)}`, amp: ampelVon(m.fundament.eta) }]));
-  return skizzeSvg(r.skizze, zeilen, { breite: 620, hoehe: 290, daten: { titel }, fuss });
+    { text: `${m.fundament.typ}\nη ${zahl(m.fundament.eta)}`, amp: ampelVon(m.fundament.eta) }]));
+  return skizzeSvg(r.skizze, zeilen, { breite: 560, hoehe: 280, daten: { titel }, fuss });
 }
 
 /* ---------------------------------------------------------------------- */
@@ -196,8 +199,8 @@ const PARAM = [
   { key: 'radius', kopf: 'R [m]', titel: 'Radius der Trasse (0 = gerade)', zahl: 0 },
   { key: 'reduktion', kopf: 'Wind red.', titel: 'Windreduktion dicht überbautes Gebiet' },
   { key: 'havarie', kopf: 'Havarie', titel: 'Havariefall gerechnet' },
-  { key: 'th2', kopf: 'Th. 2. O.', titel: 'Theorie 2. Ordnung' },
-  { key: 'knicken', kopf: 'Knicken', titel: 'Knicknachweis der Masten' },
+  // «diesen eintrag nicht aufführen» (23. November, mit Bild): Theorie
+  // 2. Ordnung und Knicknachweis stehen nicht in den Grundlagen.
   { key: 'stahl', kopf: 'Stahl', titel: 'Stahlgüte' },
 ];
 const paramText = (p, v) => (p.zahl !== undefined && Number.isFinite(v)
@@ -208,7 +211,8 @@ const STIL = `
   body { font: 10.5px/1.35 system-ui, sans-serif; color: #111; background: #fff; margin: 16px; }
   h1 { font-size: 16px; margin: 0 0 2px; } h2 { font-size: 12.5px; margin: 14px 0 5px; text-transform: uppercase; letter-spacing: .04em; color: #333; }
   .unter { color: #555; margin: 0 0 8px; }
-  .kopf { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .kopf { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .t-info th { width: auto !important; white-space: nowrap; } .t-info td { white-space: nowrap; }
   @media (max-width: 900px) { .kopf { grid-template-columns: 1fr; } }
   table { border-collapse: collapse; width: 100%; font-size: 10px; }
   th, td { border: 1px solid #d0d3d8; padding: 2px 5px; vertical-align: top; }
@@ -227,7 +231,7 @@ const STIL = `
   .seg button { font: inherit; border: 0; border-right: 1px solid #c8ccd2; background: #fff; padding: 3px 10px; cursor: pointer; }
   .seg button:last-child { border-right: 0; } .seg button.an { background: #2f3b8f; color: #fff; }
   .wahl select { font: inherit; padding: 2px 4px; }
-  .liste[hidden] { display: none; }
+  .liste[hidden] { display: none; } .lt { font-size: 11px; margin: 8px 0 3px; }
   tr.zeile { cursor: pointer; } tr.zeile:hover td { background: #f5f7fb; }
   .rollen { overflow-x: auto; }
   .pos { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d3d6dc; border-radius: 4px;
@@ -235,7 +239,7 @@ const STIL = `
   .pos h3 { font-size: 11.5px; margin: 0 0 4px; } .pos .ort { color: #666; font-weight: 400; }
   .pos-in { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .pos table { width: auto; min-width: 300px; }
-  .fehler { color: #b3261e; }
+  .fehler { color: #b3261e; } .kommentar { margin: 0 0 4px; font-style: italic; color: #333; }
   .fuss { margin-top: 12px; font-size: 9px; color: #777; }
   .hinweis { font-size: 9px; color: #555; margin: 3px 0; }
   @media print { .wahl { display: none; } .liste[hidden] { display: block; } .rollen { overflow: visible; }
@@ -260,29 +264,40 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td class="n amp ${ampelVon(max ? etaVon(max) : NaN)}">${zahl(max ? etaVon(max) : NaN)}</td>
       <td>${max ? esc(wer(max)) : '–'}</td></tr>`;
   };
+  // Spalten als Bereiche (23. November: «ich verstehe diese zweite angabe nicht ganz» - «≤ 1.00» meinte 0.90 < η ≤ 1.00).
   const kennzahlen = `<table><thead><tr><th>Gruppe</th><th class="n">Anzahl</th><th class="n">η ≤ 0.90</th>
-      <th class="n">≤ 1.00</th><th class="n">&gt; 1.00</th><th class="n">η max</th><th>massgebend</th></tr></thead><tbody>
+      <th class="n">0.90 &lt; η ≤ 1.00</th><th class="n">η &gt; 1.00</th><th class="n">η max</th><th>massgebend</th></tr></thead><tbody>
     ${kenn('Fundamente', fund, (x) => x.f.eta, (x) => `${x.r.name} · ${x.m.anzeige} · ${x.f.typ} · ${x.f.massgebend?.was ?? ''}`)}
     ${kenn('Masten', mast, (x) => x.eta, (x) => `${x.r.name} · ${x.m.anzeige} · ${x.m.profil}${x.m.knick !== null && x.m.knick >= (x.m.eta ?? 0) ? ' · Knicken' : ''}`)}
     ${kenn('Joche / Ausleger', joch, (x) => x.eta, (x) => `${x.r.name} · ${x.t.pos} ${x.t.art} ${x.t.bau}`)}
   </tbody></table>`;
   /* ---------- Eingabeparameter ---------- */
   const gleich = (p) => { const v = new Set(ok.map((r) => paramText(p, r.param?.[p.key]))); return v.size <= 1 ? [...v][0] ?? '–' : null; };
-  const gemein = `<table class="t-info"><tbody>
-    <tr><th>Projekt</th><td>${esc(res.projekt || 'Ohne Projekt')}</td></tr>
-    <tr><th>Einträge</th><td>${res.eintraege.length} (gerechnet ${ok.length}${res.abgebrochen ? ', abgebrochen' : ''})</td></tr>
-    <tr><th>Rechenverfahren</th><td>Räumliches Stabwerk über das ganze Blatt je Eintrag</td></tr>
-    <tr><th>Fundamente</th><td>charakteristisch gegen zulässige Standardlasten, Fundamentablauf</td></tr>
-    ${PARAM.map((p) => { const v = gleich(p); return `<tr><th title="${esc(p.titel)}">${esc(p.titel)}</th>
-      <td>${v === null ? '<i>je Eintrag verschieden (Tabelle unten)</i>' : esc(v)}</td></tr>`; }).join('')}
-    <tr><th>Stand</th><td>${esc(res.datum)} · ${esc(fassung)}</td></tr></tbody></table>`;
+  /*
+   * KOMPAKT (23. November, «mach das so kompakt wie möglich mit den
+   * grundlagen, es ist viel weisse fläche vorhanden»): Paare in drei
+   * Spalten, kurze Begriffe; je Eintrag nur, was abweicht.
+   */
+  const paare = [
+    ['Einträge', `${res.eintraege.length} (gerechnet ${ok.length}${res.abgebrochen ? ', abgebrochen' : ''})`],
+    ['Rechnung', 'Stabwerk je Blatt'],
+    ['Fundamente', 'char. / Standardlasten, Ablauf'],
+    ...PARAM.map((p) => { const v = gleich(p); return [p.kopf, v === null ? 'je Eintrag ↓' : v, p.titel]; }),
+  ];
+  const SP = 3;
+  const gemein = `<table class="t-info"><tbody>${Array.from({ length: Math.ceil(paare.length / SP) }, (_, i) =>
+    `<tr>${paare.slice(i * SP, i * SP + SP).map(([k, v, t]) => `<th${t ? ` title="${esc(t)}"` : ''}>${esc(k)}</th><td>${esc(v)}</td>`).join('')}</tr>`).join('')}
+  </tbody></table>`;
   const abweichend = new Set(PARAM.filter((p) => gleich(p) === null).map((p) => p.key));
-  const jeEintrag = `<div class="rollen"><table><thead><tr><th>Eintrag</th><th>km</th>
-      ${PARAM.map((p) => `<th title="${esc(p.titel)}">${esc(p.kopf)}</th>`).join('')}</tr></thead><tbody>
-    ${res.eintraege.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.km)}</td>${r.fehler
-      ? `<td colspan="${PARAM.length}" class="fehler">nicht gerechnet: ${esc(r.fehler)}</td>`
-      : PARAM.map((p) => `<td class="${abweichend.has(p.key) ? 'abw' : ''}">${esc(paramText(p, r.param?.[p.key]))}</td>`).join('')}</tr>`).join('')}
-  </tbody></table></div>`;
+  const fehlend = res.eintraege.filter((r) => r.fehler);
+  const PA = PARAM.filter((p) => abweichend.has(p.key));
+  const jeEintrag = PA.length ? `<div class="rollen"><table><thead><tr><th>Eintrag</th><th>km</th>
+      ${PA.map((p) => `<th title="${esc(p.titel)}">${esc(p.kopf)}</th>`).join('')}</tr></thead><tbody>
+    ${ok.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.km)}</td>${PA.map((p) =>
+      `<td>${esc(paramText(p, r.param?.[p.key]))}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>` : '';
+  const fehlerZeile = fehlend.length ? `<p class="hinweis fehler">Nicht gerechnet: ${esc(fehlend.map((r) =>
+    `${r.name} (${r.fehler})`).join('; '))}</p>` : '';
   /* ---------- Listen ---------- */
   const da = new Set();
   fund.forEach((x) => x.f.nachweise.forEach((n) => da.add(n.key)));
@@ -317,16 +332,16 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td class="n amp ${ampelVon(eta)}" data-w="${eta}">${zahl(eta)}</td></tr>`).join('');
   const kopfR = '<th class="s">Eintrag</th><th class="s n">km</th><th class="s">Pos.</th>';
   const listen = `
-  <div class="liste" data-liste="fund"><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th><th>Mast</th>
+  <div class="liste" data-liste="fund"><h3 class="lt">Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th><th>Mast</th>
     ${spalten.map((g) => `<th class="s n">${esc(g.kopf)}</th>`).join('')}<th>massgebend</th><th class="s n">η</th></tr></thead>
     <tbody>${fundZeilen}</tbody></table></div>
     <p class="hinweis">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten; je Grösse η, darunter
       Einwirkung / zulässig [kN, kNm]. Grau: lenkt den Fundamentablauf, kein Nachweis. η nach dem Ablauf.</p></div>
-  <div class="liste" data-liste="mast" hidden><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Profil</th>
+  <div class="liste" data-liste="mast" hidden><h3 class="lt">Masten</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Profil</th>
     <th class="s n">L [m]</th><th>Steg</th><th class="s n">η Querschn.</th><th class="s n">η Knicken</th><th>Anker</th>
     <th>Lastfall</th><th class="s n">η</th></tr></thead><tbody>${mastZeilen}</tbody></table></div>
     <p class="hinweis">Bemessung (Tragsicherheit) aus dem Stabwerk; η = Maximum aus Querschnitt und Knicken (SIA 263).</p></div>
-  <div class="liste" data-liste="joch" hidden><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Art</th>
+  <div class="liste" data-liste="joch" hidden><h3 class="lt">Joche / Ausleger</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Art</th>
     <th class="s">Bautyp</th><th class="s n">H [m]</th><th>Masten</th><th class="s n">η Träger</th><th class="s n">η Aufhäng.</th>
     <th>Lastfall</th><th class="s n">η</th></tr></thead><tbody>${jochZeilen}</tbody></table></div>
     <p class="hinweis">Gurte und Bindebleche aus dem Stabwerk (Tragsicherheit); am Tragausleger dazu die Aufhängung gegen V_zul.</p></div>`;
@@ -347,9 +362,11 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td class="n amp ${ampelVon(m.fundament?.eta)}">${zahl(m.fundament?.eta)}</td>
       <td>${esc(m.fundament?.massgebend?.was ?? '')}</td></tr>`).join('');
     return `<div class="pos" id="pos-${i}">
-      <h3>${esc(r.name)} <span class="ort">${esc([r.linie && `Linie ${r.linie}`, r.km && `km ${r.km}`, r.ortschaft,
-        r.param?.ek].filter(Boolean).join(' · '))}</span></h3>
-      <div class="pos-in"><div>${eintragSkizze(r)}</div>
+      <h3>${esc([r.km && `km ${r.km}`, (r.masten ?? []).map((m) => m.anzeige).join(' – ')].filter(Boolean).join(' · '))}
+        <span class="ort">${esc([r.name, r.linie && `Linie ${r.linie}`, r.ortschaft].filter(Boolean).join(' · '))}</span></h3>
+      ${r.bemerkung ? `<p class="kommentar">${esc(r.bemerkung)}</p>` : ''}
+      <div class="pos-in"><div>${eintragSkizze(r)}<p class="hinweis">Profilzeichen am Mastfuss (Grundriss):
+        H = Steg in der Jochachse, I = Steg quer zur Jochachse.</p></div>
         <table><thead><tr><th></th><th>Bauteil</th><th class="n">η</th><th>massgebend</th></tr></thead>
         <tbody>${tz}${mz}</tbody></table></div></div>`;
   }).join('');
@@ -361,15 +378,14 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   <h1>Projektauswertung</h1>
   <p class="unter">${esc(res.projekt || 'Ohne Projekt')} · ${res.eintraege.length} Einträge · ${esc(res.datum)}</p>
   <div class="kopf">
-    <div><h2>Grundlagen</h2>${gemein}</div>
+    <div><h2>Grundlagen</h2>${gemein}${jeEintrag ? `<p class="hinweis">Je Eintrag verschieden:</p>${jeEintrag}` : ''}</div>
     <div><h2>Kennzahlen</h2>${kennzahlen}
-      <p class="hinweis">Ampel: η ≤ 0.90 · 0.90 &lt; η ≤ 1.00 · η &gt; 1.00. Masten mit Knicken, Joche mit Aufhängung.</p></div>
+      <p class="hinweis">Anzahl Positionen je Bereich des Erfüllungsgrads η. Masten mit Knicken, Joche mit Aufhängung.</p>
+      ${fehlerZeile}</div>
   </div>
-  <h2>Eingabeparameter je Eintrag</h2>${jeEintrag}
-  ${abweichend.size ? '<p class="hinweis">Hinterlegt: Werte, die zwischen den Einträgen abweichen.</p>' : ''}
   <h2>Auswertung</h2>
   <div class="wahl">
-    <span class="seg" data-seg="liste"><button class="an" data-l="fund">Fundamente</button><button data-l="mast">Masten</button><button data-l="joch">Joche</button></span>
+    <span class="seg" data-seg="liste"><button data-l="alle">Alle</button><button class="an" data-l="fund">Fundamente</button><button data-l="mast">Masten</button><button data-l="joch">Joche</button></span>
     <span class="seg" data-seg="amp"><button class="an" data-f="alle">alle</button><button data-f="fail">&gt; 1.00</button><button data-f="warn">0.90-1.00</button><button data-f="ok">≤ 0.90</button></span>
     <label>Ordnen nach ${ordnen(1)}</label><label>dann nach <select data-ordnen="2"><option value="">–</option>
       <option value="eta">η (absteigend)</option><option value="km">km</option><option value="typ">Typ</option><option value="eintrag">Eintrag</option></select></label>
@@ -406,7 +422,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     document.querySelectorAll('[data-seg="liste"] button').forEach(function (b) {
       b.onclick = function () {
         document.querySelectorAll('[data-seg="liste"] button').forEach(function (x) { x.classList.toggle('an', x === b); });
-        listen.forEach(function (l) { l.hidden = l.dataset.liste !== b.dataset.l; });
+        listen.forEach(function (l) { l.hidden = b.dataset.l !== 'alle' && l.dataset.liste !== b.dataset.l; });
       };
     });
     document.querySelectorAll('[data-seg="amp"] button').forEach(function (b) {

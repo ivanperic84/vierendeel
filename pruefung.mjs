@@ -44107,7 +44107,7 @@ titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (
        && html.includes('id="pos-0"') && html.includes('Nicht gerechnet') && html.includes('class="rk-skizze"'));
   // 23. November: technischer Kopf, Listen Fundamente / Masten / Joche, Ordnen nach km und Typ.
   wahr('Grundlagen mit den Eingabeparametern (EK, L_FL, Radius …) und Tabelle je Eintrag',
-       html.includes('Einwirkungsklasse (Wind und Höhenlage)') && html.includes('Eingabeparameter je Eintrag')
+       html.includes('Einwirkungsklasse (Wind und Höhenlage)') && html.includes('class="t-info"')
        && r.param?.ek === 'EK4' && r.param.lfl === 40);
   wahr('Drei Listen (Fundamente, Masten, Joche) mit Umschalter und Ordnen nach η / km / Typ / Eintrag',
        ['data-liste="fund"', 'data-liste="mast"', 'data-liste="joch"', 'data-ordnen="1"', 'data-ordnen="2"',
@@ -44115,7 +44115,11 @@ titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (
   wahr('Masten mit Länge aus dem Modell', r.masten.every((m) => Math.abs(m.laenge - 8.5) < 0.05),
        r.masten.map((m) => m.laenge).join(', '));
   wahr('Skizze: Bautyp mit η über dem Tragwerk, Fundamenttyp mit η unter dem Mastfuss',
-       /Tragjoch J90 · 20\.00 m · η [0-9.]+/.test(html) && /sk-fuss sk-(ok|warn|fail)/.test(html));
+       // Seit dem 23. November mehrzeilig (tspan je Zeile).
+       />T1 Tragjoch<\/tspan><tspan[^>]*>J90 · 20\.00 m<\/tspan><tspan[^>]*>η [0-9.]+</.test(html)
+       && /class="sk-fuss"/.test(html) && /sk-eta sk-(ok|warn|fail)/.test(html));
+  wahr('Grundlagen ohne Theorie 2. Ordnung und Knicknachweis (23. November)',
+       !html.includes('Theorie 2. Ordnung') && !html.includes('Knicknachweis der Masten') && html.includes('>Alle<'));
   const AQ = APP_QUELLE();
   const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
   wahr('Knopf «Auswertung» je Projekt in der Ablage, Ergebnis als Blatt und HTML-Datei',
