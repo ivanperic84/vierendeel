@@ -353,7 +353,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   const kenn = (titel, liste, etaVon, wer) => {
     const z = (a) => liste.filter((x) => ampelVon(etaVon(x)) === a).length;
     const max = liste.reduce((b, x) => (!b || (etaVon(x) ?? 0) > (etaVon(b) ?? 0) ? x : b), null);
-    return `<tr><th>${titel}</th><td class="n">${liste.length}</td><td class="n ok-t">${z('ok')}</td>
+    return `<tr><th style="text-align:left">${titel}</th><td class="n">${liste.length}</td><td class="n ok-t">${z('ok')}</td>
       <td class="n warn-t">${z('warn')}</td><td class="n fail-t">${z('fail')}</td>
       <td class="n amp ${ampelVon(max ? etaVon(max) : NaN)}">${zahl(max ? etaVon(max) : NaN)}</td>
       <td>${max ? esc(wer(max)) : '–'}</td></tr>`;
