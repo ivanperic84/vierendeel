@@ -125,7 +125,9 @@ export const AUFBAU = {
               * und die beiden Abminderungswerte, aus denen der Ablauf eine
               * Überschreitung ausgleicht (core.fundament.js).
               */
-             { name: 'fundamentlasten', pfad: 'fundamentlasten', schluessel: 'id' }],
+             { name: 'fundamentlasten', pfad: 'fundamentlasten', schluessel: 'id' },
+             // Ankerfundamente (23. November): zulässige Lasten mit Ankerplatte.
+             { name: 'ankerfundamente', pfad: 'ankerfundamente', schluessel: 'typ' }],
   },
   tragjoche: {
     titel: 'Tragjochtypen',

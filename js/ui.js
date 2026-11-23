@@ -8482,6 +8482,26 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       fundament.push(kzHtml.slice(0, endeKz) + detail + kzHtml.slice(endeKz));
     });
   }
+  /*
+   * >>> DAS ANKERFUNDAMENT (23. November, core.ankerfundament.js). <<<
+   * Zulässige Lasten mit Ankerplatte, Zug und Druck je V und H_l.
+   */
+  if (urteil.nachweise?.fundament !== false) {
+    Object.entries(opt.swH?.ankerfundamentJe ?? {}).forEach(([id, q]) => {
+      if (!Number.isFinite(q?.eta)) return;
+      const m = q.massgebend;
+      const fF = m ? fz(m.lastfall, m.bez) : null;
+      fundament.push(kachel(`η Fundament A${id}`, f3(q.eta),
+        `${q.typ}${q.gewaehlt ? '' : ' · kleinster passender'}${q.keinerReicht ? ' · keiner reicht' : ''} · Ankerplatte`,
+        ampelU(q.eta), {
+          ...(fF ? { fall: fF.kurz } : {}),
+          nachweisKurz: m ? `massgebend: ${m.was} ${m.wert.toFixed(2)} / ${m.zul} ${m.einheit}` : '',
+          titel: `Ankerfundament ${q.typ} (${q.abmessung}), zulässige Lasten mit Ankerplatte, charakteristisch${
+            q.steil ? ', Gelände > 14° (reduzierter Zug)' : ''}.\n${q.nachweise.map((n) =>
+            `${n.was}: ${n.wert.toFixed(2)} von ${n.zul} ${n.einheit} (η ${f3(n.eta)}) — ${n.bez}`).join('\n')}`,
+        }));
+    });
+  }
   return { mast, anker, fundament, stabil };
 }
 

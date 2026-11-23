@@ -23577,7 +23577,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   // Sechzehn seit dem 7. Oktober: die Fundamentlasten je Gelände.
   // Siebzehn seit dem 8. Oktober: die gespreizten Masten.
   // Achtzehn seit dem 22. November: die Fahrleitungssysteme.
-  pruef('Achtzehn Abschnitte', K.ABSCHNITTE.length, 18, 1e-12, 'Stk');
+  pruef('Neunzehn Abschnitte (seit 23. November: Ankerfundamente)', K.ABSCHNITTE.length, 19, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23661,7 +23661,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle achtzehn Abschnitte', gesamt.abschnitte.length, 18, 1e-12, 'Stk');
+    pruef('… ueber alle neunzehn Abschnitte', gesamt.abschnitte.length, 19, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23783,8 +23783,9 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     // dem 7. Oktober: die Fundamentlasten je Gelaende.
     // Dreizehn seit dem 8. Oktober: die gespreizten Masten.
     // Vierzehn seit dem 22. November: die Fahrleitungssysteme.
-    wahr('Sortiment: vierzehn Abschnitte in sechs Dateien',
-         sort.length === 14 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    // Fuenfzehn seit dem 23. November: die Ankerfundamente.
+    wahr('Sortiment: fuenfzehn Abschnitte in sechs Dateien',
+         sort.length === 15 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -44165,6 +44166,35 @@ titel('335  Ausgangszustand und Änderungsprotokoll der Bauteiltypen (core.proto
   const ST = readFileSync(join(HIER, 'js', 'store.js'), 'utf8');
   wahr('store.sichern führt das Protokoll, ausgangUebernehmen setzt den Ausgang neu',
        ST.includes('protokollNachfuehren(vorher ?? null, e, jetzt)') && ST.includes('export async function ausgangUebernehmen'));
+}
+
+// ===========================================================================
+titel('336  Ankerfundament: zulässige Lasten mit Ankerplatte, Zug / Druck, kleinster Typ');
+{
+  const AF = await import(J('core.ankerfundament.js'));
+  // Erfundene Tabelle (die Betreiberwerte stehen nur in der Datenbasis).
+  const T = [
+    { typ: 'K', zugV: 30, zugHl: 15, druckV: 80, druckHl: 40 },
+    { typ: 'G', zugV: 60, zugHl: 30, druckV: 120, druckHl: 60, zugV_steil: 50, zugHl_steil: 25 },
+  ];
+  const zz = [{ key: 'a', bez: 'Zug', V: -12, H: 9 }, { key: 'b', bez: 'Druck', V: 40, H: 10 }];
+  const n = AF.ankerFundamentNachweis(zz, T);
+  // Klein: Zug V 12/30 = 0.40, H 9/15 = 0.60; Druck V 40/80 = 0.50, H 10/40 = 0.25 -> 0.60.
+  pruef('Kleinster Typ hält: η = max(V, H) je Zustand mit Zug- bzw. Druckspalte', n.eta, 0.6, 1e-12, '');
+  wahr('… Typ K, massgebend H bei Zug', n.typ === 'K' && n.gewaehlt === false && n.massgebend.key === 'Hzug');
+  const n2 = AF.ankerFundamentNachweis([{ key: 'a', bez: 'Zug', V: -40, H: 10 }], T);
+  pruef('Reicht K nicht (Zug 40 > 30), gilt G: 40/60', n2.eta, 40 / 60, 1e-12, '');
+  wahr('… Typ G', n2.typ === 'G');
+  const n3 = AF.ankerFundamentNachweis([{ key: 'a', bez: 'Zug', V: -40, H: 10 }], T, { gelaende: 'ueber14' });
+  pruef('Gelände > 14°: reduzierter Zug 40/50', n3.eta, 0.8, 1e-12, '');
+  const n4 = AF.ankerFundamentNachweis([{ key: 'a', bez: 'Zug', V: -80, H: 10 }], T);
+  wahr('Reicht keiner: der grösste, η > 1, gemeldet', n4.typ === 'G' && n4.keinerReicht === true && n4.eta > 1);
+  const n5 = AF.ankerFundamentNachweis(zz, T, { gewaehlt: 'G' });
+  wahr('Typ von Hand gilt', n5.typ === 'G' && n5.gewaehlt === true);
+  const SW = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
+  const SN = readFileSync(join(HIER, 'js', 'core.stabnachweis.js'), 'utf8');
+  wahr('Stabwerk rechnet es je Anker (ankerfundamentJe), Urteil führt «Fundament A…»',
+       SW.includes('ankerfundamentJe[a.id] = { ...n, quer }') && SN.includes('name: `Fundament A${id}`'));
 }
 
 console.log('\n' + '='.repeat(104));

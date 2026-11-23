@@ -349,6 +349,31 @@ export const ABSCHNITTE = [
       zahl('red_Hl', 'Abminderung M_l je kN H_l', 'kNm/kN', { von: 0, bis: 1000 }),
     ],
   },
+  /* -------------------------------------------------------------------------
+   * >>> ANKERFUNDAMENTE (23. November). <<< Zulässige Lasten mit Ankerplatte
+   * aus dem Bausortiment der Standardfundamente: je Typ Zug (Seilanker,
+   * Druckstütze auf Zug) und Druck (Druckstütze auf Druck), je V und H_l;
+   * im Gelände über 14° reduzierte Zugwerte, wo die Tabelle sie führt.
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'ankerfundamente', db: 'masten', tabelle: 'ankerfundamente', liste: 'ankerfundamente',
+    titel: 'Ankerfundamente', herkunft: 'sortiment', schluessel: 'typ',
+    notiz: 'Zulässige Lasten mit Ankerplatte, angreifend am Fundamentkopf, '
+         + 'charakteristisch, Gelände bis 33°. Zug gilt Seilanker und Druckstütze '
+         + 'auf Zug, Druck der Druckstütze auf Druck.',
+    felder: [
+      text('typ', 'Fundamenttyp', { pflicht: true }),
+      text('abmessung', 'Fundamentkörper', { notiz: 'Querschnitt / Höhe in Metern.' }),
+      zahl('zugV', 'Zug: V', 'kN', { pflicht: true, von: 1, bis: 1000 }),
+      zahl('zugHl', 'Zug: H_l', 'kN', { pflicht: true, von: 1, bis: 1000 }),
+      zahl('druckV', 'Druck: V', 'kN', { pflicht: true, von: 1, bis: 1000 }),
+      zahl('druckHl', 'Druck: H_l', 'kN', { pflicht: true, von: 1, bis: 1000 }),
+      zahl('zugV_steil', 'Zug: V, Gelände > 14°', 'kN', { von: 1, bis: 1000,
+        notiz: 'Leer: wie Zug V.' }),
+      zahl('zugHl_steil', 'Zug: H_l, Gelände > 14°', 'kN', { von: 1, bis: 1000,
+        notiz: 'Leer: wie Zug H_l.' }),
+    ],
+  },
   {
     key: 'gittermasten', db: 'masten', tabelle: 'gittermasten', liste: 'gittermasten',
     titel: 'Gittermasten', herkunft: 'sortiment', schluessel: 'typ',

@@ -1275,6 +1275,12 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       }
     });
   }
+  // Die Ankerfundamente (23. November) - wie die Mastfundamente, immer global.
+  Object.entries(h?.ankerfundamentJe ?? {}).forEach(([id, f]) => {
+    if (!Number.isFinite(f?.eta) || liste.some((x) => x.name === `Fundament A${id}`)) return;
+    dazu({ key: 'fundament', name: `Fundament A${id}`, eta: f.eta, quelle: 'stabwerk',
+           fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: f.ok === false, anker: true });
+  });
   // Die Aufhängung jedes Tragauslegers des Blattes (22. November).
   if (o.global && h?.auslegerJe) {
     Object.entries(h.auslegerJe).forEach(([twId, a]) => {

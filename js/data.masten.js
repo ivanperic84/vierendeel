@@ -104,6 +104,9 @@ export const mastenDbDa = () => Boolean(SORT?.typen?.length);
 /** Alle Fundamenttypen des Sortiments. */
 export const fundamenttypen = () => SORT?.fundamente ?? [];
 
+/** Die Ankerfundamente (23. November, Tabelle `ankerfundamente`). */
+export const ankerfundamenttypen = () => SORT?.ankerfundamente ?? [];
+
 /** Ob die Fundamenttabelle geladen ist. */
 export const fundamenteDa = () => Boolean(SORT?.fundamente?.length);
 

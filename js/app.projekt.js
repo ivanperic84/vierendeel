@@ -175,6 +175,8 @@ export function eintragAuswerten(e) {
       anker: anker ? { typ: anker.typ ?? anker.name ?? 'Anker', eta: anker.eta ?? null } : null,
       // Die Geometrie des Ankers (h, a, Typ) für die Skizze - wie im Reaktionsblatt.
       ankerGeo: m.anker && typeof m.anker === 'object' ? m.anker : null,
+      // Das Ankerfundament (23. November, core.ankerfundament.js).
+      ankerFundament: h.ankerfundamentJe?.[name] ?? null,
       unterbau: m.unterbau?.an === true,
       fundament: f ? {
         typ: f.typ?.typ ?? String(f.typ ?? ''), eta: f.eta ?? null, ok: f.ok,
@@ -249,7 +251,9 @@ export function eintragSkizze(r) {
       const laengs = Math.abs((z.x ?? 0) - (lageVonZeile(z.id) ?? z.x)) < 0.1;
       const typ = m?.ankerGeo?.typ ?? m?.anker?.typ ?? '';
       return { ...z, xModell: z.x, anker: m?.ankerGeo ?? null,
-               nameVoll: `Anker ${m?.anzeige ?? z.id}\n${[typ, laengs ? 'längs' : ''].filter(Boolean).join(' ')}` };
+               amp: ampelVon(m?.ankerFundament?.eta),
+               nameVoll: `Anker ${m?.anzeige ?? z.id}\n${[typ, laengs ? 'längs' : ''].filter(Boolean).join(' ')}${
+                 m?.ankerFundament ? `\n${m.ankerFundament.typ}\nη ${zahl(m.ankerFundament.eta)}` : ''}` };
     }
     return { ...z, steg, xModell: z.x, name: z.art === 'mast' ? (m?.anzeige ?? z.id) : z.id };
   });
@@ -380,7 +384,23 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   const ok = res.eintraege.filter((r) => !r.fehler);
   const idx = (r) => res.eintraege.indexOf(r);
   const kmZahl = (r) => { const v = parseFloat(String(r.km ?? '').replace(/[^0-9.+-]/g, '')); return Number.isFinite(v) ? v : ''; };
-  const fund = ok.flatMap((r) => (r.masten ?? []).filter((m) => m.fundament).map((m) => ({ r, m, f: m.fundament })));
+  /*
+   * Die Ankerfundamente stehen mit in der Fundamentliste (23. November): Pos.
+   * «A M1», η für V in der Spalte V, für H in der Spalte H_l - je der
+   * massgebende aus Zug und Druck.
+   */
+  const ankerF = (m) => {
+    const q = m.ankerFundament;
+    const best = (a, b) => [a, b].filter(Boolean).reduce((x, y) => (!x || y.eta > x.eta ? y : x), null);
+    const nV = best(q.nachweise.find((n) => n.key === 'Vzug'), q.nachweise.find((n) => n.key === 'Vdruck'));
+    const nH = best(q.nachweise.find((n) => n.key === 'Hzug'), q.nachweise.find((n) => n.key === 'Hdruck'));
+    return { typ: `${q.typ} · Anker`, eta: q.eta, massgebend: q.massgebend, ausgeglichen: false,
+             nachweise: [nV && { ...nV, key: 'V', kurz: nV.was }, nH && { ...nH, key: 'Hl', kurz: nH.was }].filter(Boolean) };
+  };
+  const fund = ok.flatMap((r) => (r.masten ?? []).flatMap((m) => [
+    ...(m.fundament ? [{ r, m, f: m.fundament }] : []),
+    ...(m.ankerFundament ? [{ r, m: { ...m, anzeige: `A${m.anzeige}` }, f: ankerF(m) }] : []),
+  ]));
   const mast = ok.flatMap((r) => (r.masten ?? []).map((m) => ({ r, m, eta: Math.max(m.eta ?? 0, m.knick ?? 0) })));
   const joch = ok.flatMap((r) => (r.tragwerke ?? []).filter((t) => t.key !== 'einzelmast')
     .map((t) => ({ r, t, eta: Math.max(t.eta ?? 0, t.aufhaengung ?? 0) })));
@@ -495,7 +515,10 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
         ? ` · ${esc(m.anker.typ)} ${zahl(m.anker.eta)}` : ''}</td></tr>
       <tr><td></td><td>Fundament ${esc(m.fundament?.typ ?? (m.unterbau ? 'Unterbau (nicht nachgewiesen)' : '–'))}</td>
       <td class="n amp ${ampelVon(m.fundament?.eta)}">${zahl(m.fundament?.eta)}</td>
-      <td>${esc(m.fundament?.massgebend?.was ?? '')}</td></tr>`).join('');
+      <td>${esc(m.fundament?.massgebend?.was ?? '')}</td></tr>${m.ankerFundament ? `
+      <tr><td>A${esc(m.anzeige)}</td><td>Ankerfundament ${esc(m.ankerFundament.typ)}</td>
+      <td class="n amp ${ampelVon(m.ankerFundament.eta)}">${zahl(m.ankerFundament.eta)}</td>
+      <td>${esc(m.ankerFundament.massgebend?.was ?? '')}</td></tr>` : ''}`).join('');
     return `<div class="pos" id="pos-${i}">
       <h3>${esc([r.km && `km ${r.km}`, (r.masten ?? []).map((m) => m.anzeige).join(' – ')].filter(Boolean).join(' · '))}
         <span class="ort">${esc([r.name, r.linie && `Linie ${r.linie}`, r.ortschaft,

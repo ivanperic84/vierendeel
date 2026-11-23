@@ -53,7 +53,9 @@ import { linkBedingung } from './core.auflager.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { gitterDiagramm, knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { anteileFuer, kraefteAusAnteilen } from './core.stabnachweis.js';
-import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte, neueTeileSkizze } from './core.reaktionen.js';
+import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell, anschlussKraefte, neueTeileSkizze, zustaendeVon } from './core.reaktionen.js';
+import { ankerFundamentNachweis } from './core.ankerfundament.js';
+import { ankerfundamenttypen } from './data.masten.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -737,8 +739,27 @@ export function rechneStabwerk(app, aufruf = {}) {
    * Charakteristisch, Wind ohne ψ 0.70, Havarie eigene Zeile - für die
    * Tabelle im Reiter Auflager und das Blatt im Export (core.reaktionen.js).
    */
-  const reaktionen = reaktionsZeilen(
-    reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer));
+  const reaktionenRoh = reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer);
+  const reaktionen = reaktionsZeilen(reaktionenRoh);
+  /*
+   * >>> DAS ANKERFUNDAMENT (23. November, core.ankerfundament.js). <<< Je
+   * Anker die charakteristischen Zustände am Fundament (V Druck positiv, H in
+   * Ankerrichtung) gegen die Tabelle mit Ankerplatte; Typ von Hand
+   * (`anker.fundament`) oder der kleinste, der hält. Nur mit der
+   * Nachweisgruppe Fundament.
+   */
+  const ankerfundamentJe = {};
+  if (nachweiseAuswahl(satz.nachweise).fundament !== false && ankerfundamenttypen().length) {
+    (reaktionenRoh.auflager ?? []).filter((a) => a.art === 'anker').forEach((a) => {
+      const m = mastenVon(werte).find((mm) => mastName(werte, mm) === a.id);
+      const quer = m?.anker?.richtung === 'x';
+      const zz = zustaendeVon(reaktionenRoh, a).map((z) => ({ key: z.key, bez: z.bez,
+        V: z.r.uz, H: quer ? z.r.ux : z.r.uy }));
+      const n = ankerFundamentNachweis(zz, ankerfundamenttypen(),
+        { gewaehlt: m?.anker?.fundament || null, gelaende: m?.gelaende ?? '' });
+      if (n) ankerfundamentJe[a.id] = { ...n, quer };
+    });
+  }
   /*
    * Und dieselben Auflager je Gurt (2. Oktober, «hier ein umschalten von
    * resultierende oder einzelgurte. startwert auf resultierende stellen»):
@@ -778,6 +799,7 @@ export function rechneStabwerk(app, aufruf = {}) {
     auslegerJe,
     knick,
     fundamentJe,
+    ankerfundamentJe,
     gitterJe, gespreiztJe,
     ankerJe,
     seile: seile.length,

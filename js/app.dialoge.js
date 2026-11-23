@@ -14,7 +14,7 @@ import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteL
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen, ankerIstDoppelt,
          doppelankerGeometrie, DOPPELANKER_ABSTAND_VOR } from './data.anker.js';
-import { STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
+import { ankerfundamenttypen, STEGRICHTUNGEN, mastprofile, mastprofileWahl, gitterBasisName } from './data.masten.js';
 import { getTragjoch, laengenbereich, tragjoche, sortimentstypen } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
@@ -163,6 +163,14 @@ export function dialogAnker(app, mastId = null) {
       <small class="hinweis">Auf ZUG begrenzt nicht die Stütze, sondern die
         Befestigung.</small></div>` : ''}
 
+    ${/* Das Ankerfundament (23. November): kleinster passender Typ oder von Hand. */''}
+    ${ankerfundamenttypen().length ? `<div class="feld">
+      <label for="dlg-ank-fund">Ankerfundament</label>
+      <select id="dlg-ank-fund"><option value="">kleinster passender Typ</option>${ankerfundamenttypen()
+        .map((t) => `<option value="${esc(t.typ)}"${t.typ === e.fundament ? ' selected' : ''}>${esc(t.typ)}${
+          t.abmessung ? ` (${esc(t.abmessung)})` : ''}</option>`).join('')}</select>
+      <small class="hinweis">Zulässige Lasten mit Ankerplatte (Zug / Druck je V und H_l).</small></div>` : ''}
+
     ${/*
        * DIE BEIDEN FOLGEGROESSEN stehen da, weil man in ihnen denkt: «der
        * anker hat einen winkel von ca 60°» (Weisung, 11. September). Sie
@@ -224,6 +232,8 @@ export function dialogAnker(app, mastId = null) {
     zahl('#dlg-ank-d', 'd');
     const bef = n.querySelector('#dlg-ank-bef');
     if (bef) bef.onchange = () => { e = { ...e, befestigung: bef.value }; };
+    const fund = n.querySelector('#dlg-ank-fund');
+    if (fund) fund.onchange = () => { e = { ...e, fundament: fund.value || null }; };
     const weg = n.querySelector('[data-ank-weg]');
     if (weg) weg.onclick = () => {
       app.werte = setzeMastAnker(app.werte, id, null);

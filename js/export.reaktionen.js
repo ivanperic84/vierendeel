@@ -262,7 +262,10 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   const rand = 26;
   const sx = (breite - 2 * rand) / Math.max(g.x1 - g.x0, 1e-6);
   // Unter dem Fuss: Name, bei der Projektauswertung dazu Profilzeichen und Fundament (23. November).
-  const unten = liste.some((z) => z.steg) || fuss?.size ? 44 : 16;
+  // Mit einem mehrzeiligen Ankerblock (Ankerfundament, 23. November) noch etwas mehr.
+  const ankerZeilen = Math.max(0, ...liste.filter((z) => z.art === 'anker' && z.nameVoll)
+    .map((z) => String(z.nameVoll).split('\n').length));
+  const unten = liste.some((z) => z.steg) || fuss?.size ? Math.max(44, 14 + 10 * ankerZeilen) : 16;
   const sz = (hoehe - 2 * rand - unten) / Math.max(g.z1 - g.z0, 1e-6);
   const s = Math.min(sx, sz);
   const ox = (breite - (g.x1 - g.x0) * s) / 2;
@@ -388,9 +391,13 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
           let links = p1[0] < p0[0];
           if (!links && p1[0] + 6 + lw > breite) links = true;
           if (links && p1[0] - 6 - lw < 0) links = false;
-          const xt = p1[0] + (links ? -6 : 6), yt = p1[1] + (unten > 16 ? -4 - 10 * (zz.length - 1) : 18);
+          // Unter dem Fusspunkt der Strebe, nach aussen (23. November: der Block stiess in den Ausleger).
+          const unterFuss = unten > 16 && z.nameVoll;
+          const xt = unterFuss ? p1[0] + (links ? 8 : -8) : p1[0] + (links ? -6 : 6);
+          const yt = unterFuss ? p1[1] + 17 : p1[1] + (unten > 16 ? -4 - 10 * (zz.length - 1) : 18);
           return `<text x="${r1(xt)}" y="${r1(yt)}" text-anchor="${links ? 'end' : 'start'}">${
-            zz.map((t, i) => `<tspan x="${r1(xt)}" dy="${i ? 10 : 0}">${esc(t)}</tspan>`).join('')}</text>`;
+            zz.map((t, i) => `<tspan x="${r1(xt)}" dy="${i ? 10 : 0}"${/^η /.test(t) && z.amp
+              ? ` class="sk-eta sk-${z.amp}"` : ''}>${esc(t)}</tspan>`).join('')}</text>`;
         })();
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)

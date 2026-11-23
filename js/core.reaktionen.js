@@ -269,6 +269,27 @@ export function reaktionenAusKern(kombi, namen = {}, { alle = false } = {}) {
  * @param {{auflager, faelle}} roh  aus `reaktionenAusStabwerk`
  * @returns {Array} je Auflager { …, haupt, havarie, anteil }
  */
+/**
+ * Die charakteristischen Zustände eines Auflagers einzeln (23. November, für
+ * das Ankerfundament): ständig (beide Hälften), ständig + veränderlich je
+ * Leitwert, Havarie - je {key, bez, r}.
+ */
+export function zustaendeVon(roh, a) {
+  const faelle = roh?.faelle ?? [];
+  const r = (key) => a.proFall.get(key) ?? null;
+  const haelften = faelle.filter(istStaendigHaelfte);
+  const G = haelften.length ? haelften.reduce((s, l) => {
+    const x = r(l.key);
+    if (x) KOMPONENTEN.forEach((c) => { s[c] += x[c]; });
+    return s;
+  }, NULL6()) : null;
+  return [
+    ...(G ? [{ key: 'G', bez: 'Ständig', r: G }] : []),
+    ...faelle.filter(istStaendigPlus).map((l) => ({ key: l.key, bez: l.bez, r: r(l.key) })),
+    ...faelle.filter((l) => l.art === 'aussergewoehnlich').map((l) => ({ key: l.key, bez: l.bez, r: r(l.key) })),
+  ].filter((z) => z.r);
+}
+
 export function reaktionsZeilen(roh) {
   const faelle = roh?.faelle ?? [];
   const haelften = faelle.filter(istStaendigHaelfte);
