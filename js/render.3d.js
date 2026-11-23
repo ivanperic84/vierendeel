@@ -6130,6 +6130,10 @@ export class Modellansicht {
         c.setLineDash([]);
         c.lineWidth = 1.8 * s;
         c.globalAlpha = 1;
+      } else if (l.profilschnitt) {
+        // Profilschnitt am Boden (23. November): «das h transparenter machen».
+        c.strokeStyle = t.on2;
+        c.setLineDash([]); c.lineWidth = 1.2 * s; c.globalAlpha = l.passiv ? 0.2 : 0.35;
       } else if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
         c.strokeStyle = l.passiv ? (t.xdim ?? t.dim) : l.kragarm ? t.acc : t.on2;
         c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);
