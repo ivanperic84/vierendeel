@@ -28,8 +28,11 @@ import { rechneStabwerk } from './app.stabwerk.js';
 import { skizzeSvg } from './export.reaktionen.js';
 import { APP_NAME, sichtbareTragwerke, tragwerksart, tragwerkPos, tragwerkName,
          mastenVon, mastName, mastenFuer, anschlusshoehe, mastAnzeigeKarte, mastAnzeigeText,
-         einzelmastenAufgehen } from './core.constants.js';
+         einzelmastenAufgehen, lageVon, lageOrtsnull } from './core.constants.js';
 import { esc } from './design.js';
+import { normalisiereAnbauteil, expandiereAnbauteile, istSignalModul } from './data.anbauteile.js';
+import { anbauKette, bezugsHoehe } from './core.anbauteile.js';
+import { getFlBauteil } from './data.fl.js';
 import { ekKlasseVon } from './core.lasten.js';
 
 /** Die Grössen des Fundaments als Spalten der Liste, in dieser Reihenfolge. */
@@ -43,6 +46,78 @@ export const PROJEKT_GROESSEN = [
 export const ampelVon = (eta) => (!Number.isFinite(eta) ? 'leer' : eta > 1 ? 'fail' : eta > 0.9 ? 'warn' : 'ok');
 
 const zahl = (v, n = 2) => (Number.isFinite(v) ? v.toFixed(n) : '–');
+
+
+/*
+ * >>> ALLE ANBAUTEILE IN DER SKIZZE (23. November). <<< Weisung, im
+ * Wortlaut: «die anbauteile sind fein eingezeichnet darzustellen (alle nicht
+ * nur hängestützen) sonst denkt der user es sind nicht alle elemente für die
+ * bemessung berücksichtigt.» Das Stabmodell führt nur einen Teil der
+ * Anbauteile als Stäbe (am Abfangjoch und an den Masten stehen sie als
+ * Lasten am Knoten). Gezeichnet wird deshalb aus den Eingaben, wie die
+ * Vorschau der Projektablage (`eintragVorschauHtml`): Kette, Leiter, Abzug,
+ * Fläche - auf dem Blatt, Mastfuss auf z = 0.
+ */
+function anbauGeometrie(w) {
+  const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+  const linien = [], leiter = [], kasten = [];
+  const ms = mastenVon(w).map((m) => ({ m, x: num(m.x) }));
+  sichtbareTragwerke(w).forEach((t) => {
+    const art = tragwerksart(t).key;
+    const H = num(t.mastH, 7.5), L = num(t.L);
+    const x0 = art === 'abfangjoch' ? lageOrtsnull(t) : lageVon(t);
+    const seite = t.auslegerSeite === 'links' ? -1 : 1;
+    const x1 = art === 'tragausleger' ? x0 + seite * L : x0 + L;
+    const jd = art === 'joch' ? Math.max(0.3, num(t.jd, 500) / 1000) : 0.16;
+    const aktive = (t.anbauteile ?? []).filter((a) => a && a.aktiv !== false);
+    let flach = [];
+    try { flach = expandiereAnbauteile(aktive, { ek: 'EK1' }); } catch { flach = []; }
+    aktive.forEach((roh) => {
+      let a;
+      try { a = normalisiereAnbauteil(roh); } catch { return; }
+      const meine = flach.filter((x) => x.baugruppe === a.id);
+      if (!meine.length) return;
+      const zeichne = (kette, welt) => {
+        (kette.glieder ?? []).forEach((g) => {
+          const p = welt(g.von), r = welt(g.bis);
+          if (Math.hypot(p[0] - r[0], p[1] - r[1]) > 1e-3) linien.push([p[0], p[1], r[0], r[1]]);
+        });
+        (kette.belegung ?? []).forEach(({ teil: x, punkt }) => {
+          if (!punkt) return;
+          const [px, pz] = welt(punkt);
+          if (x.rolle === 'drahtwerk') leiter.push([px, pz, x.wirkung?.G === false ? 1 : 0]);
+          else if (x.art === 'modul') {
+            const m = (a.module ?? [])[x.modulIndex];
+            let flaeche = false;
+            try { flaeche = (m && istSignalModul(m)) || getFlBauteil(x.bauteil)?.freieFlaeche === true; } catch { flaeche = false; }
+            if (flaeche) kasten.push([px, pz]);
+          }
+        });
+      };
+      try {
+        if (String(a.ort ?? '').startsWith('mast')) {
+          const soll = a.ort === 'mastB' ? x1 : x0;
+          const mast = ms.find((mm) => a.mastId && mm.m.id === a.mastId)
+            ?? ms.reduce((b, mm) => (!b || Math.abs(mm.x - soll) < Math.abs(b.x - soll) ? mm : b), null);
+          if (!mast) return;
+          zeichne(anbauKette(meine, { x0: 0, zAn: 0, amMast: true }),
+                  (p) => [mast.x + (p.x ?? 0), num(a.hMast) + (p.z ?? 0)]);
+          return;
+        }
+        if (art === 'einzelmast') return;
+        const zOG = H + jd / 2, zUG = H - jd / 2;
+        const stat = art === 'tragausleger' ? x0 + seite * num(a.x) : x0 + num(a.x);
+        const mitTraeger = meine.some((x) => (x.rolle ?? '') === 'traeger');
+        const tr = meine.find((x) => (x.rolle ?? '') === 'traeger') ?? meine[0];
+        const bef = a.befestigung === 'beide' ? 'durchgehend' : a.befestigung;
+        zeichne(anbauKette(meine, { x0: num(a.x),
+          zAn: bezugsHoehe({ befestigung: bef, z: tr?.z ?? 0, mitTraeger }, zOG, zUG) }),
+        (p) => [stat + ((p.x ?? 0) - num(a.x)), p.z ?? 0]);
+      } catch { /* diese Gruppe bleibt ohne Bild */ }
+    });
+  });
+  return { linien, leiter, kasten };
+}
 
 /**
  * Einen Eintrag der Ablage rechnen und auswerten. Wirft nie - ein Fehler
@@ -131,7 +206,18 @@ export function eintragAuswerten(e) {
     knicken: nw.knickenMast === false ? 'aus' : 'ein',
     stahl: [w.stahl, w.stahlMast && w.stahlMast !== w.stahl ? `Mast ${w.stahlMast}` : ''].filter(Boolean).join(' · '),
   };
-  return { ...kopf, ...ort, tragwerke, masten, param, skizze: h.skizze ?? null, reaktionen: h.reaktionen ?? [] };
+  let anbau = null;
+  try {
+    const bezug = masten.find((m) => m.zeile);
+    if (bezug) {
+      const dx = bezug.zeile.x - bezug.x, dz = bezug.zeile.z;
+      const g = anbauGeometrie(w);
+      anbau = { linien: g.linien.map((l) => [l[0] + dx, l[1] + dz, l[2] + dx, l[3] + dz]),
+                leiter: g.leiter.map((p) => [p[0] + dx, p[1] + dz, p[2]]),
+                kasten: g.kasten.map((p) => [p[0] + dx, p[1] + dz]) };
+    }
+  } catch { anbau = null; }
+  return { ...kopf, ...ort, tragwerke, masten, param, anbau, skizze: h.skizze ?? null, reaktionen: h.reaktionen ?? [] };
 }
 
 /**
@@ -162,10 +248,12 @@ export function eintragSkizze(r) {
     const x = t.key === 'tragausleger' || t.key === 'einzelmast'
       ? fuss.x : xs.reduce((a, b) => a + b.x, 0) / xs.length;
     if (t.key === 'einzelmast') return;      // der Einzelmast steht beim Masten
-    const eta = Number.isFinite(t.eta) ? ` · η ${zahl(t.eta)}` : '';
+    // Am Tragausleger zählt die Aufhängung mit (gegen V_zul).
+    const e = Math.max(t.eta ?? 0, t.aufhaengung ?? 0);
+    const eta = Number.isFinite(t.eta) ? ` · η ${zahl(e)}` : '';
     // Zwei- bis dreizeilig (23. November): Position und Art, Bautyp, η.
     titel.push({ text: `${t.pos} ${t.art}\n${t.bau}${eta ? `\n${eta.replace(/^ · /, '')}` : ''}`, x: t.key === 'tragausleger' ? x + 2 : x,
-                 z: fuss.z + t.H + 0.6, amp: ampelVon(t.eta) });
+                 z: fuss.z + t.H + 0.6, amp: ampelVon(e) });
   });
   (r.masten ?? []).forEach((m) => {
     const z = lage.get(m.name);
@@ -176,7 +264,7 @@ export function eintragSkizze(r) {
   });
   const fuss = new Map((r.masten ?? []).filter((m) => m.fundament).map((m) => [m.name,
     { text: `${m.fundament.typ}\nη ${zahl(m.fundament.eta)}`, amp: ampelVon(m.fundament.eta) }]));
-  return skizzeSvg(r.skizze, zeilen, { breite: 560, hoehe: 280, daten: { titel }, fuss });
+  return skizzeSvg(r.skizze, zeilen, { breite: 560, hoehe: 280, daten: { titel }, fuss, anbau: r.anbau });
 }
 
 /* ---------------------------------------------------------------------- */
@@ -195,8 +283,10 @@ export function eintragSkizze(r) {
 const PARAM = [
   { key: 'ek', kopf: 'EK', titel: 'Einwirkungsklasse (Wind und Höhenlage)' },
   { key: 'schnee', kopf: 'Schnee', titel: 'Schnee leitend gerechnet' },
-  { key: 'lfl', kopf: 'L_FL [m]', titel: 'Spannweite der Fahrleitung', zahl: 1 },
-  { key: 'radius', kopf: 'R [m]', titel: 'Radius der Trasse (0 = gerade)', zahl: 0 },
+  // Spannweite und Radius gehören dem Blatt, nicht dem Projekt (23. November:
+  // «die spannweite und der radius sind blatt abhängig und nicht global zu verstehen»).
+  { key: 'lfl', kopf: 'L_FL [m]', titel: 'Spannweite der Fahrleitung', zahl: 1, blatt: true },
+  { key: 'radius', kopf: 'R [m]', titel: 'Radius der Trasse (0 = gerade)', zahl: 0, blatt: true },
   { key: 'reduktion', kopf: 'Wind red.', titel: 'Windreduktion dicht überbautes Gebiet' },
   { key: 'havarie', kopf: 'Havarie', titel: 'Havariefall gerechnet' },
   // «diesen eintrag nicht aufführen» (23. November, mit Bild): Theorie
@@ -282,7 +372,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     ['Einträge', `${res.eintraege.length} (gerechnet ${ok.length}${res.abgebrochen ? ', abgebrochen' : ''})`],
     ['Rechnung', 'Stabwerk je Blatt'],
     ['Fundamente', 'char. / Standardlasten, Ablauf'],
-    ...PARAM.map((p) => { const v = gleich(p); return [p.kopf, v === null ? 'je Eintrag ↓' : v, p.titel]; }),
+    ...PARAM.filter((p) => !p.blatt).map((p) => { const v = gleich(p); return [p.kopf, v === null ? 'je Eintrag ↓' : v, p.titel]; }),
   ];
   const SP = 3;
   const gemein = `<table class="t-info"><tbody>${Array.from({ length: Math.ceil(paare.length / SP) }, (_, i) =>
@@ -290,7 +380,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   </tbody></table>`;
   const abweichend = new Set(PARAM.filter((p) => gleich(p) === null).map((p) => p.key));
   const fehlend = res.eintraege.filter((r) => r.fehler);
-  const PA = PARAM.filter((p) => abweichend.has(p.key));
+  const PA = PARAM.filter((p) => p.blatt || abweichend.has(p.key));
   const jeEintrag = PA.length ? `<div class="rollen"><table><thead><tr><th>Eintrag</th><th>km</th>
       ${PA.map((p) => `<th title="${esc(p.titel)}">${esc(p.kopf)}</th>`).join('')}</tr></thead><tbody>
     ${ok.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.km)}</td>${PA.map((p) =>
@@ -351,7 +441,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       return `<div class="pos" id="pos-${i}"><h3>${esc(r.name)}</h3><p class="fehler">Nicht gerechnet: ${esc(r.fehler)}</p></div>`;
     }
     const tz = (r.tragwerke ?? []).filter((t) => t.key !== 'einzelmast').map((t) => `<tr><td>${esc(t.pos)}</td>
-      <td>${esc(t.art)} ${esc(t.bau)}</td><td class="n amp ${ampelVon(t.eta)}">${zahl(t.eta)}</td>
+      <td>${esc(t.art)} ${esc(t.bau)}</td><td class="n amp ${ampelVon(Math.max(t.eta ?? 0, t.aufhaengung ?? 0))}">${zahl(Math.max(t.eta ?? 0, t.aufhaengung ?? 0))}</td>
       <td>${t.aufhaengung !== null ? `Aufhängung ${zahl(t.aufhaengung)}` : esc(t.bez ?? '')}</td></tr>`).join('');
     const mz = (r.masten ?? []).map((m) => `<tr><td>${esc(m.anzeige)}</td>
       <td>Mast ${esc(m.profil)}${m.laenge ? ` · ${m.laenge.toFixed(2)} m` : ''}</td>
@@ -363,7 +453,9 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td>${esc(m.fundament?.massgebend?.was ?? '')}</td></tr>`).join('');
     return `<div class="pos" id="pos-${i}">
       <h3>${esc([r.km && `km ${r.km}`, (r.masten ?? []).map((m) => m.anzeige).join(' – ')].filter(Boolean).join(' · '))}
-        <span class="ort">${esc([r.name, r.linie && `Linie ${r.linie}`, r.ortschaft].filter(Boolean).join(' · '))}</span></h3>
+        <span class="ort">${esc([r.name, r.linie && `Linie ${r.linie}`, r.ortschaft,
+          `L_FL ${paramText(PARAM.find((p) => p.key === 'lfl'), r.param?.lfl)} m`,
+          `R ${paramText(PARAM.find((p) => p.key === 'radius'), r.param?.radius)}`].filter(Boolean).join(' · '))}</span></h3>
       ${r.bemerkung ? `<p class="kommentar">${esc(r.bemerkung)}</p>` : ''}
       <div class="pos-in"><div>${eintragSkizze(r)}<p class="hinweis">Profilzeichen am Mastfuss (Grundriss):
         H = Steg in der Jochachse, I = Steg quer zur Jochachse.</p></div>
@@ -378,7 +470,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   <h1>Projektauswertung</h1>
   <p class="unter">${esc(res.projekt || 'Ohne Projekt')} · ${res.eintraege.length} Einträge · ${esc(res.datum)}</p>
   <div class="kopf">
-    <div><h2>Grundlagen</h2>${gemein}${jeEintrag ? `<p class="hinweis">Je Eintrag verschieden:</p>${jeEintrag}` : ''}</div>
+    <div><h2>Grundlagen</h2>${gemein}${jeEintrag ? `<p class="hinweis">Je Eintrag (Spannweite und Radius gelten dem Blatt):</p>${jeEintrag}` : ''}</div>
     <div><h2>Kennzahlen</h2>${kennzahlen}
       <p class="hinweis">Anzahl Positionen je Bereich des Erfüllungsgrads η. Masten mit Knicken, Joche mit Aufhängung.</p>
       ${fehlerZeile}</div>

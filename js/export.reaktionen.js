@@ -242,7 +242,7 @@ export function reaktionenKurzHtml(daten) {
  * Masten; er wird seitlich umgeklappt gezeichnet und so angeschrieben.
  */
 export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null, mastGrau = false, bestandGrau = false,
-                                           fuss = null } = {}) {
+                                           fuss = null, anbau = null } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
   // Mitte des Tragwerks - umgeklappte Anker zeigen von ihr weg (21. November).
@@ -279,7 +279,9 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
    * erst lotrecht, dann waagrecht.
    */
   const strich = (kl, a, b, c, d) => `<line${kl} x1="${r1(X(a))}" y1="${r1(Z(b))}" x2="${r1(X(c))}" y2="${r1(Z(d))}"/>`;
-  const linien = skizze.linien.map((l) => {
+  // Mit `anbau` (Projektauswertung, 23. November) kommen alle Anbauteile aus den
+  // Eingaben - dann nicht noch einmal die Anbau-Stäbe und Leiter des Modells.
+  const linien = skizze.linien.filter((l) => !(anbau && l[4] === 2)).map((l) => {
     const kl = l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"'
       : l[4] === 3 && mastGrau ? ' class="sk-mast-grau"' : '';
     if (l[4] === 2 && Math.abs(l[0] - l[2]) > 0.02 && Math.abs(l[1] - l[3]) > 0.02) {
@@ -377,7 +379,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       return `<line class="sk-anker${laengs ? ' sk-umgeklappt' : ''}" x1="${r1(p0[0])}" y1="${r1(p0[1])}" x2="${r1(p1[0])}" y2="${r1(p1[1])}"/>`
         + gelenk(p1[0], p1[1])
         // Die Anschrift weg vom Masten, damit sie nicht an seine stösst.
-        + `<text x="${r1(p1[0] + (p1[0] < p0[0] ? -6 : 6))}" y="${r1(p1[1] + 18)}" text-anchor="${
+        // Mit Profilzeichen am Mastfuss (23. November) steht die Ankeranschrift über dem Grund.
+        + `<text x="${r1(p1[0] + (p1[0] < p0[0] ? -6 : 6))}" y="${r1(p1[1] + (unten > 16 ? -4 : 18))}" text-anchor="${
           p1[0] < p0[0] ? 'end' : 'start'}">${esc(z.name)}${laengs ? ' (längs)' : ''}</text>`;
     }
     return '';                    // Längsanker: kein Lagersymbol (Weisung)
@@ -387,8 +390,14 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
    * Punkt («bei der darstellung der leiter in den reaktionsblättern kein
    * bullseye sonder nur einen einfachen punkt machen»), vorher Ring mit Punkt.
    */
-  const leiter = (skizze.leiter ?? []).map((p) =>
-    `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.9"/>`).join('');
+  const leiter = anbau
+    ? (anbau.linien ?? []).map((l) => strich(' class="sk-anbau-fein"', l[0], l[1], l[2], l[3])).join('')
+      + (anbau.leiter ?? []).map((p) => (p[2]
+        ? `<line class="sk-abzug" x1="${r1(X(p[0]) - 2.5)}" y1="${r1(Z(p[1]))}" x2="${r1(X(p[0]) + 2.5)}" y2="${r1(Z(p[1]))}"/>`
+        : `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.7"/>`)).join('')
+      + (anbau.kasten ?? []).map((p) => `<rect class="sk-kasten" x="${r1(X(p[0]) - 3)}" y="${r1(Z(p[1]) - 3)}" width="6" height="6"/>`).join('')
+    : (skizze.leiter ?? []).map((p) =>
+      `<circle class="sk-leiter" cx="${r1(X(p[0]))}" cy="${r1(Z(p[1]))}" r="1.9"/>`).join('');
   // Die neuen Bauteile in Rot (8. Oktober, Blatt Bestandesschutz).
   const neu = (daten?.neu?.linien ?? []).map((l) =>
     `<line class="sk-neu" x1="${r1(X(l[0]))}" y1="${r1(Z(l[1]))}" x2="${r1(X(l[2]))}" y2="${r1(Z(l[3]))}"/>`).join('')
@@ -407,7 +416,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
       text{font:10px sans-serif;fill:#222}
       .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}
-      .sk-fuss{font:9px sans-serif}.sk-steg{fill:none;stroke:#111;stroke-width:1.3}.sk-eta{font-weight:700}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
+      .sk-fuss{font:9px sans-serif}.sk-anbau-fein{stroke:#1d5fa8;stroke-width:0.8}.sk-abzug{stroke:#c0640a;stroke-width:1.3}
+      .sk-kasten{fill:none;stroke:#1d5fa8;stroke-width:0.9}.sk-steg{fill:none;stroke:#111;stroke-width:1.3}.sk-eta{font-weight:700}.sk-ok{fill:#1c7a3d}.sk-warn{fill:#a86400}.sk-fail{fill:#b3261e}</style>
     ${linien}${leiter}${neu}${marken}${titel}</svg>`;
 }
 
