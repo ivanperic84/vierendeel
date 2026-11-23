@@ -261,11 +261,13 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   });
   const rand = 26;
   const sx = (breite - 2 * rand) / Math.max(g.x1 - g.x0, 1e-6);
-  const sz = (hoehe - 2 * rand - 16) / Math.max(g.z1 - g.z0, 1e-6);
+  // Unter dem Fuss: Name, bei der Projektauswertung dazu Profilzeichen und Fundament (23. November).
+  const unten = liste.some((z) => z.steg) || fuss?.size ? 44 : 16;
+  const sz = (hoehe - 2 * rand - unten) / Math.max(g.z1 - g.z0, 1e-6);
   const s = Math.min(sx, sz);
   const ox = (breite - (g.x1 - g.x0) * s) / 2;
   const X = (x) => ox + (x - g.x0) * s;
-  const Z = (z) => hoehe - rand - 16 - (z - g.z0) * s;
+  const Z = (z) => hoehe - rand - unten - (z - g.z0) * s;
   const r1 = (v) => v.toFixed(1);
   /*
    * >>> ANBAUTEILE RECHTWINKLIG, NICHT DIAGONAL (9. Oktober). <<< Frage mit
@@ -335,19 +337,21 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
        * liegt waagrecht (H), Steg quer steht (I).
        */
       const steg = z.steg === 'jochachse' || z.steg === 'quer' ? (() => {
-        const gx = x - 8 - String(z.name ?? '').length * 3.2, gy = y + 14, a = 4;
+        // Direkt unter der Einspannung, auf der Mastachse (23. November: «die ausrichtungssymbol
+        // direkt unterhalb des masten aufführen und der textblock kann frei angeordnet werden»).
+        const gx = x, gy = y + 13, a = 4;
         return z.steg === 'jochachse'
           ? `<path class="sk-steg" d="M${r1(gx - a)} ${r1(gy - a)}v${2 * a}M${r1(gx + a)} ${r1(gy - a)}v${2 * a}M${r1(gx - a)} ${r1(gy)}h${2 * a}"/>`
           : `<path class="sk-steg" d="M${r1(gx - a)} ${r1(gy - a)}h${2 * a}M${r1(gx - a)} ${r1(gy + a)}h${2 * a}M${r1(gx)} ${r1(gy - a)}v${2 * a}"/>`;
       })() : '';
       return einspannung(x, y) + steg
-        + `<text x="${r1(x)}" y="${r1(y + 18)}" text-anchor="middle">${esc(z.name)}</text>`
+        + `<text x="${r1(x)}" y="${r1(y + (z.steg ? 30 : 18))}" text-anchor="middle">${esc(z.name)}</text>`
         + (f ? (() => {
           // Zeilen mit Zeilenumbruch (23. November): Typ, darunter η.
           const zz = String(f.text).split('\n');
           const hw = Math.max(...zz.map((t) => t.length)) * 2.7 + 2;
           const xf = Math.max(hw, Math.min(breite - hw, x));
-          return `<text class="sk-fuss" x="${r1(xf)}" y="${r1(y + 29)}" text-anchor="middle">${
+          return `<text class="sk-fuss" x="${r1(xf)}" y="${r1(y + (z.steg ? 41 : 29))}" text-anchor="middle">${
             zz.map((t, i) => `<tspan x="${r1(xf)}" dy="${i ? 10 : 0}"${/^η /.test(t)
               ? ` class="sk-eta sk-${f.amp}"` : ''}>${esc(t)}</tspan>`).join('')}</text>`;
         })() : '');
