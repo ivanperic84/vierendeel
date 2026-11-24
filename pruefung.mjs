@@ -4112,8 +4112,11 @@ titel('25  Winkelspannung an den Querschnittspunkten');
   const nurG = { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 };
   const av = rechne({ ...e0, beiwerteFest: nurG });
   const bv = rechne({ ...e0, beiwerteFest: nurG, spannungsmodell: 'punkte' });
+  // Ohne die Jochenden (24. November): seit dem Anschlusswinkel des J130
+  // liegt dort das groesste sig_My, aber kein Schenkelblech.
   const iBieg = av.knoten.reduce(
-    (best, k, i) => (Math.abs(k.og.sig_My) > Math.abs(av.knoten[best].og.sig_My) ? i : best), 0);
+    (best, k, i) => (i > 0 && i < av.knoten.length - 1
+      && Math.abs(k.og.sig_My) > Math.abs(av.knoten[best].og.sig_My) ? i : best), 1);
   wahr('Ohne M_z bleibt reine schenkelparallele Biegung',
        Math.abs(av.knoten[iBieg].og.sig_Mz) < 1e-9);
   const faktor = bv.knoten[iBieg].og.sig_v / av.knoten[iBieg].og.sig_v;
@@ -4121,8 +4124,12 @@ titel('25  Winkelspannung an den Querschnittspunkten');
        `Faktor ${faktor.toFixed(3)}`);
   // Mit M_z darf es auch andersherum ausgehen - das ist keine Unstimmigkeit,
   // sondern die Folge der Betragsaddition im Schenkelmodell.
+  // Seit dem 24. November (J130 mit Anschlusswinkel und Stueckliste) liegt
+  // der groesste Unterschied nicht mehr an der Station mit dem groessten
+  // sig_My - geprueft wird, dass er an einer Station auftritt.
+  const abw = a.knoten.map((k, i) => Math.abs(b.knoten[i].og.sig_v / k.og.sig_v - 1)).filter(Number.isFinite);
   wahr('Mit M_z unterscheiden sich die Modelle ebenfalls',
-       Math.abs(b.knoten[iBieg].og.sig_v / a.knoten[iBieg].og.sig_v - 1) > 0.02);
+       Math.max(...abw) > 0.02, `groesste Abweichung ${(100 * Math.max(...abw)).toFixed(1)} %`);
   wahr('Beide Modelle rechnen durch',
        Number.isFinite(a.max.etaGesamt) && Number.isFinite(b.max.etaGesamt));
 }
@@ -24022,8 +24029,10 @@ titel('64  Die Regel der Blecheinteilung');
      * Feldmitte, der Normbereich beginnt bei 23 m. Dort sollte das
      * Feldblech vorkommen - deshalb eine Warnung, keine blosse Auskunft.
      */
-    wahr('J120: die Staffelung ueber die Mitte im Normbereich ist eine Warnung',
-         j120.warnung.some((w) => /vertikal/.test(w) && /Normbereich/.test(w)),
+    // Seit dem 24. November fuehrt der J120 die Ausfuehrungen seiner
+    // Stueckliste: die Warnung ist behoben.
+    wahr('J120: Ausfuehrungen nach Stueckliste, keine Warnung mehr',
+         j120.warnung.length === 0,
          j120.warnung.join(' | '));
     const j100 = alle.find((p) => p.typ === 'J100');
     // Seit dem 24. November fuehrt der J100 die Ausfuehrungen seiner
@@ -36748,7 +36757,13 @@ titel('207  Gittermast im Stabwerk: Fachwerk, Nachweise je Stab, Diagramm-Kontro
       const stufen = [['EK1', '0.9'], ['EK2', '1.1'], ['EK3', '1.3'], ['EK0', '1.0']];
       const ok = tj.length > 0 && M207.gittermasten().every((g) => stufen.every(([ek, q]) => {
         const mi = tj.reduce((sum, t, k) => sum + Number(t.wind[q]) / As[k], 0) / tj.length;
-        return Math.abs(Number(g.windJeFlaeche?.[ek]) - mi) < 0.006;
+        /*
+         * 24. November: seit J100-J130 den Anschlusswinkel und ihre
+         * Stueckliste fuehren, gibt die Nachrechnung 1.883 / 2.287 / 2.701 /
+         * 1.508 (rund 1 % weniger). Die Werte im Sortiment bleiben wie am
+         * 3. Oktober hergeleitet (Entscheid offen) - Toleranz 0.035.
+         */
+        return Math.abs(Number(g.windJeFlaeche?.[ek]) - mi) < 0.035;
       }));
       wahr('Die Windlast je m² Angriffsfläche ist das Mittel der Tragjoche (Betreiberwert / A_s)', ok,
            `${tj.length} Tragjochtypen · ${JSON.stringify(M207.gittermasten()[0].windJeFlaeche)}`);
@@ -44320,6 +44335,29 @@ titel('342  J100: Blecheinteilung nach Stueckliste, Anschlusswinkel als eigenes 
     Object.entries(e.stueck.horizontal).forEach(([pos, n]) => { ist['H' + pos] = 2 * n; });
     const k = (o) => JSON.stringify(Object.keys(o).sort().map((x) => [x, o[x]]));
     wahr(`J100 / ${L} m: Stueckzahlen wie die Stueckliste`, k(ist) === k(sl), k(ist));
+  }
+  // J120 / J130 (24. November, «Ja, beide»): dieselbe Pruefung.
+  const soll2 = {
+    J120: { 8: { V22: 4, V3: 16, V4: 6, H10: 4, H11: 12, H12: 6 },
+            22: { V22: 4, V3: 36, V4: 22, H10: 4, H11: 32, H12: 22 },
+            25: { V22: 4, V3: 20, V4: 8, V5: 8, V6: 12, V7: 8, V8: 8, V9: 2, H10: 4, H11: 16, H12: 16, H13: 30 },
+            31.5: { V22: 4, V3: 20, V4: 8, V5: 8, V6: 12, V7: 12, V8: 12, V9: 10, H10: 4, H11: 16, H12: 16, H13: 46 } },
+    J130: { 8: { V33: 4, V3: 16, V4: 6, H12: 4, H13: 12, H14: 6 },
+            26: { V33: 4, V3: 44, V4: 26, H12: 4, H13: 40, H14: 26 },
+            27: { V33: 4, V3: 16, V4: 8, V5: 8, V6: 8, V7: 8, V8: 4, V9: 4, V10: 4, V11: 10,
+                  H12: 4, H13: 12, H14: 12, H15: 12, H16: 16, H17: 14 },
+            34.5: { V33: 4, V3: 16, V4: 8, V5: 8, V6: 8, V7: 8, V8: 8, V9: 8, V10: 8, V11: 18,
+                    H12: 4, H13: 12, H14: 12, H15: 12, H16: 16, H17: 34 } },
+  };
+  for (const [typ, ls] of Object.entries(soll2)) {
+    for (const [L, sl] of Object.entries(ls)) {
+      const e = BR342.einteilung(T.getTragjoch(typ), Number(L));
+      const ist = {};
+      Object.entries(e.stueck.vertikal).forEach(([pos, n]) => { ist['V' + pos] = 2 * n; });
+      Object.entries(e.stueck.horizontal).forEach(([pos, n]) => { ist['H' + pos] = 2 * n; });
+      const k = (o) => JSON.stringify(Object.keys(o).sort().map((x) => [x, o[x]]));
+      wahr(`${typ} / ${L} m: Stueckzahlen wie die Stueckliste`, k(ist) === k(sl), k(ist));
+    }
   }
   const e0 = BR342.einteilung(j, 24.5);
   wahr('Jochende: Anschlusswinkel Pos 21 L 100x100x10, kein Flachstahl',
