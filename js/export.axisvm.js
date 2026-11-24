@@ -3246,12 +3246,13 @@ export function stabmodell(m, opt = {}) {
        * Ende kein Flachstahl, sondern ein Winkel (J100 Pos 21, L 100x100x10,
        * L 584). Er steht als Stab wie das Blech an seiner Stelle, mit dem
        * Querschnitt eines Gurtwinkels (A, I, I_yz aus derselben Stelle) und
-       * seinen Schenkeln nach innen: einer in die Jochachse, einer zur
-       * Jochmitte quer. Die Lage seines Schwerpunkts gegen die Blechachse
+       * seinen Schenkeln: einer in der Seitenebene in die Jochachse, einer in
+       * der Stirnebene nach aussen (Ansicht A der Konstruktionszeichnung,
+       * korrigiert am 24. November nach Bild des Auftraggebers). Die Lage seines Schwerpunkts gegen die Blechachse
        * (rund 28 mm) ist nicht abgebildet.
        *
        * Die Drehlage: Ausgangslage Ferse, Schenkel nach lokal +y und +z
-       * (siehe `lcs`). Mit lokal z = quer nach innen (0, a, 0) und lokal
+       * (siehe `lcs`). Mit lokal z = quer nach aussen (0, a, 0) und lokal
        * y = z × x zeigt der zweite Schenkel in die Jochachse, wenn die
        * Stabrichtung dz = sx · a ist - deshalb wird der Stab je nach Ecke
        * vom Ober- zum Untergurt oder umgekehrt gezogen.
@@ -3266,7 +3267,7 @@ export function stabmodell(m, opt = {}) {
       const lV = bv.laenge ?? 0;
       [[`BV_L_${i}`, ogl, ugl, eOGL, eUGL], [`BV_R_${i}`, ogr, ugr, eOGR, eUGR]]
         .forEach(([name, o, u, eo, eu]) => {
-          const a = o.y > 0 ? -1 : +1;                     // quer zur Jochmitte
+          const a = o.y > 0 ? +1 : -1;                     // quer nach aussen
           const lcsZ = [0, a, 0];
           if (sx * a < 0) {                                // dz = −1: Ober- zum Untergurt
             blechStab(name, qs, o, u, { dy: eo.dy, dz: 0 }, { dy: eu.dy, dz: 0 }, lV, sVO, sVU,

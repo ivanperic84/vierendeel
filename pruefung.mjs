@@ -44372,6 +44372,11 @@ titel('342  J100: Blecheinteilung nach Stueckliste, Anschlusswinkel als eigenes 
   const qw = { form: 'Angle', profil: 'L 100x100x10' };
   const sw = SN.stabSpannung(qw, [10, 0, 0, 0, 1, 0.5, 10, 0, 0, 0, 1, 0.5], 'blech');
   wahr('Anschlusswinkel wird wie ein Gurtwinkel nachgewiesen', sw?.art === 'winkel' && sw.sig > 0);
+  // Orientierung nach Ansicht A der Zeichnung (korrigiert 24. November):
+  // Stirnschenkel nach aussen, Seitenschenkel in die Jochachse.
+  wahr('Anschlusswinkel: Stirnschenkel nach aussen (3D und Stabwerk)',
+       readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8').includes('const sy = y > 0 ? +1 : -1;')
+       && AX.includes('const a = o.y > 0 ? +1 : -1;'));
 }
 
 // ===========================================================================

@@ -621,13 +621,15 @@ export function erzeugeSzene(m, erg) {
     const yL = yLinks - aus, yR = yRechts + aus;
     if (bv?.profil) {
       // Anschlusswinkel am Jochende (ab J100, 24. November): zwei Schenkel,
-      // einer in der Seitenebene in die Jochachse, einer quer zur Jochmitte.
+      // einer in der Seitenebene in die Jochachse, einer in der Stirnebene
+      // NACH AUSSEN (Ansicht A der Konstruktionszeichnung: die lichte Weite
+      // 340 mm liegt zwischen den Winkeln).
       const fb = farbeFuer(`blech|V|${bv.pos}|${bv.profil}`,
                            `Anschlusswinkel Pos ${bv.pos} · ${bv.profil}`, 'blech');
       const sx = i === 0 ? +1 : -1;
       const t = bv.dicke * MM;
       [['V_L', yL], ['V_R', yR]].forEach(([id, y]) => {
-        const sy = y > 0 ? -1 : +1;
+        const sy = y > 0 ? +1 : -1;                     // nach aussen
         const opt = { gruppe: 'blech', teil: id, station: i, farbeBauteil: fb,
                       werte: kennwerte(i, id), label: `${id} · Anschlusswinkel Pos ${bv.pos} · ${bv.profil}` };
         const z0 = zBlechUnten[id] + ugAnhebung(st.x), z1 = zBlechOben[id];
