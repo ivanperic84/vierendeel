@@ -44282,6 +44282,9 @@ titel('340  Lastfallliste übersichtlich; Klick auf den Profilschnitt dreht den 
   const UQ = readFileSync(join(HIER, 'js', 'ui.einfach.js'), 'utf8');
   wahr('Karte der Lastbeiwerte erst nach kurzer Zeit (LF_TIP_MS 700)',
        E.LF_TIP_MS === 700 && UQ.includes('uhr = setTimeout(() => zeigen(z), LF_TIP_MS);'));
+  wahr('Reiter gleiten nur 8 px, Welle 7 % deckend',
+       css.includes('@keyframes gleit-r { from { opacity: .4; transform: translateX(8px); }')
+       && css.includes('background: currentColor; opacity: .07; transform: scale(0);'));
 }
 
 // ===========================================================================

@@ -4408,13 +4408,16 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 :root { --t-feder: cubic-bezier(.2, .9, .25, 1.05); }
 .welle-wirt { position: relative; overflow: hidden; }
 .welle { position: absolute; border-radius: 50%; pointer-events: none;
-  background: currentColor; opacity: .18; transform: scale(0);
-  animation: welle .55s cubic-bezier(.2, .7, .3, 1) forwards; }
+  background: currentColor; opacity: .07; transform: scale(0);
+  animation: welle .35s cubic-bezier(.2, .7, .3, 1) forwards; }
 @keyframes welle { to { transform: scale(1); opacity: 0; } }
-.panel-koerper.gleitet-r { animation: gleit-r .34s var(--t-feder); }
-.panel-koerper.gleitet-l { animation: gleit-l .34s var(--t-feder); }
-@keyframes gleit-r { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
-@keyframes gleit-l { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+/* Abgemindert (24. November, «den effekt beim durchklicken der sidebars etwas
+   abmindern zudem den welleneffekt beim anklicken minimal halten»): Reiter
+   8 px statt 28 px, 0.22 s ohne Überschwingen; Welle 7 % deckend, 0.35 s. */
+.panel-koerper.gleitet-r { animation: gleit-r .22s ease-out; }
+.panel-koerper.gleitet-l { animation: gleit-l .22s ease-out; }
+@keyframes gleit-r { from { opacity: .4; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+@keyframes gleit-l { from { opacity: .4; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
 .gleitet-r .kz, .gleitet-l .kz, .gleitet-r .lf-einfach, .gleitet-l .lf-einfach {
   animation: staffel .36s var(--t-feder) both; }
 .gleitet-r .kz:nth-child(2), .gleitet-l .kz:nth-child(2) { animation-delay: .03s; }

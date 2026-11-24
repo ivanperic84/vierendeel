@@ -24,7 +24,7 @@ function welle(e) {
   if (!el || el.disabled || el.closest('canvas')) return;
   zuletzt = el.getBoundingClientRect();
   const r = el.getBoundingClientRect();
-  const d = Math.max(r.width, r.height) * 2.2;
+  const d = Math.max(r.width, r.height) * 1.4;   // klein gehalten (24. November)
   const w = document.createElement('span');
   w.className = 'welle';
   w.style.width = w.style.height = `${d}px`;
