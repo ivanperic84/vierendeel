@@ -44279,6 +44279,9 @@ titel('340  Lastfallliste übersichtlich; Klick auf den Profilschnitt dreht den 
   wahr('Profilschnitt ist Klickziel (Box beim Zeichnen, beiProfil beim Klick)',
        R3.includes('(this._profilTreffer ??= []).push(') && R3.includes('this.opt.beiProfil(pt.mastX)')
        && AQ.includes("beiProfil: (x) => {") && AQ.includes("aendern('mastSteg', jetzt === 'quer' ? 'jochachse' : 'quer');"));
+  const UQ = readFileSync(join(HIER, 'js', 'ui.einfach.js'), 'utf8');
+  wahr('Karte der Lastbeiwerte erst nach kurzer Zeit (LF_TIP_MS 700)',
+       E.LF_TIP_MS === 700 && UQ.includes('uhr = setTimeout(() => zeigen(z), LF_TIP_MS);'));
 }
 
 // ===========================================================================

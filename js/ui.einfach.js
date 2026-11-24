@@ -407,18 +407,29 @@ const tipAttr = (kombi, k) => {
 };
 export { tipAttr as lastfallTipAttr };
 
+export const LF_TIP_MS = 700;
 /** Das schwebende Feld; einmal am Dokument, für jede Zeile mit `data-lf-tip`. */
 export function lfTipVerdrahten() {
   if (typeof document === 'undefined' || document._lfTip) return;
   document._lfTip = true;
-  let tip = null, ueber = null;
-  const weg = () => { tip?.remove(); tip = null; ueber = null; };
+  /*
+   * VERZOEGERT (24. November): «diesen pop up nicht sofort einblenden sonder
+   * erst nach einer kurzen zeit, nur die es interessiert erhalten dieses
+   * fenster, sonst wirkt es etwas unruhig». Erst wer LF_TIP_MS auf einer
+   * Zeile bleibt, bekommt die Karte; wer darüber fährt, sieht nichts.
+   */
+  let tip = null, ueber = null, uhr = null;
+  const weg = () => { clearTimeout(uhr); uhr = null; tip?.remove(); tip = null; ueber = null; };
   document.addEventListener('mouseover', (e) => {
     const z = e.target?.closest?.('[data-lf-tip]');
     if (z === ueber) return;
     weg();
     if (!z) return;
     ueber = z;
+    uhr = setTimeout(() => zeigen(z), LF_TIP_MS);
+  });
+  const zeigen = (z) => {
+    if (ueber !== z || !z.isConnected) return;
     tip = document.createElement('div');
     tip.className = 'lf-tip';
     tip.innerHTML = z.dataset.lfTip;
@@ -428,7 +439,7 @@ export function lfTipVerdrahten() {
     if (x + t.width > window.innerWidth - 6) x = Math.max(6, r.left - t.width - 8);
     const y = Math.min(Math.max(6, r.top), window.innerHeight - t.height - 6);
     tip.style.left = `${x}px`; tip.style.top = `${y}px`;
-  });
+  };
   document.addEventListener('pointerdown', weg, true);
   window.addEventListener('scroll', weg, true);
 }
