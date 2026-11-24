@@ -245,7 +245,9 @@ export function stabSpannung(qs, f, rolle, torsion = null, nurEnde = null, plW =
     { name: 'j', N: f[6], My: f[10], Mz: f[11] },
   ].filter((e) => !nurEnde || e.name === nurEnde);
 
-  if (rolle === 'gurt' && qs.profil) {
+  // Der Anschlusswinkel am Jochende (ab J100, 24. November) ist ein BV-Stab
+  // mit Winkelquerschnitt: er wird wie ein Gurtwinkel nachgewiesen.
+  if ((rolle === 'gurt' || (rolle === 'blech' && qs.form === 'Angle')) && qs.profil) {
     // getProfil wirft bei unbekanntem Namen - hier ist das kein Abbruchgrund.
     let p = null;
     try { p = getProfil(qs.profil); } catch { p = null; }
@@ -603,7 +605,8 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
      * Hülle und Bild weiter über σ laufen. Die elastischen Werte bleiben im
      * Detail (`el`). Liegende Bleche bleiben elastisch (Weisung).
      */
-    if (opt.blechPlastisch === true && rolle === 'blech' && istStehendesBlech(st.name)) {
+    if (opt.blechPlastisch === true && rolle === 'blech' && istStehendesBlech(st.name)
+        && qsMap.get(st.querschnitt)?.form !== 'Angle') {
       const qs = qsMap.get(st.querschnitt);
       const [bB, tB] = qs?.form === 'Rectangle' ? qs.parameter : [];
       if (bB > 0 && tB > 0 && fyd > 0) {

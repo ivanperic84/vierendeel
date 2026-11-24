@@ -24026,8 +24026,11 @@ titel('64  Die Regel der Blecheinteilung');
          j120.warnung.some((w) => /vertikal/.test(w) && /Normbereich/.test(w)),
          j120.warnung.join(' | '));
     const j100 = alle.find((p) => p.typ === 'J100');
-    wahr('J100: ausserhalb des Normbereichs nur ein Hinweis',
-         j100.warnung.length === 0 && j100.hinweis.some((h) => /Feldmitte/.test(h)));
+    // Seit dem 24. November fuehrt der J100 die Ausfuehrungen seiner
+    // Stueckliste - kein Hinweis mehr.
+    wahr('J100: Ausfuehrungen nach Stueckliste, ohne Warnung und Hinweis',
+         j100.warnung.length === 0 && j100.hinweis.length === 0,
+         [...j100.warnung, ...j100.hinweis].join(' | '));
     /*
      * J60 HAT SEINE BLECHE (18. September, aus der Konstruktionszeichnung,
      * Index c). Bis dahin stand hier «ohne Bleche wird genannt»; jetzt muss
@@ -44293,6 +44296,44 @@ titel('340  Lastfallliste übersichtlich; Klick auf den Profilschnitt dreht den 
   wahr('Reiter gleiten nur 8 px, Welle 7 % deckend',
        css.includes('@keyframes gleit-r { from { opacity: .4; transform: translateX(8px); }')
        && css.includes('background: currentColor; opacity: .07; transform: scale(0);'));
+}
+
+// ===========================================================================
+titel('342  J100: Blecheinteilung nach Stueckliste, Anschlusswinkel als eigenes Glied');
+{
+  // Konstruktionszeichnung J100 (Stueckliste je Laengenbereich): Stueck je Pos.
+  const BR342 = await import(J('core.blechregel.js'));
+  const j = T.getTragjoch('J100');
+  const soll = {
+    8:    { V21: 4, V3: 16, V4: 6, H10: 4, H11: 12, H12: 6 },
+    11.5: { V21: 4, V3: 20, V4: 10, H10: 4, H11: 16, H12: 10 },
+    19:   { V21: 4, V3: 32, V4: 18, H10: 4, H11: 28, H12: 18 },
+    20.5: { V21: 4, V3: 16, V4: 8, V5: 8, V6: 4, V7: 4, V8: 4, V9: 10, H10: 4, H11: 16, H12: 12, H13: 22 },
+    23.5: { V21: 4, V3: 16, V4: 8, V5: 8, V6: 8, V7: 8, V8: 4, V9: 10, H10: 4, H11: 16, H12: 12, H13: 30 },
+    24.5: { V21: 4, V3: 16, V4: 8, V5: 8, V6: 8, V7: 8, V8: 8, V9: 10, H10: 4, H11: 16, H12: 12, H13: 34 },
+    29.5: { V21: 4, V3: 16, V4: 8, V5: 8, V6: 8, V7: 8, V8: 8, V9: 22, H10: 4, H11: 16, H12: 12, H13: 46 },
+  };
+  for (const [L, sl] of Object.entries(soll)) {
+    const e = BR342.einteilung(j, Number(L));
+    const ist = {};
+    Object.entries(e.stueck.vertikal).forEach(([pos, n]) => { ist['V' + pos] = 2 * n; });
+    Object.entries(e.stueck.horizontal).forEach(([pos, n]) => { ist['H' + pos] = 2 * n; });
+    const k = (o) => JSON.stringify(Object.keys(o).sort().map((x) => [x, o[x]]));
+    wahr(`J100 / ${L} m: Stueckzahlen wie die Stueckliste`, k(ist) === k(sl), k(ist));
+  }
+  const e0 = BR342.einteilung(j, 24.5);
+  wahr('Jochende: Anschlusswinkel Pos 21 L 100x100x10, kein Flachstahl',
+       e0.stationen[0].vertikal?.pos === 21 && e0.stationen[0].vertikal?.profil === 'L 100x100x10'
+       && e0.stationen.at(-1).vertikal?.pos === 21);
+  const SN = await import(J('core.stabnachweis.js'));
+  const AX = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('Stabwerk: Winkelquerschnitt mit I_yz, Nachweis als Winkel',
+       AX.includes("...gurtQuerschnitt(pw, 'ANSCHLUSS'),") && AX.includes('{ lcsZ, anschlusswinkel: true }')
+       && readFileSync(join(HIER, 'js', 'core.stabnachweis.js'), 'utf8')
+            .includes("(rolle === 'blech' && qs.form === 'Angle')"));
+  const qw = { form: 'Angle', profil: 'L 100x100x10' };
+  const sw = SN.stabSpannung(qw, [10, 0, 0, 0, 1, 0.5, 10, 0, 0, 0, 1, 0.5], 'blech');
+  wahr('Anschlusswinkel wird wie ein Gurtwinkel nachgewiesen', sw?.art === 'winkel' && sw.sig > 0);
 }
 
 // ===========================================================================

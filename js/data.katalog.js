@@ -524,6 +524,15 @@ export const ABSCHNITTE = [
           mm('laenge', 'Länge (quer)', { pflicht: true, von: 50, bis: 2000 }),
           f('zone', 'Zone', 'wahl', { wahl: ['auflager', 'feld', 'voute'],
             notiz: 'Nur horizontale Bleche und die Voute.' }),
+          /*
+           * >>> ANSCHLUSSWINKEL AM JOCHENDE (24. November). <<< Ab J100 sitzt
+           * am Jochende kein Flachstahl, sondern ein Winkel (J100 Pos 21,
+           * L 100x100x10, L 584; Konstruktionszeichnung). Steht hier ein
+           * Profil, rechnet das Stabwerk das Glied als Winkel; breite/dicke
+           * tragen dann Schenkel und Schenkeldicke.
+           */
+          text('profil', 'Profil (Winkel statt Flachstahl)', {
+            notiz: 'Nur der Anschlusswinkel am Jochende, z. B. L 100x100x10.' }),
           text('material', 'Werkstoff'),
         ],
       },
@@ -535,7 +544,7 @@ export const ABSCHNITTE = [
       },
       ausfuehrungen: {
         titel: 'Ausführungen',
-        notiz: 'Nur Altbauweise: je Längenbereich eine eigene Staffelung.',
+        notiz: 'Je Längenbereich eine eigene Staffelung (Stückliste der Konstruktionszeichnung).',
         felder: [
           text('bez', 'Bezeichnung', { pflicht: true }),
           liste('l', 'Längenbereich', 'm', { pflicht: true }),

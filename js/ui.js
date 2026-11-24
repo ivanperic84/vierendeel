@@ -9918,7 +9918,8 @@ function blechZeilen(erg, werte) {
    */
   const nameVon = (art, b) => `${art} ${Number.isFinite(Number(b.pos)) ? `Pos ${b.pos}` : (b.pos ?? '')}`.trim();
   (erg?.modell?.stationsListe ?? []).forEach((s) => {
-    if (s.vertikal) zu(nameVon('Vertikalblech', s.vertikal), s.vertikal.breite, s.vertikal.dicke, s.vertikal.laenge, 2);
+    if (s.vertikal) zu(s.vertikal.profil ? `${nameVon('Anschlusswinkel', s.vertikal)} · ${s.vertikal.profil}`
+                                         : nameVon('Vertikalblech', s.vertikal), s.vertikal.breite, s.vertikal.dicke, s.vertikal.laenge, 2);
     if (s.horizontal) zu(nameVon('Horizontalblech', s.horizontal), s.horizontal.breite, s.horizontal.dicke, s.horizontal.laenge, 2);
   });
   return liste();

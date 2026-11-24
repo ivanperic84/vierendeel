@@ -435,6 +435,9 @@ export function pruefeDatenbank(profilNachName) {
         }
         return;
       }
+      // Der Anschlusswinkel am Jochende (ab J100) reicht über die Gurte:
+      // J100 L 584 bei jd 600 - seine Länge ist kein Blechmass.
+      if (b.profil) return;
       if (Math.abs(b.laenge - sollV) > 0.5) {
         fehler.push(`${j.typ} Pos ${b.pos}: Vertikalblech ${b.laenge} mm, erwartet ` +
                     `${sollV} mm (= jd ${j.jd} − aV,OG ${pOG.aV} − aV,UG ${pUG.aV}).`);

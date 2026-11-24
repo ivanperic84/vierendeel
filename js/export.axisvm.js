@@ -3239,7 +3239,44 @@ export function stabmodell(m, opt = {}) {
     const sHO = steifeLaenge(m.profOG, 'horizontal');
     const sHU = steifeLaenge(m.profUG, 'horizontal');
 
-    if (station.vertikal) {
+    if (station.vertikal?.profil) {
+      /*
+       * >>> DER ANSCHLUSSWINKEL AM JOCHENDE (24. November). <<< Weisung:
+       * «so umsetzen, anschlusswinkel als eigenes glied». Ab J100 sitzt am
+       * Ende kein Flachstahl, sondern ein Winkel (J100 Pos 21, L 100x100x10,
+       * L 584). Er steht als Stab wie das Blech an seiner Stelle, mit dem
+       * Querschnitt eines Gurtwinkels (A, I, I_yz aus derselben Stelle) und
+       * seinen Schenkeln nach innen: einer in die Jochachse, einer zur
+       * Jochmitte quer. Die Lage seines Schwerpunkts gegen die Blechachse
+       * (rund 28 mm) ist nicht abgebildet.
+       *
+       * Die Drehlage: Ausgangslage Ferse, Schenkel nach lokal +y und +z
+       * (siehe `lcs`). Mit lokal z = quer nach innen (0, a, 0) und lokal
+       * y = z × x zeigt der zweite Schenkel in die Jochachse, wenn die
+       * Stabrichtung dz = sx · a ist - deshalb wird der Stab je nach Ecke
+       * vom Ober- zum Untergurt oder umgekehrt gezogen.
+       */
+      const bv = station.vertikal;
+      let pw = null;
+      try { pw = getProfil(bv.profil); } catch { pw = null; }
+      if (!pw) throw new Error(`Anschlusswinkel ${bv.profil}: Profil nicht in der Normtabelle.`);
+      const qs = s.qs({ ...gurtQuerschnitt(pw, 'ANSCHLUSS'),
+                        name: `ANSCHLUSSWINKEL_${bv.profil.replace(/\s+/g, '')}` });
+      const sx = i === 0 ? +1 : -1;                      // in die Jochachse nach innen
+      const lV = bv.laenge ?? 0;
+      [[`BV_L_${i}`, ogl, ugl, eOGL, eUGL], [`BV_R_${i}`, ogr, ugr, eOGR, eUGR]]
+        .forEach(([name, o, u, eo, eu]) => {
+          const a = o.y > 0 ? -1 : +1;                     // quer zur Jochmitte
+          const lcsZ = [0, a, 0];
+          if (sx * a < 0) {                                // dz = −1: Ober- zum Untergurt
+            blechStab(name, qs, o, u, { dy: eo.dy, dz: 0 }, { dy: eu.dy, dz: 0 }, lV, sVO, sVU,
+                      { lcsZ, anschlusswinkel: true });
+          } else {
+            blechStab(name, qs, u, o, { dy: eu.dy, dz: 0 }, { dy: eo.dy, dz: 0 }, lV, sVU, sVO,
+                      { lcsZ, anschlusswinkel: true });
+          }
+        });
+    } else if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
       const lV = station.vertikal.laenge ?? 0;
       blechStab(`BV_L_${i}`, qs, ogl, ugl,
