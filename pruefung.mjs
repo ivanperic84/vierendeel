@@ -37961,7 +37961,7 @@ if (AJ.abfangDbDa()) {
  * alte Modell gegen sich selbst mit Starrfaktor 10 gegen 30: 2.5e-5. Die
  * eta aendern sich in der fuenften Stelle (Blech 0.445415 -> 0.445424).
  * ========================================================================= */
-titel('221  Direkter Weg der Starrglieder im Stabmodell');
+titel('221  Weg der Starrglieder im Stabmodell: rechtwinklig wie im 3D (seit 25. November)');
 {
   const CA221 = await import(J('core.anbauteile.js'));
   const AS221 = await import(J('app.stabwerk.js'));
@@ -38003,39 +38003,36 @@ titel('221  Direkter Weg der Starrglieder im Stabmodell');
   const arme = dat.staebe.filter((s) => /^ARMM?\d+_\d+$/.test(s.name));
   const lastKn = new Set([...(dat.lasten?.punkt ?? []), ...(dat.lasten?.moment ?? [])].map((l) => l.knoten));
   const kettenKn = new Set(arme.map((s) => s.bis));
-  // Ein Knickknoten haette ein weiteres Glied, aber keine Last - deshalb
-  // genuegt «traegt ein weiteres Glied» hier nicht als Kennzeichen.
-  wahr('Jeder Endknoten eines Kettenglieds trägt Last (keine Knickknoten)',
-       kettenKn.size > 0 && [...kettenKn].every((n) => lastKn.has(n)),
-       [...kettenKn].filter((n) => !lastKn.has(n)).join(', ') || `${kettenKn.size} Knoten`);
-  wahr('Am Joch und am Masten läuft mindestens ein Glied schräg (x und z zugleich)',
-       ['ARM', 'ARMM'].every((p) => arme.some((s) => {
-         if (!new RegExp(`^${p}\\d+_`).test(s.name)) return false;
-         const a = dat.knoten.find((q) => q.name === s.von), b = dat.knoten.find((q) => q.name === s.bis);
-         return Math.abs(b.x - a.x) > 1e-6 && Math.abs(b.z - a.z) > 1e-6;
-       })));
+  // 25. November (Weisung «die hängestütze ganz ausbilden und den ausleger
+  // wagrecht machen sinngemäss gleich wie im 3d»): die Kette läuft wieder
+  // über die Knickpunkte des Bildes - es gibt Endknoten ohne Last.
+  wahr('Die Kette führt Knickknoten wie im 3D (Endknoten ohne Last)',
+       [...kettenKn].some((n) => !lastKn.has(n)), `${kettenKn.size} Knoten`);
+  const kn = (n) => dat.knoten.find((q) => q.name === n);
+  wahr('Am Joch und am Masten läuft kein Glied schräg in x und z zugleich',
+       arme.length > 0 && arme.every((s) => {
+         const a = kn(s.von), b = kn(s.bis);
+         return !(Math.abs(b.x - a.x) > 1e-6 && Math.abs(b.z - a.z) > 1e-6);
+       }));
 
-  // (c) Gegenprobe im Loeser: einen Knick wieder einfuegen - die Rechnung bleibt.
-  const schraeg = arme.find((s) => {
-    const a = dat.knoten.find((q) => q.name === s.von), b = dat.knoten.find((q) => q.name === s.bis);
-    return Math.abs(b.x - a.x) > 1e-6 && Math.abs(b.z - a.z) > 1e-6;
-  });
-  if (!schraeg) {
-    wahr('Gegenprobe im Löser: ein schräges Glied ist da', false);
+  // (c) Gegenprobe im Loeser: einen Knick wieder herausnehmen - die Rechnung bleibt.
+  const knick = [...kettenKn].find((n) => !lastKn.has(n)
+    && arme.filter((s) => s.von === n).length === 1);
+  if (!knick) {
+    wahr('Gegenprobe im Löser: ein Knickknoten ist da', false);
   } else {
-  const a0 = dat.knoten.find((q) => q.name === schraeg.von);
-  const b0 = dat.knoten.find((q) => q.name === schraeg.bis);
-  const mitKnick = JSON.parse(JSON.stringify(dat));
-  mitKnick.knoten.push({ ...a0, name: 'KNICK_221', z: b0.z });
-  mitKnick.staebe = mitKnick.staebe.flatMap((s) => (s.name !== schraeg.name ? [s]
-    : [{ ...s, name: `${s.name}_a`, bis: 'KNICK_221' }, { ...s, name: `${s.name}_b`, von: 'KNICK_221' }]));
-  const l1 = SW221.loese(dat), l2 = SW221.loese(mitKnick);
+  const rein = arme.find((s) => s.bis === knick), raus = arme.find((s) => s.von === knick);
+  const ohne = JSON.parse(JSON.stringify(dat));
+  ohne.knoten = ohne.knoten.filter((q) => q.name !== knick);
+  ohne.staebe = ohne.staebe.filter((s) => s.name !== rein.name)
+    .map((s) => (s.name === raus.name ? { ...s, von: rein.von } : s));
+  const l1 = SW221.loese(dat), l2 = SW221.loese(ohne);
   let gross = 0, bezug = 0;
   l1.faelle.forEach((f) => {
     const u1 = l1.u.get ? l1.u.get(f.key ?? f) : l1.u[f.key ?? f];
     const u2 = l2.u.get ? l2.u.get(f.key ?? f) : l2.u[f.key ?? f];
     if (!u1 || !u2) return;
-    dat.knoten.forEach((q) => {
+    ohne.knoten.forEach((q) => {
       const i1 = l1.knotenIdx.get(q.name) * 6, i2 = l2.knotenIdx.get(q.name) * 6;
       for (let j = 0; j < 3; j += 1) {
         bezug = Math.max(bezug, Math.abs(u1[i1 + j]));

@@ -4130,6 +4130,15 @@ body.setzen-an #legende { display: none; }
 .kzd-tab tr.lenkt td { color: var(--dim); }
 .kzd-tab tr.nok td { color: var(--fail); }
 .kzd-fuss { color: var(--dim); }
+.kzd-block { margin: 6px 0 2px; }
+.kzd-kopf { font-size: 11px; padding: 2px 0 2px 6px; border-left: 2px solid var(--ol); }
+.kzd-kopf.ok { border-left-color: var(--ok); }
+.kzd-kopf.ausgl { border-left-color: var(--warn); }
+.kzd-kopf.nok { border-left-color: var(--fail); }
+.kzd-pruef { display: block; font-family: var(--f-mono); font-size: 10.5px; color: var(--dim); }
+.kzd-tab tr.mass td { font-weight: 600; }
+.kzd-tab tr.ausgl td { color: var(--warn); }
+.kzd-anteile > summary { cursor: pointer; color: var(--dim); font-size: 10.5px; margin-top: 2px; }
 
 /* Dimensionieren: Vergleich der angekreuzten Varianten (19. November). */
 .dm-vergleich td.dm-bestwert { font-weight: 700; color: var(--ok); }

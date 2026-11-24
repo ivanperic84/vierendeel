@@ -47,7 +47,7 @@ import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
 import { flLastwerte, getFlBauteil, EINHEIT_EBENEN } from './data.fl.js';
-import { anbauKette, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
+import { anbauKette, istFahrdraht } from './core.anbauteile.js';
 import { rueckhaltSchluessel } from './core.stabrueckhalt.js';
 
 /** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
@@ -481,7 +481,8 @@ export function tragauslegerModell(satz, opt = {}) {
      */
     const kette = anbauKette(s.teile ?? [], { x0: xA, zAn: 0 });
     const hebel = (q) => [r6(q.x - xs[i]), r6(q.y ?? 0), r6(q.z ?? 0)];
-    const glieder = direkteGlieder(kette).map((g) => [hebel(g.von), hebel(g.bis)]);
+    // Rechtwinklig wie im 3D und am Tragjoch (25. November).
+    const glieder = kette.glieder.map((g) => [hebel(g.von), hebel(g.bis)]);
     if (glieder.length) {
       kettenStarr.push({ name: a.name ?? '', knoten: [nm('V', i), nm('H', i)], glieder });
     }

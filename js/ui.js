@@ -8051,6 +8051,60 @@ export function fundamentNachweisKurz(q) {
   return `massgebend: ${code}${grenze}${tr ? ` ${tr[1]}` : ''} ${m.wert.toFixed(2)} / ${m.zul.toFixed(2)} ${m.einheit ?? ''}`.trim();
 }
 
+/*
+ * >>> FUNDAMENTAUSWERTUNG GEGLIEDERT (25. November). <<< Weisung: «kann man
+ * diese fundamentauswertung etwas übersichticher gestalten?» Statt einer
+ * Liste mit 14 Zeilen je Richtung ein Block: Kopf mit dem Ergebnis des
+ * Ablaufs und seiner massgebenden Prüfung (mit dem abgeminderten Wert, gegen
+ * den sie läuft), darunter die Nachweise dieser Richtung - die massgebende
+ * Zeile fett, eine überschrittene, aber ausgeglichene Basisgrösse gelb statt
+ * rot. Die Anteile ständig / veränderlich, die nur den Ablauf lenken, stehen
+ * zugeklappt darunter. V und T gelten beiden Richtungen und stehen zuerst.
+ */
+const FUND_RICHTUNG = { Myy: 'q', Fx: 'q', Mxx: 'l', Fy: 'l' };
+const FUND_GROESSE_KEY = { Mq: 'Mtot', Ml: 'Mtot', Hq: 'Htot', Hl: 'Htot', Mqver: 'Mver', Mlver: 'Mver',
+  Mqst: 'Mst', Mlst: 'Mst', Hqver: 'Hver', Hlver: 'Hver', Hqst: 'Hst', Hlst: 'Hst', V: 'V', T: 'T' };
+function fundamentDetailTabelle(q) {
+  const zeile = (x, kl = '', titel = '') => `<tr class="${kl}" title="${esc(`${x.bez ?? ''}${titel ? ` · ${titel}` : ''}`)}">
+    <td>${esc(x.was)}</td><td class="num">${x.wert.toFixed(2)} / ${esc(String(x.zul))} ${esc(x.einheit ?? '')}</td>
+    <td class="num">${x.lenkt ? '–' : f3(x.eta)}</td></tr>`;
+  const ablauf = q.ablauf ?? {};
+  if (!Object.keys(ablauf).length) {
+    return `<table class="kzd-tab"><tbody>${q.nachweise.map((x) =>
+      zeile(x, x.lenkt ? 'lenkt' : x.eta > 1 ? 'nok' : '')).join('')}</tbody></table>`;
+  }
+  const allg = q.nachweise.filter((x) => !FUND_RICHTUNG[x.feld]);
+  const block = (r, key) => {
+    const m = r.massgebend ?? {};
+    const reihen = q.nachweise.filter((x) => FUND_RICHTUNG[x.feld] === key);
+    const nw = reihen.filter((x) => !x.lenkt), ant = reihen.filter((x) => x.lenkt);
+    const erg = r.ergebnis === 'basis' ? 'alle Basiswerte eingehalten'
+      : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
+      : `nicht zulässig, grösseres Fundament (Schritt ${r.schritt})`;
+    const kl = r.ergebnis === 'nicht' ? 'nok' : r.ergebnis === 'angepasst' ? 'ausgl' : 'ok';
+    const pruef = Number.isFinite(m.wert) && Number.isFinite(m.zul)
+      ? `massgebend ${String(m.was ?? '').split(' ')[0]} ${m.wert.toFixed(2)} / ${m.zul.toFixed(2)} ${m.einheit ?? ''}`
+        + ` · η ${f3(r.eta)}` : '';
+    const art = (x) => {
+      if (FUND_GROESSE_KEY[x.key] === m.groesse) return x.eta > 1 && r.ergebnis !== 'nicht' ? 'mass ausgl' : x.eta > 1 ? 'mass nok' : 'mass';
+      if (x.eta > 1) return r.ergebnis === 'nicht' ? 'nok' : 'ausgl';
+      return '';
+    };
+    return `<div class="kzd-block">
+      <div class="kzd-kopf ${kl}"><b>${r.richtung === 'quer' ? 'Quer zum Gleis' : 'Längs zum Gleis'}</b> · ${esc(erg)}
+        ${pruef ? `<span class="kzd-pruef">${esc(pruef)}</span>` : ''}</div>
+      <table class="kzd-tab"><tbody>${nw.map((x) => zeile(x, art(x),
+        art(x).includes('ausgl') ? 'überschritten, im Ablauf durch Abminderung ausgeglichen' : '')).join('')}</tbody></table>
+      ${ant.length ? `<details class="kzd-anteile"><summary>Anteile ständig / veränderlich (lenken den Ablauf)</summary>
+        <table class="kzd-tab"><tbody>${ant.map((x) => zeile(x, 'lenkt', 'lenkt den Ablauf, kein Nachweis')).join('')}</tbody></table>
+      </details>` : ''}
+    </div>`;
+  };
+  return `${allg.length ? `<div class="kzd-block"><div class="kzd-kopf"><b>Beide Richtungen</b></div>
+      <table class="kzd-tab"><tbody>${allg.map((x) => zeile(x, x.eta > 1 ? 'nok' : '')).join('')}</tbody></table></div>` : ''}
+    ${['q', 'l'].filter((k) => ablauf[k]).map((k) => block(ablauf[k], k)).join('')}`;
+}
+
 /** Welche Fundament-Auswertungen aufgeklappt sind (bleibt beim Neuzeichnen). */
 const FUND_OFFEN = new Set();
 
@@ -8471,14 +8525,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        */
       const detail = `<div class="kz-detail"${FUND_OFFEN.has(name) ? '' : ' hidden'}>
         <p>${esc(nwText)}</p>
-        ${Object.values(q.ablauf ?? {}).map((r) => `<div class="kzd-ablauf"><b>${esc(r.richtung)}:</b> ${esc(
-          r.ergebnis === 'basis' ? 'alle Basiswerte eingehalten'
-            : r.ergebnis === 'angepasst' ? `zulässig mit abgeminderten Werten (Schritt ${r.schritt})`
-            : `nicht zulässig, grösseres Fundament (Schritt ${r.schritt})`)}</div>`).join('')}
-        <table class="kzd-tab"><tbody>${q.nachweise.map((x) => `<tr class="${x.lenkt ? 'lenkt' : x.eta > 1 ? 'nok' : ''}"
-          title="${esc(x.bez ?? '')}${x.lenkt ? ' · lenkt den Ablauf, kein Nachweis' : ''}"><td>${esc(x.was)}</td>
-          <td class="num">${x.wert.toFixed(2)} / ${esc(String(x.zul))} ${esc(x.einheit ?? '')}</td>
-          <td class="num">${x.lenkt ? '–' : f3(x.eta)}</td></tr>`).join('')}</tbody></table>
+        ${fundamentDetailTabelle(q)}
         ${q.abheben ? `<p class="warn">Abheben: ${q.abheben.wert.toFixed(1)} kN in «${esc(q.abheben.bez)}» - die Tabelle gilt für V 0 … 150 kN.</p>` : ''}
         ${Number.isFinite(q.etaBasis) ? `<p class="kzd-fuss">Grösster Basiswert ${f3(q.etaBasis)} (für den Bestandesschutz). Gelände ${esc(gelaendeVon(q.gelaende).text)}.</p>` : ''}
       </div>`;

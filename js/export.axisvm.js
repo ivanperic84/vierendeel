@@ -54,7 +54,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
-import { anbauKette, bezugsEbene, direkteGlieder, istFahrdraht } from './core.anbauteile.js';
+import { anbauKette, bezugsEbene, istFahrdraht } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge, ohneMastLagerung, mastLaengeFuer } from './core.auflager.js';
 import { ankerTraegtDruck, ankerIstDoppelt, doppelankerGeometrie } from './data.anker.js';
 
@@ -1804,8 +1804,8 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
     // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
     const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0, amMast: true });
     const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
-    // Der direkte Weg, ohne Knickpunkte (4. Oktober, `direkteGlieder`).
-    direkteGlieder(kette).forEach((g) => {
+    // Rechtwinklig wie im 3D (25. November, siehe Teile am Joch).
+    kette.glieder.forEach((g) => {
       const p = [r6(xM + g.bis.x), r6(g.bis.y), r6(wurzelKn[1].z + g.bis.z)];
       // Ein Glied ohne Länge ist kein Stab (sonst NaN im ganzen Stabwerk).
       if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }
@@ -4262,7 +4262,17 @@ export function stabmodell(m, opt = {}) {
      * bekommen hier keinen Knoten; das Glied laeuft schraeg vom letzten
      * echten Punkt zum naechsten (`direkteGlieder` in core.anbauteile.js).
      */
-    direkteGlieder(kette).forEach((g) => {
+    /*
+     * >>> WIEDER RECHTWINKLIG WIE IM 3D (25. November). <<< Weisung mit Bild
+     * des AxisVM-Modells: «kannst du die hängestütze ganz ausbilden und den
+     * ausleger wagrecht machen sinngemäss gleich wie im 3d modell app.»
+     * Ändert den direkten Weg vom 4. Oktober: die Kette läuft wie im Bild
+     * (`anbauKette`) über ihre Knickpunkte - die Stütze lotrecht bis zum
+     * Ausleger, der Ausleger waagrecht. Starrglieder: die Rechnung bleibt
+     * (gemessen J90/20 m mit drei Teilen: η gleich auf 1e-5), das Modell
+     * hat einige Knoten und Stäbe mehr.
+     */
+    kette.glieder.forEach((g) => {
       const p = [r6(g.bis.x), r6(g.bis.y), r6(g.bis.z)];
       // Ein Glied ohne Länge ist kein Stab (2. Oktober, `gleicheLage`).
       if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }

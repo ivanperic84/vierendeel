@@ -529,7 +529,11 @@ export function fundamentNachweis(kombi, satz) {
       const m = r.massgebend;
       // Sagt der Ablauf «nicht zulässig», steht die Zahl über 1.00 - auch
       // falls die Prüfung, an der er scheitert, selbst knapp darunter läge.
-      eta = ok ? r.eta : Math.max(r.eta, schlimmste.eta, 1 + 1e-6);
+      // Nur die Prüfung des Wegs (25. November, gemeldet: «der ausnutzungs
+      // faktor ist nicht gleich»): vorher kam hier das Maximum ALLER Zeilen
+      // dazu, samt der Anteile, die nur lenken - Fundament M2 zeigte η 1.890
+      // (M_ver 52.92 / 28) neben «massgebend: M_tot 53.96 / 50.75».
+      eta = ok ? r.eta : Math.max(r.eta, 1 + 1e-6);
       schlimmste = { key: `ablauf-${r.richtung}`, was: `${r.richtung}: ${m.was}`,
         kurz: `${r.richtung} · Schritt ${r.schritt}`,
         wert: m.wert, zul: m.zul, eta: r.eta,
