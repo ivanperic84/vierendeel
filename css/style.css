@@ -40,6 +40,13 @@
   /* Die Lastfall-Insel federt leicht nach (21. November). */
   --t-insel: .42s cubic-bezier(.3, 1.25, .5, 1);
   --t-ruhig: .3s var(--t-kurve);
+  /* Dauern der Animationen (Audit Block 5, 24. November): vorher sieben
+     Zahlen von .14 bis .36 s fuer Ein- und Ausblenden. Drei Stufen wie bei
+     den Uebergaengen; eigene Dauern behalten nur Ereignisse, die man sehen
+     SOLL (Aufleuchten, Puls der Insel, Welle). */
+  --d-schnell: .16s;
+  --d-mittel: .22s;
+  --d-ruhig: .32s;
   interpolate-size: allow-keywords;
 }
 
@@ -117,7 +124,7 @@ small, sub, sup { font-size: max(10px, .83em); }
    zwischen den Gruppen ein Strich. */
 .tb-gruppe { display: flex; gap: 4px; align-items: center; }
 #kopf-werkzeuge .tb-sep { margin: 0 5px; }
-#kopf-werkzeuge .tb-pfeil { margin-left: 3px; font-size: 10px; opacity: .75; }
+#kopf-werkzeuge .tb-pfeil { margin-left: 3px; font-size: 10px; }
 /* DER PROJEKTKNOPF GIBT NACH, NICHT DIE WERKZEUGE. Ohne min-width: 0 blieb
    er so breit wie sein Text, und das Band lief im schmalen Fenster rechts
    hinaus - die Optionen waren dann nicht mehr zu sehen. */
@@ -146,7 +153,7 @@ small, sub, sup { font-size: max(10px, .83em); }
   /* Länger und weicher als zuvor (.2s / ease-in-out): die Kurve unten bremst
      sanft aus, statt am Ende noch Tempo zu haben. Zusammen mit dem etwas
      grösseren Weg liest sich das als Auffahren und nicht als Erscheinen. */
-  animation: schublade-auf .3s cubic-bezier(.16,1,.3,1);
+  animation: schublade-auf var(--d-ruhig) cubic-bezier(.16,1,.3,1);
   transform-origin: top center; will-change: transform, opacity;
 }
 .bannerschublade[hidden] { display: none; }
@@ -286,7 +293,7 @@ small, sub, sup { font-size: max(10px, .83em); }
   display: flex; align-items: center; justify-content: center;
 }
 .split::after {
-  content: ''; width: 4px; height: 40px; border-radius: 3px; background: var(--ol2);
+  content: ''; width: 4px; height: 40px; border-radius: var(--m-r1); background: var(--ol2);
   transition: background var(--t-schnell), height var(--t-schnell);
 }
 .split:hover::after { background: var(--acc); height: 56px; }
@@ -383,7 +390,7 @@ input:disabled, select:disabled {
 }
 .gesperrt > label::after {
   content: 'DB'; font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em;
-  color: var(--dim); border: 1px solid var(--ol); border-radius: 3px;
+  color: var(--dim); border: 1px solid var(--ol); border-radius: var(--m-r1);
   padding: 0 3px; margin-left: auto;
 }
 
@@ -593,7 +600,7 @@ input[type=range].rng {
 .at-neu {
   display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
   font: 600 9.5px var(--f-mono); color: var(--dim); text-transform: uppercase;
-  border: 1px solid var(--ol); border-radius: 3px; padding: 1px 4px;
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 1px 4px;
 }
 .at-neu input { margin: 0; width: 11px; height: 11px; }
 .at-neu.an { color: var(--acc); border-color: var(--acc); background: var(--acc-s); }
@@ -630,7 +637,7 @@ input[type=range].rng {
 .at-karte.markiert .at-zeile { background: var(--acc-s); }
 .at-auswahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 6px 8px; margin: 6px 0; border: 1px solid var(--acc);
-  border-radius: 6px; background: var(--acc-s); font-size: 12px; }
+  border-radius: var(--m-r1); background: var(--acc-s); font-size: 12px; }
 .at-auswahl b { margin-right: auto; }
 .at-pos {
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);
@@ -661,13 +668,13 @@ input[type=range].rng {
 .at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 11.5px; }
 .at-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 /* Reaktionen: Resultierende oder Einzelgurte (2. Oktober). */
-.rk-gurtwahl { display: flex; border: 1px solid var(--ol); border-radius: 6px; overflow: hidden; margin: 4px 0 8px; }
+.rk-gurtwahl { display: flex; border: 1px solid var(--ol); border-radius: var(--m-r1); overflow: hidden; margin: 4px 0 8px; }
 .rk-gurtwahl .at-knopf { padding: 4px 6px; }
 /* Befestigung als Knopfreihe, Raster daneben (2. Oktober). */
 .at-befestigung { display: grid; gap: 3px; grid-column: 1 / -1; }
 .at-bef-titel { font-size: 10px; color: var(--dim); }
 .at-bef-reihe { display: grid; grid-template-columns: 1fr 80px; gap: 6px; align-items: end; }
-.at-knopfreihe { display: flex; border: 1px solid var(--ol); border-radius: 6px; overflow: hidden; }
+.at-knopfreihe { display: flex; border: 1px solid var(--ol); border-radius: var(--m-r1); overflow: hidden; }
 .at-knopf { flex: 1; text-align: center; padding: 5px 4px; font-size: 11px; cursor: pointer;
   color: var(--on2); border-right: 1px solid var(--ol); user-select: none; }
 .at-knopf:last-child { border-right: 0; }
@@ -708,7 +715,7 @@ input[type=range].rng {
 .kachel-weg {
   position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
   border: none; background: none; color: var(--dim); cursor: pointer;
-  border-radius: 3px; line-height: 1; font-size: 13px; padding: 0;
+  border-radius: var(--m-r1); line-height: 1; font-size: 13px; padding: 0;
 }
 .kachel-weg:hover { background: var(--fail-s); color: var(--fail); }
 .at-kopf .btn-mini { padding: 2px 5px; }
@@ -811,7 +818,7 @@ input[type=range].rng {
    beiden anderen, waeren sonst eine Falle. */
 .wirk-bez {
   font-style: normal; font-size: 10px; letter-spacing: .04em;
-  margin-left: 3px; padding: 0 3px; border-radius: 3px;
+  margin-left: 3px; padding: 0 3px; border-radius: var(--m-r1);
   background: var(--s2); color: var(--dim); vertical-align: 1px;
 }
 .wirk-bez.fd { color: var(--acc); }
@@ -856,7 +863,7 @@ input[type=range].rng {
 .kachel-stift {
   position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px;
   border: none; background: none; color: var(--dim); cursor: pointer;
-  border-radius: 3px; line-height: 1; padding: 0; display: grid;
+  border-radius: var(--m-r1); line-height: 1; padding: 0; display: grid;
   place-items: center;
 }
 .kachel-huelle:hover .kachel-stift { color: var(--dim); }
@@ -1009,7 +1016,7 @@ input[type=range].rng {
 .viewer-balken.wickeln { flex-wrap: wrap; }
 .viewer-balken input[type=number] {
   width: 6em; padding: 2px 4px; font: inherit; color: var(--on);
-  background: var(--s1); border: 1px solid var(--ol); border-radius: 3px;
+  background: var(--s1); border: 1px solid var(--ol); border-radius: var(--m-r1);
 }
 /* Die Vorlagenwahl im Balken: eine Spalte je Rolle, darin gleich breite
    Knoepfe untereinander. Als einzelner Fluss verschieden breiter Knoepfe war
@@ -1269,24 +1276,24 @@ button.wz-haupt:hover { color: var(--on); }
 .zl-hinweis { color: var(--dim); font-size: 11px; max-width: 240px; margin-top: 4px; }
 .zl-reihe { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; align-items: center; }
 .zl-reihe button { min-width: 0; padding: 3px 4px; font: inherit; font-size: 11px; color: var(--on);
-  background: var(--s2, rgba(255,255,255,.04)); border: 1px solid var(--ol); border-radius: 4px; cursor: pointer; }
+  background: var(--s2, rgba(255,255,255,.04)); border: 1px solid var(--ol); border-radius: var(--m-r1); cursor: pointer; }
 .zl-reihe button.an { border-color: var(--acc); background: var(--acc-s); }
 .zl-reihe button:disabled { opacity: .35; cursor: default; }
 /* Unterschied nach einer Eingabe (19. November) */
-.kz-delta { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; padding: 0 4px; border-radius: 3px;
+.kz-delta { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; padding: 0 4px; border-radius: var(--m-r1);
   animation: kzDelta 8s ease-out forwards; vertical-align: middle; }
 .kz-delta.auf { color: var(--fail); background: color-mix(in srgb, var(--fail) 14%, transparent); }
 .kz-delta.ab { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
 @keyframes kzDelta { 0% { opacity: 0; transform: translateY(-3px); } 6% { opacity: 1; transform: none; } 85% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .kz-delta { animation: none; } }
 /* Explosion auf/zu (19. November) */
-.wz-mini { font: inherit; font-size: 10px; padding: 0 6px; margin-left: 4px; border: 1px solid var(--ol); border-radius: 4px; background: var(--s2); color: var(--on); cursor: pointer; }
+.wz-mini { font: inherit; font-size: 10px; padding: 0 6px; margin-left: 4px; border: 1px solid var(--ol); border-radius: var(--m-r1); background: var(--s2); color: var(--on); cursor: pointer; }
 .wz-mini:hover { border-color: var(--acc); }
 /* Farbe des Modells zur Linie (19. November) */
 .zl-klein { grid-auto-columns: auto; justify-content: space-between; }
 .zl-haken { display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; }
 .zl select { font: inherit; font-size: 11px; color: var(--on); background: var(--s1); border: 1px solid var(--ol);
-  border-radius: 4px; padding: 3px; }
+  border-radius: var(--m-r1); padding: 3px; }
 .legende-fuss {
   margin-top: 5px; width: 190px; line-height: 1.4; color: var(--dim);
   font-family: var(--f-ui); font-size: 10px;
@@ -1484,7 +1491,7 @@ html[data-stufe="schulung"] option[value="eigen"] { display: none; }
 
 .pl { white-space: nowrap;
   font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; padding: 1px 5px;
-  border-radius: 3px; border: 1px solid; text-transform: uppercase;
+  border-radius: var(--m-r1); border: 1px solid; text-transform: uppercase;
 }
 .pl-ok   { color: var(--ok);   border-color: var(--ok);   background: var(--ok-s); }
 .pl-warn { color: var(--warn); border-color: var(--warn); background: var(--warn-s); }
@@ -2062,7 +2069,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .qp-auge {
   flex: 0 0 13px; width: 13px; height: 13px; padding: 0; cursor: pointer;
   background: var(--s2); border: 1px solid var(--ol2);
-  border-radius: 3px; position: relative;
+  border-radius: var(--m-r1); position: relative;
 }
 .qp-auge.an { background: var(--acc); border-color: var(--acc); }
 .qp-auge.an::after {
@@ -2093,7 +2100,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .qp-eta {
   font-size: 10px; letter-spacing: 0; text-transform: none;
   font-variant-numeric: tabular-nums; white-space: nowrap;
-  padding: 0 3px; border-radius: 3px;
+  padding: 0 3px; border-radius: var(--m-r1);
 }
 .qp-eta.ok   { color: var(--ok);   background: color-mix(in srgb, var(--ok) 14%, transparent); }
 .qp-eta.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
@@ -2338,7 +2345,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .ab-gruppe > summary::-webkit-details-marker { display: none; }
 .ab-projekt {
   font-weight: 500; font-size: 12px; outline: none; cursor: text;
-  border-radius: 3px; padding: 1px 3px; min-width: 40px;
+  border-radius: var(--m-r1); padding: 1px 3px; min-width: 40px;
 }
 .ab-projekt:focus { background: var(--s1); box-shadow: 0 0 0 1px var(--acc); }
 .ab-gruppe .sec-r { margin-left: auto; }
@@ -2624,21 +2631,21 @@ body.datei-ueber::after {
 /* --- Dialoge --------------------------------------------------------------
    Auf und zu. Das Wegräumen wartet auf die Schliessbewegung (dialogLauf in
    app.js); die Dauer unten und DIALOG_ZU_MS dort gehören zusammen. */
-.scrim { animation: scrim-auf .16s ease-out; }
-.dialog { animation: dialog-auf .19s cubic-bezier(.2,.7,.3,1); }
+.scrim { animation: scrim-auf var(--d-schnell) ease-out; }
+.dialog { animation: dialog-auf var(--d-mittel) cubic-bezier(.2,.7,.3,1); }
 @keyframes scrim-auf { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dialog-auf {
   from { opacity: 0; transform: translateY(8px) scale(.985); }
   to   { opacity: 1; transform: none; }
 }
-#ueberlagerung.zu .scrim  { animation: scrim-zu .14s ease-in forwards; }
-#ueberlagerung.zu .dialog { animation: dialog-zu .14s ease-in forwards; }
+#ueberlagerung.zu .scrim  { animation: scrim-zu var(--d-schnell) ease-in forwards; }
+#ueberlagerung.zu .dialog { animation: dialog-zu var(--d-schnell) ease-in forwards; }
 @keyframes scrim-zu { to { opacity: 0; } }
 @keyframes dialog-zu { to { opacity: 0; transform: translateY(6px) scale(.99); } }
 
 /* --- Bannerschublade ------------------------------------------------------
    Aufgefahren ist sie seit jeher gefahren; zugefahren war sie einfach weg. */
-.bannerschublade.zu { animation: schublade-zu .22s cubic-bezier(.5,0,.75,0) forwards; }
+.bannerschublade.zu { animation: schublade-zu var(--d-mittel) cubic-bezier(.5,0,.75,0) forwards; }
 @keyframes schublade-zu {
   to { opacity: 0; transform: translateY(-18px) scaleY(.985); }
 }
@@ -2659,7 +2666,7 @@ body.datei-ueber::after {
 
 /* --- Fassungsbalken (PWA) -------------------------------------------------
    Er erscheint ungefragt, also soll er hereinfahren und nicht dastehen. */
-.pwa-balken { animation: balken-auf .24s cubic-bezier(.2,.7,.3,1); }
+.pwa-balken { animation: balken-auf var(--d-mittel) cubic-bezier(.2,.7,.3,1); }
 @keyframes balken-auf {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: none; }
@@ -2694,7 +2701,9 @@ body.datei-ueber::after {
    dass die ABLAGE noch den Stand von zuletzt traegt. Deshalb dezent in der
    Akzentfarbe und nicht als Warnung. */
 .ungesichert {
-  color: var(--acc-s);
+  /* var(--acc) statt --acc-s (Audit Block 5, 24. November): der Flaechenton
+     mit 10 % Deckkraft liess den Punkt bei 1.15:1 praktisch verschwinden. */
+  color: var(--acc);
   font-style: normal;
   font-weight: 700;
   margin-left: 5px;
@@ -2778,7 +2787,7 @@ body.datei-ueber::after {
 .tl-taste, .tl-fest {
   min-width: 34px; text-align: center;
   font-family: var(--f-mono); font-size: 10.5px;
-  padding: 2px 6px; border-radius: 3px;
+  padding: 2px 6px; border-radius: var(--m-r1);
   border: 1px solid var(--ol2); background: var(--s2); color: var(--on2);
 }
 .tl-taste { cursor: pointer; }
@@ -3000,7 +3009,7 @@ body.datei-ueber::after {
 .al-chip {
   padding: 3px 2px; cursor: pointer; text-align: center; white-space: nowrap;
   background: var(--flaeche2, #0002); border: 1px solid var(--rand, #3334);
-  border-radius: 4px; color: var(--dim, #7a8699);
+  border-radius: var(--m-r1); color: var(--dim, #7a8699);
   font: inherit; font-size: 10.5px; font-family: var(--f-mono);
   overflow: hidden; text-overflow: ellipsis;
 }
@@ -3111,7 +3120,7 @@ body.datei-ueber::after {
 
 .dat-eintrag { display: flex; justify-content: space-between; gap: 8px;
                width: 100%; text-align: left; padding: 5px 7px; border: 0;
-               border-radius: 5px; background: none; color: inherit;
+               border-radius: var(--m-r1); background: none; color: inherit;
                cursor: pointer; font: inherit; font-size: 13px; }
 .dat-eintrag:hover { background: var(--s3); }
 .dat-eintrag.an { background: var(--acc-s);
@@ -3123,7 +3132,7 @@ body.datei-ueber::after {
 /* Die Herkunft steht als Marke am Titel: sie entscheidet, ob die Zahlen in
    eine oeffentliche Ablage duerfen. Das gehoert nicht in eine Fussnote. */
 .dat-herkunft { font-size: 11px; font-weight: 500; padding: 1px 7px;
-                border-radius: 9px; border: 1px solid var(--ol); }
+                border-radius: var(--m-r2); border: 1px solid var(--ol); }
 .dat-herkunft.norm { opacity: .7; }
 .dat-herkunft.sortiment { border-color: var(--warn);
                           color: var(--warn); }
@@ -3134,7 +3143,7 @@ body.datei-ueber::after {
 .dat-meldung ul { margin: 4px 0 0 18px; padding: 0; line-height: 1.5; }
 
 .dat-tabelle-rahmen { overflow: auto; margin-top: 10px;
-                      border: 1px solid var(--ol); border-radius: 6px; }
+                      border: 1px solid var(--ol); border-radius: var(--m-r1); }
 .dat-tabelle { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
 .dat-tabelle th, .dat-tabelle td { padding: 3px 8px;
                                    border-bottom: 1px solid var(--ol); }
@@ -3202,7 +3211,7 @@ body.datei-ueber::after {
 .dat-einzeln ul ul { margin: 2px 0 4px; }
 .dat-alle { margin-top: 12px; font-size: 12px; }
 .dat-alle summary { cursor: pointer; font-weight: 600; }
-.dat-meldung.offen { padding: 6px 10px; border-radius: 6px; margin: 8px 0;
+.dat-meldung.offen { padding: 6px 10px; border-radius: var(--m-r1); margin: 8px 0;
                      border: 1px solid var(--ol); }
 .dat-meldung.fehler.offen { border-color: var(--fail); background: var(--fail-s); }
 .dat-meldung.warnung.offen { border-color: var(--warn); background: var(--warn-s); }
@@ -3276,7 +3285,7 @@ body.datei-ueber::after {
 .qp-marken { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 .qp-marken .qp-eta { font-size: 10px; }
 .qp-chip {
-  font-size: 10px; padding: 0 4px; border-radius: 3px; white-space: nowrap;
+  font-size: 10px; padding: 0 4px; border-radius: var(--m-r1); white-space: nowrap;
   color: var(--on2); border: 1px solid var(--ol2); background: none; line-height: 14px;
 }
 .qp-chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
@@ -3344,7 +3353,7 @@ body.datei-ueber::after {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   margin: 8px 0; padding: 7px 10px;
   border: 1px solid var(--ol); border-left: 3px solid var(--ol);
-  border-radius: 6px; background: var(--s2);
+  border-radius: var(--m-r1); background: var(--s2);
 }
 .stabwerk-leiste .notiz { margin: 0; flex: 1 1 180px; min-width: 120px; }
 .stabwerk-leiste .urteil-zahl { font-size: 17px; font-weight: 600; }
@@ -3360,7 +3369,7 @@ body.datei-ueber::after {
 /* Die Marke sagt in einem Wort, worauf die Zahlen daneben stehen. */
 .sw-marke {
   font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 10px;
+  padding: 2px 7px; border-radius: var(--m-r2);
   border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
 }
 .sw-marke.warn { border-color: var(--warn); color: var(--warn); }
@@ -3399,7 +3408,7 @@ body.datei-ueber::after {
   margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--ol);
 }
 .sw-bauteil {
-  font-size: 11px; padding: 2px 7px; border-radius: 10px;
+  font-size: 11px; padding: 2px 7px; border-radius: var(--m-r2);
   border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
 }
 .sw-bauteil b { font-weight: 600; }
@@ -3425,7 +3434,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 
 /* Grundwerte des Querprofils im Dialog «Neues Tragwerk» (29. September):
    EK, Spannweite, Radius - sie gehören dem Blatt, deshalb abgesetzt. */
-.dlg-grundwerte { border: 1px solid var(--ol); border-radius: 6px;
+.dlg-grundwerte { border: 1px solid var(--ol); border-radius: var(--m-r1);
   padding: 6px 10px 10px; margin: 10px 0; }
 .dlg-grundwerte legend { font-size: 11px; color: var(--dim); padding: 0 4px; }
 .dlg-nicht-mehr { display: flex; gap: 6px; align-items: center;
@@ -3446,10 +3455,10 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .sig-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
   gap: 6px; margin: 4px 0 6px; }
 .sig-kachel { display: flex; flex-direction: column; align-items: center; gap: 3px;
-  border: 1px solid var(--ol); border-radius: 6px; padding: 5px 4px 4px; }
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 5px 4px 4px; }
 .sig-kachel.an { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
 .sig-bild { width: 100%; height: 64px; display: flex; align-items: center; justify-content: center;
-  background: #fff; border: 0; border-radius: 4px; cursor: pointer; padding: 3px; }
+  background: #fff; border: 0; border-radius: var(--m-r1); cursor: pointer; padding: 3px; }
 .sig-bild img { max-width: 100%; max-height: 58px; object-fit: contain; }
 .sig-ohne { font: 600 18px/1 var(--mono, monospace); color: #333; }
 .sig-name { font-size: 10.5px; line-height: 1.2; text-align: center; color: var(--on2);
@@ -3464,8 +3473,8 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .sig-gewaehlt { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-items: center;
   padding: 4px 0 6px; border-bottom: 1px solid var(--ol); margin-bottom: 4px; font-size: 11.5px; }
 .sig-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--acc);
-  border-radius: 12px; padding: 1px 8px 1px 2px; color: var(--on); }
-.sig-chip img { height: 20px; width: 20px; object-fit: contain; background: #fff; border-radius: 3px; }
+  border-radius: var(--m-r2); padding: 1px 8px 1px 2px; color: var(--on); }
+.sig-chip img { height: 20px; width: 20px; object-fit: contain; background: #fff; border-radius: var(--m-r1); }
 
 /* Mastwahl im Dialog «Neues Tragwerk» (30. September). */
 .dlg-masten { display: flex; gap: 8px; align-items: center; }
@@ -3484,7 +3493,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 /* Symbole im Grau des Ankers (30. September: «mach die in der gleichen
    grauen farbe wie den anker»). */
 .qp-kachel { border: 1px solid var(--acc); background: transparent; color: var(--on2);
-  border-radius: 6px; padding: 6px 4px 5px; font-size: 10px; line-height: 1.15;
+  border-radius: var(--m-r1); padding: 6px 4px 5px; font-size: 10px; line-height: 1.15;
   cursor: grab; text-align: center; display: flex; flex-direction: column;
   align-items: center; gap: 3px; }
 /* Das Symbol oben, die Anschrift klein darunter (30. September). */
@@ -3547,7 +3556,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 [data-bestand-blatt] { margin: 8px 0 0; }
 /* Vorschau eines gespeicherten Eintrags beim Überfahren (9. Oktober, B7). */
 .ab-vorschau { position: fixed; z-index: 400; pointer-events: none; width: 320px; padding: 9px 10px;
-  background: var(--s1); border: 1px solid var(--acc); border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  background: var(--s1); border: 1px solid var(--acc); border-radius: var(--m-r1); box-shadow: 0 8px 28px rgba(0,0,0,.45);
   font-size: 11px; color: var(--on); }
 .ab-vorschau[hidden] { display: none; }
 .ab-vs-titel { font-weight: 600; margin-bottom: 4px; } .ab-vs-titel span { color: var(--on2); font-weight: 400; }
@@ -3600,7 +3609,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
   text-transform: none; letter-spacing: 0; }
 .rk-kurz .rk-einheit { color: var(--dim); font-size: 10px; }
 .rk-kurz tr.rk-grp th { color: var(--dim); font-size: 10px; letter-spacing: .04em; padding-top: 6px; border-bottom: 0; }
-.rk-kurz.rk-summe { background: var(--acc-s); border-radius: 4px; }
+.rk-kurz.rk-summe { background: var(--acc-s); border-radius: var(--m-r1); }
 .rk-kurz .rk-fallspalte { color: var(--dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-kurz .rk-fall { display: block; color: var(--dim); font-size: 10px; line-height: 1.15; white-space: normal; }
 .rk-kurz .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -3637,7 +3646,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 }
 /* Klappknopf der Positionslegende (6. Oktober). */
 .legende-klapp { font: inherit; font-size: 10px; color: var(--on2); background: transparent;
-  border: 1px solid var(--ol); border-radius: 4px; padding: 0 5px; margin-left: 6px; cursor: pointer; }
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 5px; margin-left: 6px; cursor: pointer; }
 .legende-klapp:hover { background: var(--s3); }
 /* Gruppe der Anbauteile im Modell ausgeblendet (6. Oktober). */
 .at-auge { margin-left: 6px; vertical-align: middle; }
@@ -3683,7 +3692,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .at-gform .breit2 { grid-column: 1 / 3; }
 .at-gfarben { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .at-gfarbe {
-  width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--ol);
+  width: 20px; height: 20px; border-radius: var(--m-r1); border: 1px solid var(--ol);
   cursor: pointer; padding: 0;
 }
 .at-gfarbe.auto {
@@ -3711,7 +3720,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .aend-rechnung { display: inline-block; min-width: 1.2em; text-align: center; color: var(--warn, #d9a441); font-weight: 600; }
 
 /* Rückhaltekraft: Info, wenn sie das Joch höher belastet (10. Oktober). */
-.rh-info { margin: 8px 0; padding: 7px 9px; border: 1px solid var(--warn); border-left-width: 3px; border-radius: 6px;
+.rh-info { margin: 8px 0; padding: 7px 9px; border: 1px solid var(--warn); border-left-width: 3px; border-radius: var(--m-r1);
   background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 11.5px; color: var(--on); }
 .rh-info.nok { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 9%, transparent); }
 .rh-info ul { margin: 3px 0 3px 16px; padding: 0; } .rh-info span { color: var(--on2); font-size: 10.5px; }
@@ -3818,7 +3827,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
  * ========================================================================= */
 .stufe-band {
   display: none; align-items: center; gap: 6px; margin-left: 8px;
-  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--m-r1); font-size: 11px; font-weight: 600;
   border: 1px solid var(--fail, #c33); color: var(--fail, #c33);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
   min-width: 0; flex-shrink: 20;
@@ -3849,9 +3858,9 @@ html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !
 .ef-zeile .ef-wert { grid-area: wert; }
 .ef-zeile .ef-bahn { grid-area: bahn; }
 .ef-zeile .ef-wer { grid-area: wer; }
-.ef-bahn { position: relative; height: 6px; border-radius: 3px; background: var(--s2);
+.ef-bahn { position: relative; height: 6px; border-radius: var(--m-r1); background: var(--s2);
   border: 1px solid var(--ol); }
-.ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+.ef-balken { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--m-r1);
   background: var(--ok); opacity: .85; }
 .ef-balken.warn { background: var(--warn); } .ef-balken.fail { background: var(--fail); }
 .ef-grenze { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 1px;
@@ -3866,7 +3875,7 @@ html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !
 .ef-det > summary:hover .ef-name { color: var(--on); }
 .ef-det[open] .ef-wer { color: var(--on2); }
 .ef-nachweis { margin: 4px 0 2px; padding: 6px 8px 6px 20px; font-size: 11px; line-height: 1.45;
-  color: var(--on); background: var(--s2); border: 1px solid var(--ol); border-radius: 4px; }
+  color: var(--on); background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1); }
 .ef-nachweis li + li { margin-top: 4px; }
 .ef-mehr > summary { cursor: pointer; font-family: var(--f-mono); font-size: 10px;
   font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
@@ -3913,7 +3922,7 @@ html[data-stufe="schulung"] [data-setz-frei] { display: none !important; }
   width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--acc, #7c8de0);
   color: var(--acc, #7c8de0); background: transparent; font-size: 10px; font-weight: 700;
   line-height: 1; padding: 0; margin-left: 3px; cursor: pointer; vertical-align: middle; }
-.begriff-pop { position: absolute; z-index: 9999; padding: 10px 12px; border-radius: 8px;
+.begriff-pop { position: absolute; z-index: 9999; padding: 10px 12px; border-radius: var(--m-r1);
   background: var(--s1, #1d1f24); color: var(--on, #eee); border: 1px solid var(--ol, #444);
   box-shadow: 0 6px 24px rgba(0, 0, 0, .35); font-size: 12px; line-height: 1.45; }
 .begriff-pop p { margin: 4px 0 0; }
@@ -3948,8 +3957,8 @@ html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; backgroun
 .leg-einst { display: grid; gap: 5px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--ol); font-size: 11px; }
 .leg-zeile { display: grid; grid-template-columns: 62px 1fr auto; gap: 6px; align-items: center; }
 .leg-zeile input[type=number] { width: 100%; font: inherit; font-size: 11px; color: var(--on); background: var(--s1);
-  border: 1px solid var(--ol); border-radius: 4px; padding: 2px 4px; }
-.leg-zeile input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 2px 4px; }
+.leg-zeile input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: var(--m-r1); background: none; }
 /* Schulung: «Was gerechnet wird» - je Fall eine Zeile, Klick zeigt ihn im 3D. */
 .lf-einfach { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
   padding: 4px 6px; border-radius: var(--m-r1); font-size: 11.5px; color: var(--on2); cursor: pointer; }
@@ -4016,7 +4025,7 @@ html[data-stufe="schulung"] #maske .at-feld.lesbar small.hinweis { display: bloc
 /* Knöpfe als Fusszeile einer Kachel (19. November, α_cr). */
 .kz .kz-knoepfe { display: flex; gap: 4px; margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--ol); }
 .kz .kz-knopf { flex: 1 1 auto; font: inherit; font-size: 10px; color: var(--on2); background: var(--s2);
-  border: 1px solid var(--ol); border-radius: 4px; padding: 2px 6px; cursor: pointer; white-space: nowrap; }
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 2px 6px; cursor: pointer; white-space: nowrap; }
 .kz .kz-knopf:hover { border-color: var(--acc); color: var(--on); }
 .kz .kz-knopf.an { border-color: var(--warn); color: var(--warn); }
 
@@ -4033,12 +4042,12 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .dm-wahl { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
 .dm-wahl input[type=number] { width: 52px; }
 .dm-fort { position: relative; display: flex; gap: 10px; align-items: center; height: 26px; margin: 6px 0;
-  border: 1px solid var(--ol); border-radius: 4px; padding: 0 8px; overflow: hidden; font-size: 11px; }
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 8px; overflow: hidden; font-size: 11px; }
 .dm-fort[hidden] { display: none; }
 .dm-fort #dm-balken { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--acc-s); transition: width var(--t-schnell); z-index: 0; }
 .dm-fort span, .dm-fort button { position: relative; z-index: 1; }
 .dm-fort span { flex: 1; }
-.dm-empf { padding: 8px 10px; border: 1px solid var(--ok); border-radius: 6px; margin: 8px 0; font-size: 12px; }
+.dm-empf { padding: 8px 10px; border: 1px solid var(--ok); border-radius: var(--m-r1); margin: 8px 0; font-size: 12px; }
 .dm-empf.nok { border-color: var(--fail); }
 .dm-diagramm { width: 100%; max-width: 680px; height: auto; display: block; color: var(--on); }
 .dm-diagramm .dm-gitter { stroke: var(--ol); stroke-width: .5; }
@@ -4063,7 +4072,7 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .kennzahlen.nw-zeilen { display: block; }
 .nw-zeilen .kz { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px;
   grid-template-areas: "t w" "e f" "b b" "n n" "k k";
-  background: none; border: 0; border-radius: 4px; padding: 5px 4px 6px; margin: 0 -4px; }
+  background: none; border: 0; border-radius: var(--m-r1); padding: 5px 4px 6px; margin: 0 -4px; }
 .nw-zeilen .kz.ok, .nw-zeilen .kz.warn, .nw-zeilen .kz.fail { background: none; }
 .nw-zeilen .kz.klick:hover { background: var(--s2); }
 .nw-zeilen .kz.klick::after { display: none; }
@@ -4093,7 +4102,7 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 
 /* Verlauf der Linie: zwei Farbwähler (19. November). */
 .leg-farben { display: flex; align-items: center; gap: 6px; }
-.leg-farben input[type=color] { flex: 1 1 0; min-width: 0; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: 4px; background: none; }
+.leg-farben input[type=color] { flex: 1 1 0; min-width: 0; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: var(--m-r1); background: none; }
 .leg-farben span { color: var(--dim); }
 
 /* Beim Setzen von Bauteilen keine Legende der Resultate (19. November). */
@@ -4171,7 +4180,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 
 /* Dimensionieren: Auswahl der Typen je Gruppe (21. November). */
 .dm-auswahl { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }
-.dm-gruppe { border: 1px solid var(--ol); border-radius: 6px; padding: 3px 8px; background: var(--s1); }
+.dm-gruppe { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 3px 8px; background: var(--s1); }
 .dm-gruppe > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; list-style: none; }
 .dm-gruppe > summary::-webkit-details-marker { display: none; }
 .dm-gruppe > summary::after { content: '▾'; color: var(--dim); font-size: 10px; }
@@ -4196,7 +4205,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 }
 .viewer-lf .lf-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viewer-lf.einzel { background: var(--acc-s); }
-.viewer-lf .lf-text.neu { animation: lf-ein .32s ease-out; }
+.viewer-lf .lf-text.neu { animation: lf-ein var(--d-ruhig) ease-out; }
 .viewer-oben.puls { animation: insel-puls .42s cubic-bezier(.3, 1.4, .5, 1); }
 @keyframes lf-ein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 @keyframes insel-puls { 0% { transform: scale(.95); } 100% { transform: scale(1); } }
@@ -4232,7 +4241,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
   transition: background var(--t-schnell), color var(--t-schnell), border-color var(--t-schnell); }
 .insel-k:hover { background: var(--s3, var(--s1)); color: var(--on); border-color: var(--ol); }
 .insel-k.insel-spiel { color: var(--acc); border-color: var(--acc); }
-.insel-figur { font-family: var(--f-mono); font-size: 10px; color: var(--dim); margin-left: 4px; animation: lf-ein .3s ease-out; }
+.insel-figur { font-family: var(--f-mono); font-size: 10px; color: var(--dim); margin-left: 4px; animation: lf-ein var(--d-ruhig) ease-out; }
 
 /* Die Insel fährt aus: Grundwerte als Panel in der Insel (21. November). */
 .viewer-kopf { container-type: inline-size; }
@@ -4242,7 +4251,7 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-oben .kontext.insel-panel {
   position: static; flex-basis: 100%; box-shadow: none; border: 0; border-top: 1px solid var(--ol);
   border-radius: 0; background: none; margin-top: 4px; padding: 6px 0 0; min-width: 0;
-  animation: lf-ein .32s ease-out .08s both;
+  animation: lf-ein var(--d-ruhig) ease-out .08s both;
 }
 /* Ausgefahren eine feste Breite, damit die Insel nicht über die ganze Kopfzeile springt. */
 .viewer-oben.offen { width: min(100%, 460px); }
@@ -4414,18 +4423,18 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 /* Abgemindert (24. November, «den effekt beim durchklicken der sidebars etwas
    abmindern zudem den welleneffekt beim anklicken minimal halten»): Reiter
    8 px statt 28 px, 0.22 s ohne Überschwingen; Welle 7 % deckend, 0.35 s. */
-.panel-koerper.gleitet-r { animation: gleit-r .22s ease-out; }
-.panel-koerper.gleitet-l { animation: gleit-l .22s ease-out; }
+.panel-koerper.gleitet-r { animation: gleit-r var(--d-mittel) ease-out; }
+.panel-koerper.gleitet-l { animation: gleit-l var(--d-mittel) ease-out; }
 @keyframes gleit-r { from { opacity: .4; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 @keyframes gleit-l { from { opacity: .4; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
 .gleitet-r .kz, .gleitet-l .kz, .gleitet-r .lf-einfach, .gleitet-l .lf-einfach {
-  animation: staffel .36s var(--t-feder) both; }
+  animation: staffel var(--d-ruhig) var(--t-feder) both; }
 .gleitet-r .kz:nth-child(2), .gleitet-l .kz:nth-child(2) { animation-delay: .03s; }
 .gleitet-r .kz:nth-child(3), .gleitet-l .kz:nth-child(3) { animation-delay: .06s; }
 .gleitet-r .kz:nth-child(4), .gleitet-l .kz:nth-child(4) { animation-delay: .09s; }
 .gleitet-r .kz:nth-child(n+5), .gleitet-l .kz:nth-child(n+5) { animation-delay: .12s; }
 @keyframes staffel { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.dialog.waechst { animation: waechst .32s var(--t-feder); }
+.dialog.waechst { animation: waechst var(--d-ruhig) var(--t-feder); }
 @keyframes waechst { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .welle, .panel-koerper.gleitet-r, .panel-koerper.gleitet-l, .dialog.waechst,
@@ -4440,13 +4449,13 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 :root { --t-fahrt: .42s cubic-bezier(.2, .8, .2, 1); }
 .ws.animiert { transition: grid-template-columns var(--t-fahrt); }
 .ws.animiert .panel > :not(.schiene) { min-width: var(--inhalt-breite, auto); }
-.panel.blendet-aus > :not(.schiene) { animation: inhalt-aus .22s ease-out forwards; }
-.panel.blendet-ein > :not(.schiene) { animation: inhalt-ein .36s ease-out .06s both; }
+.panel.blendet-aus > :not(.schiene) { animation: inhalt-aus var(--d-mittel) ease-out forwards; }
+.panel.blendet-ein > :not(.schiene) { animation: inhalt-ein var(--d-ruhig) ease-out .06s both; }
 @keyframes inhalt-aus { to { opacity: 0; transform: translateX(var(--fahrt-dx, -8px)); } }
 @keyframes inhalt-ein { from { opacity: 0; transform: translateX(var(--fahrt-dx, -8px)); } }
 .panel-rechts { --fahrt-dx: 8px; }
-.ws.zu-links .panel-links > .schiene, .ws.zu-rechts .panel-rechts > .schiene { animation: inhalt-ein .25s ease-out both; }
-details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve) both; }
+.ws.zu-links .panel-links > .schiene, .ws.zu-rechts .panel-rechts > .schiene { animation: inhalt-ein var(--d-mittel) ease-out both; }
+details.oeffnet[open] > :not(summary) { animation: klapp-auf var(--d-mittel) var(--t-kurve) both; }
 @keyframes klapp-auf { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) {
   .ws.animiert { transition-duration: 0s; }
@@ -4509,7 +4518,7 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
   border: 1px solid var(--ol2); border-radius: var(--m-r1);
   box-shadow: 0 8px 26px rgba(0,0,0,.35); padding: 7px 9px;
   font-size: 10.5px; color: var(--on2);
-  animation: lf-tip-ein .18s ease-out;
+  animation: lf-tip-ein var(--d-schnell) ease-out;
 }
 @keyframes lf-tip-ein { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .lf-tip { animation: none; } }
@@ -4534,3 +4543,17 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf .26s var(--t-kurve)
 .kontext-ib { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 4px; }
 .kontext-ib:hover { color: var(--acc); }
 .kontext-erkl { white-space: normal; max-width: 300px; }
+
+/* --- FORM (Audit Block 5, 24. November) ---------------------------------
+   Kleine Knoepfe standen in vier Hoehen (19, 20, 21, 23 px), weil jede
+   Stelle ihr eigenes Polster setzte. Jetzt EINE Hoehe, das Polster quer
+   bleibt der Stelle. Normale Knoepfe mindestens so hoch wie die Symbol-
+   knoepfe des Kopfes. */
+.btn.btn-mini { min-height: 22px; padding-top: 0; padding-bottom: 0; justify-content: center; }
+.btn:not(.btn-mini) { min-height: 30px; }
+/* Klickziele (Audit Block 5): Gruppenkoepfe der Masken, Hauptschalter der
+   Werkzeugleiste und die Linien im Lageband waren 10-16 px hoch. Mehr
+   Polster, gleicher Platz: was das Polster dazugibt, nimmt der Rand weg. */
+details.grp > summary.sec { padding-top: 5px; padding-bottom: 5px; margin-top: 15px; margin-bottom: 5px; }
+button.wz-haupt { padding: 3px 0 4px; }
+.qp-linie { border-top-width: 6px; border-bottom-width: 6px; margin-top: -6px; }

@@ -41,10 +41,13 @@ export const FARBEN = {
     bg: '#f2f3f6',
     s1: '#ffffff', s2: '#f7f8fa', s3: '#eef0f4', s4: '#e4e7ec',
     ol: '#d5d9e0', ol2: '#c2c7d1',
-    on: '#111218', on2: '#3a3c48', dim: '#5f616c', xdim: '#9497a1',
-    acc: '#4a5cb8', accS: 'rgba(74,92,184,0.10)',
-    ok: '#2f9e54', okS: 'rgba(47,158,84,0.09)',
-    warn: '#9a7b1a', warnS: 'rgba(154,123,26,0.10)',
+    // Audit Block 5 (24. November): Text in ok/warn/acc/dim haelt auch im
+    // hellen Thema 4.5:1 - vorher Gruen 3.2:1, Gelb 3.5:1, Akzent auf
+    // getoentem Grund 4.3:1. Die Flaechentoene (okS …) bleiben.
+    on: '#111218', on2: '#3a3c48', dim: '#555763', xdim: '#9497a1',
+    acc: '#3d4ea8', accS: 'rgba(74,92,184,0.10)',
+    ok: '#1b6e37', okS: 'rgba(47,158,84,0.09)',
+    warn: '#735a0c', warnS: 'rgba(154,123,26,0.10)',
     fail: '#a02020', failS: 'rgba(160,32,32,0.08)',
     scrim: 'rgba(0,0,0,0.35)',
     viewerBg: '#e8eaef',

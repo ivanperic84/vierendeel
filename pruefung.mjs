@@ -5845,12 +5845,20 @@ titel('31  Bewegung: nichts springt');
     return m ? Math.round(parseFloat(m[1]) * f) : null;
   };
   const jsDialog = ms(/DIALOG_ZU_MS = (\d+)/, aq);
-  const cssDialog = ms(/animation: dialog-zu \.(\d+)s/, css, 10);
+  // Seit Audit Block 5 steht im Stilblatt ein Token (--d-schnell …) - aufgeloest.
+  const dauer = (name) => {
+    const m = css.match(new RegExp('animation: ' + name + String.raw` (?:\.(\d+)s|var\(--(d-[a-z]+)\))`));
+    if (!m) return null;
+    if (m[1]) return Math.round(parseFloat(m[1]) * 10 ** (3 - m[1].length));
+    const t = css.match(new RegExp('--' + m[2] + String.raw`: \.(\d+)s;`));
+    return t ? Math.round(parseFloat(t[1]) * 10 ** (3 - t[1].length)) : null;
+  };
+  const cssDialog = dauer('dialog-zu');
   pruef('Dialog: Skript und Stylesheet nennen dieselbe Dauer',
         jsDialog, cssDialog, 1e-9, 'ms');
 
   const jsSchub = ms(/SCHUBLADE_ZU_MS = (\d+)/, aq);
-  const cssSchub = ms(/animation: schublade-zu \.(\d+)s/, css, 10);
+  const cssSchub = dauer('schublade-zu');
   pruef('Schublade: dieselbe Dauer an beiden Orten',
         jsSchub, cssSchub, 1e-9, 'ms');
 
@@ -44285,6 +44293,31 @@ titel('340  Lastfallliste übersichtlich; Klick auf den Profilschnitt dreht den 
   wahr('Reiter gleiten nur 8 px, Welle 7 % deckend',
        css.includes('@keyframes gleit-r { from { opacity: .4; transform: translateX(8px); }')
        && css.includes('background: currentColor; opacity: .07; transform: scale(0);'));
+}
+
+// ===========================================================================
+titel('341  Form (Audit Block 5): Kontrast, Dauern, Radien, Knopfhöhen, Klickziele');
+{
+  const { FARBEN } = await import(J('design.js'));
+  const L = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const K = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  for (const t of ['hell', 'dunkel']) {
+    const F = FARBEN[t];
+    const schlecht = ['on', 'on2', 'dim', 'acc', 'ok', 'warn', 'fail']
+      .flatMap((f) => ['s1', 's2', 's3'].filter((s) => K(F[f], F[s]) < 4.5).map((s) => `${f}/${s} ${K(F[f], F[s]).toFixed(2)}`));
+    wahr(`Schrift-Tokens ${t}: mindestens 4.5:1 auf s1-s3` + (schlecht.length ? ` (${schlecht.join(', ')})` : ''), !schlecht.length);
+  }
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Drei Animationsdauern als Tokens', css.includes('--d-schnell: .16s;') && css.includes('--d-mittel: .22s;')
+       && css.includes('--d-ruhig: .32s;') && css.includes('dialog-auf var(--d-mittel)'));
+  wahr('Keine losen Radien 3-12 px mehr', !/border-radius: (3|4|5|6|8|9|10|12)px\s*[;}]/.test(css));
+  wahr('Kleine Knöpfe eine Höhe, Speicherpunkt sichtbar',
+       css.includes('.btn.btn-mini { min-height: 22px;') && css.includes('.ungesichert {') && /\.ungesichert \{[^}]*color: var\(--acc\);/.test(css));
+  wahr('Klickziele: Gruppenköpfe, Hauptschalter, Lagebandlinien mit mehr Polster',
+       css.includes('details.grp > summary.sec { padding-top: 5px;') && css.includes('button.wz-haupt { padding: 3px 0 4px; }')
+       && css.includes('.qp-linie { border-top-width: 6px;'));
 }
 
 // ===========================================================================

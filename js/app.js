@@ -7316,7 +7316,7 @@ function verdrahteAblegen() {
  */
 let dialogLauf = 0;
 /** Dauer der Schliessbewegung - dieselbe Zahl steht im Stylesheet. */
-const DIALOG_ZU_MS = 140;
+const DIALOG_ZU_MS = 160;   // = --d-schnell im Stilblatt (Audit Block 5)
 
 /* ===========================================================================
  * DAS KONTEXTMENUE
