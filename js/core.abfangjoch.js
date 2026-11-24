@@ -54,7 +54,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangRandmasse, abfangQuersteife,
          abfangLaengen, abfangjoche, abfangJsIst } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
-import { abfangkraft } from './data.fl.js';
+import { abfangkraft, mitSystem } from './data.fl.js';
 import { baugruppeSumme, leiterKennung } from './data.anbauteile.js';
 import { leiterTrifft, nurAbgezogen } from './core.constants.js';
 import { HAVARIE_LAENGSZUG,
@@ -1163,7 +1163,7 @@ export function abfangAnbauLasten(at, opt = {}) {
   (Array.isArray(at?.module) ? at.module : []).forEach((m, i) => {
     if (!m || m.aktiv === false || !m.bauteil) return;
     let k;
-    try { k = abfangkraft(m.bauteil, { tempFall: opt.tempFall }); } catch { return; }
+    try { k = abfangkraft(mitSystem(m.bauteil, m.system), { tempFall: opt.tempFall }); } catch { return; }
     if (!k || !Number.isFinite(k.Z) || k.Z === 0) return;   // kein Drahtwerk
     const key = leiterKennung(at, m, i);
     const e = opt.havarie?.[key] ?? {};
@@ -1255,7 +1255,7 @@ export function abfangLeiterWahl(at, havarie = null) {
   (Array.isArray(at?.module) ? at.module : []).some((m, i) => {
     if (!m || m.aktiv === false || !m.bauteil || nurAbgezogen(m)) return false;
     let z = 0;
-    try { z = abfangkraft(m.bauteil, {}).Z; } catch { z = 0; }
+    try { z = abfangkraft(mitSystem(m.bauteil, m.system), {}).Z; } catch { z = 0; }
     if (!z) return false;
     key = leiterKennung(at, m, i);
     return true;
@@ -1274,7 +1274,7 @@ export function abfangZugOhneWirkung(teile, opt = {}) {
     .filter((t2) => !abfangAnbindung(t2).abgefangen)
     .filter((t2) => (Array.isArray(t2.module) ? t2.module : []).some((m) => {
       if (!m?.bauteil) return false;
-      try { return Math.abs(abfangkraft(m.bauteil, opt).Z || 0) > 0; }
+      try { return Math.abs(abfangkraft(mitSystem(m.bauteil, m.system), opt).Z || 0) > 0; }
       catch { return false; }
     }))
     .map((t2) => ({ name: t2.name ?? 'Anbauteil', x: Number(t2.x) || 0 }));

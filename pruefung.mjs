@@ -44380,6 +44380,42 @@ titel('342  J100: Blecheinteilung nach Stueckliste, Anschlusswinkel als eigenes 
 }
 
 // ===========================================================================
+titel('343  Gemischte Systeme: System je Kettenwerk-Modul (25. November)');
+{
+  const F = await import(J('data.fl.js'));
+  const A = await import(J('data.anbauteile.js'));
+  const LZ = await import(J('core.leiterzug.js'));
+  const alt = F.leiterzugKontext();
+  F.setzeLeiterzugKontext({ L: 40, nfl: null, rfl: null, montage: {} });
+  const id = 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107';
+  const bg = (system) => ({ id: 'K', name: 'KW', x: 10, ort: 'joch', aktiv: true,
+    module: [{ bauteil: id, anzahl: 1, x: 0, y: 0, z: 0, system }] });
+  const zug = (sys) => F.leiterzug(F.mitSystem(id, sys));
+  const vorgabe = zug(null);
+  for (const sys of ['nfl-stcu50-cu107-6', 'nfl-stcu92-cu150-gotthard']) {
+    const s = F.flSysteme('nfl').find((x) => x.id === sys);
+    const soll = LZ.kettenwerkZug(s, 40, 5).ts + LZ.kettenwerkZug(s, 40, 5).fd;
+    pruef(`${sys}: Zug +5 °C aus dem gewählten System`, zug(sys), soll, 1e-9, 'kN');
+    const d = A.expandiereAnbauteile([bg(sys)], { ek: 'EK1', R: 600, spannweite: 40 })
+      .find((t) => t.rolle === 'drahtwerk');
+    pruef(`${sys}: Umlenkung Z · L / R`, d.kraefte.G.Fx, soll * 40 / 600, 1e-9, 'kN');
+    const e = A.expandiereAnbauteile([bg(sys)], { ek: 'EK1', R: 600, spannweite: 40,
+      havarie: { 'K#0': { art: 'einseitig', richtung: '+y' } } }).find((t) => t.rolle === 'drahtwerk');
+    pruef(`${sys}: einseitig abgefangen zieht mit diesem Zug`, e.kraefte.G.Fy, soll, 1e-9, 'kN');
+    wahr(`${sys}: Havarie -20 °C aus dem System`,
+         Math.abs(F.abfangkraft(F.mitSystem(id, sys), { tempFall: 'havarie' }).Z
+                  - (LZ.kettenwerkZug(s, 40, -20).ts + LZ.kettenwerkZug(s, 40, -20).fd)) < 1e-9);
+  }
+  wahr('Ohne Wahl gilt das System des Projekts', Math.abs(vorgabe - zug('')) < 1e-12
+       && F.mitSystem(id, null) === id);
+  wahr('Ein Einzelleiter nimmt keine Systemwahl an', F.mitSystem('drahtwerk-cu-95', 'nfl-stcu50-cu107-6') === 'drahtwerk-cu-95');
+  wahr('Ein System der anderen Art gilt nicht', Math.abs(zug('rfl-stcu92-cu107') - vorgabe) < 1e-12);
+  F.setzeLeiterzugKontext(alt);
+  const UI = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Bauteilkarte: Auswahl «System» am Kettenwerk-Modul', UI.includes('data-mk="system"') && UI.includes('wie Projekt'));
+}
+
+// ===========================================================================
 titel('341  Form (Audit Block 5): Kontrast, Dauern, Radien, Knopfhöhen, Klickziele');
 {
   const { FARBEN } = await import(J('design.js'));

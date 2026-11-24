@@ -48,7 +48,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE, hatZustandsgleichung, montagezug, zugAusKern, reglierZusatzlast,
-         leiterzugKontext, EIGEN_PRAEFIX } from './data.fl.js';
+         leiterzugKontext, EIGEN_PRAEFIX, mitSystem, flSysteme } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
@@ -431,6 +431,7 @@ export function maskenSignatur(werte, tab) {
                  // Woher der Leiter seine Ablenkung nimmt (29. Sept.): sie
                  // entscheidet, welches Feld im Aufklappteil steht.
                  (a.module ?? []).map((m) => ablenkQuelle(m)).join(',') + ':' +
+                 (a.module ?? []).map((m) => m.system ?? '').join(',') + ':' +
                  // Die Auswahl des Signalbauers (30. Sept.): Liste und Summen
                  // der Karte stehen im Aufbau, nicht in nachgefuehrten Feldern.
                  (a.module ?? []).map((m) => (Array.isArray(m.signal)
@@ -588,7 +589,7 @@ function havarieHtml(g, werte) {
      * Funktion wie im Kern (`havarieAnteile`), damit die Karte nicht eine
      * zweite Rechnung fuehrt, die auseinanderlaufen kann.
      */
-    const bt = l.teile[0]?.bauteilId ?? null;
+    const bt = l.teile[0]?.bauteilId ? mitSystem(l.teile[0].bauteilId, l.teile[0].system) : null;
     let ff = null;
     if (bt) {
       try {
@@ -4464,6 +4465,19 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
          * eine vergessene Zahl still weiterrechnet; die neue startet mit dem
          * Wert, der gerade gilt - so springt nichts.
          * =================================================================== */''}
+      ${/* SYSTEM JE KETTENWERK (25. November, «gemischte systeme an einem joch
+         * oder mast»): leer = das des Projekts (Gruppe «Trasse und Fahrleitung»). */''}
+      ${/^drahtwerk-[nr]-fl/.test(String(m.bauteil ?? '')) ? (() => {
+        const art = /^drahtwerk-n-fl/.test(m.bauteil) ? 'nfl' : 'rfl';
+        const sys = flSysteme(art);
+        if (!sys.length) return '';
+        const v = m.system ?? '';
+        return `<div class="at-gitter"><label class="at-feld breit2"><span>System ${art === 'nfl' ? 'N-FL' : 'R-FL'}</span>
+          <select class="mod" data-mk="system" data-idx="${i}" data-mod="${k}">
+            <option value=""${v ? '' : ' selected'}>wie Projekt</option>
+            ${sys.map((x) => `<option value="${esc(x.id)}"${x.id === v ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
+          </select></label></div>`;
+      })() : ''}
       ${drahtwerk ? (() => {
         const q = ablenkQuelle(m);
         const Lg = trasse.spannweite ?? 0;
@@ -6301,6 +6315,13 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
           ? (Number.isFinite(alt.winkel) ? alt.winkel : q.winkel) : null,
         laenge: q.art === 'spannweite'
           ? (Number.isFinite(alt.laenge) && alt.laenge > 0 ? alt.laenge : q.laenge) : null };
+      l[idx] = { ...l[idx], module: m };
+      onAnbau(l);
+      return;
+    }
+    // System je Kettenwerk (25. November): leer = wie Projekt, nicht abgelegt.
+    if (feld === 'system') {
+      m[mod] = { ...m[mod], system: wert || null };
       l[idx] = { ...l[idx], module: m };
       onAnbau(l);
       return;

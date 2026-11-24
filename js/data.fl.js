@@ -253,6 +253,8 @@ export function flPaarung(ts, fd, anzahl = 1) {
 }
 
 export function getFlBauteil(id) {
+  // Ein Bauteil mit eigener Systemwahl (`mitSystem`) kommt schon als Objekt.
+  if (id && typeof id === 'object') return id;
   const b = db().bauteile.find((x) => x.id === id) ?? EIGENE.find((x) => x.id === id);
   if (!b) throw new Error(`Unbekanntes Fahrleitungsbauteil: ${id}`);
   return b;
@@ -449,12 +451,29 @@ export function zugAusKern(id, T, zl = 0) {
   const m = /^drahtwerk-([nr])-fl/.exec(sid);
   if (!m) return null;
   const art = m[1] === 'n' ? 'nfl' : 'rfl';
-  const sys = flSystem(art, art === 'nfl' ? KONTEXT.nfl : KONTEXT.rfl);
+  // Eigenes System je Kettenwerk-Modul (25. November), sonst das des Projekts.
+  const eigen = b?.system && flSysteme(art).some((x) => x.id === b.system) ? b.system : null;
+  const sys = flSystem(art, eigen ?? (art === 'nfl' ? KONTEXT.nfl : KONTEXT.rfl));
   if (!sys) return null;
   const a = abfangArt(b);
   const n = Number(/-x(\d+)$/.exec(sid)?.[1] ?? 1);
   const z = kettenwerkZug(sys, L, T, zl);
   return n * ((a.ts ? z.ts : 0) + (a.fd ? z.fd : 0));
+}
+
+/*
+ * >>> GEMISCHTE SYSTEME JE KETTENWERK (25. November). <<< Weisung, im
+ * Wortlaut: «teilweise hat man gemischte systeme an einem joch oder mast,
+ * ist es möglich diese bei der eingabe der einzelnen bauteile zu
+ * definieren?» Auf Rückfrage «Je Kettenwerk-Modul» und «Überall»: ein Modul
+ * mit Kettenwerk N-FL/R-FL kann ein eigenes System tragen (`m.system`, leer
+ * = das des Projekts). `mitSystem` gibt dann das Bauteil als Objekt mit der
+ * Wahl zurück; `zugAusKern`, `leiterzug`, `abfangkraft` lesen sie - also
+ * ständiger Zug, Schnee, Havarie, Umlenkung und Rückhaltekraft.
+ */
+export function mitSystem(id, system) {
+  if (!system || typeof id !== 'string' || !/^drahtwerk-[nr]-fl/.test(id)) return id;
+  try { return { ...getFlBauteil(id), system }; } catch { return id; }
 }
 
 /** Leiterzugkraft eines Drahtwerks [kN], bei T + 5 °C - aus dem Kern, wenn er gilt. */

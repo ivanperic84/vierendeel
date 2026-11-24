@@ -46,7 +46,7 @@ import { bestandAufsBlatt } from './core.bestand.js';
 import { ausTabellen } from './data.tabellen.js';
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
-         flPaarung, abfangkraft, setzeEigeneLeiter } from './data.fl.js';
+         flPaarung, abfangkraft, setzeEigeneLeiter, mitSystem } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
@@ -1024,12 +1024,12 @@ export function leiterListe(anbauteile) {
       const key = leiterKennung(a, m, i);
       const ort = ortVon(a);
       let z20 = null;
-      try { z20 = abfangkraft(m.bauteil, { tempFall: 'havarie' }).Z; } catch { /* ohne Tabelle */ }
+      try { z20 = abfangkraft(mitSystem(m.bauteil, m.system), { tempFall: 'havarie' }).Z; } catch { /* ohne Tabelle */ }
       const e = liste.get(key) ?? { key, teile: [], kettenwerk: kettenwerkVon(key) };
       // `bauteilId` fuer die Karte: sie rechnet die Anteile mit derselben
       // Funktion wie der Kern und braucht dafuer den Tabelleneintrag.
       e.teile.push({ baugruppe: a.id, modul: i, name: a.name, bauteil: b.name,
-                     bauteilId: m.bauteil, ort,
+                     bauteilId: m.bauteil, system: m.system || null, ort,
                      hMast: a.hMast ?? null, x: a.x ?? null, zug20: z20 });
       liste.set(key, e);
     });
@@ -1581,7 +1581,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       // Wirkrichtung und wird nicht über einen Schalter gedreht.
       let Gx = 0, alpha = 0;
       if (b.rolle === 'drahtwerk') {
-        const u = umlenkkraft({ Z: leiterzug(m.bauteil) * n,
+        const u = umlenkkraft({ Z: leiterzug(mitSystem(m.bauteil, m.system)) * n,
                                 L: laenge, R, winkel: m.winkel ?? null });
         Gx = u.U; alpha = u.alpha;
       }
@@ -1657,7 +1657,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       const wFd = fdTeil
         ? flLastwerte(fdTeil.id, { ek, laenge, anzahl: n }) : null;
       const GxFd = fdTeil
-        ? umlenkkraft({ Z: leiterzug(fdTeil.id) * n,
+        ? umlenkkraft({ Z: leiterzug(mitSystem(fdTeil.id, m.system)) * n,
                         L: laenge, R, winkel: m.winkel ?? null }).U
         : 0;
       /*
@@ -1722,7 +1722,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       // Die Rückhaltekraft: p · Z(+5 °C) gegen den Wind längs (siehe oben).
       let rueckhalt = 0;
       if (amJochDirekt && drahtwerk && !einseitig && m.wirktG !== false) {
-        rueckhalt = Math.min(pRueck * leiterzug(m.bauteil), maxRueck) * n;
+        rueckhalt = Math.min(pRueck * leiterzug(mitSystem(m.bauteil, m.system)), maxRueck) * n;
         kraefte.WindY.Fy -= rueckhalt;
       }
       let havarieJe = null;
@@ -1731,7 +1731,7 @@ export function expandiereAnbauteile(liste, o = {}) {
       const leiter = drahtwerk ? leiterKennung(a, m, i) : null;
       if (drahtwerk) {
         const zugHier = wirkt('wirktAblenk') ? 1
-          : (fdTeil ? 1 - leiterzug(fdTeil.id) / (leiterzug(m.bauteil) || 1) : 0);
+          : (fdTeil ? 1 - leiterzug(mitSystem(fdTeil.id, m.system)) / (leiterzug(mitSystem(m.bauteil, m.system)) || 1) : 0);
         /*
          * >>> WIE DIESER LEITER GEFUEHRT IST (Weisung vom 24. September). <<<
          *
@@ -1748,7 +1748,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         // Nur abgezogen = durchgehend, nie abgefangen (23. November, Fahrdrahtabzug am Joch).
         const art = nurAbgezogen(m) ? 'durchgehend' : (wahlL.art ?? ABFANG_VORGABE);
         const richtung = wahlL.richtung === '-y' ? -1 : 1;
-        const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier,
+        const basis = { id: mitSystem(m.bauteil, m.system), n, GxHier: kraefte.G.Fx, zugHier,
                         art, richtung, laengszug: wahlL.laengszug ?? null };
         festeRichtung = art === 'einseitig';
         abfangArt = art; abfangVz = richtung;
