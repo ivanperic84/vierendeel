@@ -42851,7 +42851,7 @@ titel('295  Sprungleiste Anbauteile, Grundwerte statt Lastfallfeld, Einzellasten
     { key: 'd', bez: 'Ständig + Wind +y (längs zum Gleis)', art: 'charakteristisch' },
     { key: 'e', bez: 'Schnee', art: 'charakteristisch' }] };
   const h = E.kombiEinfachHtml(k);
-  const ein = [...h.matchAll(/lf-einzel[^>]*>\s*<span>([^<]*)/g)].map((m) => m[1]);
+  const ein = [...h.matchAll(/lf-einzel[^>]*>\s*<span class="lf-nr">([^<]*)<\/span><span class="lf-txt">([^<]*)/g)].map((m) => `${m[1]} · ${m[2]}`);
   wahr('Lastfallliste: einzelne Lasten unter den Kombinationen, ohne «Ständig + …», ohne Ausnutzung',
        // Vollversion: Namen wie in der Matrix (21. November); die Schulung behält die einfachen.
        ein.join(' | ') === 'LF2 · Ständig (Tragwerk) | LF3 · Wind −x (quer zum Gleis) | LF5 · Schnee'
@@ -44252,6 +44252,33 @@ titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.
        !KX.includes('ekEinzeln') && KX.includes("label: 'EK', wert: ek, grau: !ek") && KX.includes('function grundwerteNeu(app)'));
   wahr('Projekt löschen mit Warnfenster und Kreuz vor dem Knopf',
        AB.includes('data-projekt-loeschen') && AB.includes('data-pl-los disabled') && AB.includes("id=\"pl-ok\""));
+}
+
+// ===========================================================================
+titel('340  Lastfallliste übersichtlich; Klick auf den Profilschnitt dreht den Steg');
+{
+  const E = await import(J('ui.einfach.js'));
+  const k = { lastfaelle: [
+    { key: 'a', bez: 'Wind +x (quer zum Gleis) leitend', nachweis: true, eta: 0.43 },
+    { key: 'b', bez: 'Wind −x (quer zum Gleis) leitend', nachweis: true, eta: 0.95 },
+    { key: 'h', bez: 'Havarie: Tragseil N-FL reisst, Längszug +y', nachweis: true, eta: 0.3 },
+    { key: 'g', bez: 'Betriebswind (ψ 0.70): Wind +y (längs zum Gleis)' }] };
+  const h = E.kombiEinfachHtml(k, null, 'umhuellend', [{ name: 'Spitze Mast M1', eta: 0.74, key: 'g' }])
+    .replace(/data-lf-tip="[^"]*"/g, '');
+  wahr('Nummer als eigene Spalte, Name in der Gruppe ohne «(quer zum Gleis)»',
+       h.includes('<span class="lf-nr">LF1</span><span class="lf-txt">Wind +x leitend</span>'));
+  wahr('Gruppenkopf mit Anzahl und grösster Ausnutzung',
+       h.includes('Quer zum Gleis<span class="sec-r">2 Fälle · max <span class="warn">95 %</span>'));
+  wahr('Havarie nennt nur den Leiter', h.includes('<span class="lf-txt">Tragseil N-FL reisst → Zug +y</span>'));
+  wahr('Verformung ohne 0.70 (steht in der Karte)', h.includes('>Verformung<span') && !/0\.70/.test(h)
+       && h.includes('Spitze Mast M1 <span class="ab-leise">· Wind +y</span>'));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Prozent bricht nicht um', css.includes('.lf-einfach .ef-wert { flex: 0 0 auto; white-space: nowrap; }'));
+  const R3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Profilschnitt ist Klickziel (Box beim Zeichnen, beiProfil beim Klick)',
+       R3.includes('(this._profilTreffer ??= []).push(') && R3.includes('this.opt.beiProfil(pt.mastX)')
+       && AQ.includes("beiProfil: (x) => {") && AQ.includes("aendern('mastSteg', jetzt === 'quer' ? 'jochachse' : 'quer');"));
 }
 
 // ===========================================================================

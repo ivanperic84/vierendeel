@@ -3842,6 +3842,15 @@ export class Modellansicht {
           const ueber = zx >= tt.x && zx <= tt.x + tt.w && zy >= tt.y && zy <= tt.y + tt.h;
           if (ueber !== this._ueberTrasse) { this._ueberTrasse = ueber; this.cv.style.cursor = ueber ? 'pointer' : ''; }
         }
+        if (!jetzt && this.opt.beiProfil) {
+          const ueberP = (this._profilTreffer ?? []).some(
+            (t) => zx >= t.x && zx <= t.x + t.w && zy >= t.y && zy <= t.y + t.h);
+          if (ueberP !== !!this._ueberProfil) {
+            this._ueberProfil = ueberP;
+            this.cv.style.cursor = ueberP ? 'pointer' : '';
+            this.cv.title = ueberP ? 'Klick: Steg dieses Masten drehen' : '';
+          }
+        }
         /*
          * >>> WAS SICH HIER ZIEHEN LIESSE (2. Oktober). <<<
          * «ein visuelles feedback geben wenn man die richrige stelle hat um
@@ -4313,6 +4322,9 @@ export class Modellansicht {
     if (tt && px >= tt.x && px <= tt.x + tt.w && py >= tt.y && py <= tt.y + tt.h) {
       this.opt.beiTrasse?.(); return;
     }
+    const pt = (this._profilTreffer ?? []).find(
+      (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
+    if (pt && this.opt.beiProfil) { this.opt.beiProfil(pt.mastX); return; }
     const mt = this._massTreffer.find(
       (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
     // DER TREFFER GEHT MIT. Ein Titel weiss, zu welchem Tragwerk und zu
@@ -5816,6 +5828,7 @@ export class Modellansicht {
    */
   _trasseMalen(c, proj, t) {
     this._trasseTreffer = null;
+    this._profilTreffer = [];
     const g = this.szene?.grenzen;
     if (!g || this.trasseZeigen === false || this.setzModus || (this.explosion ?? 0) > 0) return;
     const fd = (this.szene.marken ?? []).filter((m) => m.fahrdraht && m.p
@@ -6134,6 +6147,13 @@ export class Modellansicht {
         // Profilschnitt am Boden (23. November): «das h transparenter machen».
         c.strokeStyle = t.on2;
         c.setLineDash([]); c.lineWidth = 1.2 * s; c.globalAlpha = l.passiv ? 0.2 : 0.35;
+        // «wenn man draufdrückt dann ändert sich die ausrichtung» (23. November):
+        // die Box des Umrisses ist ein Klickziel, es dreht den Steg dieses Masten.
+        const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]), r = 4 * s;
+        const pk = l.punkte.slice(0, -1);
+        (this._profilTreffer ??= []).push({ x: Math.min(...xs) - r, y: Math.min(...ys) - r,
+          w: Math.max(...xs) - Math.min(...xs) + 2 * r, h: Math.max(...ys) - Math.min(...ys) + 2 * r,
+          mastX: pk.reduce((a, q) => a + q[0], 0) / pk.length });
       } else if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
         c.strokeStyle = l.passiv ? (t.xdim ?? t.dim) : l.kragarm ? t.acc : t.on2;
         c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);

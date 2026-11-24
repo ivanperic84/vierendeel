@@ -3955,6 +3955,12 @@ html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; backgroun
   padding: 4px 6px; border-radius: var(--m-r1); font-size: 11.5px; color: var(--on2); cursor: pointer; }
 .lf-einfach:hover { background: var(--acc-s); }
 .lf-einfach.gewaehlt { background: var(--acc-s); color: var(--on); box-shadow: inset 2px 0 0 var(--acc); }
+/* Lastfallliste (24. November): Nummer als Spalte, Name kurz, Prozent nie umbrechen. */
+.lf-einfach .lf-nr { flex: 0 0 3.1em; font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
+.lf-einfach .lf-txt { flex: 1 1 auto; min-width: 0; }
+.lf-einfach .ef-wert { flex: 0 0 auto; white-space: nowrap; }
+.sec-klein.lf-gruppe { border-top: 1px solid var(--ol); padding-top: 6px; margin-top: 9px; }
+.sec-klein.lf-gruppe .sec-r { font-weight: 500; letter-spacing: .04em; text-transform: none; }
 /* Schulung: kein Klappblock «Masse aus dem Sortiment» (Katalogmasse und
    Hebelarme gehören der Fachperson). */
 html[data-stufe="schulung"]:not([data-mehr]) #maske [data-klapp^="fein-"] { display: none !important; }

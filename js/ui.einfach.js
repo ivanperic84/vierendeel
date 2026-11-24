@@ -484,11 +484,36 @@ export function lastfallEinfach(bez) {
  * unter den Bemessungsfällen, je Nachweis mit seinem Fall; anwählen lässt er
  * sich nicht (das 3D zeigt die Bemessungsfälle).
  */
+/*
+ * >>> LASTFALLLISTE UEBERSICHTLICHER (24. November). <<< Weisung mit Bild:
+ * «kann man die lastfall gruppen übersichtlicher gemacht werden. bei den
+ * verformungen sind die faktoren 0.7 nicht notwenig aufzuführen, diese sieht
+ * man in der pop up.» Je Zeile die Nummer (LF12) als eigene Spalte, der Name
+ * kurz - die Gruppe sagt schon «quer / längs zum Gleis», die Havarie nennt
+ * nur den Leiter; der volle Name und die Beiwerte stehen in der Karte beim
+ * Überfahren. Der Gruppenkopf nennt Anzahl und grösste Ausnutzung.
+ */
+function lfNummer(kombi, k) {
+  const i = (kombi?.lastfaelle ?? []).findIndex((x) => x.key === k?.key);
+  return i >= 0 ? `LF${i + 1}` : '';
+}
+export function lastfallKurz(kombi, k, gruppe = null) {
+  if (!k) return '';
+  if (EINFACH) return lastfallEinfach(k.bez).text;
+  let b = String(k.bez ?? '');
+  if (gruppe === 'havarie') return lastfallEinfach(b).text;
+  b = b.replace(/^Betriebswind\s*(\(ψ[^)]*\))?\s*:?\s*/i, '');
+  if (gruppe === 'quer' || gruppe === 'laengs' || gruppe === 'gzg') b = b.replace(/\s*\((quer|längs) zum Gleis\)/g, '');
+  return b.replace(/\s{2,}/g, ' ').trim();
+}
+const lfNrHtml = (nr) => (nr ? `<span class="lf-nr">${esc(nr)}</span>` : '');
+
 function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend', kombi = null) {
   if (!gzg?.length) return '';
   const zeilen = gzg.map((g) => {
     const f = Number.isFinite(g.eta) ? farbe(g.eta) : '';
-    const fall = g.key ? 'Betriebswind' : lastfallEinfach(g.bez ?? '').text;
+    const lfG = g.key ? (kombi?.lastfaelle ?? []).find((x) => x.key === g.key) : null;
+    const fall = lfG ? lastfallKurz(kombi, lfG, 'gzg') : (g.key ? '' : lastfallEinfach(g.bez ?? '').text);
     // Anwählbar wie die übrigen Fälle (16. November: «wenn bei der kombination
     // gebrauchstauglichkeit angewählt wird sollte dieser gleich wie die anderen
     // dargestellt werden im modell und in der übersicht»): der Betriebswind
@@ -496,10 +521,10 @@ function gzgEinfachHtml(gzg = [], gewaehlt = 'umhuellend', kombi = null) {
     const lf = g.key ? (kombi?.lastfaelle ?? []).find((x) => x.key === g.key) : null;
     const wahl = g.key ? ` role="button" tabindex="0" data-lf-wahl="${esc(g.key)}"${lf ? tipAttr(kombi, lf) : ''}` : '';
     return `<div class="lf-einfach lf-gzg${g.key && gewaehlt === g.key ? ' gewaehlt' : ''}"${wahl} title="${esc(`${g.was ?? ''} · ${g.fallBez ?? g.bez ?? ''}`)}">
-      <span>${esc(g.name)}${g.fallText || fall ? ` <span class="ab-leise">· ${esc(g.fallText ?? fall)}</span>` : ''}</span>
+      ${lfNrHtml(lfG ? lfNummer(kombi, lfG) : '')}<span class="lf-txt">${esc(g.name)}${fall ? ` <span class="ab-leise">· ${esc(fall)}</span>` : ''}</span>
       <span class="ef-wert ${f}">${Number.isFinite(g.eta) ? prozent(g.eta) : '–'}</span></div>`;
   }).join('');
-  return `<div class="sec-klein">Verformung (nur Wind × 0.70)</div>${zeilen}`;
+  return `${gruppeKopf('Verformung', gzg.map((g) => g.eta))}${zeilen}`;
 }
 
 /*
@@ -515,10 +540,18 @@ function einzelLastenHtml(kombi, gewaehlt) {
   const einzeln = (kombi?.lastfaelle ?? [])
     .filter((k) => k.art === 'charakteristisch' && !/\s\+\s/.test(k.bez ?? ''));
   if (!einzeln.length) return '';
-  return `<div class="sec-klein">Einzelne Lasten (charakteristisch)</div>${einzeln.map((k) => `
+  return `${gruppeKopf('Einzelne Lasten (charakteristisch)', [], einzeln.length)}${einzeln.map((k) => `
     <div class="lf-einfach lf-einzel${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
       data-lf-wahl="${esc(k.key)}"${tipAttr(kombi, k)}>
-      <span>${esc(EINFACH ? (/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez) : lastfallName(kombi, k))}</span><span></span></div>`).join('')}`;
+      ${EINFACH ? '' : lfNrHtml(lfNummer(kombi, k))}<span class="lf-txt">${esc(EINFACH ? (/^Wind/.test(k.bez ?? '') ? lastfallEinfach(k.bez).text : k.bez) : (k.bez ?? ''))}</span><span></span></div>`).join('')}`;
+}
+
+function gruppeKopf(titel, etas = [], anzahl = null) {
+  const e = etas.filter(Number.isFinite);
+  const n = anzahl ?? etas.length;
+  const max = e.length ? Math.max(...e) : null;
+  const r = `${n} ${n === 1 ? 'Fall' : 'Fälle'}${max != null ? ` · max <span class="${farbe(max)}">${prozent(max)}</span>` : ''}`;
+  return `<div class="sec-klein lf-gruppe">${esc(titel)}<span class="sec-r">${r}</span></div>`;
 }
 
 export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', gzg = []) {
@@ -528,18 +561,18 @@ export function kombiEinfachHtml(kombi, etaJe = null, gewaehlt = 'umhuellend', g
   const je = { quer: [], laengs: [], weitere: [], havarie: [] };
   faelle.forEach((k) => {
     const e = lastfallEinfach(k.bez);
-    je[e.gruppe].push({ k, text: lastfallName(kombi, k) });
+    je[e.gruppe].push({ k, text: lastfallKurz(kombi, k, e.gruppe), nr: EINFACH ? '' : lfNummer(kombi, k) });
   });
-  const zeile = ({ k, text }) => {
+  const zeile = ({ k, text, nr }) => {
     const e = eta(k);
     const f = Number.isFinite(e) ? farbe(e) : '';
     return `<div class="lf-einfach${gewaehlt === k.key ? ' gewaehlt' : ''}" role="button" tabindex="0"
         data-lf-wahl="${esc(k.key)}"${tipAttr(kombi, k)}>
-      <span>${esc(text)}</span>
+      ${lfNrHtml(nr)}<span class="lf-txt">${esc(text)}</span>
       <span class="ef-wert ${f}">${Number.isFinite(e) ? prozent(e) : '–'}</span></div>`;
   };
   const block = (titel, l) => (l.length
-    ? `<div class="sec-klein">${esc(titel)}</div>${l.map(zeile).join('')}` : '');
+    ? `${gruppeKopf(titel, l.map(({ k }) => eta(k)))}${l.map(zeile).join('')}` : '');
   return `<div class="sec">Was gerechnet wird</div>
     <div class="lf-einfach${gewaehlt === 'umhuellend' ? ' gewaehlt' : ''}" role="button" tabindex="0"
       data-lf-wahl="umhuellend" title="Im 3D den ungünstigsten Fall je Bauteil zeigen">

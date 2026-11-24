@@ -8256,6 +8256,18 @@ export async function start() {
         f?.focus(); f?.select?.();
       }, 120);
     },
+    // Klick auf den Profilschnitt am Boden dreht den Steg dieses Masten
+    // (23. November: «wenn man draufdrückt dann ändert sich die ausrichtung»),
+    // derselbe Weg wie «Steg drehen» im Kontextmenü.
+    beiProfil: (x) => {
+      const m = mastenVon(werte).map((q) => ({ q, d: Math.abs((q.x ?? 0) - x) }))
+        .sort((a, b) => a.d - b.d)[0];
+      if (!m || m.d > 0.6) return;
+      const jetzt = m.q.steg ?? werte.mastSteg ?? 'jochachse';
+      aendern('mastAktiv', m.q.id);
+      aendern('mastSteg', jetzt === 'quer' ? 'jochachse' : 'quer');
+      meldeImBalken(`${mastName(werte, m.q)}: Steg ${jetzt === 'quer' ? 'in der Jochachse (quer zum Gleis)' : 'längs zum Gleis'} gedreht.`);
+    },
     beiMass: (feld, tab, bt) => {
       if (bt?.twId && bt.twId !== (werte.twId ?? 'T1')) {
         aendern('tragwerkAktiv', bt.twId);
