@@ -6,6 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { bildAufnehmen, bildsammlungZeigen } from './app.bilder.js';
 import { dialogDimension } from './app.dimension.js';
 import { bewegungStarten, dialogAusKnopf } from './ui.bewegung.js';
 import { viewerAusleiten } from './app.viewer.js';
@@ -6442,6 +6443,33 @@ function exportMenueLeicht() {
   ].filter((e) => !e.id || exportErlaubt(e.id));
 }
 
+/*
+ * >>> ZWEI KNÖPFE: BERICHTE / MODELL & DATEN (26. November). <<< Weisung:
+ * «der exportbutton hat eine sehr grosse auswahl, diese müsst man
+ * übersichtlicher gestalten, mit einem zusätzlichen button.», auf Rückfrage
+ * «Berichte / Modell & Daten»: Berichte = alles zum Lesen und Drucken
+ * (Bericht, Blätter, Bildsammlung, Gegenrechnung als Blatt), Modell & Daten =
+ * Dateien für andere Programme (AxisVM, PyNite, Excel, Viewer). Die Schulung
+ * behält EINEN Knopf (`exportMenueLeicht`).
+ */
+function berichteMenue() {
+  return [
+    { kopf: 'Bericht' },
+    { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
+    '-',
+    { kopf: 'Blätter' },
+    // Charakteristisch, alle Auflager des Blattes (30. September).
+    { text: 'Reaktionskräfte', tun: reaktionsBlatt },
+    { text: 'Kräfte am Jochanschluss', tun: anschlussBlatt },
+    { text: 'Bestandesschutz', tun: bestandBlatt },
+    ...(axisErgebnis ? [{ text: 'Gegenrechnung AxisVM', tun: gegenrechnungBlatt }] : []),
+    '-',
+    { kopf: 'Bilder' },
+    { text: 'Bild des 3D aufnehmen', tun: () => handlung('Bild aufnehmen', () => bildAufnehmen(app)) },
+    { text: 'Bildsammlung …', tun: () => bildsammlungZeigen(app) },
+  ];
+}
+
 function exportMenue() {
   if (LEICHT) return exportMenueLeicht();
   const ax = (f) => () => dialogAxisvm(app, f);
@@ -6455,21 +6483,12 @@ function exportMenue() {
     // AxisVM-Ergebnisse stand unter «Dokumente» zwischen den Blättern.
     { kopf: 'Gegenrechnung' },
     { text: 'PyNite-Skript (.py)', tun: ax('pynite') },
-    { text: axisErgebnis ? 'Gegenrechnung AxisVM (Blatt)' : 'AxisVM-Ergebnisse einlesen …',
-      tun: axisErgebnis ? gegenrechnungBlatt : axisEinlesen },
-    ...(axisErgebnis ? [{ text: 'Andere AxisVM-Ergebnisse einlesen …', tun: axisEinlesen }] : []),
+    { text: axisErgebnis ? 'Andere AxisVM-Ergebnisse einlesen …' : 'AxisVM-Ergebnisse einlesen …', tun: axisEinlesen },
     '-',
-    { kopf: 'Dokumente' },
-    { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
-    // Charakteristisch, alle Auflager des Blattes (30. September).
-    { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
-    { text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt },
-    { text: 'Bestandesschutz (Blatt)', tun: bestandBlatt },
+    { kopf: 'Daten' },
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     // «Drucken» weg (17. November, «den drucken button entfernen»).
-    '-',
     // Der Viewer (18. November): Modell und Bericht in einer Datei, rechnet nicht.
-    { kopf: 'Weitergeben' },
     { text: 'Viewer (HTML: Modell, Bericht, Massen)', tun: () => handlung('Viewer', () => viewerAusleiten(app)) },
   ];
 }
@@ -6481,22 +6500,24 @@ function exportMenue() {
  * frueher, am FENSTER, und nur einmal angemeldet (`baueKopf` laeuft bei
  * jeder Eingabe und baut den Knopf neu).
  */
-let exportWarOffen = false;
+let exportWarOffen = null;
 let exportHorcher = false;
-function exportMenueVerdrahten(knopf) {
+function exportMenueVerdrahten(knopf, eintraege = exportMenue) {
+  if (!knopf) return;
   if (!exportHorcher) {
     exportHorcher = true;
     window.addEventListener('pointerdown', (e) => {
-      exportWarOffen = e.target instanceof Element
-        && !!e.target.closest('#btn-ausleiten') && kontextOffen();
+      const k = e.target instanceof Element ? e.target.closest('#btn-ausleiten, #btn-berichte') : null;
+      exportWarOffen = k && kontextOffen() ? k.id : null;
     }, true);
   }
   knopf.onclick = () => {
-    if (exportWarOffen) { exportWarOffen = false; return; }
+    if (exportWarOffen === knopf.id) { exportWarOffen = null; return; }
+    exportWarOffen = null;
     // Menü und Projektablage liegen nie übereinander (14. November).
     schubladeSchliessen(app);
     const r = knopf.getBoundingClientRect();
-    kontextZeigen(app, [r.left, r.bottom + 4], exportMenue());
+    kontextZeigen(app, [r.left, r.bottom + 4], eintraege());
   };
 }
 
@@ -6561,10 +6582,18 @@ function baueKopf() {
 
   n.innerHTML =
     gruppe('Ausgabe',
-      `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-ausleiten" type="button"
-         title="Export: AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht, Excel, Drucken"
-         aria-label="Export" aria-haspopup="menu">${icon('export')}<span>Export</span
-         ><span class="tb-pfeil" aria-hidden="true">▾</span></button>`)
+      (LEICHT
+        ? `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-ausleiten" type="button"
+         title="Export: Blätter und Ausleitungen" aria-label="Export" aria-haspopup="menu">${icon('export')}<span>Export</span
+         ><span class="tb-pfeil" aria-hidden="true">▾</span></button>`
+        : `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-ausleiten" type="button"
+         title="Modell und Daten: AxisVM (COM-Brücke, SAF, DXF), PyNite, Gegenrechnung, Excel, Viewer"
+         aria-label="Modell und Daten" aria-haspopup="menu">${icon('export')}<span>Modell &amp; Daten</span
+         ><span class="tb-pfeil" aria-hidden="true">▾</span></button>
+         <button class="btn-icon btn-icon-text" id="btn-berichte" type="button"
+         title="Berichte: Nachweisbericht, Blätter (Reaktionen, Jochanschluss, Bestandesschutz), Bilder des 3D"
+         aria-label="Berichte" aria-haspopup="menu">${icon('bericht')}<span>Berichte</span
+         ><span class="tb-pfeil" aria-hidden="true">▾</span></button>`))
     + strich
     + gruppe('Bearbeiten',
       `<button class="btn-icon" id="btn-zurueck" type="button" title="Rückgängig (Strg+Z)"
@@ -6592,6 +6621,7 @@ function baueKopf() {
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = () => dialogHandbuch(app);
   exportMenueVerdrahten(ui.el('btn-ausleiten'));
+  if (!LEICHT) exportMenueVerdrahten(ui.el('btn-berichte'), berichteMenue);
   ui.el('btn-speichern').onclick = () => ablageSpeichern(app, false);
   ui.el('btn-optionen').onclick = () => dialogOptionen(app);
   /*

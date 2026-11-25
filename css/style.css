@@ -4351,7 +4351,8 @@ body.ohne-erklaertexte .hinweis-zu { display: none; }
 .viewer-tools-r:not(:has(> #wz-auf)) { border-radius: var(--m-r1); box-shadow: none; }
 .viewer-tools-r > #wz-auf { border-radius: var(--m-r1); box-shadow: none; height: 24px; padding: 0 10px; }
 /* Legende in der Mitte der freien Fläche, solange die Leiste offen ist. */
-#viewer.wz-offen .legende:not(.gezogen) {
+/* 26. November: nur bei Platzmangel in der Höhe (`wz-eng`, app.layout.js). */
+#viewer.wz-eng .legende:not(.gezogen) {
   right: auto; left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%);
 }
 
@@ -4492,7 +4493,7 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf var(--d-mittel) var
   right: auto; left: calc(100% - 10px); transform: translateX(-100%);
   transition: left var(--t-fahrt), transform var(--t-fahrt);
 }
-#viewer.wz-offen .legende:not(.gezogen) { left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%); }
+#viewer.wz-eng .legende:not(.gezogen) { left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%); }
 @media (prefers-reduced-motion: reduce) { #viewer .legende:not(.gezogen) { transition-duration: 0s; } }
 /* Übersicht ruhig (22. November, «das anwählen des übersicht sidebar wirkt
    etwas unruhig da die einzelnen nachweiswerte stottern»): keine
@@ -4566,3 +4567,12 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf var(--d-mittel) var
 details.grp > summary.sec { padding-top: 5px; padding-bottom: 5px; margin-top: 15px; margin-bottom: 5px; }
 button.wz-haupt { padding: 3px 0 4px; }
 .qp-linie { border-top-width: 6px; border-bottom-width: 6px; margin-top: -6px; }
+
+/* Bildsammlung des 3D (26. November, app.bilder.js). */
+.bs-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 0 14px 10px; }
+.bs-bild { margin: 0; border: 1px solid var(--ol); border-radius: var(--m-r1); overflow: hidden; background: var(--s1); }
+.bs-bild img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: contain; background: #ffffff; border-bottom: 1px solid var(--ol); }
+.bs-bild figcaption { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; }
+.bs-bild figcaption input { width: 100%; }
+.bs-bild small { color: var(--dim); }
+.bs-knoepfe { display: flex; gap: 6px; }

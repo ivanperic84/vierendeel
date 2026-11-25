@@ -24515,14 +24515,15 @@ titel('68  Das Menueband und der Name der Anwendung');
   wahr('… und die vier einzelnen Ausgabe-Knoepfe sind weg',
        ['btn-axisvm', 'btn-bericht', 'btn-export', 'btn-drucken']
          .every((id) => !app.includes(`'${id}'`) && !app.includes(`"${id}"`)));
-  const menue = app.slice(app.indexOf('function exportMenue()'),
+  // 26. November: zwei Knöpfe - Berichte (`berichteMenue`) und Modell & Daten (`exportMenue`).
+  const menue = app.slice(app.indexOf('function berichteMenue()'),
                           app.indexOf('function exportMenueVerdrahten'));
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
   // Seit dem 30. September dazu das Blatt der Reaktionskraefte, seit dem 8. Oktober das des Bestandesschutzes (neun Eintraege).
   // 17. November: «den drucken button entfernen» - zehn Eintraege, kein Drucken.
   // 18. November: dazu der Viewer (elf Eintraege).
   wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Viewer - kein Drucken',
-       eintraege.length === 11 && /COM/.test(eintraege[0]) && menue.includes('tun: bestandBlatt')
+       eintraege.length === 13 && eintraege.includes('Bildsammlung …') && menue.includes('tun: bestandBlatt')
        && menue.includes('viewerAusleiten(app)')
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
            'reaktionsBlatt', 'exportKlick'].every((t) => menue.includes(t)) && !menue.includes('window.print()'),
@@ -34369,7 +34370,7 @@ titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt
   wahr('Kein «−0.00» in der Tabelle', !ER.reaktionenTabelleHtml(daten).includes('−0.00'));
   const app = APP_QUELLE();
   wahr('Export-Menü und Reiter Auflager führen sie',
-       app.includes("{ text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt }")
+       app.includes("{ text: 'Reaktionskräfte', tun: reaktionsBlatt }")
        && app.includes("reaktionenKurzHtml(rd)"));
   // Im Reiter die gestürzte Form: je Auflager Grössen als Zeilen (30. Sept.).
   const kurz = ER.reaktionenKurzHtml({ ...daten, zeilen: daten.zeilen.map((x) => (x.art === 'mast'
@@ -38540,7 +38541,7 @@ titel('228  Bestandesschutz: Bestand gegen Bestand + neue Bauteile');
            && APP_QUELLE().includes('get urteilKurz() { return urteilKurz; }'));
     }
     wahr('Knopf im Block, Blatt im Export', html.includes('data-bestand-blatt')
-         && APP_QUELLE().includes("{ text: 'Bestandesschutz (Blatt)', tun: bestandBlatt }")
+         && APP_QUELLE().includes("{ text: 'Bestandesschutz', tun: bestandBlatt }")
          && APP_QUELLE().includes("closest?.('[data-bestand-blatt]')"));
   }
   const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
@@ -40389,7 +40390,7 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
            !kurz.includes('Einzelne Gurtanschlüsse') && !kurz.includes('<h2 class="rk-hinweise-titel">Hinweise</h2>')
            && kurz.includes('Resultierende je Jochende'));
       wahr('… Knopf im Block und Eintrag im Export',
-           APP_QUELLE().includes('data-anschluss-blatt') && APP_QUELLE().includes("{ text: 'Kräfte am Jochanschluss (Blatt)', tun: anschlussBlatt }"));
+           APP_QUELLE().includes('data-anschluss-blatt') && APP_QUELLE().includes("{ text: 'Kräfte am Jochanschluss', tun: anschlussBlatt }"));
     }
     wahr('Reiter Auflager: Schalter Resultierende / Einzelgurte am Jochanschluss',
          APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln)'));
@@ -41566,7 +41567,7 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
   wahr('Hintergrundzeichnung: zum Arbeitsstand gesichert (auch ohne Eintrag der Ablage), beim Start geholt, nicht im Ablage-Paket',
        APP_QUELLE().includes('if (await zeichnungBeimStart(app)) {') && APP_QUELLE().includes('zum Arbeitsstand (10. Oktober).')
        && APP_QUELLE().includes('store.zeichnungLoeschen(store.ARBEITS_ZEICHNUNG)')
-       && stQ.includes('.filter((z) => z.id !== ARBEITS_ZEICHNUNG)'));
+       && stQ.includes('.filter((z) => z.id !== ARBEITS_ZEICHNUNG && !String(z.id).startsWith(BILDER))'));
 }
 
 // ===========================================================================
@@ -42102,7 +42103,7 @@ titel('276  Durchsicht der Bedienung, Punkte 5 bis 10');
        U276.datenbankText(stand, [], true).includes('OHNE Masten-Sortiment'));
   wahr('Export-Menü schliesst die Projektablage; AxisVM-Einlesen unter «Gegenrechnung»',
        /schubladeSchliessen\(app\);\s*const r = knopf\.getBoundingClientRect\(\);/.test(AQ)
-       && AQ.indexOf("'AxisVM-Ergebnisse einlesen …'") < AQ.indexOf("{ kopf: 'Dokumente' }")
+       && AQ.indexOf("'AxisVM-Ergebnisse einlesen …'") < AQ.indexOf("{ kopf: 'Daten' }")
        && AQ.indexOf("'AxisVM-Ergebnisse einlesen …'") > AQ.indexOf("{ kopf: 'Gegenrechnung' }"));
   wahr('Optionen: ein Schliessknopf (im Kopf), «Eingaben zurücksetzen» abgesetzt',
        !OQ.includes('<button class="btn" data-zu>Fertig</button>') && OQ.includes('class="btn btn-fail opt-reset"')
@@ -43675,8 +43676,9 @@ titel('314  Insel, Leiste, Legende einheitlich; Legende mittig; Modell springt n
   wahr('Insel und Leiste mit den kleinen Ecken der Legende, ohne Schatten; Leiste durchsichtig',
        css.includes('.viewer-oben, .viewer-oben.offen { border-radius: var(--m-r1); box-shadow: none; }')
        && css.includes('background: color-mix(in srgb, var(--s2) 45%, transparent);'));
-  wahr('Legende bei offener Leiste in der Mitte der freien Fläche (ausser von Hand verschoben)',
-       LQ.includes("v.classList.toggle('wz-offen', offen);") && css.includes('#viewer.wz-offen .legende:not(.gezogen) {'));
+  // 26. November: nur noch bei Platzmangel in der Höhe (`wz-eng`), siehe Abschnitt 346.
+  wahr('Legende bei offener Leiste und Platzmangel in der Mitte der freien Fläche (ausser von Hand verschoben)',
+       LQ.includes("v.classList.toggle('wz-offen', offen);") && css.includes('#viewer.wz-eng .legende:not(.gezogen) {'));
   // Seit «Oben was, unten Skala» führt der Lastfall der Insel wieder zu den Lastfällen (die Legende trägt ihn nicht mehr).
   wahr('Lastfall der Insel als Span, führt zu den Lastfällen',
        readFileSync(join(HIER, 'index.html'), 'utf8').includes('<span class="viewer-marke viewer-lf" id="pos-lf"></span>')
@@ -44416,6 +44418,39 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (26. November)');
+/* «der exportbutton hat eine sehr grosse auswahl, diese müsst man
+ * übersichtlicher gestalten, mit einem zusätzlichen button.» («Berichte /
+ * Modell & Daten»), «printscreen bibliothek … 3d plot als bild (weisser
+ * hintergrund)» («Sammlung im Projekt»), «die box unten rechts nicht immer
+ * automatisch in die mitte schieben … erst dann wenn es keinen platz in der
+ * höhe hat». */
+{
+  const AQ = APP_QUELLE();
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const STQ = readFileSync(join(HIER, 'js', 'store.js'), 'utf8');
+  const ber = AQ.slice(AQ.indexOf('function berichteMenue()'), AQ.indexOf('function exportMenue()'));
+  const mod = AQ.slice(AQ.indexOf('function exportMenue()'), AQ.indexOf('function exportMenueVerdrahten'));
+  wahr('Zwei Knöpfe: «Modell & Daten» (AxisVM, PyNite, Excel, Viewer) und «Berichte» (Bericht, Blätter, Bilder)',
+       AQ.includes('id="btn-berichte"') && AQ.includes('<span>Modell &amp; Daten</span')
+       && AQ.includes("exportMenueVerdrahten(ui.el('btn-berichte'), berichteMenue)")
+       && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'exportKlick', 'viewerAusleiten(app)'].every((t) => mod.includes(t))
+       && !mod.includes('dialogBericht(app)') && !mod.includes('reaktionsBlatt')
+       && ['dialogBericht(app)', 'reaktionsBlatt', 'anschlussBlatt', 'bestandBlatt', 'bildAufnehmen(app)', 'bildsammlungZeigen(app)']
+         .every((t) => ber.includes(t)));
+  wahr('Bildsammlung: das 3D wie es steht, hell, weisser Grund, zugeschnitten; je Eintrag in IndexedDB, nicht im Paket',
+       BQ.includes("momentaufnahme(null, { aktuell: true, weiss: true })") && BQ.includes("uebertrageTokens('hell')")
+       && BQ.includes('async function zuschneiden(url)') && RQ.includes("c.fillStyle = this._weiss ? '#ffffff' : t.viewerBg;")
+       && STQ.includes('export async function bilderSichern(id, liste)') && STQ.includes("const BILDER = 'bilder|';"));
+  wahr('Legende: in die Mitte nur, wenn die offene Leiste sie in der Höhe überdeckt (`wz-eng`), neu bewertet bei Grösse',
+       LQ.includes('eng = oben > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")
+       && LQ.includes('new ResizeObserver') && !css.includes('#viewer.wz-offen .legende'));
 }
 
 // ===========================================================================

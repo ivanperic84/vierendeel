@@ -4953,6 +4953,16 @@ export class Modellansicht {
    * @returns {string|null} PNG als Daten-URL
    */
   momentaufnahme(key = 'iso', opt = {}) {
+    /*
+     * >>> DAS BILD WIE ES STEHT (26. November, Bildsammlung). <<< Mit
+     * `aktuell`: Blick, Ausschnitt und Grösse bleiben, nur neu gezeichnet;
+     * mit `weiss` auf weissem Grund statt der Hintergrundfarbe des Themas.
+     */
+    if (opt.aktuell) {
+      this._weiss = Boolean(opt.weiss);
+      try { this.zeichneJetzt(); return this.cv.toDataURL('image/png'); }
+      finally { this._weiss = false; this.zeichneJetzt(); }
+    }
     const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
     const alt = { kamera: structuredClone(this.kamera), fokus: this.fokus,
                   station: this.station, ansichtKey: this.ansichtKey,
@@ -5169,7 +5179,7 @@ export class Modellansicht {
     const w = cv.width, h = cv.height;
     this._s = this._px();
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = t.viewerBg;
+    c.fillStyle = this._weiss ? '#ffffff' : t.viewerBg;
     c.fillRect(0, 0, w, h);
     this._massTreffer = [];
     this._titelTreffer = [];

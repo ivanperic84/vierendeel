@@ -371,6 +371,40 @@ function wzZu() {
  * ihr). Eingeklappt ist sie ein kleiner Knopf oben: dann 0.
  */
 let breiteOffen = null;
+/*
+ * >>> DIE LEGENDE WEICHT NUR AUS, WENN ES IN DER HÖHE NICHT REICHT
+ * (26. November). <<< Weisung: «die box unten rechts nicht immer automatisch
+ * in die mitte schieben wenn sich die layersteuerung öffnet sondern erst dann
+ * wenn es keinen platz in der höhe hat (je nach der fensterhöhe /
+ * auflösung).» Ändert den 21. November («in die mitte ziehen»): die Legende
+ * bleibt unten rechts, solange die offene Leiste über ihr endet; erst wenn
+ * sich beide in der Höhe überdecken, rückt sie in die Mitte der freien
+ * Fläche (Klasse `wz-eng`). Neu bewertet bei jedem Melden der Leiste und bei
+ * jeder Grösse des Fensters oder der Legende.
+ */
+let legendeBeobachter = null;
+function legendeAusweichen(v, n, offen) {
+  const lg = v.querySelector('.legende');
+  let eng = false;
+  if (offen && lg && !lg.classList.contains('gezogen')) {
+    const unten = n.getBoundingClientRect().bottom;
+    const oben = lg.getBoundingClientRect().top;
+    eng = oben > 0 && unten + 6 > oben;
+  }
+  v.classList.toggle('wz-eng', eng);
+  if (!legendeBeobachter && typeof ResizeObserver !== 'undefined') {
+    legendeBeobachter = new ResizeObserver(() => {
+      const nn = document.getElementById('ebenen-tools');
+      const lg2 = v.querySelector('.legende');
+      if (nn) legendeAusweichen(v, nn, !!nn.querySelector('.wz-gruppe'));
+      if (lg2 && !legendeBeobachter._lg) { legendeBeobachter.observe(lg2); legendeBeobachter._lg = lg2; }
+    });
+    legendeBeobachter.observe(v);
+    if (lg) { legendeBeobachter.observe(lg); legendeBeobachter._lg = lg; }
+  } else if (legendeBeobachter && lg && legendeBeobachter._lg !== lg) {
+    legendeBeobachter.observe(lg); legendeBeobachter._lg = lg;
+  }
+}
 export function leisteMelden(app) {
   const v = ui.el('viewer'), n = ui.el('ebenen-tools');
   if (!v || !n) return;
@@ -393,9 +427,8 @@ export function leisteMelden(app) {
   // Bildmitte immer mit der Breite der OFFENEN Leiste.
   v.style.setProperty('--wz-kopf', `${b}px`);
   v.style.setProperty('--wz-legende', `${offen ? kn : 0}px`);   // die Legende unten nur bei offener Leiste
-  // Bei offener Leiste steht die Legende unten in der Mitte (21. November,
-  // «wenn die layersteuerung ausfährt dann die untere resultatbox in die mitte ziehen»).
   v.classList.toggle('wz-offen', offen);
+  legendeAusweichen(v, n, offen);
   const a = app.ansicht;
   if (a && a.randRechts !== b) {
     a.randRechts = b;

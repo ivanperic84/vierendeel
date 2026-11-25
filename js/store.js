@@ -426,10 +426,24 @@ export async function zeichnungLoeschen(id) {
  */
 export const ARBEITS_ZEICHNUNG = '__arbeitsstand__';
 
+/*
+ * >>> BILDSAMMLUNG (26. November, app.bilder.js). <<< Die aufgenommenen
+ * 3D-Bilder eines Eintrags (bzw. des Arbeitsstands) als eine Liste unter
+ * `bilder|<Id>`, im Speicher der Zeichnungen. Nicht im Ablage-Paket.
+ */
+const BILDER = 'bilder|';
+export async function bilderLaden(id) {
+  try { return (await tx('readonly', (st) => st.get(`${BILDER}${id}`), ZEICHNUNGEN))?.liste ?? []; }
+  catch { return []; }
+}
+export async function bilderSichern(id, liste) {
+  await tx('readwrite', (st) => st.put({ id: `${BILDER}${id}`, liste, geaendert: new Date().toISOString() }), ZEICHNUNGEN);
+}
+
 /** Alle Zeichnungen der Ablage - gebraucht beim Ausleiten des ganzen Projekts. */
 export async function zeichnungenAlle() {
   return ((await tx('readonly', (st) => st.getAll(), ZEICHNUNGEN)) ?? [])
-    .filter((z) => z.id !== ARBEITS_ZEICHNUNG);
+    .filter((z) => z.id !== ARBEITS_ZEICHNUNG && !String(z.id).startsWith(BILDER));
 }
 
 // --- Das ganze Projekt als Paket --------------------------------------------
