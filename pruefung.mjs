@@ -44139,7 +44139,7 @@ titel('334  Projektauswertung: Fundamente je Einwirkung und Skizze je Position (
   wahr('Ein Eintrag, der nicht rechnet, bricht den Lauf nicht ab (fehler)', Boolean(kaputt.fehler));
   const html = PA.projektBlattHtml({ projekt: 'P', datum: '23.11.2026', eintraege: [r, kaputt] }, { fassung: 'x' });
   wahr('Blatt: eine Zeile je Fundament, Spalten je Grösse, Skizze je Position, Fehler genannt',
-       (html.match(/<tr class="zeile"/g) ?? []).length === 5   // 2 Fundamente, 2 Masten, 1 Joch && html.includes('>M_q<') && html.includes('>H_l<')
+       (html.match(/<tr class="zeile"/g) ?? []).length === 7   // 2 Fundamente, 2 Reaktionen (25. Nov.), 2 Masten, 1 Joch && html.includes('>M_q<') && html.includes('>H_l<')
        && html.includes('id="pos-0"') && html.includes('Nicht gerechnet') && html.includes('class="rk-skizze"'));
   // 23. November: technischer Kopf, Listen Fundamente / Masten / Joche, Ordnen nach km und Typ.
   wahr('Grundlagen mit den Eingabeparametern (EK, L_FL, Radius …) und Tabelle je Eintrag',
@@ -44486,9 +44486,9 @@ titel('338  Projektauswertung als Excel (projektMappe, app.projekt.js)');
   const kaputt = PA.eintragAuswerten({ id: 'p2', name: 'Kaputt', werte: { weitere: 'x' } });
   const res = { projekt: 'P', datum: '23.11.2026', eintraege: [r, kaputt] };
   const bl = PA.projektMappe(res, { fassung: 'x' });
-  wahr('Blätter Übersicht, Fundamente, Masten, Joche, Parameter',
-       ['Übersicht', 'Fundamente', 'Masten', 'Joche', 'Parameter'].every((n, i) => bl[i]?.name === n), bl.map((b) => b.name).join(', '));
-  const fu = bl[1].rows, ma = bl[2].rows, jo = bl[3].rows;
+  wahr('Blätter Übersicht, Fundamente, Reaktionen, Masten, Joche, Parameter',
+       ['Übersicht', 'Fundamente', 'Reaktionen', 'Masten', 'Joche', 'Parameter'].every((n, i) => bl[i]?.name === n), bl.map((b) => b.name).join(', '));
+  const fu = bl[1].rows, ma = bl[3].rows, jo = bl[4].rows;
   const L = PA.projektListen(res);
   wahr('Eine Zeile je Fundament, Mast, Joch - dieselben Listen wie das Blatt',
        fu.length - 1 === L.fund.length && ma.length - 1 === L.mast.length && jo.length - 1 === L.joch.length);
@@ -44498,6 +44498,15 @@ titel('338  Projektauswertung als Excel (projektMappe, app.projekt.js)');
                                    && [13, 14, 15].includes(z[iEta].s)));
   wahr('km als Zahl', fu[1][1]?.v === 12.345);
   wahr('Übersicht nennt den nicht gerechneten Eintrag', JSON.stringify(bl[0].rows).includes('Kaputt'));
+  // Reaktionskräfte (25. November): je Mast Einwirkung und Standardlast, Werte wie das Reaktionsblatt.
+  const rk = bl[2].rows, z0 = r.reaktionen.find((z) => z.art === 'mast');
+  const ein = rk.find((z) => z[4]?.v === 'Einwirkung' && z[2]?.v === z0.anzeige);
+  wahr('Reaktionen: je Mast eine Zeile Einwirkung und eine Standardlast',
+       L.rk.length > 0 && rk.filter((z) => z[4]?.v === 'Standardlast').length === L.rk.filter((x) => x.z.art === 'mast').length);
+  pruef('Reaktionen: M_l wie die Zeile des Reaktionsblatts', ein?.[9]?.v, Math.round(z0.haupt.Ml.wert * 100) / 100, 1e-9, 'kNm');
+  const html = PA.projektBlattHtml(res, { fassung: 'x' });
+  wahr('Blatt: Umschalter «Reaktionskräfte» mit einer Zeile je Auflager',
+       html.includes('data-l="rk"') && (html.split('data-liste="rk"')[1] ?? '').split('</tbody>')[0].split('<tr ').length - 1 === L.rk.length);
   wahr('Kopfzeile fest, Autofilter über die ganze Liste', bl[1].fest === 1 && /^A1:[A-Z]+\d+$/.test(bl[1].filter)
        && bl[1].filter.endsWith(String(fu.length)));
   const datei = X.arbeitsmappe(bl);
@@ -44505,7 +44514,7 @@ titel('338  Projektauswertung als Excel (projektMappe, app.projekt.js)');
   const wb = new TextDecoder().decode(teile.find((t) => t.name === 'xl/workbook.xml').inhalt);
   const st = new TextDecoder().decode(teile.find((t) => t.name === 'xl/styles.xml').inhalt);
   wahr('Mappe: Filtername je Liste, 16 Zellstile (Ampel 13-15)',
-       (wb.match(/_xlnm\._FilterDatabase/g) ?? []).length === 4 && st.includes('<cellXfs count="16">')
+       (wb.match(/_xlnm\._FilterDatabase/g) ?? []).length === 5 && st.includes('<cellXfs count="16">')
        && (st.slice(st.indexOf('<cellXfs')).match(/<xf /g) ?? []).length === 16);
 }
 

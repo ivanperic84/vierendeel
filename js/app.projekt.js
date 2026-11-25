@@ -226,7 +226,12 @@ export function eintragAuswerten(e) {
                 kasten: g.kasten.map((p) => [p[0] + dx, p[1] + dz]) };
     }
   } catch { anbau = null; }
-  return { ...kopf, ...ort, tragwerke, masten, param, anbau, skizze: h.skizze ?? null, reaktionen: h.reaktionen ?? [] };
+  // Die Auflager mit Namen wie im Reaktionsblatt (25. November, Ansicht «Reaktionskräfte»).
+  const reaktionen = (h.reaktionen ?? []).map((z) => ({ ...z,
+    anzeige: z.art === 'anker' ? `A${anz(z.id)}` : z.art === 'laengsanker' ? 'Längsanker'
+      : z.art === 'jochende' ? `${z.tw ? `${z.tw} · ` : ''}Jochende ${z.ende}`
+      : z.art === 'mast' ? anz(z.id) : String(z.id ?? '') }));
+  return { ...kopf, ...ort, tragwerke, masten, param, anbau, skizze: h.skizze ?? null, reaktionen };
 }
 
 /**
@@ -383,6 +388,47 @@ const STIL = `
 /** km als Zahl (zum Ordnen), sonst leer. */
 const kmZahlVon = (r) => { const v = parseFloat(String(r.km ?? '').replace(/[^0-9.+-]/g, '')); return Number.isFinite(v) ? v : ''; };
 
+
+/*
+ * >>> FOKUS AUF DIE FUNDAMENT-REAKTIONSKRÄFTE (25. November). <<< Weisung:
+ * «biete bei der auswertung noch die möglichkeit den fokus auf die fundament
+ * reaktionskräfte zu legen.», auf Rückfrage «Projektauswertung» und «Wie
+ * Reaktionsblatt»: je Auflager aller Einträge V min / max, ±M_q, ±H_q, ±M_l,
+ * ±H_l, ±T charakteristisch mit massgebendem Fall, dazu Havarie, Anteil
+ * ständig / veränderlich und die Standardlasten des Fundaments. Dieselben
+ * Zeilen wie das Reaktionsblatt (`reaktionsZeilen`); nichts neu gerechnet.
+ */
+const RK_ARTEN = new Set(['mast', 'anker', 'laengsanker', 'jochende']);
+const RK_SP = ['Mq', 'Hq', 'Ml', 'Hl', 'T'];
+const RK_KOPF = { Mq: ['M_q', 'kNm'], Hq: ['H_q', 'kN'], Ml: ['M_l', 'kNm'], Hl: ['H_l', 'kN'], T: ['T', 'kNm'] };
+function rkSpalten(z) {
+  if (z.art === 'mast' || z.art === 'jochende') return new Set(RK_SP);
+  if (z.art === 'laengsanker') return new Set(['Hl']);
+  if (z.art === 'anker') {
+    const ri = z.anker?.richtung;
+    return new Set(ri === 'y' ? ['Hl'] : ri === 'x' ? ['Hq'] : ['Hq', 'Hl']);
+  }
+  return new Set(['Hq', 'Hl']);
+}
+/** Zulässige Standardlast einer Grösse am Mastfundament (aus dem Nachweis). */
+const rkZul = (m, key) => m?.fundament?.nachweise?.find((n) => n.key === key)?.zul ?? null;
+function rkFundament(z, m) {
+  if (z.art === 'mast') return m?.fundament?.typ ?? (m?.unterbau ? 'Unterbau' : '–');
+  if (z.art === 'anker') return m?.ankerFundament?.typ ? `${m.ankerFundament.typ} · Anker` : 'Ankerfundament';
+  return z.art === 'laengsanker' ? 'Seil in Gleisrichtung' : 'Jochauflager';
+}
+const rkEta = (z, m) => (z.art === 'mast' ? m?.fundament?.eta : z.art === 'anker' ? m?.ankerFundament?.eta : null) ?? NaN;
+const rkKurz = (bez) => String(bez ?? '')
+  .replace(/^Havarie: .* reisst, Längszug (.)y$/, 'Leiterriss, Längszug $1y')
+  .replace(/^Havarie \(−20 °C\), ohne Leiterbruch$/, 'ohne Leiterbruch');
+function rkFall(z, b) {
+  if (!b) return '';
+  const hat = rkSpalten(z);
+  const f = (x) => (x?.bez && Math.abs(x.wert) >= 0.005 ? rkKurz(x.bez) : '');
+  const q = hat.has('Mq') ? b.Mq : hat.has('Hq') ? b.Hq : null;
+  const l = hat.has('Ml') ? b.Ml : hat.has('Hl') ? b.Hl : null;
+  return [f(q) ? `quer: ${f(q)}` : '', f(l) ? `längs: ${f(l)}` : ''].filter(Boolean).join(' · ');
+}
 /*
  * >>> DIE LISTEN EINER AUSWERTUNG AN EINER STELLE (23. November). <<< Blatt
  * (`projektBlattHtml`) und Excel-Mappe (`projektMappe`) lesen dieselben
@@ -413,7 +459,10 @@ export function projektListen(res) {
   const da = new Set();
   fund.forEach((x) => x.f.nachweise.forEach((n) => da.add(n.key)));
   const spalten = PROJEKT_GROESSEN.filter((g) => da.has(g.key));
-  return { ok, fund, mast, joch, spalten };
+  const rk = ok.flatMap((r) => (r.reaktionen ?? [])
+    .filter((z) => z.haupt && RK_ARTEN.has(z.art))
+    .map((z) => ({ r, z, m: (r.masten ?? []).find((mm) => mm.name === z.id) ?? null })));
+  return { ok, fund, mast, joch, spalten, rk };
 }
 
 /*
@@ -428,7 +477,7 @@ export function projektListen(res) {
  * Kopfzeile fest, Autofilter.
  */
 export function projektMappe(res, { fassung = '' } = {}) {
-  const { ok, fund, mast, joch, spalten } = projektListen(res);
+  const { ok, fund, mast, joch, spalten, rk } = projektListen(res);
   const H = (t) => ({ v: t, s: 1 });
   const ETA = (e) => (Number.isFinite(e) ? { v: Math.round(e * 1000) / 1000, s: XLS_AMPEL[ampelVon(e)] } : '');
   const Z2 = (v) => (Number.isFinite(v) ? { v: Math.round(v * 100) / 100, s: 4 } : '');
@@ -498,6 +547,24 @@ export function projektMappe(res, { fassung = '' } = {}) {
   const jRows = [jKopf, ...joch.map(({ r, t, eta }) => [T(r.name), km(r), T(t.pos), T(t.art), T(t.bau), Z2(t.H),
     T(t.masten.join(' – ')), ETA(t.eta), ETA(t.aufhaengung), T(t.bez ?? ''), ETA(eta)])];
 
+  /* Reaktionskräfte (25. November): je Auflager Einwirkung, Havarie, Standardlast */
+  const rKopf = [H('Eintrag'), H('km'), H('Pos.'), H('Fundament'), H('Zeile'), H('V min [kN]'), H('V max [kN]'),
+    ...RK_SP.map((k) => H(`±${RK_KOPF[k][0]} [${RK_KOPF[k][1]}]`)), H('ständig [%]'), H('massgebender Fall'), H('η')];
+  const rRows = [rKopf, ...rk.flatMap(({ r, z, m }) => {
+    const hat = rkSpalten(z);
+    const zeile = (art, b) => [T(r.name), km(r), T(z.anzeige), T(rkFundament(z, m)), T(art),
+      Z2(b?.Vmin?.wert), Z2(b?.Vmax?.wert), ...RK_SP.map((k) => (hat.has(k) ? Z2(b?.[k]?.wert) : '')),
+      art === 'Einwirkung' && z.anteil?.quer ? Z2(z.anteil.quer.prozent * 100) : '',
+      T(rkFall(z, b)), art === 'Einwirkung' ? ETA(rkEta(z, m)) : ''];
+    const aus = [zeile('Einwirkung', z.haupt)];
+    if (z.havarie) aus.push(zeile('Havarie', z.havarie));
+    if (z.art === 'mast' && m?.fundament) {
+      aus.push([T(r.name), km(r), T(z.anzeige), T(rkFundament(z, m)), T('Standardlast'), Z2(0), Z2(rkZul(m, 'V')),
+        ...RK_SP.map((k) => Z2(rkZul(m, k))), '', T('zulässig'), '']);
+    }
+    return aus;
+  })];
+
   /* Parameter je Eintrag */
   const pRows = [[H('Eintrag'), H('km'), H('Projekt'), H('Bemerkung'), ...PARAM.map((p) => H(p.kopf))],
     ...ok.map((r) => [T(r.name), km(r), T(r.projekt), T(r.bemerkung), ...PARAM.map((p) => {
@@ -509,6 +576,8 @@ export function projektMappe(res, { fassung = '' } = {}) {
     { name: 'Übersicht', rows: uebersicht, breiten: [22, 34, 12, 16, 12, 10, 60] },
     { name: 'Fundamente', rows: fRows, fest: 1, filter: filter(fRows, 1),
       breiten: [18, 10, 8, 18, 12, ...spalten.flatMap(() => [8, 9, 9]), 16, 8, 30] },
+    { name: 'Reaktionen', rows: rRows, fest: 1, filter: filter(rRows, 1),
+      breiten: [18, 10, 8, 18, 12, 10, 10, ...RK_SP.map(() => 10), 10, 34, 8] },
     { name: 'Masten', rows: mRows, fest: 1, filter: filter(mRows, 1),
       breiten: [18, 10, 8, 14, 8, 10, 11, 10, 12, 9, 14, 10, 16, 11, 34, 8] },
     { name: 'Joche', rows: jRows, fest: 1, filter: filter(jRows, 1),
@@ -534,7 +603,7 @@ function spalteBuchstabe(i) {
 
 /** Die Projektauswertung als eigenständige HTML-Seite. */
 export function projektBlattHtml(res, { fassung = '' } = {}) {
-  const { ok, fund, mast, joch, spalten } = projektListen(res);
+  const { ok, fund, mast, joch, spalten, rk } = projektListen(res);
   const idx = (r) => res.eintraege.indexOf(r);
   const kmZahl = kmZahlVon;
   /* ---------- Kennzahlen je Gruppe ---------- */
@@ -615,6 +684,28 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td class="n" data-w="${t.aufhaengung ?? -1}">${t.aufhaengung !== null ? `<b class="${ampelVon(t.aufhaengung)}">${zahl(t.aufhaengung)}</b>` : '–'}</td>
       <td>${esc(t.bez ?? '')}</td>
       <td class="n amp ${ampelVon(eta)}" data-w="${eta}">${zahl(eta)}</td></tr>`).join('');
+  const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
+  const rkZeilen = rk.map(({ r, z, m }) => {
+    const hat = rkSpalten(z), h = z.haupt, hv = z.havarie, eta = rkEta(z, m);
+    const zellen = RK_SP.map((k) => {
+      if (!hat.has(k) || !h?.[k]) return '<td class="n" data-w="-1">–</td>';
+      const zul = z.art === 'mast' ? rkZul(m, k) : null;
+      const ueber = Number.isFinite(zul) && h[k].wert > zul + 1e-9;
+      return `<td class="n${ueber ? ' fail' : ''}" data-w="${h[k].wert}" title="${esc(h[k].bez ?? '')}"><b>${f0(h[k].wert)}</b>${
+        hv?.[k] ? `<small>Hav. ${f0(hv[k].wert)}</small>` : ''}${Number.isFinite(zul) ? `<small>zul ${f0(zul)}</small>` : ''}</td>`;
+    }).join('');
+    const vZul = z.art === 'mast' ? rkZul(m, 'V') : null;
+    const a = z.anteil?.quer;
+    const fu = rkFundament(z, m);
+    return `<tr ${attr(r, fu, eta)}>${kopfZellen(r, z.anzeige)}
+      <td data-w="${esc(fu)}">${esc(fu)}</td>
+      <td class="n" data-w="${h?.Vmax?.wert ?? 0}" title="${esc(`min: ${h?.Vmin?.bez ?? ''} · max: ${h?.Vmax?.bez ?? ''}`)}"><b>${f0(h?.Vmin?.wert)} / ${f0(h?.Vmax?.wert)}</b>${
+        hv ? `<small>Hav. ${f0(hv.Vmin?.wert)} / ${f0(hv.Vmax?.wert)}</small>` : ''}${Number.isFinite(vZul) ? `<small>zul 0 / ${f0(vZul)}</small>` : ''}</td>
+      ${zellen}
+      <td class="n" title="${a ? esc(`ständig ${f0(a.staendig)}, veränderlich ${f0(a.veraenderlich)}`) : ''}">${a ? `${Math.round(a.prozent * 100)} / ${Math.round((1 - a.prozent) * 100)}` : '–'}</td>
+      <td>${esc(rkFall(z, h))}</td>
+      <td class="n amp ${ampelVon(eta)}" data-w="${Number.isFinite(eta) ? eta : -1}">${zahl(eta)}</td></tr>`;
+  }).join('');
   const kopfR = '<th class="s">Eintrag</th><th class="s n">km</th><th class="s">Pos.</th>';
   const listen = `
   <div class="liste" data-liste="fund"><h3 class="lt">Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th><th>Mast</th>
@@ -622,6 +713,12 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     <tbody>${fundZeilen}</tbody></table></div>
     <p class="hinweis">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten; je Grösse η, darunter
       Einwirkung / zulässig [kN, kNm]. Grau: lenkt den Fundamentablauf, kein Nachweis. η nach dem Ablauf.</p></div>
+  <div class="liste" data-liste="rk" hidden><h3 class="lt">Reaktionskräfte der Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th>
+    <th class="s n">V min / max [kN]</th>${RK_SP.map((k) => `<th class="s n">±${RK_KOPF[k][0]} [${RK_KOPF[k][1]}]</th>`).join('')}
+    <th class="n">ständig / veränderl. [%]</th><th>massgebender Fall</th><th class="s n">η</th></tr></thead>
+    <tbody>${rkZeilen}</tbody></table></div>
+    <p class="hinweis">Charakteristisch (alle Beiwerte 1, Wind ohne 0.7) am Mastfuss bzw. Ankerfundament, Druck positiv; je Grösse
+      der massgebende Betrag, darunter klein Havarie und zulässige Standardlast (rot: über der Standardlast). η des Fundaments nach dem Ablauf.</p></div>
   <div class="liste" data-liste="mast" hidden><h3 class="lt">Masten</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Profil</th>
     <th class="s n">L [m]</th><th>Steg</th><th class="s n">η Querschn.</th><th class="s n">η Knicken</th><th>Anker</th>
     <th>Lastfall</th><th class="s n">η</th></tr></thead><tbody>${mastZeilen}</tbody></table></div>
@@ -678,7 +775,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
   </div>
   <h2>Auswertung</h2>
   <div class="wahl">
-    <span class="seg" data-seg="liste"><button data-l="alle">Alle</button><button class="an" data-l="fund">Fundamente</button><button data-l="mast">Masten</button><button data-l="joch">Joche</button></span>
+    <span class="seg" data-seg="liste"><button data-l="alle">Alle</button><button class="an" data-l="fund">Fundamente</button><button data-l="rk">Reaktionskräfte</button><button data-l="mast">Masten</button><button data-l="joch">Joche</button></span>
     <span class="seg" data-seg="amp"><button class="an" data-f="alle">alle</button><button data-f="fail">&gt; 1.00</button><button data-f="warn">0.90-1.00</button><button data-f="ok">≤ 0.90</button></span>
     <label>Ordnen nach ${ordnen(1)}</label><label>dann nach <select data-ordnen="2"><option value="">–</option>
       <option value="eta">η (absteigend)</option><option value="km">km</option><option value="typ">Typ</option><option value="eintrag">Eintrag</option></select></label>
