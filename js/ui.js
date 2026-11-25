@@ -7796,7 +7796,7 @@ export function buegelBlockHtml(opt, urteil) {
     const gurtWort = (g) => (g === 'UG' ? 'Untergurt' : g === 'OG' ? 'Obergurt' : g ?? '');
     // Ohne die Anschlusshöhe im Namen (Audit 21. November: «M2k0 Obergurt»).
     const anschluss = (z) => (z?.ende ? `${String(z.ende).replace(/k\d+$/, '')} ${gurtWort(z.gurt)}` : (z?.name ?? ''));
-    k = kachel('Bügelschrauben', b.eta === null ? '–' : f3(b.eta),
+    k = kachel('Hakenschrauben', b.eta === null ? '–' : f3(b.eta),
       `${anschluss(b)} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
       b.eta === null ? '' : ampel(b.eta),
       { titel: 'Grösste Kraft in der Jochachse im Linkelement je Gurt am Mast, '
@@ -7815,7 +7815,7 @@ export function buegelBlockHtml(opt, urteil) {
           <td class="num ${z.eta === null ? '' : ampel(z.eta)}">${z.eta === null ? '–' : f3(z.eta)}</td>
           <td>${esc(kurz(z.bez))}</td></tr>`).join('')}</tbody></table></div>`, '', false);
   } else {
-    k = kachel('Bügelschrauben (A1)', f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0),
+    k = kachel('Hakenschrauben (A1)', f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0),
       `${f2(a1.vorhanden)} / ${f2(a1.erforderlich)} kN · Kontrollrechnung`,
       a1.ok ? 'ok' : 'fail', { titel: a1.status ?? '' });
   }
@@ -7841,12 +7841,12 @@ export function buegelBlockHtml(opt, urteil) {
    */
   if (aus && !ueber) {
     const zahl = b ? (b.eta === null ? '–' : f3(b.eta)) : (a1 ? f3(a1.erforderlich ? a1.vorhanden / a1.erforderlich : 0) : '–');
-    return klapp('uebersicht-buegel-aus', `Bügelschrauben · η ${zahl}`, `
+    return klapp('uebersicht-buegel-aus', `Hakenschrauben · η ${zahl}`, `
       <div class="kennzahlen nw-zeilen">${k}</div>${vor}
       <p class="notiz" style="margin:4px 0 0">Die Nachweisgruppe «Auflager Joch» ist ausgeschaltet (Optionen → Nachweise) - der Block zählt nicht zum Urteil.</p>
       ${tabelle}`, 'nicht im Urteil', false);
   }
-  return `${abschnitt('Bügelschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Kontrollrechnung')}
+  return `${abschnitt('Hakenschrauben', b ? 'Gurtanschluss am Mast · Stabwerk' : 'Gurtanschluss am Mast · Kontrollrechnung')}
     <div class="kennzahlen nw-zeilen">${k}</div>
     ${ueber ? `<p class="notiz" style="margin:4px 0 0"><b>Grenzlast überschritten</b> mit
       der eingestellten Auflagerbedingung. ${knopf}</p>` : ''}

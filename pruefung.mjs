@@ -39669,7 +39669,7 @@ titel('244  Buegelschrauben: Kraft x je Gurtanschluss aus dem Stabwerk; Grenzfed
   // 17. November: der Knopf fällt weg, an seiner Stelle der Weg zur Stufe
   // «eingespannt bis zur Grenze der Hakenschrauben».
   wahr('Block ohne Knopf «Grenzfeder K_X suchen», mit Hinweis auf die Stufe',
-       html.includes('Bügelschrauben') && !html.includes('data-buegel-grenze')
+       html.includes('Hakenschrauben') && !html.includes('data-buegel-grenze')
        && html.includes('eingespannt bis zur Grenze der Hakenschrauben'));
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('A1 steht nicht mehr in der Liste der Konstruktionspruefungen', uq.includes(".filter((c) => c.id !== 'A1')"));

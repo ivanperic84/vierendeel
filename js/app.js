@@ -1822,10 +1822,10 @@ function neuRechnen(neuZeichnen = true) {
             // Leer ein Platzhalter: sonst entsteht beim ersten Aufbau (noch ohne
             // Stabwerk) kein Behälter, und die Meldung käme nie an.
             if (!b?.ueber) return '<span hidden></span>';
-            return `<p class="notiz fail-text" style="margin:6px 0 0"><b>Bügelschrauben überschritten</b>:
+            return `<p class="notiz fail-text" style="margin:6px 0 0"><b>Hakenschrauben überschritten</b>:
               ${b.F.toFixed(2)} kN &gt; F_Grenz ${b.Fgrenz} kN (${b.wer}) mit dieser
               Auflagerbedingung. Die Grenzfeder K_X sucht der Knopf im Block
-              «Bügelschrauben» der Übersicht.</p>`;
+              «Hakenschrauben» der Übersicht.</p>`;
           })() }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);

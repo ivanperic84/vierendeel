@@ -331,7 +331,7 @@ export function dialogDimension(app) {
     <div class="dm-block"><div class="dm-blocktitel">Varianten</div>
     <div class="dm-kopf dm-schalter">
       ${schalter('steg', 'Mast gedreht')}
-      ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Walzprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('blech', 'Bleche plastisch', 'Jeden Jochtyp zusätzlich mit plastisch nachgewiesenen stehenden Blechen rechnen. Ohne Haken: wie eingestellt.')}${schalter('rueckhalt', 'Rückhaltekraft', 'Jede Variante mit und ohne Rückhaltekraft der Leiter (Einstellung unter Lasten). Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Bügelschrauben zählt hier nicht.')}
+      ${schalter('plastisch', 'Mast auch plastisch', 'Jedes Walzprofil zusätzlich mit plastischem Querschnittswiderstand (W_pl, nur Klasse 1/2) rechnen - wie der Schalter «Mast plastisch» unter den Nachweisen. Ohne Haken: wie eingestellt.')}${schalter('blech', 'Bleche plastisch', 'Jeden Jochtyp zusätzlich mit plastisch nachgewiesenen stehenden Blechen rechnen. Ohne Haken: wie eingestellt.')}${schalter('rueckhalt', 'Rückhaltekraft', 'Jede Variante mit und ohne Rückhaltekraft der Leiter (Einstellung unter Lasten). Ohne Haken: wie eingestellt.')}${schalter('einspannung', 'Einspannung', 'Wie gebaut und bis zur Grenze der Hakenschrauben. Voll eingespannt nicht: der Nachweis der Hakenschrauben zählt hier nicht.')}
     </div></div>
     <div class="dm-block"><div class="dm-blocktitel">Grenzen</div>
     <div class="dm-kopf dm-grenzen">

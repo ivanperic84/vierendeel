@@ -416,7 +416,7 @@ ${f(`N_cr = π²·E·I / L²&nbsp;&nbsp;&nbsp; λ̄ = √( N_pl / N_cr )&nbsp;&n
 <p>Knicklänge über den Knicklängenbeiwert β (Kragmast β = 2); die Lasten stehen
 auf ihrer Höhe. Der Nachweis ist abschaltbar.</p>
 
-<h4>7.5 Gurtverbindung (Bügelschrauben)</h4>
+<h4>7.5 Gurtverbindung (Hakenschrauben)</h4>
 <p>Grösste Kraft in der Jochachse je Gurtanschluss gegen F_Grenz. Bei der
 Stufe «bis zur Grenze der Hakenschrauben» ist der Untergurt auf F_Grenz
 begrenzt.</p>

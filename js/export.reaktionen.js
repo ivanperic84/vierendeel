@@ -861,7 +861,7 @@ export function anschlussBlattHtml(daten, { einzeln = true, hinweise = true } = 
     <li>Die Resultierende ist je Zustand über die Gurtanschlüsse summiert und dann umhüllt - sie ist deshalb nicht die Summe
       der Grösstwerte der einzelnen Gurte.</li>
     <li>Die Verteilung auf die Gurte folgt der eingestellten Auflagerbedingung am Masten (welcher Gurt in welcher Richtung hält).</li>
-    <li>Für die Bemessung der Gurtverbindung (Bügelschrauben) gilt der Block «Bügelschrauben» mit den Bemessungswerten.</li></ul>` : ''}
+    <li>Für die Bemessung der Gurtverbindung (Hakenschrauben) gilt der Block «Hakenschrauben» mit den Bemessungswerten.</li></ul>` : ''}
   <p class="fuss">${esc(daten?.fassung ?? '')}</p>
   </body></html>`;
 }

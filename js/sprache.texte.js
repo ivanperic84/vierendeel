@@ -1685,9 +1685,9 @@ export const TEXTE = {
   "fr": "hauteur propre",
   "it": "altezza propria"
  },
- "Bügelschrauben": {
-  "fr": "Boulons en U",
-  "it": "Bulloni a U"
+ "Hakenschrauben": {
+  "fr": "Boulons à crochet",
+  "it": "Bulloni a gancio"
  },
  "aus dem Stabwerk · anklicken zeigt den Stab": {
   "fr": "du treillis · cliquer pour afficher la barre",
