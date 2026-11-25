@@ -98,7 +98,7 @@ export function rueckhaltLastfaelle(schluessel) {
 }
 
 /** Kleines Gleichungssystem A x = b (Gauss mit Spaltenpivot). */
-function loeseKlein(A, b) {
+export function loeseKlein(A, b) {
   const n = b.length;
   const M = A.map((z, i) => [...z, b[i]]);
   for (let c = 0; c < n; c += 1) {

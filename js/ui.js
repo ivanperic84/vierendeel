@@ -7796,6 +7796,13 @@ export function buegelBlockHtml(opt, urteil) {
     const gurtWort = (g) => (g === 'UG' ? 'Untergurt' : g === 'OG' ? 'Obergurt' : g ?? '');
     // Ohne die Anschlusshöhe im Namen (Audit 21. November: «M2k0 Obergurt»).
     const anschluss = (z) => (z?.ende ? `${String(z.ende).replace(/k\d+$/, '')} ${gurtWort(z.gurt)}` : (z?.name ?? ''));
+    // Grenzfeder (25. November): K_X je Tragwerk, «starr» an der Obergrenze.
+    const kTxt = (pr) => {
+      const K = b.feder?.K?.[pr ?? ''];
+      if (!Number.isFinite(K)) return '';
+      return K >= (b.feder.kMax ?? Infinity) * 0.999 ? 'praktisch starr'
+        : `K_X ${Math.round(K).toLocaleString('de-CH')} kN/m`;
+    };
     k = kachel('Hakenschrauben', b.eta === null ? '–' : f3(b.eta),
       `${anschluss(b)} · ${f2(b.F)} / ${f2(Fg)} kN · ${kurz(b.bez)}`,
       b.eta === null ? '' : ampel(b.eta),
@@ -7803,14 +7810,17 @@ export function buegelBlockHtml(opt, urteil) {
              + 'über die Bemessungskombinationen, gegen die Grenzlast der Gurtverbindung F_Grenz '
              + '(Auflager → Grenzlast der Gurtverbindung).'
              + (b.begrenzt ? '\n\nStufe «eingespannt bis zur Grenze der Hakenschrauben»: der '
-               + 'Untergurt gibt höchstens F_Grenz weiter, darüber gleitet er - η 1.00 heisst hier '
-               + '«Grenze erreicht», nicht «überschritten».' : ''),
-        nachweisKurz: b.begrenzt ? `begrenzt auf ${f2(Fg)} kN (Untergurt gleitet darüber)` : '' });
+               + 'Untergurt hängt an einer Feder K_X in Jochachse (Grenzfeder), so gewählt, dass die '
+               + 'grösste Kraft gerade F_Grenz erreicht. Das Eigengewicht des Jochs trägt das Joch wie '
+               + 'aufgestellt (Montage: unten aufgelegt, oben erst danach befestigt) - es gibt keine '
+               + 'Schraubenkraft. In AxisVM steht dafür der Lastfall «Montage»; die Linkkraft zeigt dort '
+               + 'K_X · Gleitweg, die Schraubenkraft ist Linkkraft plus Montagepaar.' : ''),
+        nachweisKurz: b.begrenzt ? `Grenzfeder ${kTxt(b.praefix ?? b.zeilen?.[0]?.praefix)}${b.feder?.montage ? ' · Eigengewicht Joch ohne Schraubenkraft (Montage)' : ''}` : '' });
     tabelle = klapp('buegel-tabelle', `Je Gurtanschluss · ${b.zeilen.length}`,
       `<div class="tabellenrahmen"><table class="dt"><thead><tr><th>Anschluss</th>
         <th class="num">F_x [kN]</th><th class="num">F_Grenz</th><th class="num">η</th>
         <th>massgebend</th></tr></thead><tbody>${b.zeilen.map((z) => `
-        <tr class="${z.eta > 1 ? 'nok' : ''}"><td>${esc(anschluss(z))}${z.begrenzt ? ' · begrenzt' : ''}</td>
+        <tr class="${z.eta > 1 ? 'nok' : ''}"><td>${esc(anschluss(z))}${z.begrenzt ? ` · ${esc(kTxt(z.praefix))}` : ''}</td>
           <td class="num">${f2(z.F)}</td><td class="num">${f2(z.Fgrenz)}</td>
           <td class="num ${z.eta === null ? '' : ampel(z.eta)}">${z.eta === null ? '–' : f3(z.eta)}</td>
           <td>${esc(kurz(z.bez))}</td></tr>`).join('')}</tbody></table></div>`, '', false);
@@ -7825,8 +7835,8 @@ export function buegelBlockHtml(opt, urteil) {
   // exakt. Bei Überschreitung steht der Weg dorthin als Satz da.
   const knopf = b && ueber
     ? `<p class="notiz" style="margin:4px 0 0">Abhilfe: unter Auflager «Anschluss Joch am Masten»
-        die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann gibt der
-        Untergurt höchstens F_Grenz weiter.</p>` : '';
+        die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann sucht die
+        App die Grenzfeder K_X, bei der der Untergurt höchstens F_Grenz weitergibt.</p>` : '';
   const vor = vorschlag?.K ? `<p class="notiz" style="margin:4px 0 0">Grenzfeder
       <b>K_X = ${Math.round(vorschlag.K).toLocaleString('de-CH')} kN/m</b>
       (${esc(vorschlag.gurte.join(' und '))}) - F = ${f2(vorschlag.F)} / ${f2(vorschlag.Fgrenz)} kN.

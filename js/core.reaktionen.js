@@ -543,10 +543,24 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     jeLf.set(lf, m);
     return m;
   };
+  /*
+   * Grenzfeder mit Montagefall (25. November, core.stabschraube.js): an
+   * einem Link mit Montage wirken G und Montage zusammen wie G mit freiem
+   * Untergurt (`gFrei`) - die Linkkraft allein zeigte K · w_G.
+   */
+  const gFrei = dat?.hakenschrauben?.gFrei ?? {};
   const kombi = (lf) => {
     const out = new Map();
     anteile(lf, dat).forEach(({ lastfall, faktor }) => {
       if (!faktor) return;
+      if (lastfall === 'G' || lastfall === 'Montage') {
+        Object.entries(gFrei).forEach(([nm, f]) => {
+          if (lastfall === 'Montage') return;
+          const z = out.get(nm) ?? [0, 0, 0, 0, 0, 0];
+          for (let r = 0; r < 6; r += 1) z[r] += faktor * f[r];
+          out.set(nm, z);
+        });
+      }
       // Begrenzter Anschluss (17. November): die Schraubenkraft in x ist der
       // Faktor des Hilfsfalls; auf den Mastknoten wirkt sie mit −.
       if (String(lastfall).startsWith('Schraube|')) {
@@ -557,6 +571,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
         return;
       }
       vonLf(lastfall).forEach((f, name) => {
+        if ((lastfall === 'G' || lastfall === 'Montage') && gFrei[name]) return;
         const z = out.get(name) ?? [0, 0, 0, 0, 0, 0];
         for (let r = 0; r < 6; r += 1) z[r] += faktor * f[r];
         out.set(name, z);

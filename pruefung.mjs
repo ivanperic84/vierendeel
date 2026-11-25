@@ -42440,8 +42440,11 @@ titel('281  Einspannung des Jochs bis zur Grenze der Hakenschrauben');
        SG.F_GRENZ_VORGABE === 24 && SG.GURTE.join() === 'UG' && SG.fGrenzVon({}) === 24);
   wahr('Voll eingespannt überschreitet die Grenze am Untergurt (Ausgangslage des Befunds)',
        fmax(hV, 'UG') > 10, `${fmax(hV, 'UG').toFixed(1)} kN`);
-  wahr('Bis zur Grenze: der Untergurt trägt höchstens F_Grenz, und er schöpft sie aus',
-       ug <= 10 + 1e-6 && ug > 9.99, `${ug.toFixed(3)} kN`);
+  // Seit dem 25. November Grenzfeder mit Montage: ohne Eigengewicht bleibt der
+  // Untergurt hier unter 10 kN, die Feder steht an der Obergrenze (praktisch starr).
+  wahr('Bis zur Grenze: der Untergurt trägt höchstens F_Grenz (Grenzfeder, Eigengewicht ohne Schraubenkraft)',
+       ug <= 10 + 1e-6 && ug > 1 && hG.roh.dat.hakenschrauben?.K?.[''] >= hG.roh.dat.hakenschrauben.kMax * 0.9,
+       `${ug.toFixed(3)} kN`);
   const eJ = (h) => h?.reihe?.find((b) => /Joch/.test(b.name))?.eta ?? NaN;
   wahr('Der Einspanngrad liegt zwischen «wie gebaut» und «voll»: η Joch voll ≤ Grenze ≤ wie gebaut',
        eJ(hV) <= eJ(hG) + 1e-3 && eJ(hG) <= eJ(hB) + 1e-3 && eJ(hG) > eJ(hV) + 1e-4,
@@ -42662,9 +42665,9 @@ titel('288  Durchsicht der Vollversion: Anteile grau, Fussleiste, Einspannung, B
        SQ.includes("gruppe: EINFACH ? 'mast' : 'aufl'") && LQ.includes('schraubenGrenze: _weg, ...alt')
        && AQ.includes("werte = { ...werte, schraubenGrenze: wert === 'grenze' };"));
   const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
-  wahr('Bügelschrauben: Mast und Gurt statt Linkname, «begrenzt auf …»',
+  wahr('Hakenschrauben: Mast und Gurt statt Linkname, «Grenzfeder …» (25. November)',
        UQ.includes("const anschluss = (z) => (z?.ende ? `${String(z.ende).replace(") /* 21. Nov.: ohne «k0» */
-       && UQ.includes('begrenzt auf ${f2(Fg)} kN'));
+       && UQ.includes('Grenzfeder ${kTxt('));
 }
 
 // ===========================================================================
@@ -44413,6 +44416,75 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('345  Hakenschrauben als Grenzfeder, Eigengewicht im Montagezustand');
+/* 25. November: «es sollte der weg mit den knotensteifigkeiten gewählt werden
+ * falls möglich» (Rückfrage «Grenzfeder automatisch»), «das joch wird bei der
+ * montage auf das untere auflager gestellt und erst dann oben befestigt»
+ * (Weg 1: Lastfall «Montage», «So bauen, mit Vermerk»). */
+{
+  const AS = await import(J('app.stabwerk.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const A = await import(J('core.auflager.js'));
+  const SG = await import(J('core.stabschraube.js'));
+  const voll = JSON.parse(JSON.stringify(A.JOCH_EINGESPANNT));
+  let w0 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w0 = { ...w0, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', anbauteile: [],
+         nachweise: { ...(w0.nachweise ?? {}), auflagerJoch: true } };
+  const rechne = (extra) => {
+    const w = { ...w0, ...extra };
+    const satz = N.rechensatzMitNachbarn(w);
+    const erg = V.berechne(satz, ...N.kernArgumente(satz));
+    return AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const h = rechne({ schraubenFgrenz: 3, auflagerLinks: { ...voll, schraubenGrenze: true } });
+  const dat = h.roh.dat; const lsg = h.roh.lsg; const hs = dat.hakenschrauben;
+  const ug = dat.staebe.filter((st) => /LINK_M\d_UG[LR]$/.test(st.name));
+  const og = dat.staebe.filter((st) => /LINK_M\d_OG[LR]$/.test(st.name));
+  wahr('Grenzfeder: Untergurt-Link x als Zahl (kN/m), Obergurt starr, keine Hilfsfälle mehr in der Datei',
+       ug.length === 4 && ug.every((st) => typeof st.kraftuebertragung.x === 'number' && st.kraftuebertragung.x > 0)
+       && og.every((st) => st.kraftuebertragung.x !== 'Free' && typeof st.kraftuebertragung.x !== 'number')
+       && !dat.lastfaelle.some((l) => String(l.key).startsWith(SG.SCHRAUBE_FALL))
+       && ![...dat.lasten.punkt, ...(dat.lasten.moment ?? [])].some((l) => String(l.lastfall).startsWith(SG.SCHRAUBE_FALL)),
+       `K_X ${hs?.K?.['']} kN/m`);
+  const Fug = Math.max(...h.buegel.zeilen.filter((z) => z.gurt === 'UG').map((z) => z.F));
+  wahr('Grenzfeder: die grösste Kraft im Untergurt erreicht F_Grenz 3 kN, überschreitet sie nicht',
+       Fug <= 3 + 1e-6 && Fug > 2.7 && hs.K[''] < hs.kMax, `${Fug.toFixed(3)} kN, K ${hs.K['']}`);
+  wahr('Montage: eigener Lastfall, in jeder Kombination mit dem Beiwert von G',
+       dat.lastfaelle.some((l) => l.key === 'Montage')
+       && dat.kombinationen.filter((k) => k.anteile.some((x) => x.lastfall === 'G'))
+         .every((k) => k.anteile.find((x) => x.lastfall === 'Montage')?.faktor === k.anteile.find((x) => x.lastfall === 'G').faktor));
+  // Linkkraft in x unter G und Montage: zusammen K · w_G (Vermerk), die Schraube trägt 0.
+  const fx = (fall, name) => {
+    const e = lsg.elemente.find((x) => x.s.name === name); const uv = lsg.u.get(fall);
+    let sum = 0; for (let b = 0; b < 12; b += 1) sum += e.kG[b] * uv[b < 6 ? e.i * 6 + b : e.j * 6 + (b - 6)];
+    return sum;
+  };
+  const nm = ug[0].name;
+  const linkGM = fx('G', nm) + fx('Montage', nm);
+  wahr('Montage: Linkkraft x unter G + Montage = K · w_G (so in AxisVM), freier Untergurt trägt 0 (gFrei)',
+       Math.abs(Math.abs(linkGM) - Math.abs(hs.montage[nm])) < 1e-3 * Math.abs(hs.montage[nm]) + 1e-6
+       && Math.abs(hs.montage[nm]) > 1 && Math.abs(hs.gFrei[nm][0]) < 1e-6
+       && hs.vermerk.includes('plus Montagepaar'),
+       `Link ${linkGM.toFixed(2)} kN, K·w_G ${hs.montage[nm].toFixed(2)} kN`);
+  const hV = rechne({ auflagerLinks: voll });
+  const FV = Math.max(...hV.buegel.zeilen.filter((z) => z.gurt === 'UG').map((z) => z.F));
+  wahr('Ohne Montage (voll eingespannt) trägt der Untergurt das Eigengewicht mit - mit Grenzfeder nicht',
+       FV > 15 && Fug < FV, `voll ${FV.toFixed(2)} kN`);
+  // Die AxisVM-Datei trägt dieselbe Feder und den Montagefall.
+  const ax = AS.stabwerkDatei({ ...w0, schraubenFgrenz: 3, auflagerLinks: { ...voll, schraubenGrenze: true } },
+    V.berechne(N.rechensatzMitNachbarn({ ...w0, schraubenFgrenz: 3, auflagerLinks: { ...voll, schraubenGrenze: true } }),
+      ...N.kernArgumente(N.rechensatzMitNachbarn({ ...w0, schraubenFgrenz: 3, auflagerLinks: { ...voll, schraubenGrenze: true } }))));
+  wahr('AxisVM-Datei: Feder im Link, Lastfall Montage, keine Hilfsfälle, Vermerk',
+       ax.staebe.filter((st) => /LINK_M\d_UG[LR]$/.test(st.name)).every((st) => st.kraftuebertragung.x === hs.K[''])
+       && ax.lastfaelle.some((l) => l.key === 'Montage') && !ax.lastfaelle.some((l) => String(l.key).startsWith('Schraube|'))
+       && Boolean(ax.hakenschrauben?.vermerk));
+  const SCH = await import(J('ui.schema.js'));
+  const fF = SCH.FELDER.find((x) => x.key === 'schraubenFgrenz');
+  wahr('F_Grenz steht beim Anschluss (nicht unter Feineinstellungen)', !fF.fein && fF.sichtbar({ ...w0 }));
 }
 
 // ===========================================================================

@@ -40,8 +40,8 @@
  * ---------------------------------------------------------------------------
  */
 import { rueckhaltVon, rueckhaltMaxVon } from './data.anbauteile.js';
-import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL, begrenzterHalt } from './core.stabrueckhalt.js';
-import { schraubenGrenzeEinsetzen, SCHRAUBE_FALL, SCHRAUBE_SKALA } from './core.stabschraube.js';
+import { rueckhaltPunkte, rueckhaltHalten, RUECKHALT_FALL } from './core.stabrueckhalt.js';
+import { schraubenGrenzeEinsetzen, grenzfederEinsetzen } from './core.stabschraube.js';
 import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon, tragwerksart, abfangjocheUebereinander } from './core.constants.js';
 import { getMastprofil, getStegrichtung, istGittermast, getGittermast, mastWindHand } from './data.masten.js';
@@ -347,10 +347,26 @@ export function stabwerkModell(werte, erg, satz, eingaben, opt) {
     bau.lasten = lasten(erg.modell, bau, opt);
   }
   const dat = stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz, eingaben });
-  // Einspannung bis zur Grenze der Hakenschrauben (17. November): die
-  // Hilfsfälle stehen vor dem Lösen in der Datei (core.stabschraube.js).
-  schraubenGrenzeEinsetzen(dat, eingaben);
+  // Einspannung bis zur Grenze der Hakenschrauben: seit dem 25. November
+  // als Grenzfeder mit Montagefall (core.stabschraube.js), vor dem Lösen.
+  grenzfederInDatei(dat, eingaben, { eigengewicht: opt?.eigengewicht !== 'staebe' });
   return { dat, bau };
+}
+
+/**
+ * >>> GRENZFEDER DER HAKENSCHRAUBEN IN EINER MODELLDATEI (25. November). <<<
+ * Weisung: «es sollte der weg mit den knotensteifigkeiten gewählt werden».
+ * Einmal mit freiem Untergurt und Einheitspaaren lösen, K_X suchen, dann
+ * steht in der Datei ein gewöhnliches lineares Modell: Feder im Link und
+ * Lastfall «Montage». Zweimal gerufen tut es nichts mehr.
+ */
+export function grenzfederInDatei(dat, eingaben, { eigengewicht = true } = {}) {
+  if (dat?.hakenschrauben) return dat.hakenschrauben;
+  if (!schraubenGrenzeEinsetzen(dat, eingaben)) return null;
+  const lsg = loese(dat, { eigengewicht });
+  const faelle = (eingaben ?? []).flatMap((s) => lastfaelle(s))
+    .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  return grenzfederEinsetzen(dat, lsg, faelle);
 }
 
 /**
@@ -384,16 +400,14 @@ export function stabwerkDatei(werte, erg, opt = {}) {
  * (COM-Datei eines einzelnen Tragwerks: AxisVM setzt es selbst an).
  */
 export function rueckhaltInDatei(dat, eingaben, { eigengewicht = true } = {}) {
-  // Auch die Hakenschrauben (17. November): dieselbe Lösung, danach begrenzt.
-  schraubenGrenzeEinsetzen(dat, eingaben);
+  // Die Hakenschrauben (25. November): Grenzfeder und Montagefall.
+  grenzfederInDatei(dat, eingaben, { eigengewicht });
   const punkte = rueckhaltPunkte(dat);
-  const schrauben = rueckhaltPunkte(dat, SCHRAUBE_FALL);
-  if (!punkte.length && !schrauben.length) return null;
+  if (!punkte.length) return null;
   const lsg = loese(dat, { eigengewicht });
   const faelle = (eingaben ?? []).flatMap((s) => lastfaelle(s))
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
   const r = rueckhaltHalten(dat, lsg, punkte, faelle);
-  begrenzterHalt(dat, lsg, schrauben, faelle, { praefix: SCHRAUBE_FALL, skala: SCHRAUBE_SKALA });
   return r;
 }
 
@@ -466,9 +480,7 @@ export function rechneStabwerk(app, aufruf = {}) {
   // Zuerst der Halt der Leiter (er schreibt seine Faktoren in die
   // Kombinationen), dann der Ausfall der Seile mit ihm zusammen.
   const haltInfo = rueckhaltHalten(dat, lsg, rueckhaltPunkte(dat), alleFaelleS);
-  // Die Hakenschrauben am Jochanschluss, begrenzt auf F_Grenz (17. November).
-  const schraubenInfo = begrenzterHalt(dat, lsg, rueckhaltPunkte(dat, SCHRAUBE_FALL), alleFaelleS,
-    { praefix: SCHRAUBE_FALL, skala: SCHRAUBE_SKALA });
+  // Die Hakenschrauben: seit dem 25. November eine Feder im Link (stabwerkModell).
   const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
   /*
    * >>> THEORIE 2. ORDNUNG (18. November, Etappe B). <<< Mit dem Schalter

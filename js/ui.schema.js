@@ -984,6 +984,22 @@ export const FELDER = [
     wertAus: (w) => (w.auflagerLinks?.schraubenGrenze === true ? 'grenze'
       : jochEingespannt(w.auflagerLinks) ? 'eingespannt'
       : w.auflagerLinks ? 'eigen' : 'gebaut') },
+  /*
+   * F_GRENZ BEIM ANSCHLUSS (25. November). Frage: «wo steht die steifigkeit
+   * wenn man die hackenschrauben grenzwerte einstellt? kann man diese bei der
+   * auflagerdefinition einschreiben.» - das Feld stand unter den
+   * Feineinstellungen. Jetzt direkt unter «Anschluss Joch am Masten»; die
+   * Steifigkeit K_X sucht die App daraus (Grenzfeder, core.stabschraube.js).
+   */
+  { key: 'schraubenFgrenz', gruppe: EINFACH ? 'mast' : 'aufl', typ: 'zahl',
+    label: 'Grenzlast der Hakenschrauben je Gurt', sym: 'F_Grenz', einheit: 'kN',
+    standard: 24, schritt: 1, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'joch' && w.mastVorhanden !== false,
+    hinweis: (w) => (w.auflagerLinks?.schraubenGrenze === true
+      ? 'Stufe «bis zur Grenze»: die App sucht daraus die Grenzfeder K_X des Untergurts '
+        + '(Wert in der Übersicht, Block Hakenschrauben). Das Eigengewicht des Jochs gibt '
+        + 'keine Schraubenkraft (Montage: unten aufgelegt, oben danach befestigt).'
+      : 'Grenzwert des Nachweises der Hakenschrauben, Kraft in Jochachse je Gurt.') },
   { key: 'mastNummer', gruppe: 'mast', typ: 'text',
     label: (w) => `Mastnummer ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: '', wertAus: amMast('nummer', 'mastNummer'),
@@ -1906,14 +1922,6 @@ export const FELDER = [
            + 'Konsole an der anderen Flanschkante hält die Gurte quer (y) und '
            + 'lässt längs und lotrecht frei. Wirkt nur im FEM-Modell. Lotrecht '
            + 'gehalten zwängte die Mastverdrehung den Gurt.' },
-  { key: 'schraubenFgrenz', fein: true, gruppe: 'aufl', typ: 'zahl',
-    label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
-    standard: 24, schritt: 1, min: 0,
-    sichtbar: (w) => tragwerksart(w).key === 'joch'
-                  && !['gelenkig', 'voll'].includes(w.endbedingung),
-    hinweis: 'Grenzwert für Prüfung A1, Gurtanschluss am Mast. Gilt auch ohne '
-           + 'die Begrenzung darunter. Horizontalkraft JE GURT, die '
-           + 'Ebenenkraft ist das Doppelte.'},
   /*
    * DER MASTWIND IST KEINE OPTION (Weisung, 31. August).
    *

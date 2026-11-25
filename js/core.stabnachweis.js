@@ -798,6 +798,17 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
   };
   const je = new Map();
   const begrenzt = new Set();   // Anschlüsse mit Hilfsfall der Hakenschrauben
+  /*
+   * >>> GRENZFEDER MIT MONTAGEFALL (25. November, core.stabschraube.js). <<<
+   * An einem Link mit Montage tragen G und Montage zusammen keine
+   * Schraubenkraft (das Joch ist beim Aufstellen geglitten); die Linkkraft
+   * zeigt dort K · w_G. Ihre x-Anteile zählen deshalb nicht. Unter Theorie
+   * 2. Ordnung wird der lineare Anteil von G und Montage abgezogen.
+   */
+  const montage = dat?.hakenschrauben?.montage ?? {};
+  const mitMontage = (name) => Object.prototype.hasOwnProperty.call(montage, name);
+  (dat?.hakenschrauben?.links ?? []).forEach((nm) => begrenzt.add(nm));
+  const ohneMontage = (lastfall) => lastfall === 'G' || lastfall === 'Montage';
   faelle.forEach((lf) => {
     const summe = new Map();
     /*
@@ -805,9 +816,16 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
      * `TH2|…`; die Kraft der Hakenschraube steht als Faktor unter `linear`.
      */
     anteileFuer(lf, dat).flatMap((x) => (x.linear
-      ? [x, ...x.linear.filter((y) => String(y.lastfall).startsWith('Schraube|'))] : [x]))
-      .forEach(({ lastfall, faktor }) => {
+      ? [x, ...x.linear.filter((y) => String(y.lastfall).startsWith('Schraube|')),
+         ...x.linear.filter((y) => ohneMontage(y.lastfall)).map((y) => ({ ...y, abzug: true }))] : [x]))
+      .forEach(({ lastfall, faktor, abzug }) => {
       if (!faktor) return;
+      if (abzug) {
+        fxVon(lastfall).forEach((v, name) => {
+          if (mitMontage(name)) summe.set(name, (summe.get(name) ?? 0) - faktor * v);
+        });
+        return;
+      }
       /*
        * Begrenzter Anschluss (17. November, core.stabschraube.js): das Link
        * gibt x frei, die Kraft der Schraube ist der Faktor ihres Hilfsfalls
@@ -819,7 +837,10 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
         summe.set(nm, (summe.get(nm) ?? 0) + faktor);
         return;
       }
-      fxVon(lastfall).forEach((v, name) => summe.set(name, (summe.get(name) ?? 0) + faktor * v));
+      fxVon(lastfall).forEach((v, name) => {
+        if (ohneMontage(lastfall) && mitMontage(name)) return;
+        summe.set(name, (summe.get(name) ?? 0) + faktor * v);
+      });
     });
     summe.forEach((v, name) => {
       const alt = je.get(name);
@@ -836,6 +857,9 @@ export function buegelNachweis(dat, lsg, faelle, grenze = () => 0) {
   return { zeilen, F: m?.F ?? 0, eta: m?.eta ?? null, wer: m?.name ?? null,
            ende: m?.ende ?? null, gurt: m?.gurt ?? null, begrenzt: Boolean(m?.begrenzt),
            fall: m?.fall ?? null, bez: m?.bez ?? null, Fgrenz: m?.Fgrenz ?? 0,
+           // Grenzfeder und Montage (25. November, core.stabschraube.js).
+           feder: dat?.hakenschrauben ? { K: dat.hakenschrauben.K, kMax: dat.hakenschrauben.kMax,
+             montage: Object.keys(dat.hakenschrauben.montage ?? {}).length > 0 } : null,
            ueber: zeilen.some((z) => z.eta !== null && z.eta > 1 + 1e-9) };
 }
 
