@@ -102,6 +102,22 @@ const WZ_LASTEN = (app) => [
  * Die untere Leiste folgt dem Rechenverfahren: beim Ersatzbalken der Knopf
  * zum Nachweisschnitt, im Stabwerk die verformte Figur (30. September).
  */
+/*
+ * >>> STRICHBILD (26. November). <<< Ein Schalter unten links, gemerkt im
+ * Browser (`tragjoch-strichbild`): das 3D wie die Bilder des Berichts
+ * (render.3d.js, `strich`). Gilt auch für «Bild aufnehmen».
+ */
+const STRICH_KEY = 'tragjoch-strichbild';
+export function strichAn() {
+  try { return localStorage.getItem(STRICH_KEY) === '1'; } catch { return false; }
+}
+export function strichSetzen(app, an) {
+  try { localStorage.setItem(STRICH_KEY, an ? '1' : '0'); } catch { /* ohne Speicher */ }
+  if (app.ansicht) { app.ansicht.strich = an; app.ansicht.zeichne(); }
+  const k = ui.el('v-strich');
+  if (k) { k.classList.toggle('on', an); k.setAttribute('aria-pressed', String(an)); }
+}
+
 function untereLeiste(app) {
   // Der Knopf δ ist weg (3. Oktober): die verformte Figur erscheint mit
   // dem Plot «w» bzw. «η w».
@@ -154,7 +170,10 @@ export function baueModellWerkzeuge(app) {
               'Ganzes Querprofil — alle Tragwerke einblenden')
     + iconKnopf('v-teil', 'querprofilEines',
                 'Nur das gerechnete Tragwerk — die übrigen beiseitelegen')
-    + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren');
+    + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren')
+    // Strichbild wie die Berichtsbilder (26. November, «unten links als button»).
+    + iconKnopf('v-strich', 'strich', 'Strichbild wie im Bericht: weisser Grund, Körper blass, '
+      + 'Schwerachsen in der Plotfarbe; mit «Linie» das graue System mit der Zustandslinie', strichAn());
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -196,6 +215,9 @@ export function baueModellWerkzeuge(app) {
    * Ausblenden selbst. `nurDiesesZeigen` gibt es seit dem Kontextmenue;
    * der Knopf ruft jetzt dieselbe Handlung und faehrt danach heran.
    */
+  if (app.ansicht) app.ansicht.strich = strichAn();
+  ui.el('v-strich').setAttribute('aria-pressed', String(strichAn()));
+  ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-ganz').onclick = () => {
     app.station = null; app.ansicht.station = null;
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder

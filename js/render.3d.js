@@ -5175,11 +5175,20 @@ export class Modellansicht {
 
   _maleInhalt() {
     const c = this.ctx, cv = this.cv;
-    const t = tokens();
+    /*
+     * >>> STRICHBILD WIE DIE BERICHTSBILDER (26. November). <<< Weisung:
+     * «könnte man auch die darstellungsart des 3d verändern, so das es wie
+     * bei den svg darstellungen im bericht aussieht … unten links als
+     * button», auf die Skizzen «C, dazu D bei Linie». `strich`: weisser
+     * Grund, helles Design, Körper ganz blass, davor die Schwerachsen
+     * kräftig in der Plotfarbe (C); mit der Zustandslinie das graue System
+     * ohne Körper und die Linie davor (D).
+     */
+    const t = this.strich ? tokens('hell') : tokens();
     const w = cv.width, h = cv.height;
     this._s = this._px();
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = this._weiss ? '#ffffff' : t.viewerBg;
+    c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;
     c.fillRect(0, 0, w, h);
     this._massTreffer = [];
     this._titelTreffer = [];
@@ -5250,10 +5259,12 @@ export class Modellansicht {
     // dieselbe Farbe wie im Bild davor. Das Ausrechnen (Farbverlauf, Regex,
     // zwei Zeichenketten je Fläche) fiel bisher bei jedem Bild für jede Fläche
     // an - beim langen Joch einige tausend Mal in der Sekunde.
-    const farbSchluessel = `${this.modus}|${document.documentElement.dataset.thema ?? ''}|${this.linienFarbe}|${this.flFreiVon}|${this.flFrei}|${this.skalaMin}|${this.skalaMax}`;
+    const farbSchluessel = `${this.modus}|${this.strich ? 'strich' : document.documentElement.dataset.thema ?? ''}|${this.linienFarbe}|${this.flFreiVon}|${this.flFrei}|${this.skalaMin}|${this.skalaMax}`;
     // Schraffur nur in einem Resultatplot mit sichtbaren Resultaten.
     const schraffurAn = !this.setzModus && this.gruppen.resultate !== false
-      && PLOTS.some((x) => x.key === this.modus) && !this.zustand;
+      && PLOTS.some((x) => x.key === this.modus) && !this.zustand && !this.strich;
+    // Strichbild: C blasse Körper, D (mit Linie) keine Körper der Tragwerke.
+    const strichD = this.strich && Boolean(this.zustand);
     liste.forEach((f) => {
       // Die Schattierung hängt an der Flächennormalen, und die dreht sich mit
       // dem Bauteil, nicht mit der Kamera. Sie wird deshalb einmal je Fläche
@@ -5292,6 +5303,18 @@ export class Modellansicht {
         if (i) c.lineTo(p[0], p[1]); else c.moveTo(p[0], p[1]);
       });
       c.closePath();
+      if (this.strich) {
+        const tragend = f.gruppe !== 'anbau' && f.gruppe !== 'last' && !f.punkt;
+        if (strichD && tragend) return;
+        c.globalAlpha = tragend ? 0.55 : 0.35;
+        c.fillStyle = '#f2f2f0';
+        c.fill();
+        c.globalAlpha = tragend ? 0.5 : 0.4;
+        c.lineWidth = 0.5 * this._s;
+        c.strokeStyle = '#b8b8b2';
+        c.stroke();
+        return;
+      }
       c.globalAlpha = 1 - durch;
       c.fillStyle = f._farbe;
       c.fill();
@@ -5393,7 +5416,7 @@ export class Modellansicht {
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.
-    if (!explodiert && (this.sparsam || this._ebeneAn('achse') || this._ebeneAn('auflager'))) {
+    if (!explodiert && (this.strich || this.sparsam || this._ebeneAn('achse') || this._ebeneAn('auflager'))) {
       this._linien(c, proj, t);
     }
     // ZUERST DIE PFEILE, DANN DIE MARKEN UND MASSE, ZULETZT DIE FREIEN TEXTE.
@@ -6130,6 +6153,13 @@ export class Modellansicht {
       // Im sparsamen Bild vertreten die Achsen die Körper; dann gilt ihr
       // Einzelschalter nicht - der HAUPTSCHALTER der Gruppe aber sehr wohl.
       if (this.sparsam) { if (!this.gruppen.modell) return; }
+      // Strichbild (26. November): die Achsen vertreten die Körper - es
+      // gelten die Ebenen der Körper, nicht der Schalter «Schwerachsen».
+      else if (this.strich) {
+        if (!this.gruppen.modell) return;
+        if (l.schwerachse && !this._ebeneAn('mast')) return;
+        if (!l.schwerachse && l.gruppe !== 'achse' && !this._ebeneAn(l.gruppe)) return;
+      }
       /*
        * >>> SCHWERACHSEN HAENGEN NUR AM SCHALTER «SCHWERACHSEN» (22. November). <<<
        * Frage: «beim layer schwereachsen sind die masten nicht dargestellt,
@@ -6197,6 +6227,13 @@ export class Modellansicht {
       // Mit der Grenze treten auch die Achsen unter der Schwelle zurück
       // (22. November, «diese bleiben sichtbar auch wenn man den regler für
       // die grenze ändert, nur die liniendiagramme werden transparent»).
+      if (this.strich && (l.schwerachse || traegt || l.stark)) {
+        // C: kräftig in der Plotfarbe; D (mit Linie): graues System.
+        if (this.zustand) c.strokeStyle = '#7a7a76';
+        c.setLineDash([]);
+        c.lineWidth = (l.gurt || l.schwerachse ? 2.4 : l.blechachse ? 1.8 : 1.4) * s;
+        c.globalAlpha = 1;
+      }
       if ((l.schwerachse || traegt) && this._unauffaellig(l)) c.globalAlpha = Math.min(c.globalAlpha, 0.08);
       c.beginPath();
       p.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])));

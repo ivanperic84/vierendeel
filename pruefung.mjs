@@ -5946,7 +5946,7 @@ titel('31  Bewegung: nichts springt');
     wahr('... und die Beschriftungen auch',
          /if \(!this\.sparsam && !this\.faehrt\) \{[\s\S]{0,220}this\._texte\(c, t\);/.test(rq));
     wahr('Die Achsen vertreten sie fuer die Dauer der Fahrt',
-         rq.includes("(this.sparsam || this._ebeneAn('achse')"));
+         rq.includes("this.sparsam || this._ebeneAn('achse')"));
     // Der HAUPTSCHALTER gilt aber weiter - sonst erschiene ein abgeschaltetes
     // Modell waehrend der Fahrt wieder.
     wahr('Der Hauptschalter gilt auch im sparsamen Bild',
@@ -43838,7 +43838,7 @@ titel('323  Schraffur, wo die Grenzspannung überschritten ist');
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Flächen mit η > 1 tragen in jedem Resultatplot eine Schraffur',
        RQ.includes('if (schraffurAn && Number(f.werte?.eta) > 1 + 1e-9 && durch < 0.9) {')
-       && RQ.includes('PLOTS.some((x) => x.key === this.modus) && !this.zustand;'));
+       && RQ.includes('PLOTS.some((x) => x.key === this.modus) && !this.zustand && !this.strich;'));
 }
 
 // ===========================================================================
@@ -44421,6 +44421,27 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('347  Strichbild wie die Berichtsbilder: C, mit Linie D (26. November)');
+/* «könnte man auch die darstellungsart des 3d verändern, so das es wie bei den
+ * svg darstellungen im bericht aussieht … unten links als button», auf die
+ * Skizzen «C, dazu D bei Linie». */
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Strichbild: weisser Grund und helles Design, Körper blass, keine Schraffur',
+       RQ.includes("const t = this.strich ? tokens('hell') : tokens();")
+       && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
+       && RQ.includes("c.fillStyle = '#f2f2f0';") && RQ.includes('&& !this.zustand && !this.strich;'));
+  wahr('C: Schwerachsen kräftig in der Plotfarbe, auch ohne Schalter «Schwerachsen»; D: graues System ohne Körper',
+       RQ.includes("this.strich || this.sparsam || this._ebeneAn('achse')")
+       && RQ.includes("if (this.zustand) c.strokeStyle = '#7a7a76';")
+       && RQ.includes('if (strichD && tragend) return;'));
+  wahr('Knopf unten links, gemerkt im Browser',
+       LQ.includes("iconKnopf('v-strich', 'strich'") && LQ.includes("const STRICH_KEY = 'tragjoch-strichbild';")
+       && LQ.includes("ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());"));
+}
+
+// ===========================================================================
 titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (26. November)');
 /* «der exportbutton hat eine sehr grosse auswahl, diese müsst man
  * übersichtlicher gestalten, mit einem zusätzlichen button.» («Berichte /
@@ -44445,8 +44466,8 @@ titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (
        && ['dialogBericht(app)', 'reaktionsBlatt', 'anschlussBlatt', 'bestandBlatt', 'bildAufnehmen(app)', 'bildsammlungZeigen(app)']
          .every((t) => ber.includes(t)));
   wahr('Bildsammlung: das 3D wie es steht, hell, weisser Grund, zugeschnitten; je Eintrag in IndexedDB, nicht im Paket',
-       BQ.includes("momentaufnahme(null, { aktuell: true, weiss: true })") && BQ.includes("uebertrageTokens('hell')")
-       && BQ.includes('async function zuschneiden(url)') && RQ.includes("c.fillStyle = this._weiss ? '#ffffff' : t.viewerBg;")
+       BQ.includes('momentaufnahme(null, { aktuell: true, weiss: true })') && BQ.includes("uebertrageTokens('hell')")
+       && BQ.includes('async function zuschneiden(url)') && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
        && STQ.includes('export async function bilderSichern(id, liste)') && STQ.includes("const BILDER = 'bilder|';"));
   wahr('Legende: in die Mitte nur, wenn die offene Leiste sie in der Höhe überdeckt (`wz-eng`), neu bewertet bei Grösse',
        LQ.includes('eng = oben > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")
