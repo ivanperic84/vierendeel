@@ -44377,6 +44377,45 @@ titel('342  J100: Blecheinteilung nach Stueckliste, Anschlusswinkel als eigenes 
 }
 
 // ===========================================================================
+titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. November)');
+{
+  // «kannst du nochmals die einstellung und die darstellung checken, spannung
+  // in knoten bereich und ohne.» Je Einstellung: das grösste η im Bild ist das
+  // der Kachel; mit «Anschnitt» trägt der Knotenbereich den Wert des nächsten
+  // freien Gurtstabs, mit «Schwerachsen» seinen eigenen.
+  const R = await import(J('render.3d.js'));
+  const RS = await import(J('render.stabwerk.js'));
+  const N = await import(J('core.nachbarn.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const eta = {};
+  for (const kb of ['anschnitt', 'schwerachsen']) {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0, knotenbereich: kb,
+          anbauteile: [A.neuesAnbauteil('hs-nt-ausleger', 8)] };
+    const satz = N.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N.kernArgumente(satz));
+    const sw = AS.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    const js = RS.jochStaebe(sw.jeStab, 'tragwerk');
+    const sz = R.erzeugeSzene({ ...erg.modell, gurtTeilung: RS.gurtTeilung(js) }, erg);
+    RS.stabwerkFaerben(sz, sw.jeStab, { jochKey: 'tragwerk', mastNamen: erg.modell.federn?.namen ?? {} });
+    const gurtF = sz.flaechen.filter((f) => f.stabwerk && /^(OG|UG)_[LR]$/.test(f.teil));
+    const kachel = Math.max(sw.teile['tragwerk|OG'].eta, sw.teile['tragwerk|UG'].eta);
+    eta[kb] = kachel;
+    pruef(`${kb}: grösstes η der Gurte im Bild = Kachel`, Math.max(...gurtF.map((f) => f.werte.eta ?? 0)), kachel, 1e-12, '');
+    const knoten = Object.values(sw.jeStab).filter((z) => z.imKnoten);
+    if (kb === 'anschnitt') {
+      wahr('anschnitt: Knotenabschnitte ohne η, im Bild keine Fläche ohne Wert',
+           knoten.length > 0 && knoten.every((z) => z.eta === null) && gurtF.every((f) => Number.isFinite(f.werte.eta)),
+           `${knoten.length} Knotenabschnitte`);
+    } else {
+      wahr('schwerachsen: kein Abschnitt im Knoten ausgenommen', knoten.length === 0);
+    }
+  }
+  wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
+       `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
 titel('343  Gemischte Systeme: System je Kettenwerk-Modul (25. November)');
 {
   const F = await import(J('data.fl.js'));
