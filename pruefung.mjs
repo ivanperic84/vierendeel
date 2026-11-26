@@ -44438,6 +44438,15 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('365  Bild-Output: Legende und Balken zurückgenommen (26. November)');
+{
+  const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');
+  wahr('Massstab nur nach Bildgrösse (nicht doppelt nach Faktor), Balken 140 × 5',
+       BQ.includes('const s = Math.max(f, Math.min(w, h) / 900);') && !BQ.includes('Math.min(w, h) / 600) * Math.min(f, 2)')
+       && BQ.includes('const bw = 140 * s, bh = 5 * s'));
+}
+
+// ===========================================================================
 titel('364  Lasten: Einwirkungsklasse eigene Gruppe; Schnee mit Lastwert vorn (26. November)');
 {
   const S364 = await import(J('ui.schema.js'));

@@ -379,8 +379,15 @@ async function beschriften(app, url, o, grund) {
   if (!o.titel && !o.legende) return url;
   const img = await bildLaden(url);
   const w = img.naturalWidth, h = img.naturalHeight;
+  /*
+   * ZURÜCKGENOMMEN (26. November, «beim bilderplott ist die legende mit dem
+   * balken zu mächtig, kann man diese etwas zurücknehmen?»). Der Massstab hing
+   * zweimal an der Auflösung (Bildgrösse UND Faktor) - bei 2× gab das
+   * doppelt so grosse Schrift wie gemeint. Jetzt nur noch nach der Bildgrösse,
+   * Balken schmaler und flacher, Schrift kleiner und leichter.
+   */
   const f = Math.max(1, Number(o.faktor) || 1);
-  const s = Math.max(1, Math.min(w, h) / 600) * Math.min(f, 2) * 0.9;
+  const s = Math.max(f, Math.min(w, h) / 900);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const x = c.getContext('2d'); x.drawImage(img, 0, 0);
   const dunkel = (grund[0] + grund[1] + grund[2]) / 3 < 128;
@@ -389,10 +396,10 @@ async function beschriften(app, url, o, grund) {
   const mo = modiFuer(app.nachweisart).find((m) => m.key === app.ansicht?.modus);
   if (o.titel) {
     const lf = document.getElementById('pos-lf')?.textContent?.trim() ?? '';
-    x.fillStyle = schrift; x.font = `600 ${Math.round(15 * s)}px sans-serif`; x.textBaseline = 'top';
-    x.fillText(`${mo?.label ?? plot?.label ?? ''}${plot?.einheit && plot.einheit !== '–' ? ` [${plot.einheit}]` : ''}`, 14 * s, 12 * s);
-    x.fillStyle = blass; x.font = `${Math.round(12 * s)}px sans-serif`;
-    x.fillText(lf, 14 * s, 32 * s);
+    x.fillStyle = schrift; x.font = `600 ${Math.round(12 * s)}px sans-serif`; x.textBaseline = 'top';
+    x.fillText(`${mo?.label ?? plot?.label ?? ''}${plot?.einheit && plot.einheit !== '–' ? ` [${plot.einheit}]` : ''}`, 12 * s, 10 * s);
+    x.fillStyle = blass; x.font = `${Math.round(10 * s)}px sans-serif`;
+    x.fillText(lf, 12 * s, 26 * s);
   }
   // Farbskala aus der Legende im Fenster (dieselben Farben und Marken).
   const bar = document.querySelector('#legende .legende-bar');
@@ -401,19 +408,19 @@ async function beschriften(app, url, o, grund) {
     const farben = [...bild.matchAll(/rgba?\([^)]+\)(?:\s+([\d.]+)%)?/g)].map((m, i, a) => ({
       f: m[0].replace(/\s+[\d.]+%$/, ''), p: m[1] != null ? Number(m[1]) / 100 : i / Math.max(1, a.length - 1) }));
     const marken = [...document.querySelectorAll('#legende .legende-skala span')].map((e) => e.textContent);
-    const bw = 220 * s, bh = 10 * s, bx = w - bw - 18 * s, by = h - 34 * s;
+    const bw = 140 * s, bh = 5 * s, bx = w - bw - 14 * s, by = h - 24 * s;
     if (farben.length > 1) {
       const g = x.createLinearGradient(bx, 0, bx + bw, 0);
       farben.forEach((q) => { try { g.addColorStop(Math.min(1, Math.max(0, q.p)), q.f); } catch { /* */ } });
-      x.fillStyle = g; x.fillRect(bx, by, bw, bh);
+      x.globalAlpha = 0.85; x.fillStyle = g; x.fillRect(bx, by, bw, bh); x.globalAlpha = 1;
     }
-    x.fillStyle = blass; x.font = `${Math.round(11 * s)}px sans-serif`; x.textBaseline = 'top';
+    x.fillStyle = blass; x.font = `${Math.round(9 * s)}px sans-serif`; x.textBaseline = 'top';
     marken.forEach((t, i) => {
       const tx = bx + (marken.length > 1 ? (bw * i) / (marken.length - 1) : 0);
       x.textAlign = i === 0 ? 'left' : i === marken.length - 1 ? 'right' : 'center';
       x.fillText(t, tx, by + bh + 3 * s);
     });
-    x.textAlign = 'left'; x.fillStyle = schrift; x.textBaseline = 'bottom';
+    x.textAlign = 'left'; x.fillStyle = blass; x.font = `${Math.round(9.5 * s)}px sans-serif`; x.textBaseline = 'bottom';
     x.fillText(`${plot.kurz ?? ''}${plot.einheit && plot.einheit !== '–' ? ` [${plot.einheit}]` : ''}`, bx, by - 3 * s);
   }
   return c.toDataURL('image/png');
