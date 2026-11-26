@@ -517,7 +517,12 @@ const ANSCHLUSS_LINK = /^(.*?)LINK_([^_]+)_(OG|UG)([LR])$/;
  */
 const mastOhneHoehe = (m) => String(m).replace(/k\d+$/, '');
 
-export function anschlussKraefte(dat, lsg, faelle, anteile) {
+/*
+ * `nurFall` (26. November, «kann man hier auch den gewählten lastfall aufführen
+ * wie bei den reaktionskräften»): statt der Hülle allein dieser eine Fall -
+ * min = max = sein Wert mit Vorzeichen (für die Spalte «gew. Fall»).
+ */
+export function anschlussKraefte(dat, lsg, faelle, anteile, { nurFall = null } = {}) {
   const links = (lsg?.elemente ?? []).filter((e) => e.s.art === 'link' && ANSCHLUSS_LINK.test(e.s.name));
   if (!links.length) return null;
   const jeLf = new Map();
@@ -579,8 +584,8 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     });
     return out;
   };
-  const haelften = faelle.filter(istStaendigHaelfte);
-  const zustaende = [];
+  const haelften = nurFall ? [] : faelle.filter(istStaendigHaelfte);
+  const zustaende = nurFall ? [{ bez: nurFall.bez, f: kombi(nurFall) }] : [];
   if (haelften.length) {
     const g = new Map();
     haelften.forEach((lf) => kombi(lf).forEach((f, n) => {
@@ -590,7 +595,7 @@ export function anschlussKraefte(dat, lsg, faelle, anteile) {
     }));
     zustaende.push({ bez: 'Ständig', f: g });
   }
-  faelle.filter(istStaendigPlus).forEach((lf) => zustaende.push({ bez: lf.bez, f: kombi(lf) }));
+  if (!nurFall) faelle.filter(istStaendigPlus).forEach((lf) => zustaende.push({ bez: lf.bez, f: kombi(lf) }));
   /*
    * >>> RESULTIERENDE JE JOCHENDE (8. Oktober). <<< Weisung: «mach bei den
    * jochreaktionen einen schalter wo man entweder die einzelnen gurte sieht

@@ -40394,7 +40394,7 @@ titel('258  Anschnitt ohne Knotenbereich; Gittermast am Anschnitt; Kräfte am Jo
            APP_QUELLE().includes('data-anschluss-blatt') && APP_QUELLE().includes("{ text: 'Kräfte am Jochanschluss', tun: anschlussBlatt }"));
     }
     wahr('Reiter Auflager: Schalter Resultierende / Einzelgurte am Jochanschluss',
-         APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln)'));
+         APP_QUELLE().includes('name="rk-anschluss-gurte"') && APP_QUELLE().includes('anschlussKurzHtml(liste, (m) => m, !einzeln, anschlussGewaehlt())'));
   }
   wahr('Reiter Auflager: Block «Kräfte am Jochanschluss»', APP_QUELLE().includes('function anschlussBlockEinfuegen(node)')
        && APP_QUELLE().includes('anschlussBlockEinfuegen(node);'));
@@ -44422,6 +44422,25 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('354  Jochanschluss mit dem gewählten Lastfall (26. November)');
+/* «kann man hier auch den gewählten lastfall aufführen wie bei den
+ * reaktionskräften bei den fundamenten.» */
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const EQ = readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8');
+  wahr('anschlussKraefte kennt `nurFall`, die Tabelle die Spalte «gew. Fall»',
+       RQ.includes('export function anschlussKraefte(dat, lsg, faelle, anteile, { nurFall = null } = {}) {')
+       && EQ.includes('gew. Fall</th>') && AQ.includes('anschlussKurzHtml(liste, (m) => m, !einzeln, anschlussGewaehlt())'));
+  const html = (await import(J('export.reaktionen.js'))).anschlussKurzHtml(
+    Object.assign([{ mast: 'M1' }], { resultierende: [{ mast: 'M1', tw: null, anzahl: 4,
+      Fz: { min: { wert: -6, bez: 'Ständig' }, max: { wert: -5, bez: 'Ständig' } },
+      Fx: {}, Fy: { min: { wert: 1, bez: 'x' }, max: { wert: 4, bez: 'x' } }, Mx: {}, My: {}, Mz: {} }] }),
+    (m) => m, true, Object.assign([{ mast: 'M1', tw: null, Fz: { min: { wert: -10.2 } }, Fy: { min: { wert: 5.8 } } }], { bez: 'Wind +y' }));
+  wahr('Spalte zeigt die Werte des Falls mit Vorzeichen', html.includes('gew. Fall') && html.includes('−10.2') || html.includes('-10.2'));
 }
 
 // ===========================================================================

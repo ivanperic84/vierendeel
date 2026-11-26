@@ -141,6 +141,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Jochanschluss mit dem gewählten Lastfall (26. November) | Mit Bild des Blocks, im Wortlaut: «kann man hier auch den gewählten lastfall aufführen wie bei den reaktionskräften bei den fundamenten.» Ist oben ein einzelner Lastfall gewählt, trägt die Resultierende je Jochende eine Spalte «gew. Fall» mit Vorzeichen (`anschlussKraefte` mit `nurFall`, `anschlussGewaehlt` in app.js), auch am Mittelmasten. Im Browser (Wind +y): F_z −10.2, F_y 5.8 kN; danach zurück auf umhüllend. |
 | Knopf «Modell» (26. November) | Mit Bild des Knopfs, im Wortlaut: «hier nur modell anschreiben». Der Knopf «Modell & Daten» heisst «Modell» (Inhalt und Titel beim Überfahren unverändert: AxisVM, PyNite, Gegenrechnung, Excel, Viewer). |
 | Ankerfundament im 3D wie unter dem Masten (26. November) | Mit Bild (kleiner Kopf am Fuss der Strebe), im Wortlaut: «fundamentdarstellung gleich machen bei den ankerfundamenten wie bei den masten im 3d». Ändert 11. September («ein senkrechter Kopf, doppelt so dick wie der Stab»): derselbe Klotz wie unter dem Mastfuss (Breite 4 × halbe Mastbreite, Höhe wie dort) unter dem Fusspunkt der Strebe (`ankerTeile`, render.koerper.js); gefärbt im Plot η wie seit dem 26. November. Nur Bild. Im Browser mit Probeanker U12 an M1 angesehen, Stand danach zurückgestellt. Prüfstand 7806 |
 | Bild-Knopf, Tastenkürzel, Legende ohne Kippen (26. November) | Im Wortlaut: «gibt es einen bild aufnehmen button für die resultat bibliothek? wo könnte man diesen anordnen? erweitere noch die tastaturbefehle. wenn ich beim resultat die linie einschalte dann springt die untere resultatbox hin und her.» **Knopf** (meine Wahl des Orts): Kamera unten links neben dem Strichbild (`v-bild`, `app.bildAufnehmen`) - erst einstellen, dann aufnehmen; bisher nur unter Berichte → Bilder. **Tasten neu:** v Linie, w Werte, s Strichbild, m Modell, j Lasten, e Explosion auf/zu, f Insel (Lastfall und Plot), a Bild aufnehmen, u Bildsammlung (`knopfDruck`, drückt denselben Knopf). **Legende:** rechts verankert bekam sie nur 10 px verfügbare Breite, brach um und war höher als in der Mitte - beim Einschalten der Linie kippte sie zwischen beiden Lagen (gemessen bei 1440 × 960: true → false → true in 330 ms). Jetzt in beiden Lagen dieselbe Breite (`width: max-content`); danach bei 760 / 900 / 960 px Höhe kein Wechsel beim Umschalten. Prüfstand 7805 |
@@ -3190,7 +3191,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7806 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7808 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

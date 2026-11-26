@@ -643,9 +643,9 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
  * Kräfte am Jochanschluss ergänzen»): je Mast und Gurt die Kraft des Jochs
  * auf den Masten, charakteristisch, min / max je Komponente.
  */
-export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = false) {
+export function anschlussKurzHtml(liste, mastName = (m) => m, resultierend = false, gewaehlt = null) {
   if (!liste?.length) return '';
-  if (resultierend && liste.resultierende?.length) return anschlussResultierendeHtml(liste.resultierende, mastName);
+  if (resultierend && liste.resultierende?.length) return anschlussResultierendeHtml(liste.resultierende, mastName, gewaehlt);
   const zelle = (k) => `<td class="num" title="${esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`)}">${
     k.min ? `${f1(k.min.wert)}<br>${f1(k.max.wert)}` : '–'}</td>`;
   return `<table class="dt rk-anschluss">
@@ -704,31 +704,44 @@ const betragVon = (k) => {
   return Math.abs(a?.wert ?? 0) >= Math.abs(b?.wert ?? 0) ? a : b;
 };
 
-function anschlussResultierendeHtml(res, mastName) {
+/*
+ * >>> DER GEWÄHLTE LASTFALL (26. November). <<< Weisung: «kann man hier auch
+ * den gewählten lastfall aufführen wie bei den reaktionskräften bei den
+ * fundamenten.» Ist oben ein Lastfall gewählt, kommt je Grösse die Spalte
+ * «gew. Fall» mit Vorzeichen dazu (`gewaehlt`: dieselbe Liste für den einen
+ * Fall, aus `anschlussKraefte` mit `nurFall`).
+ */
+function anschlussResultierendeHtml(res, mastName, gewaehlt = null) {
   const betrag = betragVon;
   const titel = (k) => esc(`min: ${k.min?.bez ?? '–'} · max: ${k.max?.bez ?? '–'}`);
-  const zeile = (label, einheit, k) => {
+  const gewVon = (a) => gewaehlt?.find((g) => g.mast === a.mast && (g.tw ?? null) === (a.tw ?? null)
+    && Boolean(g.summe) === Boolean(a.summe)) ?? null;
+  let gw = null;
+  const gz = (k) => (gewaehlt ? `<td class="num rk-gew">${gw?.[k]?.min ? f1(Math.abs(gw[k].min.wert) < 0.05 ? 0 : gw[k].min.wert) : '–'}</td>` : '');
+  const zeile = (label, einheit, k, key) => {
     const m = betrag(k);
     return `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>
-    <td class="num" title="${titel(k)}">${m ? f1(Math.abs(m.wert)) : '–'}</td>
+    <td class="num" title="${titel(k)}">${m ? f1(Math.abs(m.wert)) : '–'}</td>${gz(key)}
     <td class="rk-fallspalte">${m && Math.abs(m.wert) >= 0.05 ? esc(fallKurz(m.bez)) : ''}</td></tr>`;
   };
   const v = (k) => `<tr><th>F_z ↑ (V) min/max <span class="rk-einheit">[kN]</span></th>
-    <td class="num" title="${titel(k)}">${k.min ? `${f1(k.min.wert)} / ${f1(k.max.wert)}` : '–'}</td>
+    <td class="num" title="${titel(k)}">${k.min ? `${f1(k.min.wert)} / ${f1(k.max.wert)}` : '–'}</td>${gz('Fz')}
     <td class="rk-fallspalte">${k.min ? esc(fallKurz(k.min.bez)) : ''}</td></tr>`;
   // Gliederung wie die Köpfe des Reaktionsblatts (9. Oktober: «bei der
   // gliederung die Einwirkungen Quer und Lägns zum Gleis vorgehmen so dass man
   // besser erkennen kann welche zusammengehören (wind x / y)»).
-  const gruppe = (t) => `<tr class="rk-grp"><th colspan="3">${t}</th></tr>`;
-  return res.map((a) => `<table class="dt rk-kurz rk-jochende${a.summe ? ' rk-summe' : ''}">
-      <colgroup><col style="width:42%"><col style="width:26%"><col style="width:32%"></colgroup>
+  const sp = gewaehlt ? 4 : 3;
+  const gruppe = (t) => `<tr class="rk-grp"><th colspan="${sp}">${t}</th></tr>`;
+  return res.map((a) => { gw = gewVon(a); return `<table class="dt rk-kurz rk-jochende${a.summe ? ' rk-summe' : ''}">
+      <colgroup>${gewaehlt ? '<col style="width:34%"><col style="width:22%"><col style="width:16%"><col style="width:28%">'
+        : '<col style="width:42%"><col style="width:26%"><col style="width:32%">'}</colgroup>
       <thead><tr><th><b>${esc(jochendeName(a, mastName))}</b>
           <span class="rk-x" title="${a.anzahl} Gurtanschlüsse">${a.summe
             ? 'Mittelmast · beide Joche im selben Lastfall' : 'Jochende'}</span></th>
-        <th class="num">Einwirkung</th><th>Lastfall</th></tr></thead>
-      <tbody>${v(a.Fz)}${gruppe('Lastfall quer zum Gleis')}${zeile('±M_y (M,q)', 'kNm', a.My)}${zeile('±F_x (H,q)', 'kN', a.Fx)}${
-        gruppe('Lastfall längs zum Gleis')}${zeile('±M_x (M,l)', 'kNm', a.Mx)}${zeile('±F_y (H,l)', 'kN', a.Fy)}${
-        gruppe('Torsion')}${zeile('±M_z (T)', 'kNm', a.Mz)}</tbody></table>`).join('');
+        <th class="num">Einwirkung</th>${gewaehlt ? `<th class="num" title="${esc(gewaehlt.bez ?? '')}">gew. Fall</th>` : ''}<th>Lastfall</th></tr></thead>
+      <tbody>${v(a.Fz)}${gruppe('Lastfall quer zum Gleis')}${zeile('±M_y (M,q)', 'kNm', a.My, 'My')}${zeile('±F_x (H,q)', 'kN', a.Fx, 'Fx')}${
+        gruppe('Lastfall längs zum Gleis')}${zeile('±M_x (M,l)', 'kNm', a.Mx, 'Mx')}${zeile('±F_y (H,l)', 'kN', a.Fy, 'Fy')}${
+        gruppe('Torsion')}${zeile('±M_z (T)', 'kNm', a.Mz, 'Mz')}</tbody></table>`; }).join('');
 }
 
 /**

@@ -146,7 +146,7 @@ import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand,
          buegelGrenzfeder, stabwerkDatei } from './app.stabwerk.js';
 import { verfahrenVon, eingabeKennung, stabwerkAuslosungVon, bauteileMitStabwerk, anteileFuer,
          stabNachweise, kraefteAusAnteilen } from './core.stabnachweis.js';
-import { reaktionenGewaehlt, reaktionenAusKern, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
+import { reaktionenGewaehlt, reaktionenAusKern, reaktionsZeilen, skizzeAusModell, anschlussKraefte } from './core.reaktionen.js';
 import { verformteFigur, wegImStab, starrPunkt } from './core.stabverformung.js';
 import { zustandSetzen, zustandBlickFolgen } from './app.zustand.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
@@ -2240,6 +2240,20 @@ function reaktionsBlockEinfuegen(node) {
  * zu Kräfte am Jochanschluss ergänzen.» Unter den Reaktionskräften, nur mit
  * gültigem Stabwerk (dort stehen die Anschlüsse als Links).
  */
+/** Der Jochanschluss im gewählten Lastfall (26. November) - nur bei einem Einzelfall. */
+function anschlussGewaehlt() {
+  const g = stabwerkGilt();
+  const roh = g?.h?.roh;
+  if (anzeigeKombi === 'umhuellend' || !roh?.dat || !roh?.lsg) return null;
+  const lf = (roh.faelle ?? []).find((l) => l.key === anzeigeKombi);
+  if (!lf) return null;
+  try {
+    const r = anschlussKraefte(roh.dat, roh.lsg, [], anteileFuer, { nurFall: lf })?.resultierende ?? null;
+    if (r) r.bez = lf.bez;
+    return r;
+  } catch { return null; }
+}
+
 function anschlussBlockEinfuegen(node) {
   const liste = stabwerkGilt() ? stabwerk?.anschluss : null;
   if (!liste?.length) return;
@@ -2259,7 +2273,7 @@ function anschlussBlockEinfuegen(node) {
         `<label class="at-knopf${wahl === k ? ' an' : ''}"><input type="radio" name="rk-anschluss-gurte"
           value="${k}"${wahl === k ? ' checked' : ''}>${t}</label>`).join('')}
     </div>
-    ${anschlussKurzHtml(liste, (m) => m, !einzeln)}
+    ${anschlussKurzHtml(liste, (m) => m, !einzeln, anschlussGewaehlt())}
     <p class="notiz" style="margin:4px 0 0">${einzeln
       ? 'Je Gurtanschluss die Kraft, die das Joch auf den Masten gibt'
       : 'Je Jochende die Summe der Gurtanschlüsse: Kräfte und Momente um die Mitte des Anschlusses, '
