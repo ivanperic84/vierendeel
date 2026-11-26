@@ -464,8 +464,10 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
   // Die Schalter je Prüfung (30. September) - wie der Kern sie führt.
   const mitFahrdraht = kern.gruppen?.fahrdraht !== false;
   const mitVerdrehung = kern.gruppen?.verdrehung === true;
-  const mitG = faelle.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(faelle);
+  // Mastspitze nach RTE 27200 (26. November): G allein, G + Betriebswind.
+  const stG = faelle.filter((l) => l.stufe === 'spitzeG');
+  const stGW = faelle.filter((l) => l.stufe === 'spitzeGW');
   // Am Fahrdraht, wo es einen gibt (4. Oktober) - sonst an der Referenzhöhe.
   const fd = mitFahrdraht
     ? fahrdrahtNachweis(dat, lsg, nurW, kern.grenzen?.fahrdraht ?? VERFORMUNG_GRENZEN.auslegerQuer, opt)
@@ -493,19 +495,20 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
     };
     const L = k.L;
     const stelle = k.stelle;
-    const spitzeG = grosste(mitG, 1, L, ['x', 'y']);
-    const spitzeW = grosste(nurW, BETRIEBSWIND, L, ['x', 'y']);
+    const spitzeSt = grosste(stG, 1, L, ['x', 'y']);
+    const spitzeSW = grosste(stGW, 1, L, ['x', 'y']);
+    const spitzeN = kern.grenzen?.spitzeN ?? VERFORMUNG_GRENZEN.spitzeStaendig;
+    const spitzeWN = kern.grenzen?.spitzeWN ?? VERFORMUNG_GRENZEN.spitzeMitWind;
     const auskunft = [
-      spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, Betriebswind',
-                  vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
-      spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
-                  vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
+      spitzeSt && !mitSpitze ? { ...spitzeSt, z: L, was: 'Mastspitze, ständig',
+                  vergleich: L / spitzeN } : null,
+      spitzeSW && !mitSpitze ? { ...spitzeSW, z: L, was: 'Mastspitze, ständig + Betriebswind',
+                  vergleich: L / spitzeWN } : null,
     ].filter(Boolean);
     const querS = stelle ? grosste(nurW, BETRIEBSWIND, stelle.z, ['x']) : null;
     // Die Grenzwerte aus den Optionen (30. September) nimmt das Stabwerk vom
     // Kern - dieselbe Zahl, keine zweite Lesart der Eingabe.
     const grenz = kern.grenzen?.fahrdraht ?? VERFORMUNG_GRENZEN.auslegerQuer;
-    const spitzeN = kern.grenzen?.spitzeN ?? VERFORMUNG_GRENZEN.spitzeBetrieb;
     // Die Verdrehung um die Mastachse auf der Referenzhöhe (sonst an der
     // Spitze), nur Wind × ψ 0.70 - dieselben Fälle wie die übrigen.
     const hV = stelle?.z ?? L;
@@ -524,7 +527,8 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}, opt = 
       querS && mitFahrdraht && !fd ? { ...querS, grenz, eta: querS.wert / grenz,
         ok: querS.wert <= grenz + 1e-12, z: stelle.z,
         was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
-      mitSpitze ? spitzeNachweis(spitzeW, L, spitzeN) : null,
+      mitSpitze ? spitzeNachweis(spitzeSt, L, spitzeN, 'staendig') : null,
+      mitSpitze ? spitzeNachweis(spitzeSW, L, spitzeWN, 'wind') : null,
       dreh && mitVerdrehung ? { ...dreh, grenz: drehGrenz, eta: dreh.wert / drehGrenz,
         ok: dreh.wert <= drehGrenz + 1e-12, z: hV, einheit: 'rad', verdrehung: true,
         was: drehWas } : null,

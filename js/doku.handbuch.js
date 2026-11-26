@@ -542,14 +542,16 @@ nicht, nennt die Kachel die nächste Stufe (Seilanker → Stütze → Doppelanke
   id: 'gzg',
   titel: '10 · Gebrauchstauglichkeit',
   html: `
-<p>Unter Betriebswind (nur Wind × 0.70) aus den Knotenwegen des Stabwerks;
+<p>Fahrdraht und Verdrehung unter Betriebswind (nur Wind × 0.70), die Mastspitze nach RTE 27200
+unter ständigen Lasten bzw. ständigen + Betriebswind (G + Wind × 0.70); aus den Knotenwegen des Stabwerks;
 zwischen Knoten nach der Biegelinie. Jede Prüfung ist abschaltbar, die
 Grenzwerte sind einstellbar.</p>
 
 <table class="dt">
 <tr><th>Prüfung</th><th>Grenzwert (Vorgabe)</th></tr>
 <tr><td>Seitenlage des Fahrdrahts quer zum Gleis, am Knoten jedes Fahrdrahts</td><td>40 mm</td></tr>
-<tr><td>Auslenkung der Mastspitze, quer und längs</td><td>L / 100</td></tr>
+<tr><td>Auslenkung der Mastspitze, quer und längs, ständig</td><td>L / 100 (1 %)</td></tr>
+<tr><td>Auslenkung der Mastspitze, quer und längs, ständig + Betriebswind</td><td>L / 50 (2 %)</td></tr>
 <tr><td>Verdrehung des Masten um seine Achse</td><td>5°</td></tr>
 <tr><td>Verdrehung des Tragauslegers im Grundriss</td><td>5°</td></tr>
 </table>

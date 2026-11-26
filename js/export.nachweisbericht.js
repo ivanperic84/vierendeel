@@ -762,8 +762,9 @@ export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x, qu
   const fdMm = (v.grenzen?.fahrdraht ?? 0.040) * 1000;
   const gp = v.gruppen ?? { fahrdraht: true, spitze: v.spitze === true };
   const spitzeText = (gp.spitze
-    ? `; Mastspitze L/${zahl(v.grenzen?.spitzeN ?? 100, 0)} in Gleis- und in
-       Querrichtung unter demselben Betriebswind`
+    // RTE 27200 (26. November): 1 % ständig, 2 % ständig + Betriebswind.
+    ? `; Mastspitze je Richtung (quer, längs) nach RTE 27200: L/${zahl(v.grenzen?.spitzeN ?? 100, 0)}
+       unter ständigen Lasten, L/${zahl(v.grenzen?.spitzeWN ?? 50, 0)} unter ständigen + Betriebswind (Wind × ${zahl(psi, 2)})`
     : '; die Mastspitze steht als Auskunft, ohne Nachweis')
     // Die Mastverdrehung (30. September), nur aus dem Stabwerk.
     + (gp.verdrehung ? `; Verdrehung um die Mastachse

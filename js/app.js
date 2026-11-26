@@ -3154,6 +3154,8 @@ function figurGrundlage(lf, f = 1) {
     .map(([k, v]) => `${FIGUR_GRUPPE[k] ?? k} × ${z(v * f)}`).join(' · ');
   const art = f !== 1 ? `mit Reduktion ψ ${z(f)} - wie der GZG-Nachweis`
     : lf?.stufe === 'betrieb' ? 'Betriebswind, Reduktion ψ 0.70 enthalten'
+    : lf?.stufe === 'spitzeGW' ? 'ständig + Betriebswind (ψ 0.70) - Mastspitze L/50'
+    : lf?.stufe === 'spitzeG' ? 'ständig - Mastspitze L/100'
     : lf?.art === 'tragsicherheit' ? 'Bemessungswerte, ohne Reduktion - nicht der GZG-Nachweis'
     : lf?.art === 'aussergewoehnlich' ? 'aussergewöhnlich, ohne Reduktion'
     : 'charakteristisch, ohne Reduktion (GZG: Wind × 0.70)';

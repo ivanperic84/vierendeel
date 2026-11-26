@@ -78,6 +78,10 @@ export const VERFORMUNG_GRENZEN = {
   spitzeWind: 200,
   // Nachweis der Mastspitze seit dem 30. September: L/100 unter Betriebswind.
   spitzeBetrieb: 100,
+  // Seit dem 26. November nach RTE 27200: 1 % (L/100) unter ständigen,
+  // 2 % (L/50) unter ständigen + Betriebswind.
+  spitzeStaendig: 100,
+  spitzeMitWind: 50,
   auslegerQuer: 0.040,
   // Verdrehung um die Mastachse, Grad (30. September: «mastverdrehung 5°»).
   verdrehungGrad: 5,
@@ -99,10 +103,14 @@ export const VERFORMUNG_GRENZEN = {
 export function verformungGrenzen(werte) {
   const mm = Number(werte?.gzgGrenzeFahrdraht);
   const n = Number(werte?.gzgGrenzeSpitze);
+  const nW = Number(werte?.gzgGrenzeSpitzeW);
   const grad = Number(werte?.gzgGrenzeVerdrehung);
   return {
     fahrdraht: mm > 0 ? mm / 1000 : VERFORMUNG_GRENZEN.auslegerQuer,
-    spitzeN: n > 0 ? n : VERFORMUNG_GRENZEN.spitzeBetrieb,
+    // RTE 27200 (26. November): `spitzeN` gilt den ständigen (L/100),
+    // `spitzeWN` den ständigen + Betriebswind (L/50).
+    spitzeN: n > 0 ? n : VERFORMUNG_GRENZEN.spitzeStaendig,
+    spitzeWN: nW > 0 ? nW : VERFORMUNG_GRENZEN.spitzeMitWind,
     verdrehungGrad: grad > 0 ? grad : VERFORMUNG_GRENZEN.verdrehungGrad,
   };
 }
@@ -285,6 +293,9 @@ export function verformungsNachweis(kombi, opt = {}) {
   const lf = kombi?.lastfaelle ?? [];
   const mitG = lf.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(lf);
+  // RTE 27200 (26. November): G allein, G + Betriebswind.
+  const stG = lf.filter((l) => l.stufe === 'spitzeG');
+  const stGW = lf.filter((l) => l.stufe === 'spitzeGW');
   if (!mitG.length && !nurW.length) return null;
 
   const proEnde = {};
@@ -316,8 +327,8 @@ export function verformungsNachweis(kombi, opt = {}) {
       return best;
     };
 
-    const spitzeG = grosste(mitG, 1, L, ['x', 'y']);
-    const spitzeW = grosste(nurW, BETRIEBSWIND, L, ['x', 'y']);
+    const spitzeSt = grosste(stG, 1, L, ['x', 'y']);
+    const spitzeSW = grosste(stGW, 1, L, ['x', 'y']);
     const querS = stelle ? grosste(nurW, BETRIEBSWIND, stelle.z, ['x']) : null;
 
     /*
@@ -338,7 +349,8 @@ export function verformungsNachweis(kombi, opt = {}) {
       stelle && mitFahrdraht ? pruef(querS, grenzen.fahrdraht,
                      `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
                      + `zum Gleis, nur Wind`, stelle.z) : null,
-      mitSpitze ? spitzeNachweis(spitzeW, L, grenzen.spitzeN) : null,
+      mitSpitze ? spitzeNachweis(spitzeSt, L, grenzen.spitzeN, 'staendig') : null,
+      mitSpitze ? spitzeNachweis(spitzeSW, L, grenzen.spitzeWN ?? VERFORMUNG_GRENZEN.spitzeMitWind, 'wind') : null,
     ].filter(Boolean);
     /*
      * DIE AUSKUNFT: dieselbe Rechnung, aber ohne Grenzwert und ohne eta.
@@ -346,10 +358,10 @@ export function verformungsNachweis(kombi, opt = {}) {
      * fragt, sobald sie gross wird.
      */
     const auskunft = [
-      spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, Betriebswind',
-                  vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
-      spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
-                  vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
+      spitzeSt && !mitSpitze ? { ...spitzeSt, z: L, was: 'Mastspitze, ständig',
+                  vergleich: L / grenzen.spitzeN } : null,
+      spitzeSW && !mitSpitze ? { ...spitzeSW, z: L, was: 'Mastspitze, ständig + Betriebswind',
+                  vergleich: L / (grenzen.spitzeWN ?? VERFORMUNG_GRENZEN.spitzeMitWind) } : null,
       // Ausgeschaltet bleibt der Fahrdraht Auskunft (30. September).
       querS && stelle && !mitFahrdraht ? { ...querS, z: stelle.z,
                   was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
@@ -395,12 +407,12 @@ export function verformungsNachweis(kombi, opt = {}) {
  * `mess` ist der grösste Weg unter Betriebswind in x oder y (m), `L` die
  * Mastlänge über dem Fundament.
  */
-export function spitzeNachweis(mess, L, n = VERFORMUNG_GRENZEN.spitzeBetrieb) {
+export function spitzeNachweis(mess, L, n = VERFORMUNG_GRENZEN.spitzeStaendig, art = 'staendig') {
   if (!mess || !(L > 0) || !(n > 0)) return null;
   const grenz = L / n;
   return { ...mess, grenz, eta: mess.wert / grenz, ok: mess.wert <= grenz + 1e-12,
-           z: L, spitze: true,
+           z: L, spitze: true, spitzeArt: art,
            was: `Mastspitze auf ${L.toFixed(2)} m, `
               + `${mess.achse === 'x' ? 'quer zum Gleis' : 'in Gleisrichtung'}, `
-              + `Betriebswind, L/${n}` };
+              + `${art === 'wind' ? 'ständig + Betriebswind' : 'ständig'}, L/${n}` };
 }

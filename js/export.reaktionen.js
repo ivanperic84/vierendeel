@@ -555,7 +555,7 @@ function havarieLeiter(daten) {
 export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
   const g = daten?.grenzen;
   const gzg = g ? [
-    `Mastspitze L/${Math.round(g.spitzeN)} quer und längs zum Gleis`,
+    `Mastspitze L/${Math.round(g.spitzeN)} ständig, L/${Math.round(g.spitzeWN ?? 50)} ständig + Betriebswind, je quer und längs zum Gleis (RTE 27200)`,
     `Fahrdraht quer zum Gleis ${f1(g.fahrdraht * 1000)} mm`,
     Number.isFinite(g.verdrehungGrad) ? `Verdrehung des Masten um seine Achse ${f1(g.verdrehungGrad)}°` : '',
   ].filter(Boolean) : [];

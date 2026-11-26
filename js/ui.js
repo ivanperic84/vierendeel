@@ -7211,8 +7211,11 @@ export function gzgKacheln(erg) {
         titel: `Massgebende Kombination: ${mg.bez ?? '?'}
 
 `
-             + `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
-             + `(Wiederkehrperiode 5 Jahre)${q.quelle === 'stabwerk'
+             + (mg.spitze
+               ? `Gebrauchstauglichkeit, Mastspitze nach RTE 27200 (ständig L/${erg.verformung.grenzen?.spitzeN ?? 100}, `
+                 + `ständig + Betriebswind ψ ${erg.verformung.psi.toFixed(2)} L/${erg.verformung.grenzen?.spitzeWN ?? 50})`
+               : `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} (Wiederkehrperiode 5 Jahre)`)
+             + `${q.quelle === 'stabwerk'
                  ? ', Wege aus dem Stabwerk' : ''}. Kein Teil der Tragsicherheit; `
              + `die Farbe folgt η = w / Grenzwert.\n\n${alle}`
              + (dazu ? `\n\nOHNE NACHWEIS, nur zur Auskunft:\n${dazu}` : '')
@@ -7921,7 +7924,7 @@ export function gzgBlockHtml(erg, quelle = '', gzg = null) {
   const gp = v?.gruppen ?? { fahrdraht: true, spitze: v?.spitze === true };
   const grenzen = [
     gp.fahrdraht ? `${Math.round((gr?.fahrdraht ?? 0.040) * 1000 * 10) / 10} mm` : '',
-    gp.spitze ? `L/${gr?.spitzeN ?? 100}` : '',
+    gp.spitze ? `L/${gr?.spitzeN ?? 100} ständig, L/${gr?.spitzeWN ?? 50} + Betriebswind` : '',
     gp.verdrehung ? `${gr?.verdrehungGrad ?? 5}°` : '',
   ].filter(Boolean);
   /*
@@ -11386,7 +11389,7 @@ export function nachweiseHtml(werte) {
             ${(g.unterVon ? eigen : nw[g.key]) ? 'checked' : ''}${gesperrt ? ' disabled' : ''}>
           <span class="nw-titel">${esc(g.titel)}</span>
         </label>
-        ${g.grenze ? grenzFeldHtml(werte, g.grenze, gesperrt) : ''}
+        ${g.grenze ? grenzFeldHtml(werte, g.grenze, gesperrt) : ''}${g.grenze2 ? grenzFeldHtml(werte, g.grenze2, gesperrt) : ''}
       </div>
       <p class="notiz">${esc(wasVon(g))}</p>
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
@@ -11400,7 +11403,7 @@ export function nachweiseHtml(werte) {
 function grenzFeldHtml(werte, gz, gesperrt) {
   const gr = verformungGrenzen(werte);
   const wert = { gzgGrenzeFahrdraht: Math.round(gr.fahrdraht * 1e4) / 10,
-                 gzgGrenzeSpitze: gr.spitzeN, gzgGrenzeVerdrehung: gr.verdrehungGrad }[gz.feld];
+                 gzgGrenzeSpitze: gr.spitzeN, gzgGrenzeSpitzeW: gr.spitzeWN, gzgGrenzeVerdrehung: gr.verdrehungGrad }[gz.feld];
   return `<span class="nw-grenze-eingabe">${esc(gz.vor)}<input type="number"
       data-grenze="${esc(gz.feld)}" min="0.1" step="${gz.feld === 'gzgGrenzeVerdrehung' ? 0.5 : 1}"
       value="${esc(String(wert))}"${gesperrt ? ' disabled' : ''}

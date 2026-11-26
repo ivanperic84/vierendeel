@@ -310,9 +310,10 @@ export const NACHWEISGRUPPEN = [
        + 'Zustände mit derselben Windstufe (für die alte Norm: Einheitswind). '
        + 'Aus dem Stabwerk; färbt das Urteil nicht' },
   { key: 'gebrauch', titel: 'Gebrauchstauglichkeit', vorhanden: true, standard: true,
-    was: 'Verformung des Masten unter Betriebswind ψ 0.70 (nur Wind, '
-       + 'charakteristisch × 0.70). Aus: keine der drei Prüfungen wird '
-       + 'geführt; die Werte bleiben als Auskunft stehen' },
+    was: 'Verformung des Masten: Fahrdraht und Verdrehung unter Betriebswind '
+       + '(nur Wind × 0.70), Mastspitze nach RTE 27200 (ständig; ständig + '
+       + 'Betriebswind). Aus: keine der drei Prüfungen wird geführt; die Werte '
+       + 'bleiben als Auskunft stehen' },
   { key: 'fahrdrahtQuer', titel: 'Fahrdraht quer', vorhanden: true, standard: true,
     ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
     grenze: { feld: 'gzgGrenzeFahrdraht', vor: '', nach: 'mm', vorgabe: 40 },
@@ -321,8 +322,11 @@ export const NACHWEISGRUPPEN = [
   // unterpunkt»); seit der Neuordnung mit einstellbarem Grenzwert L/n.
   { key: 'spitzeMast', titel: 'Mastspitze', vorhanden: true, standard: true,
     ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
-    grenze: { feld: 'gzgGrenzeSpitze', vor: 'L /', nach: '', vorgabe: 100 },
-    was: 'Auslenkung der Mastspitze in Gleis- und in Querrichtung' },
+    // RTE 27200 (26. November): zwei Grenzwerte.
+    grenze: { feld: 'gzgGrenzeSpitze', vor: 'ständig L /', nach: '', vorgabe: 100 },
+    grenze2: { feld: 'gzgGrenzeSpitzeW', vor: '+ Betriebswind L /', nach: '', vorgabe: 50 },
+    was: 'Auslenkung der Mastspitze je Richtung (quer, längs) nach RTE 27200: '
+       + 'ständige Lasten ≤ 1 % der Mastlänge, ständige + Betriebswind (Wind × 0.70) ≤ 2 %' },
   { key: 'verdrehungMast', titel: 'Mastverdrehung', vorhanden: true, standard: true,
     ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
     grenze: { feld: 'gzgGrenzeVerdrehung', vor: '', nach: '°', vorgabe: 5 },

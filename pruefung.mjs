@@ -904,8 +904,9 @@ titel('15  Lastfälle');
    */
   // Seit dem 29. September nur noch vier: die seltene Stufe ist entfallen
   // («die seltenen Fälle weglassen»).
-  pruef('Vier Lastfälle der Gebrauchstauglichkeit (Betriebswind)',
-        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 4, 1e-12, 'Stk');
+  // 26. November (RTE 27200, Mastspitze): dazu G allein und G + Betriebswind je Richtung.
+  pruef('Neun Lastfälle der Gebrauchstauglichkeit (4 Betriebswind, 5 Mastspitze)',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 9, 1e-12, 'Stk');
   wahr('Der Wind steht in jeder Kombinationsart mit beiden Vorzeichen',
        ['WindX', 'WindY'].every((g) => ['charakteristisch', 'tragsicherheit',
          'gebrauchstauglichkeit'].every((art) => {
@@ -931,7 +932,7 @@ titel('15  Lastfälle');
     const betrieb = gzg.filter((x) => x.stufe === 'betrieb');
     pruef('Davon vier in der Betriebsstufe', betrieb.length, 4, 1e-12, 'Stk');
     wahr('… und keine seltene Stufe mehr (29. Sept.)',
-         gzg.every((x) => x.stufe === 'betrieb') && !lf.some((x) => /^gtselten/.test(x.key)));
+         gzg.every((x) => ['betrieb', 'spitzeG', 'spitzeGW'].includes(x.stufe)) && !lf.some((x) => /^gtselten/.test(x.key)));
     // Seit dem 6. Oktober ohne ständige: «Betriebswind kombination ohne
     // ständige nur wind 0.7».
     wahr('… ohne Ständige, Wind mit ψ = 0.70',
@@ -964,7 +965,7 @@ titel('15  Lastfälle');
        && holen('gwk').nur === undefined);
   wahr('Gebrauchstauglichkeit ist kein Nachweis',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
-         .every((x) => x.nachweis === false && !x.beiwerte.G));
+         .every((x) => x.nachweis === false && (x.stufe !== 'betrieb' || !x.beiwerte.G)));
   // Seit dem 17. September zwei mehr: der Havariefall (intern).
   // Seit dem 22. November die Änderung des Leiterzugs bei Schnee (intern).
   wahr('Sieben Gruppen: G, Wind x, Wind y, Schnee, Leiterzug bei Schnee, Havarie x, Havarie y',
@@ -1011,7 +1012,7 @@ titel('15  Lastfälle');
   // seit dem 29. September entfallen).
   wahr('Ohne Schnee und ohne Q_z: vier Nachweislastfälle',
        zaehl(ohneSchnee, 'tragsicherheit') === 4
-       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 4,
+       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 9,
        `${zaehl(ohneSchnee, 'tragsicherheit')} / ${zaehl(ohneSchnee, 'gebrauchstauglichkeit')}`);
   wahr('Ohne Schnee entfällt auch der charakteristische Schneelastfall',
        !L.lastfaelle(ohneSchnee).some((x) => x.key === 'sk'));
@@ -31943,9 +31944,10 @@ titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
    * DIE MASTSPITZE: dort stimmten Kern und Stabwerk schon am 26. September
    * auf 0.1 % - die Gegenprobe, dass die Wege dieselben sind.
    */
-  const spK = e1.erg.verformung.A.auskunft.find((a) => /nur Wind/.test(a.was));
-  const spS = v1.A.auskunft.find((a) => /nur Wind/.test(a.was));
-  wahr('Mastspitze nur Wind: Stabwerk und Kern auf 1 %',
+  // Seit dem 26. November (RTE 27200) steht als Auskunft «ständig + Betriebswind».
+  const spK = e1.erg.verformung.A.auskunft.find((a) => /Betriebswind/.test(a.was));
+  const spS = v1.A.auskunft.find((a) => /Betriebswind/.test(a.was));
+  wahr('Mastspitze ständig + Betriebswind: Stabwerk und Kern auf 1 %',
        Math.abs(spS.wert / spK.wert - 1) < 0.01, `${mm(spS.wert)} / ${mm(spK.wert)} mm`);
   const e2 = rechne(C133.tragwerkHinzu(w133, 'joch', {}));
   const v2 = e2.h.verformung;
@@ -34074,16 +34076,19 @@ titel('166  Gebrauchstauglichkeit: Mastspitze L/100 unter Betriebswind, abschalt
   const k = lauf({ ...standardwerte() });
   const aus = VF166.verformungsNachweis(k);
   const an = VF166.verformungsNachweis(k, { spitze: true });
-  const sp = an.A.nachweise.find((x) => x.spitze);
-  const ausk = aus.A.auskunft.find((x) => /nur Wind/.test(x.was));
+  // Seit dem 26. November nach RTE 27200: ständig L/100, ständig + Betriebswind L/50.
+  const sp = an.A.nachweise.find((x) => x.spitze && x.spitzeArt === 'wind');
+  const spSt = an.A.nachweise.find((x) => x.spitze && x.spitzeArt === 'staendig');
+  const ausk = aus.A.auskunft.find((x) => /ständig \+ Betriebswind/.test(x.was));
   wahr('Vorgabe an, Unterpunkt der Gebrauchstauglichkeit',
        CH166.nachweiseStandard().spitzeMast === true
        && CH166.NACHWEISGRUPPEN.find((g) => g.key === 'spitzeMast')?.ober === 'Gebrauchstauglichkeit');
   wahr('Ausgeschaltet: kein Nachweis an der Spitze, sie bleibt Auskunft',
        !aus.A.nachweise.some((x) => x.spitze) && !!ausk && aus.spitze === false);
-  pruef('Eingeschaltet: derselbe Weg wie die Auskunft (nur Wind × 0.70)',
+  pruef('Eingeschaltet: derselbe Weg wie die Auskunft (G + Wind × 0.70)',
         sp?.wert, ausk?.wert, 1e-12, 'm');
-  pruef('Grenzwert Mastlänge / 100', sp?.grenz, an.A.L / 100, 1e-12, 'm');
+  pruef('RTE 27200: ständig + Betriebswind Mastlänge / 50', sp?.grenz, an.A.L / 50, 1e-12, 'm');
+  pruef('RTE 27200: ständig Mastlänge / 100', spSt?.grenz, an.A.L / 100, 1e-12, 'm');
   wahr('Das eta der Kachel ist das grössere der beiden',
        Math.abs(an.A.eta - Math.max(...an.A.nachweise.map((x) => x.eta))) < 1e-12,
        `Spitze ${sp?.eta?.toFixed(4)} (${(sp?.wert * 1000).toFixed(1)} mm von `
@@ -34096,7 +34101,7 @@ titel('166  Gebrauchstauglichkeit: Mastspitze L/100 unter Betriebswind, abschalt
        /verformungsNachweis\(kombiMast,\s*\{ gruppen: \{ fahrdraht: nwG\.fahrdrahtQuer, spitze: nwG\.spitzeMast,\s*verdrehung: nwG\.verdrehungMast \},\s*grenzen: verformungGrenzen\(werte\) \}\)/.test(uq));
   const sq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
   wahr('Das Stabwerk folgt dem Kern (kern.spitze)',
-       /const mitSpitze = kern\.spitze === true/.test(sq) && /spitzeNachweis\(spitzeW, L, spitzeN\)/.test(sq));
+       /const mitSpitze = kern\.spitze === true/.test(sq) && sq.includes("spitzeNachweis(spitzeSW, L, spitzeWN, 'wind')"));
 }
 
 titel('167  Tragausleger: zu kurzer Mast im Bild; Grenzwerte GZG in den Optionen; Kacheln');
@@ -38182,7 +38187,7 @@ titel('223  Gebrauchstauglichkeit am Fahrdraht; Mastspitzen an der Figur');
   wahr('… gegen 40 mm, η = w / 40 mm, im Urteil der Verformung',
        fd.massgebend.grenz === 0.04 && Math.abs(fd.eta - soll / 0.04) < 1e-12 && v.eta >= fd.eta - 1e-12);
   wahr('Die Mastenden tragen dann keinen Nachweis an der Referenzhöhe mehr (Auskunft)',
-       ['A', 'B'].every((e) => !(v[e].nachweise ?? []).some((n) => /quer zum Gleis/.test(n.was))
+       ['A', 'B'].every((e) => !(v[e].nachweise ?? []).some((n) => !n.spitze && /quer zum Gleis/.test(n.was))
          && (v[e].auskunft ?? []).some((n) => /Jochauflager auf 7\.50 m quer/.test(n.was))));
   const ohne = SV223.verformungAusStabwerk(kern, { ...r.dat, fahrdraehte: [] }, r.lsg, r.faelle, { A: 'M1', B: 'M2' });
   wahr('Ohne Fahrdraht gilt die Referenzhöhe am Masten (Rückfall)',
@@ -38259,7 +38264,8 @@ titel('225  Verformte Figur mit dem Faktor des Nachweises; Grundlage angeschrieb
   const v = SV225.verformungAusStabwerk(kern, h.roh.dat, h.roh.lsg, h.roh.faelle, { A: 'M1', B: 'M2' });
   const nw = v.A.nachweise;
   wahr('Jeder Nachweis nennt den Faktor, mit dem sein Fall eingeht (ψ 0.70 beim reinen Wind)',
-       nw.length > 0 && nw.every((n) => n.faktor === 0.7), nw.map((n) => `${n.was.slice(0, 20)} ${n.faktor}`).join(' · '));
+       // Seit dem 26. November (RTE 27200) geht die Mastspitze mit G + Wind × 0.70 ein - Faktor 1, ψ steckt im Fall.
+       nw.length > 0 && nw.every((n) => (n.spitze ? n.faktor === 1 : n.faktor === 0.7)), nw.map((n) => `${n.was.slice(0, 20)} ${n.faktor}`).join(' · '));
   const app = APP_QUELLE();
   wahr('Die Figur rechnet mit diesem Faktor (bei «umhüllend») und schreibt die Grundlage an',
        app.includes('const fig = verformteFigur(roh.dat, roh.lsg, wegeAnteile(g, lf));')
@@ -44427,6 +44433,29 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('363  Mastspitze nach RTE 27200: 1 % ständig, 2 % ständig + Betriebswind (26. November)');
+{
+  const L363 = await import(J('core.lasten.js'));
+  const VF363 = await import(J('core.verformung.js'));
+  const CH363 = await import(J('core.checks.js'));
+  const lf = L363.lastfaelle(basis({ schneeAktiv: true }));
+  const g = lf.filter((l) => l.stufe === 'spitzeG');
+  const gw = lf.filter((l) => l.stufe === 'spitzeGW');
+  wahr('Ein Fall G allein (Beiwert 1, sonst nichts)',
+       g.length === 1 && g[0].beiwerte.G === 1 && Object.entries(g[0].beiwerte).filter(([, v]) => v).length === 1);
+  wahr('Vier Fälle G + Wind × 0.70 je Richtung und Vorzeichen, ohne Schnee',
+       gw.length === 4 && gw.every((l) => l.beiwerte.G === 1 && !l.beiwerte.Schnee
+         && Math.abs(Math.abs(l.beiwerte.WindX || l.beiwerte.WindY) - 0.70) < 1e-12));
+  const gr = VF363.verformungGrenzen({});
+  wahr('Vorgaben L/100 (ständig) und L/50 (ständig + Betriebswind)', gr.spitzeN === 100 && gr.spitzeWN === 50);
+  wahr('Eigene Grenzwerte aus den Optionen', VF363.verformungGrenzen({ gzgGrenzeSpitze: 150, gzgGrenzeSpitzeW: 60 }).spitzeWN === 60);
+  wahr('Optionen: zweites Feld gzgGrenzeSpitzeW',
+       CH363.NACHWEISGRUPPEN.find((x) => x.key === 'spitzeMast')?.grenze2?.feld === 'gzgGrenzeSpitzeW');
+  const n = VF363.spitzeNachweis({ wert: 0.1, achse: 'y' }, 10, 50, 'wind');
+  pruef('spitzeNachweis: 100 mm gegen L/50 = 200 mm', n.eta, 0.5, 1e-12, '–');
 }
 
 // ===========================================================================

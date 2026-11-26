@@ -727,6 +727,29 @@ export function standardLastfaelle(inp) {
       });
     });
   /*
+   * >>> DIE MASTSPITZE NACH RTE 27200 (26. November). <<< Weisung: «der
+   * nachweis für die mastspitze ist wie folgt definiert nach rte 27200: 1%
+   * der Mastlänge infolge ständige (eigengewicht, leiterzug etc.) 2% der
+   * mastlänge infolge ständige und verwänderliche (betriebswind)». Auf
+   * Rückfrage: je Richtung einzeln, «G + Wind × 0.70» ohne Schnee, zwei
+   * Grenzwerte in den Optionen. Eigene Fälle, damit Anker und Seile im
+   * Zustand G + 0.7·W richtig stehen: G allein, G + Betriebswind je Richtung.
+   */
+  lf.push({ key: 'gtspitzeG', bez: 'Ständig (Mastspitze)', art: 'gebrauchstauglichkeit',
+            nachweis: false, stufe: 'spitzeG', beiwerte: bw({ G: 1 }) });
+  [['Y', 'WindY', 'y (längs zum Gleis)'], ['X', 'WindX', 'x (quer zum Gleis)']]
+    .forEach(([tag, gruppe, richtung]) => {
+      [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+        lf.push({
+          key: `gtspitzeGW${tag}${suffix}`,
+          bez: `Ständig + Betriebswind (ψ ${BETRIEBSWIND.toFixed(2)}): Wind ${zeichen}${richtung}`,
+          art: 'gebrauchstauglichkeit', nachweis: false,
+          leit: gruppe, vorzeichen: vz, stufe: 'spitzeGW',
+          beiwerte: bw({ G: 1, [gruppe]: vz * BETRIEBSWIND }),
+        });
+      });
+    });
+  /*
    * >>> DIE SELTENE STUFE IST ENTFALLEN (29. September). <<<
    *
    * Auf Rückfrage zur Lastfallauswahl: «die seltenen Fälle weglassen».
