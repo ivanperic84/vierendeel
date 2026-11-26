@@ -43062,7 +43062,8 @@ titel('296  Knick-Eigenwert im Löser (alpha_cr, geometrische Steifigkeit)');
     wahr('Auffällig: η 0.40 unter der Schwelle 0.60 tritt zurück, 0.75 nicht, ohne Wert zurück, Schieber 0 wirkt nicht',
          unter === true && ueber === false && ohne === true && ans._unauffaellig({ werte: { eta: 0.1 } }) === false);
     const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
-    wahr('… Schieber «Auffällig» in der Gruppe Resultate', LQ.includes('id="wz-auffaellig"') && LQ.includes('function auffText(app)'));
+    // 26. November: der Schieber ist weg («die eingabe kann man viel präziser über die legendenbox vornehmen»).
+    wahr('… Schieber «Grenze» nicht mehr in der Leiste', !LQ.includes('id="wz-auffaellig" min='));
   }
   const KQ = readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8');
   const SQ = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
@@ -43124,8 +43125,8 @@ titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählba
   const RQ2 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Legende der Linie: keine Teile-Auswahl, Farbbalken und Wahl Nachweis / Resultat / frei',
        !ZQ2.includes('data-zl-teile aria-label') && LQ2.includes('data-leg-farbe') && LQ2.includes('data-leg-frei'));
-  wahr('Schieber heisst «Grenze», nimmt Linien zurück und nennt den Wert in der Einheit',
-       LQ2.includes('<span>Grenze <b id="wz-auff-wert">') && RQ2.includes('const blass = grenze > 0 && lmax < grenze;')
+  wahr('Grenze im Renderer nimmt Linien zurück (Schieber seit 26. November weg)',
+       !LQ2.includes('<span>Grenze <b id="wz-auff-wert">') /* Schieber weg seit 26. November */ && RQ2.includes('const blass = grenze > 0 && lmax < grenze;')
        && LQ2.includes("(${Math.round(a * 100)} %)"));
   const R3b = await import(J('render.3d.js'));
   const ans = Object.create(R3b.Modellansicht.prototype);

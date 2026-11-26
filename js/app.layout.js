@@ -618,10 +618,13 @@ export function zeichneModellWerkzeuge(app) {
        * Bei η die Schwelle in η (0 … 1.00), bei σ_v, σ, M, V, N, T, w in
        * Prozent des grössten Werts im Bild. Nur das Bild, nicht gespeichert.
        */
-      + `<label class="wz-explo wz-auff" title="Grenze: was darunter liegt, wird stark durchsichtig - Flächen und Linien (η: Ausnutzung; σ_v, σ, M, V, N, T, w: Anteil am grössten Wert im Bild). Doppelklick: aus">
-           <span>Grenze <b id="wz-auff-wert">${auffText(app)}</b></span><input type="range" id="wz-auffaellig" min="0" max="100" step="5"
-             value="${Math.round((app.ansicht.auffaellig ?? 0) * 100)}"${gR ? '' : ' disabled'}
-             aria-label="Grenze"></label>`,
+      /*
+       * >>> SCHIEBER «GRENZE» WEG (26. November). <<< Weisung: «diesen slider
+       * braucht es nicht, die eingabe kann man viel präziser über die
+       * legendenbox vornehmen» (Skala von / bis). Die Schwelle im Renderer
+       * (`auffaellig`) bleibt 0; Code und Prüfung des Renderers bleiben.
+       */
+      + '',
       /*
        * WER EINEN KNOPF VERMISST, SOLL ERFAHREN WARUM. Die Wahl steht in
        * der Ergebnisleiste, nicht hier - ohne diesen Satz sieht die
