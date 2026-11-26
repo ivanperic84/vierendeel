@@ -44273,7 +44273,9 @@ titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.
   wahr('Einheitswind aus: zurück auf die Stufe der EK', e3.windKlasse === '0.9');
   const RK = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
   wahr('Profilschnitt × 2, 0.6 m unter dem Fundament (Linie, nicht anklickbar)',
-       RK.includes('export const PROFILSCHNITT_FAKTOR = 2;') && RK.includes('profilschnitt: true'));
+       RK.includes('export const PROFILSCHNITT_FAKTOR = 2;') && RK.includes('profilschnitt: true')
+       // 26. November: senkrecht, in der Längsansicht lesbar.
+       && RK.includes('[x + p[0] * k, 0, zB + p[1] * k]'));
   const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
   const KX = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
   wahr('Insel: Abstand klimatisch / geometrisch, Schnee mit Wert zuerst, Erklärung hinter ⓘ',

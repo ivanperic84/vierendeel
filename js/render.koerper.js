@@ -717,7 +717,14 @@ export function mastKoerper(o) {
   if (!gitterG && !profil.gespreizt && poly?.length >= 3) {
     const zB = zFuss - fkHoch - PROFILSCHNITT_TIEFE;
     const k = PROFILSCHNITT_FAKTOR * MM;
-    const pkt = poly.map((p) => [x + p[0] * k, p[1] * k, zB]);
+    /*
+     * >>> SENKRECHT, IN DER LÄNGSANSICHT LESBAR (26. November). <<< Weisung:
+     * «die h profile darstellung vertikal ausrichten so dass man sie in der
+     * längsansicht sieht. diese ausrichtung beibehalten.» Der Grundriss wird
+     * um die x-Achse hochgeklappt: Querschnitt-y wird z (Mitte auf zB). Das
+     * Zeichen bleibt wie von oben gesehen - Steg in der Jochachse «H», quer «I».
+     */
+    const pkt = poly.map((p) => [x + p[0] * k, 0, zB + p[1] * k]);
     linien.push({ gruppe: 'mast', mast: true, profilschnitt: true,
                   label: `Profilschnitt ${name} (× ${PROFILSCHNITT_FAKTOR})`,
                   punkte: [...pkt, pkt[0]] });
