@@ -119,8 +119,9 @@ export function strichAn() {
 export function strichSetzen(app, an) {
   try { localStorage.setItem(STRICH_KEY, an ? '1' : '0'); } catch { /* ohne Speicher */ }
   if (app.ansicht) { app.ansicht.strich = an; app.ansicht.zeichne(); }
-  // Lesbarkeit (26. November): auf weissem Grund das helle Design am Modellfenster.
-  tokensAufElement(ui.el('viewer'), an ? 'hell' : null);
+  // Lesbarkeit (26. November): auf weissem Grund das helle Design am Modellfenster -
+  // im dunklen Thema bleibt der Grund dunkel (Strichbild dunkel, 26. November).
+  tokensAufElement(ui.el('viewer'), an && document.documentElement.dataset.thema !== 'dunkel' ? 'hell' : null);
   const k = ui.el('v-strich');
   if (k) { k.classList.toggle('on', an); k.setAttribute('aria-pressed', String(an)); }
 }
@@ -230,7 +231,7 @@ export function baueModellWerkzeuge(app) {
    * der Knopf ruft jetzt dieselbe Handlung und faehrt danach heran.
    */
   if (app.ansicht) app.ansicht.strich = strichAn();
-  tokensAufElement(ui.el('viewer'), strichAn() ? 'hell' : null);
+  tokensAufElement(ui.el('viewer'), strichAn() && document.documentElement.dataset.thema !== 'dunkel' ? 'hell' : null);
   ui.el('v-strich').setAttribute('aria-pressed', String(strichAn()));
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-bild').onclick = () => app.bildAufnehmen?.();

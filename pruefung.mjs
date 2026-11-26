@@ -41077,10 +41077,11 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
                     leiter: [{ knoten: 'L1' }, { knoten: 'L2' }, { knoten: 'L3' },
                              { knoten: 'A', starr: { knoten: ['A', 'B'], r: [1, 0, -2] } }] };
       const sk = KR.skizzeAusModell(dat);
-      wahr('Skizze: je Leiterknoten ein Punkt in x-z, deckungsgleiche einmal, am Tragausleger Stationsmitte + Hebel',
-           JSON.stringify(sk.leiter) === JSON.stringify([[4, -0.3], [12, 2], [6, -2]]), JSON.stringify(sk.leiter));
+      // Seit dem 26. November schräg projiziert (y halb unter 30°): L1 / L2 (y ±0.2) gehen auseinander.
+      wahr('Skizze: je Leiterknoten ein Punkt, schräg projiziert, am Tragausleger Stationsmitte + Hebel',
+           JSON.stringify(sk.leiter) === JSON.stringify([[4.09, -0.25], [3.91, -0.35], [12, 2], [6, -2]]), JSON.stringify(sk.leiter));
       wahr('… die Grenzen der Skizze schliessen die Leiter ein', sk.grenzen.x1 === 12 && sk.grenzen.z1 === 2 && sk.grenzen.z0 === -2);
-      wahr('… und das Bild zeichnet sie als einfachen Punkt (10. Oktober, kein Ring mit Kern)', (RK264.skizzeSvg(sk, [], {}).match(/class="sk-leiter"/g) ?? []).length === 3
+      wahr('… und das Bild zeichnet sie als einfachen Punkt (10. Oktober, kein Ring mit Kern)', (RK264.skizzeSvg(sk, [], {}).match(/class="sk-leiter"/g) ?? []).length === 4
            && !RK264.skizzeSvg(sk, [], {}).includes('sk-leiter-kern') && RK264.skizzeSvg(sk, [], {}).includes('.sk-leiter{fill:#1d5fa8;stroke:none}'));
       wahr('Die Modelldatei nennt die Leiterknoten (alle Drahtwerke, nicht nur Fahrdrähte)',
            /leiter: leiterKnoten\(bau\)/.test(readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8')));
@@ -44438,6 +44439,28 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('367  Blätter: Skizze schräg projiziert, Anker in seiner Richtung; Strichbild dunkel (26. November)');
+{
+  const KR367 = await import(J('core.reaktionen.js'));
+  const ER367 = await import(J('export.reaktionen.js'));
+  const p = KR367.skizzePunkt(0, 4.5, 0);
+  pruef('Kavalierprojektion: y halb unter 30° (x)', p[0], 0.5 * Math.cos(Math.PI / 6) * 4.5, 1e-12, 'm');
+  pruef('… (z)', p[1], 0.5 * Math.sin(Math.PI / 6) * 4.5, 1e-12, 'm');
+  const dat = { knoten: [{ name: 'F', x: 0, y: 0, z: 0 }, { name: 'K', x: 0, y: 0, z: 8 }, { name: 'G1', x: 0, y: 0.17, z: 7.5 }, { name: 'G2', x: 10, y: 0.17, z: 7.5 }],
+                staebe: [{ name: 'MAST_M1_S1', von: 'F', bis: 'K', art: 'stab' }, { name: 'OGL_S0', von: 'G1', bis: 'G2', art: 'stab' }] };
+  const sk = KR367.skizzeAusModell(dat);
+  wahr('Skizze trägt die Marke schräg, Gurt neben dem Masten versetzt', sk.schraeg === true
+       && sk.linien.some((l) => Math.abs(l[0] - 0.07) < 0.01 && Math.abs(l[1] - 7.54) < 0.01));
+  const svg = ER367.skizzeSvg(sk, [{ art: 'mast', id: 'M1', x: 0, z: 0, name: 'M1' },
+    { art: 'anker', id: 'M1', x: 0, y: -4.5, z: 0, name: 'AM1', anker: { a: 4.5, h: 6, richtung: 'y' } }], {});
+  wahr('Anker längs: Strebe zum echten Fuss, nicht umgeklappt', svg.includes('class="sk-anker"') && !svg.includes('class="sk-anker sk-umgeklappt"'));
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Strichbild dunkel: eigener Grund und Farben, Aufnahmen weiss',
+       RQ.includes('this._strichDunkel = Boolean(this.strich && !this._weiss && dunkel(tokens().viewerBg));')
+       && APP_QUELLE().includes("tokensAufElement(ui.el('viewer'), strichAn() && thema !== 'dunkel' ? 'hell' : null);"));
+}
+
+// ===========================================================================
 titel('366  Doppel-Abfangjoch: ein Mastkopf; Zahl je Mast; Ausgeblendetes nicht greifbar (26. November)');
 {
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
@@ -44718,7 +44741,7 @@ titel('349  Ankerfundament im 3D gefärbt; Strichbild lesbar im dunklen Thema (2
        && AQ.includes('Math.abs(Math.hypot(xm - (Number(m.x) || 0), ym) - a)'));
   wahr('Strichbild: helles Design am Modellfenster, Glas deckender',
        DQ.includes('export function tokensAufElement(el, thema)')
-       && LQ.includes("tokensAufElement(ui.el('viewer'), an ? 'hell' : null);")
+       && LQ.includes("tokensAufElement(ui.el('viewer'), an && document.documentElement.dataset.thema !== 'dunkel' ? 'hell' : null);")
        && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('#viewer[data-thema="hell"] .legende'));
 }
 
@@ -44748,12 +44771,13 @@ titel('347  Strichbild wie die Berichtsbilder: C, mit Linie D (26. November)');
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
   wahr('Strichbild: weisser Grund und helles Design, Körper blass, keine Schraffur',
-       RQ.includes("const t = this.strich ? tokens('hell') : tokens();")
-       && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
-       && RQ.includes("c.fillStyle = '#f2f2f0';") && RQ.includes('&& !this.zustand && !this.strich;'));
+       // 26. November: im dunklen Thema dunkel (`_strichDunkel`), Aufnahmen weiss.
+       RQ.includes("const t = this.strich && !this._strichDunkel ? tokens('hell') : tokens();")
+       && RQ.includes("c.fillStyle = this._weiss || (this.strich && !this._strichDunkel) ? '#ffffff' : t.viewerBg;")
+       && RQ.includes("c.fillStyle = this._strichDunkel ? '#2a2d35' : '#f2f2f0';") && RQ.includes('&& !this.zustand && !this.strich;'));
   wahr('C: Schwerachsen kräftig in der Plotfarbe, auch ohne Schalter «Schwerachsen»; D: graues System ohne Körper',
        RQ.includes("this.strich || this.sparsam || this._ebeneAn('achse')")
-       && RQ.includes("if (this.zustand) c.strokeStyle = '#7a7a76';")
+       && RQ.includes("if (this.zustand) c.strokeStyle = this._strichDunkel ? '#8a8f9a' : '#7a7a76';")
        && RQ.includes('if (strichD && tragend) return;'));
   wahr('Knopf unten links, gemerkt im Browser',
        LQ.includes("iconKnopf('v-strich', 'strich'") && LQ.includes("const STRICH_KEY = 'tragjoch-strichbild';")
@@ -44786,7 +44810,7 @@ titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (
          .every((t) => ber.includes(t)));
   wahr('Bildsammlung: das 3D wie es steht, hell, weisser Grund, zugeschnitten; je Eintrag in IndexedDB, nicht im Paket',
        BQ.includes('momentaufnahme(null, { aktuell: true, weiss, faktor: Number(o.faktor) || 1,') && BQ.includes("uebertrageTokens('hell')")
-       && BQ.includes('async function zuschneiden(url, grund = [255, 255, 255])') && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
+       && BQ.includes('async function zuschneiden(url, grund = [255, 255, 255])') && RQ.includes("c.fillStyle = this._weiss || (this.strich && !this._strichDunkel) ? '#ffffff' : t.viewerBg;")
        && STQ.includes('export async function bilderSichern(id, liste)') && STQ.includes("const BILDER = 'bilder|';"));
   wahr('Legende: in die Mitte nur, wenn die offene Leiste sie in der Höhe überdeckt (`wz-eng`), neu bewertet bei Grösse',
        LQ.includes('eng = r.top > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")

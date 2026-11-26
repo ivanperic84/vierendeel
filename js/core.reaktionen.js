@@ -372,6 +372,21 @@ export function reaktionsZeilen(roh) {
  *
  * @returns {{linien: number[][], grenzen: {x0,x1,z0,z1}}}
  */
+/*
+ * >>> SCHRÄG PROJIZIERT (26. November). <<< Weisung: «für alle anderen
+ * vereinfachten darstellungen die gleiche art verwenden (zum beispiel
+ * reaktionskräfte) bei deisen kann man das modell auch etwas abdrehen damit
+ * man die anker sieht wenn sie vorhanden sind. beschriftungsgrad gleich wie
+ * bis anhin», auf Rückfrage «Alle vier Blätter» (Reaktionskräfte,
+ * Jochanschluss, Bestandesschutz, Projektauswertung). Kavalierprojektion wie
+ * eine Planskizze: x bleibt, die Gleisrichtung y geht halb so lang unter 30°
+ * nach rechts oben. Masten und Titel liegen bei y = 0 und stehen wie bisher;
+ * Gurte und Bleche gehen auseinander, ein Anker längs steht in seiner
+ * Richtung statt umgeklappt.
+ */
+export const SKIZZE_SCHRAEG = { kx: 0.5 * Math.cos(Math.PI / 6), kz: 0.5 * Math.sin(Math.PI / 6) };
+export const skizzePunkt = (x, y, z) => [x + SKIZZE_SCHRAEG.kx * (y || 0), z + SKIZZE_SCHRAEG.kz * (y || 0)];
+
 export function skizzeAusModell(dat) {
   const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
   const r2 = (v) => Math.round(v * 100) / 100;
@@ -394,7 +409,8 @@ export function skizzeAusModell(dat) {
     // «bei den druckstüzen werden diese nicht korrekt dargestellt im
     // reaktionskräfte output blatt»).
     if (/(?:^|_)(?:ANKER[A-Z]*|SEILKOPF)_/.test(String(s.name))) return;
-    let p = [r2(a.x), r2(a.z), r2(b.x), r2(b.z)];
+    const pa = skizzePunkt(a.x, a.y, a.z), pb = skizzePunkt(b.x, b.y, b.z);
+    let p = [r2(pa[0]), r2(pa[1]), r2(pb[0]), r2(pb[1])];
     let gedreht = false;
     if (p[0] > p[2] || (p[0] === p[2] && p[1] > p[3])) { p = [p[2], p[3], p[0], p[1]]; gedreht = true; }
     // Fünfte Stelle: 1 = Seil (langer Link), gestrichelt; 2 = Anbauteil.
@@ -423,25 +439,27 @@ export function skizzeAusModell(dat) {
   const leiter = [];
   const gesehenL = new Set();
   (dat?.leiter ?? []).forEach((l) => {
-    let x, z;
+    let x, y, z;
     if (l.starr) {
       const ks = l.starr.knoten.map((n) => kn.get(n)).filter(Boolean);
       if (!ks.length) return;
       x = ks.reduce((a, k) => a + k.x, 0) / ks.length + (l.starr.r?.[0] ?? 0);
+      y = ks.reduce((a, k) => a + (k.y ?? 0), 0) / ks.length + (l.starr.r?.[1] ?? 0);
       z = ks.reduce((a, k) => a + k.z, 0) / ks.length + (l.starr.r?.[2] ?? 0);
     } else {
       const k = kn.get(l.knoten);
       if (!k) return;
-      x = k.x; z = k.z;
+      x = k.x; y = k.y ?? 0; z = k.z;
     }
-    const p = [r2(x), r2(z)];
+    const pp = skizzePunkt(x, y, z);
+    const p = [r2(pp[0]), r2(pp[1])];
     if (gesehenL.has(p.join('|'))) return;
     gesehenL.add(p.join('|'));
     leiter.push(p);
   });
   const xs = [...linien.flatMap((l) => [l[0], l[2]]), ...leiter.map((p) => p[0])];
   const zs = [...linien.flatMap((l) => [l[1], l[3]]), ...leiter.map((p) => p[1])];
-  return { linien, leiter, grenzen: { x0: Math.min(...xs), x1: Math.max(...xs),
+  return { linien, leiter, schraeg: true, grenzen: { x0: Math.min(...xs), x1: Math.max(...xs),
                               z0: Math.min(...zs), z1: Math.max(...zs) } };
 }
 
@@ -469,7 +487,8 @@ export function neueTeileSkizze(dat, datBestand) {
     if (altS.has(s.name) || !ANBAU_NAME.test(s.name)) return;
     const a = kn.get(s.von), b = kn.get(s.bis);
     if (!a || !b) return;
-    const p = [r2(a.x), r2(a.z), r2(b.x), r2(b.z)];
+    const pa = skizzePunkt(a.x, a.y, a.z), pb = skizzePunkt(b.x, b.y, b.z);
+    const p = [r2(pa[0]), r2(pa[1]), r2(pb[0]), r2(pb[1])];
     if (p[0] === p[2] && p[1] === p[3]) return;
     const k = p.join('|');
     if (gesehen.has(k)) return;
@@ -492,7 +511,8 @@ export function neueTeileSkizze(dat, datBestand) {
     (dat.knoten ?? []).forEach((k) => {
       if (altK.has(k.name) || !ANBAU_NAME.test(k.name)) return;
       if (nur && !leiterKn.has(k.name)) return;
-      const p = [r2(k.x), r2(k.z)];
+      const pk = skizzePunkt(k.x, k.y, k.z);
+      const p = [r2(pk[0]), r2(pk[1])];
       if (gesehenP.has(p.join('|'))) return;
       gesehenP.add(p.join('|'));
       punkte.push(p);

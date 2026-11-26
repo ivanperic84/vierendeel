@@ -26,6 +26,7 @@ import { rechensatzMitNachbarn, kernArgumente } from './core.nachbarn.js';
 import { berechne } from './core.vierendeel.js';
 import { rechneStabwerk } from './app.stabwerk.js';
 import { skizzeSvg } from './export.reaktionen.js';
+import { skizzePunkt } from './core.reaktionen.js';
 import { APP_NAME, sichtbareTragwerke, tragwerksart, tragwerkPos, tragwerkName,
          mastenVon, mastName, mastenFuer, anschlusshoehe, mastAnzeigeKarte, mastAnzeigeText,
          einzelmastenAufgehen, lageVon, lageOrtsnull } from './core.constants.js';
@@ -103,7 +104,7 @@ function anbauGeometrie(w) {
             ?? ms.reduce((b, mm) => (!b || Math.abs(mm.x - soll) < Math.abs(b.x - soll) ? mm : b), null);
           if (!mast) return;
           zeichne(anbauKette(meine, { x0: 0, zAn: 0, amMast: true }),
-                  (p) => [mast.x + (p.x ?? 0), num(a.hMast) + (p.z ?? 0)]);
+                  (p) => skizzePunkt(mast.x + (p.x ?? 0), p.y ?? 0, num(a.hMast) + (p.z ?? 0)));
           return;
         }
         if (art === 'einzelmast') return;
@@ -114,7 +115,7 @@ function anbauGeometrie(w) {
         const bef = a.befestigung === 'beide' ? 'durchgehend' : a.befestigung;
         zeichne(anbauKette(meine, { x0: num(a.x),
           zAn: bezugsHoehe({ befestigung: bef, z: tr?.z ?? 0, mitTraeger }, zOG, zUG) }),
-        (p) => [stat + ((p.x ?? 0) - num(a.x)), p.z ?? 0]);
+        (p) => skizzePunkt(stat + ((p.x ?? 0) - num(a.x)), p.y ?? 0, p.z ?? 0));
       } catch { /* diese Gruppe bleibt ohne Bild */ }
     });
   });

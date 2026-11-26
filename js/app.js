@@ -77,7 +77,7 @@ import { aenderungenHtml } from './doku.aenderungen.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
          setzeGrenzen, setzeFdAutomatik, FELDER, kragarmEnde, mastZuKurzFuerAufhaengung } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
-         MASS, FARBEN as farben } from './design.js';
+         MASS, FARBEN as farben, tokensAufElement } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, entdoppelteVorlagen,
@@ -156,7 +156,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungArbeitsstand, zeichnungBeimStart, zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras, dialogLastfaelle } from './app.optionen.js';
-import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen } from './app.layout.js';
+import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen, strichAn } from './app.layout.js';
 import { setzenStarten, setzenEnde, setzenAnStelle, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
          setzWahlZeigen, setzWahlWeg, signalZusammenstellen, gruppenKopie } from './app.setzen.js';
 
@@ -7435,6 +7435,8 @@ const zuSeite = { links: false, rechts: false };
 function themaWechseln() {
   thema = thema === 'dunkel' ? 'hell' : 'dunkel';
   uebertrageTokens(thema);
+  // Strichbild (26. November): das Modellfenster folgt dem Thema mit.
+  tokensAufElement(ui.el('viewer'), strichAn() && thema !== 'dunkel' ? 'hell' : null);
   baueKopf();
   ansicht.zeichne();
   speichern();

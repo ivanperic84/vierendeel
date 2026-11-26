@@ -22,7 +22,7 @@
 
 import { gelaendeVon } from './data.masten.js';
 import { esc } from './design.js';
-import { REAKTION_SPALTEN } from './core.reaktionen.js';
+import { REAKTION_SPALTEN, skizzePunkt } from './core.reaktionen.js';
 
 // Unter einem halben Hundertstel steht 0.00, nicht «−0.00».
 const f2 = (v) => (Number.isFinite(v)
@@ -276,9 +276,17 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   const zeilenMax = Math.max(1, ...(daten?.titel ?? []).map((t) => String(t.text).split('\n').length));
   if ((daten?.titel ?? []).length) g.z1 += Math.max(1.2 * zeilenMax, (g.z1 - g.z0) * 0.12 * zeilenMax);
   const liste = zeilen ?? [];
+  // Schräg projiziert (26. November): der Anker steht an seinem echten Fuss.
+  const schraeg = skizze.schraeg === true;
+  const ankerFuss = (z) => skizzePunkt(z.xModell ?? z.x, Number(z.y) || 0, z.z);
   // Umgeklappte Anker brauchen Platz neben dem Masten.
   liste.filter((z) => z.art === 'anker').forEach((z) => {
     const a = Number(z.anker?.a) || 0;
+    if (schraeg) {
+      const [fx, fz] = ankerFuss(z);
+      g.x1 = Math.max(g.x1, fx + 1.5); g.x0 = Math.min(g.x0, fx - 1.5); g.z0 = Math.min(g.z0, fz);
+      return;
+    }
     // Mit Platz für die Anschrift neben dem Fuss (21. November).
     g.x1 = Math.max(g.x1, (z.xModell ?? z.x) + a * 1.45);
     g.x0 = Math.min(g.x0, (z.xModell ?? z.x) - a * 1.45);
@@ -402,13 +410,15 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
        */
       const seite = xm < mitte ? -1 : 1;
       const xZiel = laengs ? xm + seite * a : xf;
-      const p0 = [X(xm), Z(zf + h)], p1 = [X(xZiel), Z(zf)];
-      return `<line class="sk-anker${laengs ? ' sk-umgeklappt' : ''}" x1="${r1(p0[0])}" y1="${r1(p0[1])}" x2="${r1(p1[0])}" y2="${r1(p1[1])}"/>`
+      let p0 = [X(xm), Z(zf + h)], p1 = [X(xZiel), Z(zf)];
+      // Schräg (26. November): Fuss an seinem Ort, nicht umgeklappt.
+      if (schraeg) { const [fx, fz] = ankerFuss(z); p1 = [X(fx), Z(fz)]; p0 = [X(xm), Z(zf + h)]; }
+      return `<line class="sk-anker${laengs && !schraeg ? ' sk-umgeklappt' : ''}" x1="${r1(p0[0])}" y1="${r1(p0[1])}" x2="${r1(p1[0])}" y2="${r1(p1[1])}"/>`
         + gelenk(p1[0], p1[1])
         // Die Anschrift weg vom Masten, damit sie nicht an seine stösst.
         // Mit Profilzeichen am Mastfuss (23. November) steht die Ankeranschrift über dem Grund.
         + (() => {
-          const txt = z.nameVoll ?? `${z.name}${laengs ? ' (längs)' : ''}`;
+          const txt = z.nameVoll ?? `${z.name}${laengs && !schraeg ? ' (längs)' : ''}`;
           const zz = txt.split('\n');
           const lw = Math.max(...zz.map((t) => t.length)) * 5.2;
           // Weg vom Masten; passt die Anschrift dort nicht ins Bild, auf die andere Seite (23. November).
@@ -416,9 +426,14 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
           if (!links && p1[0] + 6 + lw > breite) links = true;
           if (links && p1[0] - 6 - lw < 0) links = false;
           // Unter dem Fusspunkt der Strebe, nach aussen (23. November: der Block stiess in den Ausleger).
-          const unterFuss = unten > 16 && z.nameVoll;
+          // Schräg (26. November): der Block steht links neben dem Fuss, nicht darunter
+          // - der Fuss liegt dort nahe am Masten, darunter stand schon dessen Fundament.
+          if (schraeg) { links = p1[0] - 6 - lw >= 0; }
+          const unterFuss = !schraeg && unten > 16 && z.nameVoll;
           const xt = unterFuss ? p1[0] + (links ? 8 : -8) : p1[0] + (links ? -6 : 6);
-          const yt = unterFuss ? p1[1] + 17 : p1[1] + (unten > 16 ? -4 - 10 * (zz.length - 1) : 18);
+          // Schräg (26. November): neben den Fuss, sonst stiess «AMT1» an den Mastnamen darunter.
+          const yt = unterFuss ? p1[1] + 17 : schraeg ? p1[1] + 4 - 10 * (zz.length - 1)
+            : p1[1] + (unten > 16 ? -4 - 10 * (zz.length - 1) : 18);
           return `<text x="${r1(xt)}" y="${r1(yt)}" text-anchor="${links ? 'end' : 'start'}">${
             zz.map((t, i) => `<tspan x="${r1(xt)}" dy="${i ? 10 : 0}"${/^η /.test(t) && z.amp
               ? ` class="sk-eta sk-${z.amp}"` : ''}>${esc(t)}</tspan>`).join('')}</text>`;

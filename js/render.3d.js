@@ -5243,11 +5243,19 @@ export class Modellansicht {
      * kräftig in der Plotfarbe (C); mit der Zustandslinie das graue System
      * ohne Körper und die Linie davor (D).
      */
-    const t = this.strich ? tokens('hell') : tokens();
+    /*
+     * >>> STRICHBILD AUCH DUNKEL (26. November). <<< Weisung: «kannst du das
+     * strichbild auch für die dunkle darstellung machen. die plots sind im
+     * bericht aber immer weiss.» Im dunklen Thema auf dem dunklen Grund, mit
+     * dunklen Körpern und hellen Achsen; Aufnahmen für Bericht und
+     * Bildsammlung (`_weiss`) bleiben weiss.
+     */
+    this._strichDunkel = Boolean(this.strich && !this._weiss && dunkel(tokens().viewerBg));
+    const t = this.strich && !this._strichDunkel ? tokens('hell') : tokens();
     const w = cv.width, h = cv.height;
     this._s = this._px();
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;
+    c.fillStyle = this._weiss || (this.strich && !this._strichDunkel) ? '#ffffff' : t.viewerBg;
     c.fillRect(0, 0, w, h);
     this._massTreffer = [];
     this._titelTreffer = [];
@@ -5386,11 +5394,11 @@ export class Modellansicht {
         const kanteFarbig = !strichD && f.ohneAchse && ((strichPlot && f.werte && Number.isFinite(f.werte[strichPlot.feld])
           && !this._passivGrau(f, strichPlot)) || (this.modus === 'positionen' && f.farbeBauteil));
         c.globalAlpha = tragend ? 0.55 : 0.35;
-        c.fillStyle = '#f2f2f0';
+        c.fillStyle = this._strichDunkel ? '#2a2d35' : '#f2f2f0';
         c.fill();
         c.globalAlpha = kanteFarbig ? 0.9 : tragend ? 0.55 : 0.4;
         c.lineWidth = (kanteFarbig ? 1.0 * this._strichDicke() : 0.5) * this._s;
-        c.strokeStyle = kanteFarbig ? f._farbe : '#acaca6';
+        c.strokeStyle = kanteFarbig ? f._farbe : this._strichDunkel ? '#555a66' : '#acaca6';
         c.stroke();
         return;
       }
@@ -6375,14 +6383,14 @@ export class Modellansicht {
        *   da ist, sonst dunkelgrau; der Anker so fein wie die Masten.
        */
       if (this.strich && l.stark && !traegt && !l.schwerachse) {
-        c.strokeStyle = '#8c8c86';
+        c.strokeStyle = this._strichDunkel ? '#7c818c' : '#8c8c86';
         c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);
         c.lineWidth = 0.7 * s * Math.max(0.7, this._strichDicke());
         c.globalAlpha = 0.9;
       } else if (this.strich && (l.schwerachse || traegt)) {
         // C: in der Plotfarbe; D (mit Linie) und ohne Wert: graues System.
-        if (this.zustand) c.strokeStyle = '#7a7a76';
-        else if (!l.werte && !l.passiv) c.strokeStyle = '#4c4c48';
+        if (this.zustand) c.strokeStyle = this._strichDunkel ? '#8a8f9a' : '#7a7a76';
+        else if (!l.werte && !l.passiv) c.strokeStyle = this._strichDunkel ? '#c2c6cf' : '#4c4c48';
         c.setLineDash([]);
         c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s * this._strichDicke();
         c.globalAlpha = 1;
