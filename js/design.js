@@ -155,7 +155,7 @@ export const ICONS = {
   // Strichbild (26. November): Rahmen mit zwei Masten und Joch, wie eine Systemskizze.
   strich: 'M3 3h14v14H3zM6 15V7M14 15V7M6 7h8M6 9.5h8',
   kamera: 'M2 7h4l1.5-2h5L14 7h4v9H2zM10 9.2a2.6 2.6 0 100 5.2 2.6 2.6 0 000-5.2z',
-  schloss: 'M5 9h10v8H5zM7 9V6.5a3 3 0 016 0V9M10 12v2',
+  ansicht: 'M6 3h8v14l-4-3-4 3z',   // Lesezeichen: gespeicherte Ansicht
   speichern: 'M4 3h9l3 3v11a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zM7 3v5h6V3M6 12h8',
   neu: 'M10 4v12M4 10h12',
   // Stift: Schaft, Spitze, Radiergummi-Ende - für «umbenennen».

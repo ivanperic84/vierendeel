@@ -31,6 +31,7 @@ import * as store from './store.js';
 import { esc, tokens, uebertrageTokens } from './design.js';
 import { modiFuer } from './app.layout.js';
 import { PLOTS } from './render.3d.js';
+import { kontextZeigen } from './app.kontext.js';
 
 const schluessel = (app) => app.projekt?.id || store.ARBEITS_ZEICHNUNG;
 
@@ -177,45 +178,84 @@ export function rahmenBearbeiten(app) {
 }
 
 /* ------------------------------------------------------------------------ *
- * Ansicht festhalten (Kamera-Freeze): Blick, Ausschnitt, Ebenen, Plot.
+ * >>> ANSICHTEN SPEICHERN (26. November). <<< Weisung: «hier sollte man nicht
+ * einfach die ansicht sperren können sonder die ansicht speichern, mit
+ * rechtsklick auf die kachel kann man dann die ansicht aufrufen aus der
+ * auswahl der gespeicherten ansichten.» Ersetzt das Festhalten vom selben Tag.
+ * Gespeichert: Blick und Ausschnitt (Kamera), Ebenen, Gruppen, Plot, Werte,
+ * Linie, Strichbild, Explosion - im Browser, für alle Projekte.
  * ------------------------------------------------------------------------ */
-let festgehalten = null;
-export const ansichtFest = () => Boolean(app_?.ansicht?.kameraFest);
-let app_ = null;
+const ANSICHTEN_KEY = 'tragjoch-ansichten';
+const ansichtenLesen = () => { try { return JSON.parse(localStorage.getItem(ANSICHTEN_KEY) || '[]'); } catch { return []; } };
+const ansichtenSetzen = (l) => { try { localStorage.setItem(ANSICHTEN_KEY, JSON.stringify(l)); } catch { /* nur Ansicht */ } };
 
-/**
- * Klick: Ansicht festhalten (Kamera gesperrt, Darstellung gemerkt) bzw.
- * wieder lösen. Rechtsklick (`zurueck`): die festgehaltene Ansicht herstellen.
- */
-export function ansichtFesthalten(app, zurueck = false) {
-  app_ = app;
+export function ansichtSpeichern(app) {
   const a = app.ansicht;
   if (!a) return;
-  const knopf = () => { const k = document.getElementById('v-fest'); if (k) { k.classList.toggle('on', Boolean(a.kameraFest)); k.setAttribute('aria-pressed', String(Boolean(a.kameraFest))); } };
-  queueMicrotask(knopf);
-  if (zurueck) {
-    if (!festgehalten) { app.meldeImBalken('Noch keine Ansicht festgehalten.'); return; }
-    a.kamera = structuredClone(festgehalten.kamera);
-    a.ebenen = structuredClone(festgehalten.ebenen);
-    a.gruppen = structuredClone(festgehalten.gruppen);
-    a.werteAnschreiben = festgehalten.werte;
-    if (a.modus !== festgehalten.modus) app.plotWahl?.(festgehalten.modus);
-    a.kameraFest = true;
-    app.nachAnsicht?.();
-    app.meldeImBalken('Festgehaltene Ansicht hergestellt - Kamera gesperrt.');
-    return;
-  }
-  if (a.kameraFest) {
-    a.kameraFest = false;
-    app.nachAnsicht?.();
-    app.meldeImBalken('Ansicht gelöst - die Kamera bewegt sich wieder (Rechtsklick: zurück zur festgehaltenen).');
-    return;
-  }
-  festgehalten = { kamera: structuredClone(a.kamera), ebenen: structuredClone(a.ebenen),
-                   gruppen: structuredClone(a.gruppen), modus: a.modus, werte: a.werteAnschreiben };
-  a.kameraFest = true;
+  const liste = ansichtenLesen();
+  const plot = plotName(app);
+  const blick = { iso: 'Iso', laengs: 'Längs', quer: 'Quer', oben: 'Drauf' }[a.ansichtKey] ?? 'frei';
+  const v = {
+    name: `Ansicht ${liste.length + 1} · ${plot || a.modus} · ${blick}`, datum: jetzt(),
+    kamera: structuredClone(a.kamera), ansichtKey: a.ansichtKey, ebenen: structuredClone(a.ebenen),
+    gruppen: structuredClone(a.gruppen), modus: a.modus, werte: a.werteAnschreiben, explosion: a.explosion ?? 0,
+    linie: document.getElementById('wz-r-linie')?.getAttribute('aria-pressed') === 'true',
+    strich: document.getElementById('v-strich')?.getAttribute('aria-pressed') === 'true',
+  };
+  liste.push(v);
+  ansichtenSetzen(liste.slice(-30));
+  app.meldeImBalken(`«${v.name}» gespeichert - Rechtsklick auf den Knopf ruft sie auf.`);
+}
+
+function ansichtAnwenden(app, v) {
+  const a = app.ansicht;
+  if (!a || !v) return;
+  if (v.modus && a.modus !== v.modus) app.plotWahl?.(v.modus);
+  const knopf = (id, soll) => { const k = document.getElementById(id); if (k && (k.getAttribute('aria-pressed') === 'true') !== soll) k.click(); };
+  knopf('wz-r-linie', Boolean(v.linie));
+  knopf('v-strich', Boolean(v.strich));
+  a.kamera = structuredClone(v.kamera);
+  a.ansichtKey = v.ansichtKey;
+  a.ebenen = { ...a.ebenen, ...structuredClone(v.ebenen) };
+  a.gruppen = { ...a.gruppen, ...structuredClone(v.gruppen) };
+  a.werteAnschreiben = Boolean(v.werte);
+  a.explosion = Number(v.explosion) || 0;
   app.nachAnsicht?.();
-  app.meldeImBalken('Ansicht festgehalten: Blick und Ausschnitt gesperrt, Ebenen und Plot gemerkt.');
+  app.meldeImBalken(`«${v.name}» aufgerufen.`);
+}
+
+/** Rechtsklick: die gespeicherten Ansichten zur Wahl. */
+export function ansichtWahl(app, e) {
+  const liste = ansichtenLesen();
+  const punkte = [{ kopf: liste.length ? 'Gespeicherte Ansichten' : 'Noch keine Ansicht gespeichert' }];
+  liste.slice().reverse().forEach((v, k) => {
+    const i = liste.length - 1 - k;
+    punkte.push({ text: v.name, tun: () => ansichtAnwenden(app, ansichtenLesen()[i]) });
+  });
+  punkte.push(null, { text: 'Aktuelle Ansicht speichern', tun: () => ansichtSpeichern(app) });
+  if (liste.length) punkte.push({ text: 'Ansichten verwalten …', tun: () => ansichtenVerwalten(app) });
+  kontextZeigen(app, [e.clientX, e.clientY], punkte);
+}
+
+function ansichtenVerwalten(app) {
+  let liste = ansichtenLesen();
+  const koerper = () => (liste.length ? `<table class="dt"><tbody>${liste.map((v, i) => `<tr>
+      <td><input type="text" data-an-name="${i}" value="${esc(v.name)}" style="width:100%"></td>
+      <td class="ablage-meta">${esc(v.datum ?? '')}</td>
+      <td><button class="btn btn-mini" data-an-auf="${i}" type="button">Aufrufen</button>
+          <button class="btn btn-mini" data-an-weg="${i}" type="button">Löschen</button></td></tr>`).join('')}</tbody></table>`
+    : '<p class="notiz">Keine gespeicherten Ansichten.</p>');
+  const d = app.dialog('Gespeicherte Ansichten', `<div data-an>${koerper()}</div>`, '<button class="btn" data-zu>Schliessen</button>');
+  const neu = () => { ansichtenSetzen(liste); d.node.querySelector('[data-an]').innerHTML = koerper(); };
+  d.node.addEventListener('click', (ev) => {
+    const t = ev.target instanceof Element ? ev.target : null;
+    if (t?.matches('[data-an-weg]')) { liste.splice(+t.dataset.anWeg, 1); neu(); }
+    else if (t?.matches('[data-an-auf]')) { d.zu?.(); ansichtAnwenden(app, liste[+t.dataset.anAuf]); }
+  });
+  d.node.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t instanceof HTMLInputElement && t.dataset.anName !== undefined) { liste[+t.dataset.anName].name = t.value.trim() || liste[+t.dataset.anName].name; ansichtenSetzen(liste); }
+  });
 }
 
 /* ------------------------------------------------------------------------ *

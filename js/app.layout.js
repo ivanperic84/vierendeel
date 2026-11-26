@@ -186,8 +186,8 @@ export function baueModellWerkzeuge(app) {
     + iconKnopf('v-bild', 'kamera', 'Bild des 3D aufnehmen - in die Bildsammlung und die Zwischenablage (Taste a). '
       + 'Rechtsklick: Rahmen (Bildausschnitt) festlegen')
     // Ansicht festhalten (26. November, «kamerafreez»): Blick, Ausschnitt, Ebenen, Plot.
-    + iconKnopf('v-fest', 'schloss', 'Ansicht festhalten: Blick und Ausschnitt sperren, Ebenen und Plot merken. '
-      + 'Nochmals: lösen. Rechtsklick: zurück zur festgehaltenen Ansicht', Boolean(app.ansicht?.kameraFest));
+    + iconKnopf('v-fest', 'ansicht', 'Ansicht speichern: Blick, Ausschnitt, Ebenen, Plot und Darstellung. '
+      + 'Rechtsklick: gespeicherte Ansicht aufrufen');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -235,8 +235,8 @@ export function baueModellWerkzeuge(app) {
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-bild').onclick = () => app.bildAufnehmen?.();
   ui.el('v-bild').oncontextmenu = (e) => { e.preventDefault(); app.bildRahmen?.(); };
-  ui.el('v-fest').onclick = () => app.ansichtFesthalten?.(false);
-  ui.el('v-fest').oncontextmenu = (e) => { e.preventDefault(); app.ansichtFesthalten?.(true); };
+  ui.el('v-fest').onclick = () => app.ansichtSpeichern?.();
+  ui.el('v-fest').oncontextmenu = (e) => { e.preventDefault(); app.ansichtWahl?.(e); };
   ui.el('v-ganz').onclick = () => {
     app.station = null; app.ansicht.station = null;
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
@@ -545,7 +545,7 @@ export function zeichneModellWerkzeuge(app) {
       // man auf den slider mit rechtsklick drückt dann die funtion ausführen»).
       + `<label class="wz-explo" title="Explosionsdarstellung: Gurte, Bleche, Masten und Anbauteile auseinanderziehen (nur das Bild). Rechtsklick auf den Schieber: weich auf- bzw. zufahren. Doppelklick: zurück.">
            <span>Explosion</span><input type="range" id="wz-explosion" min="0" max="100" step="5"
-             value="${Math.round((app.ansicht.explosion ?? 0) * 100)}"${gM ? '' : ' disabled'}
+             value="${Math.round((app.ansicht.explosion ?? 0) * 100)}"
              aria-label="Explosionsdarstellung"></label>`) +
     gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG(app).map((s) => {
       const weg = s.fehlt();

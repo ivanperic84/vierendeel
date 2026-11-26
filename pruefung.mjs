@@ -44447,10 +44447,14 @@ titel('356  Insel-Bewegung in der ganzen App; Bild-Output, Zwischenablage, Rahme
   wahr('Output-Vorgaben: Auflösung, Hintergrund, Benennung, Legende, Systemachsen, Format, Name, Zwischenablage',
        ['faktor', 'hintergrund', 'strich', 'zuschnitt', 'titel', 'legende', 'achsen', 'format', 'muster', 'zwischenablage']
          .every((k) => k in BILD_VORGABE) && BILD_VORGABE.zwischenablage === true);
-  wahr('Zwischenablage, Rahmen (Rechtsklick), Ansicht festhalten',
+  // 26. November: «nicht einfach die ansicht sperren … sonder die ansicht speichern».
+  wahr('Zwischenablage, Rahmen (Rechtsklick), Ansichten speichern und aufrufen',
        BQ.includes("new ClipboardItem({ 'image/png': blob })") && BQ.includes('export function rahmenBearbeiten(app)')
        && LQ.includes("ui.el('v-bild').oncontextmenu") && LQ.includes("ui.el('v-fest').onclick")
-       && RQ.includes('if (this.kameraFest) return;   // Ansicht festgehalten'));
+       && BQ.includes('export function ansichtSpeichern(app)') && BQ.includes('export function ansichtWahl(app, e)')
+       && !RQ.includes('this.kameraFest'));
+  wahr('Explosion bei «Modell aus»: Schieber frei, Linien rücken mit',
+       !LQ.includes("* 100)}\"${gM ? '' : ' disabled'}") && RQ.includes("this.gruppen?.modell === false ? alle[0] : undefined"));
   wahr('Aufnahme: Auflösung und ohne Systemachsen im Renderer',
        RQ.includes('this._ohneAchsen = Boolean(opt.ohneAchsen);') && RQ.includes('if (this._ohneAchsen) return;'));
   wahr('Optionen: Reiter «Bild-Output»', readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8').includes("{ key: 'bilder', titel: 'Bild-Output', eigen: true }"));

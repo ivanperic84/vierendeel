@@ -2985,7 +2985,9 @@ export class Modellansicht {
     const versatz = (name) => {
       if (!explodiert) return [0, 0, 0];
       if (!versatzVon.has(name)) {
-        const f = this._stabFlaechen(name).find((g) => !g.passiv && this._flaecheAn(g));
+        // Auch bei «Modell aus» (26. November): dann die erste Fläche des Stabes überhaupt.
+        const alle = this._stabFlaechen(name).filter((g) => !g.passiv);
+        const f = alle.find((g) => this._flaecheAn(g)) ?? (this.gruppen?.modell === false ? alle[0] : undefined);
         versatzVon.set(name, !f || f.gruppe === 'anbau' ? null : (this._explosionsVersatz(f) ?? [0, 0, 0]));
       }
       return versatzVon.get(name);
@@ -4474,7 +4476,6 @@ export class Modellansicht {
    * Nähe nicht. Die Richtung ist die der Hand - das Bild folgt dem Finger.
    */
   _schiebe(dx, dy) {
-    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const { rechts, hoch } = this._basis();
     const w = this._weltProPixel();
     this.kamera.pan = add(this.kamera.pan,
@@ -4500,7 +4501,6 @@ export class Modellansicht {
    * grossen Bildschirm dieselbe Handbewegung für denselben Winkel.
    */
   _drehe(dx, dy, raster = false) {
-    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const breite = this.cv.getBoundingClientRect().width || 1;
     const s = Math.PI / Math.max(320, breite) / this._dpr();
     const k = this.kamera;
@@ -4552,7 +4552,6 @@ export class Modellansicht {
    * vermeiden, denn dort hat jede Tiefe ihren eigenen Massstab.
    */
   _zoome(faktor, px = null, py = null) {
-    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const k = this.kamera;
     const [min, max] = this._abstandsgrenzen();
     const neu = Math.max(min, Math.min(max, k.dist * faktor));

@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { bildAufnehmen, bildsammlungZeigen, rahmenBearbeiten, rahmenZeigen, ansichtFesthalten } from './app.bilder.js';
+import { bildAufnehmen, bildsammlungZeigen, rahmenBearbeiten, rahmenZeigen, ansichtSpeichern, ansichtWahl } from './app.bilder.js';
 import { dialogDimension } from './app.dimension.js';
 import { bewegungStarten, dialogAusKnopf } from './ui.bewegung.js';
 import { viewerAusleiten } from './app.viewer.js';
@@ -227,7 +227,8 @@ const app = {
   bildAufnehmen: () => handlung('Bild aufnehmen', () => bildAufnehmen(app)),
   // Rahmen und Ansicht festhalten (26. November).
   bildRahmen: () => rahmenBearbeiten(app),
-  ansichtFesthalten: (zurueck) => ansichtFesthalten(app, zurueck),
+  ansichtSpeichern: () => ansichtSpeichern(app),
+  ansichtWahl: (e) => ansichtWahl(app, e),
   plotWahl: (k) => plotWahl(k),
   nachAnsicht: () => { ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app); rahmenZeigen(); },
   get letzte() { return letzte; },
