@@ -124,6 +124,8 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
         <button type="button" class="kontext-ib" data-ki aria-label="Erklärung">ⓘ</button></div>
       <div class="kontext-info kontext-erkl" hidden>${esc(p.erkl)}</div>`;
     if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
+    // Fertiges, selbst erzeugtes HTML (26. November, Lastfall und Plot in der Insel).
+    if (p.html) return p.html;
     // Kleiner Abstand zwischen zwei Feldgruppen (23. November).
     if (p.abstand) return '<div class="kontext-abstand"></div>';
     // Eine Skizze (22. November) - fertiges, selbst erzeugtes SVG, kein Fremdtext.
@@ -165,6 +167,8 @@ export function kontextZeigen(app, bei, punkte, opt = {}) {
     n.inselZu = () => inselMorph(ziel, () => { n.remove(); ziel.classList.remove('offen'); });
   } else document.body.appendChild(n);
   kontextMenue = n;
+  if (opt.art) n.dataset.art = opt.art;
+  opt.danach?.(n);
   /*
    * DAS MENUE BLEIBT IM FENSTER.
    *

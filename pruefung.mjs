@@ -43626,7 +43626,7 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   // Seit dem 21. November spät stehen die Grundwerte in der Fussleiste («Oben was, unten Skala»).
   // 22. November: die Grundwerte wieder in der Insel («ist zu versteckt»), sie fährt aus.
   wahr('Klick auf die Grundwerte: Panel in der Insel, zweiter Klick schliesst',
-       AQ.includes("if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); return; }")
+       AQ.includes("if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); if (war !== 'lastfall') return; }")
        && AQ.includes('kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });'));
   wahr('Kontextmenü kann als Panel in einem Element stehen (opt.ziel), Klick darin schliesst nicht',
        KQ.includes("n.classList.add('insel-panel');") && KQ.includes('ziel?.contains(e.target)')
@@ -43680,9 +43680,10 @@ titel('314  Insel, Leiste, Legende einheitlich; Legende mittig; Modell springt n
   wahr('Legende bei offener Leiste und Platzmangel in der Mitte der freien Fläche (ausser von Hand verschoben)',
        LQ.includes("v.classList.toggle('wz-offen', offen);") && css.includes('#viewer.wz-eng .legende:not(.gezogen) {'));
   // Seit «Oben was, unten Skala» führt der Lastfall der Insel wieder zu den Lastfällen (die Legende trägt ihn nicht mehr).
-  wahr('Lastfall der Insel als Span, führt zu den Lastfällen',
+  // 26. November: der Klick fährt die Insel mit Plot und Lastfällen aus (Abschnitt 348).
+  wahr('Lastfall der Insel als Span, fährt die Insel mit Plot und Lastfällen aus',
        readFileSync(join(HIER, 'index.html'), 'utf8').includes('<span class="viewer-marke viewer-lf" id="pos-lf"></span>')
-       && AQ.includes("lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });"));
+       && AQ.includes('inselLastfallZeigen();'));
   wahr('Modell springt nicht: Bildmitte mit der Breite der offenen Leiste, auch eingeklappt',
        LQ.includes('if (offen) breiteOffen = kn;') && LQ.includes('const b = offen ? kn : (breiteOffen ?? 107);'));
   wahr('Knickfigur «K» schliesst w / η w aus und umgekehrt',
@@ -44418,6 +44419,23 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('348  Lastfall und Resultatplot in der Insel (26. November)');
+/* «wie könnte man die eingabe bei der dynamic island ermöglichen für die
+ * eingabe des lastfalls und des resultatplotts», auf Rückfrage «Ausfahren mit
+ * Liste». */
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const KQ = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Klick auf den Lastfall fährt die Insel aus (Panel «lastfall»), zweiter Klick fährt ein',
+       AQ.includes("{ ziel: ui.el('einwirkung-wahl'), art: 'lastfall', danach: inselLastfallVerdrahten }")
+       && AQ.includes("if (war === 'lastfall') return;") && KQ.includes('if (opt.art) n.dataset.art = opt.art;')
+       && KQ.includes('if (p.html) return p.html;'));
+  wahr('Panel: Plotgrössen als Knopfreihe, Lastfälle wie in der Seitenleiste, Wahl lässt die Insel offen',
+       AQ.includes('kombiEinfachHtml(letzte?.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach())')
+       && AQ.includes("const knopf = ui.el(`wz-p-${key}`);") && AQ.includes('anzeigeKombi = z.dataset.lfWahl;'));
 }
 
 // ===========================================================================

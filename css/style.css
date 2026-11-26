@@ -4576,3 +4576,8 @@ button.wz-haupt { padding: 3px 0 4px; }
 .bs-bild figcaption input { width: 100%; }
 .bs-bild small { color: var(--dim); }
 .bs-knoepfe { display: flex; gap: 6px; }
+
+/* Lastfall und Plot in der Insel (26. November, app.js inselLastfallZeigen). */
+.insel-panel .insel-plots { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 8px 6px; }
+.insel-panel .insel-lf { max-height: min(52vh, 460px); overflow-y: auto; padding: 0 4px 4px; min-width: 300px; }
+.insel-panel .insel-lf .lf-matrix-knopf { padding: 6px 4px 2px; }

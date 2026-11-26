@@ -155,7 +155,7 @@ import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dia
 import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextAnbauSeite, kontextTrasse, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungArbeitsstand, zeichnungBeimStart, zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
-import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
+import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras, dialogLastfaelle } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren, modiFuer, seiteAusklappen } from './app.layout.js';
 import { setzenStarten, setzenEnde, setzenAnStelle, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle,
          setzWahlZeigen, setzWahlWeg, signalZusammenstellen, gruppenKopie } from './app.setzen.js';
@@ -3479,9 +3479,29 @@ function aktualisiereModell(erg) {
     lfEl.classList.toggle('einzel', !!lf);
     // Der Lastfall steht nur noch in der Insel (die Legende zeigt die Skala) -
     // er führt wieder zu den Lastfällen (21. November, «Oben was, unten Skala»).
+    /*
+     * >>> LASTFALL UND PLOT IN DER INSEL (26. November). <<< Frage «wie könnte
+     * man die eingabe bei der dynamic island ermöglichen für die eingabe des
+     * lastfalls und des resultatplotts», auf Rückfrage «Ausfahren mit Liste»:
+     * ein Klick auf den Lastfall fährt die Insel aus - oben die Plotgrössen
+     * als Knopfreihe, darunter die Lastfälle wie in der Seitenleiste
+     * (`kombiEinfachHtml`). Ein Klick wählt, die Insel bleibt offen; ein
+     * zweiter Klick auf den Lastfall oder daneben fährt sie ein. Ändert den
+     * 21. November («Klick führt zu den Lastfällen in der Seitenleiste»).
+     */
     if (!lfEl.dataset.verdrahtet) {
       lfEl.dataset.verdrahtet = '1';
-      lfEl.addEventListener('click', (e) => { e.stopPropagation(); zeigeLastfaelle(); });
+      lfEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const insel = ui.el('einwirkung-wahl');
+        const offen = document.querySelector('.insel-panel');
+        if (offen) {
+          const war = offen.dataset.art;
+          kontextSchliessen(app);
+          if (war === 'lastfall') return;
+        }
+        inselLastfallZeigen();
+      });
     }
   }
   if (ui.el('pos-ek')) {
@@ -3534,7 +3554,9 @@ function aktualisiereModell(erg) {
       ek.addEventListener('click', (e) => {
         e.stopPropagation();
         const insel = ui.el('einwirkung-wahl');
-        if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); return; }
+        // Vom Lastfall-Panel direkt zu den Grundwerten (26. November).
+        const war = document.querySelector('.insel-panel')?.dataset.art;
+        if (insel?.classList.contains('offen') || kontextOffen()) { kontextSchliessen(app); if (war !== 'lastfall') return; }
         kontextZeigen(app, [0, 0], kontextTrasse(app), { ziel: insel });
       });
     }
@@ -6778,6 +6800,48 @@ const TASTEN = [
 
 /** Die Plotgrössen, wie die Knopfleiste sie gerade zeigt. */
 function plotListe() { return modiFuer(nachweisart); }
+
+/** Panel der Insel: Plotgrössen und Lastfälle (26. November). */
+function inselLastfallHtml() {
+  const plots = plotListe().filter((m) => m.art === 'plot' || m.key === 'pos');
+  const reihe = `<div class="insel-plots" role="group" aria-label="Resultatplot">${plots.map((m) =>
+    `<button type="button" class="kontext-chip${ansicht.modus === m.key ? ' an' : ''}" data-ip="${esc(m.key)}"
+       aria-pressed="${ansicht.modus === m.key}" title="${esc(m.label ?? m.key)}">${esc(m.kurz ?? m.label ?? m.key)}</button>`).join('')}</div>`;
+  const liste = kombiEinfachHtml(letzte?.kombi, kombiEtaStabwerk(), anzeigeKombi, gzgEinfach())
+    .replace('<div class="sec">Was gerechnet wird</div>', '');
+  return `<div class="kontext-kopf">Resultat</div>${reihe}
+    <div class="kontext-kopf">Lastfall</div><div class="insel-lf">${liste}</div>`;
+}
+function inselLastfallVerdrahten(n) {
+  n.querySelectorAll('[data-ip]').forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const key = b.dataset.ip;
+      const knopf = ui.el(`wz-p-${key}`);
+      if (knopf) knopf.click(); else plotWahl(key);
+      n.querySelectorAll('[data-ip]').forEach((x) => {
+        x.classList.toggle('an', x === b); x.setAttribute('aria-pressed', String(x === b));
+      });
+    };
+  });
+  n.querySelectorAll('[data-lf-wahl]').forEach((z) => {
+    z.onclick = (e) => {
+      e.stopPropagation();
+      if (e.target.closest('button')) return;
+      anzeigeKombi = z.dataset.lfWahl;
+      neuRechnen(false);
+      n.querySelectorAll('[data-lf-wahl]').forEach((x) => x.classList.toggle('gewaehlt', x === z));
+    };
+  });
+  n.querySelectorAll('[data-lf-fenster]').forEach((b) => { b.onclick = () => { kontextSchliessen(app); dialogLastfaelle(app); }; });
+  lfTipVerdrahten();
+  requestAnimationFrame(() => n.querySelector('.lf-einfach.gewaehlt')?.scrollIntoView({ block: 'nearest' }));
+}
+function inselLastfallZeigen() {
+  if (!letzte?.kombi) { zeigeLastfaelle(); return; }
+  kontextZeigen(app, [0, 0], [{ html: inselLastfallHtml() }],
+    { ziel: ui.el('einwirkung-wahl'), art: 'lastfall', danach: inselLastfallVerdrahten });
+}
 function plotWahl(key) {
   if (!plotListe().some((m) => m.key === key)) return;
   ansicht.modus = key;

@@ -793,7 +793,7 @@ export function verdrahteExtras(app) {
  * Bedienung, Punkt 3). Eine Zeile waehlt den Lastfall, das Fenster bleibt
  * offen; nach dem Anpassen oder Entfernen eines Lastfalls kommt es wieder.
  */
-function dialogLastfaelle(app) {
+export function dialogLastfaelle(app) {
   const html = app.lastfallTabelle();
   if (!html) return;
   const d = app.dialog('Lastfälle und Beiwerte', html,
