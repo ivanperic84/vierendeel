@@ -179,7 +179,11 @@ export function baueModellWerkzeuge(app) {
     + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren')
     // Strichbild wie die Berichtsbilder (26. November, «unten links als button»).
     + iconKnopf('v-strich', 'strich', 'Strichbild wie im Bericht: weisser Grund, Körper blass, '
-      + 'Schwerachsen in der Plotfarbe; mit «Linie» das graue System mit der Zustandslinie', strichAn());
+      + 'Schwerachsen in der Plotfarbe; mit «Linie» das graue System mit der Zustandslinie', strichAn())
+    // Bild aufnehmen (26. November, «gibt es einen bild aufnehmen button für die
+    // resultat bibliothek?»): neben dem Strichbild - erst einstellen, dann aufnehmen.
+    + iconKnopf('v-bild', 'kamera', 'Bild des 3D aufnehmen - in die Bildsammlung (Taste a; '
+      + 'die Sammlung unter Berichte → Bilder)');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -225,6 +229,7 @@ export function baueModellWerkzeuge(app) {
   tokensAufElement(ui.el('viewer'), strichAn() ? 'hell' : null);
   ui.el('v-strich').setAttribute('aria-pressed', String(strichAn()));
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
+  ui.el('v-bild').onclick = () => app.bildAufnehmen?.();
   ui.el('v-ganz').onclick = () => {
     app.station = null; app.ansicht.station = null;
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
@@ -417,8 +422,11 @@ function legendeAusweichen(v, n, offen) {
   let eng = false;
   if (offen && lg && !lg.classList.contains('gezogen')) {
     const unten = n.getBoundingClientRect().bottom;
-    const oben = lg.getBoundingClientRect().top;
-    eng = oben > 0 && unten + 6 > oben;
+    const r = lg.getBoundingClientRect();
+    // Seit dem 26. November hat die Legende in beiden Lagen dieselbe Breite
+    // und damit dieselbe Höhe (style.css) - sonst kippte sie hin und her.
+    const oben = r.top;
+    eng = r.top > 0 && unten + 6 > oben;
   }
   v.classList.toggle('wz-eng', eng);
   if (!legendeBeobachter && typeof ResizeObserver !== 'undefined') {

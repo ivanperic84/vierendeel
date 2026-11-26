@@ -223,6 +223,8 @@ const app = {
   set ueberStufe(v) { ueberStufe = v; },
   figurNeu: () => { verformtMerk = null; if (letzte?.anzeige) aktualisiereModell(letzte.anzeige); else neuRechnen(); },
   inselSteuerung: () => inselSteuerung(),
+  // Bild des 3D in die Bildsammlung (26. November, Knopf unten links und Taste a).
+  bildAufnehmen: () => handlung('Bild aufnehmen', () => bildAufnehmen(app)),
   get letzte() { return letzte; },
   get urteilKurz() { return urteilKurz; },
   get axisErgebnis() { return axisErgebnis; },
@@ -6796,6 +6798,28 @@ const TASTEN = [
     get text() { return plotListe().slice(0, 9).map((m) => m.kurz).join(' · '); } },
   { id: 'positionen', taste: 'x', text: 'Positionen (Farbe je Teil)', tun: () => plotWahl('positionen') },
 
+  /*
+   * >>> ERWEITERT (26. November, «erweitere noch die tastaturbefehle»). <<<
+   * Was man beim Plotten oft schaltet: Linie, Werte, Strichbild, die Gruppen
+   * der Werkzeugleiste, die Explosion, die Insel mit Lastfall und Plot, das
+   * Bild in die Sammlung. Jede Taste drückt denselben Knopf wie die Maus.
+   */
+  { gruppe: 'Darstellung' },
+  { id: 'linie', taste: 'v', text: 'Linie (Zustandslinie) ein / aus', tun: () => knopfDruck('wz-r-linie') },
+  { id: 'werte', taste: 'w', text: 'Werte anschreiben ein / aus', tun: () => knopfDruck('wz-r-werte') },
+  { id: 'strich', taste: 's', text: 'Strichbild (weiss, wie im Bericht) ein / aus', tun: () => knopfDruck('v-strich') },
+  { id: 'modellGruppe', taste: 'm', text: 'Modell ein / aus', tun: () => knopfDruck('wz-g-modell') },
+  { id: 'lastenGruppe', taste: 'j', text: 'Lasten ein / aus', tun: () => knopfDruck('wz-g-lasten') },
+  { id: 'explosion', taste: 'e', text: 'Explosion auf / zu',
+    tun: () => {
+      const ef = ui.el('wz-explosion');
+      ansicht.explosionFahren((ansicht.explosion ?? 0) > 0.5 ? 0 : 1, 650,
+        (v) => { if (ef) ef.value = Math.round(v * 100); });
+    } },
+  { id: 'insel', taste: 'f', text: 'Lastfall und Plot wählen (Insel ausfahren)', tun: () => inselLastfallZeigen() },
+  { id: 'bild', taste: 'a', text: 'Bild des 3D aufnehmen (Bildsammlung)', tun: () => app.bildAufnehmen() },
+  { id: 'bilder', taste: 'u', text: 'Bildsammlung öffnen', tun: () => bildsammlungZeigen(app) },
+
   { gruppe: 'Rechnen' },
   /*
    * «Nachrechnung auslösen ergänzen als kürzel» (10. Oktober): dasselbe wie
@@ -6827,6 +6851,13 @@ const TASTEN = [
 
 /** Die Plotgrössen, wie die Knopfleiste sie gerade zeigt. */
 function plotListe() { return modiFuer(nachweisart); }
+
+/** Einen Knopf der Oberfläche drücken - wenn es ihn gerade gibt und er frei ist. */
+function knopfDruck(id) {
+  const k = ui.el(id);
+  if (!k || k.disabled) { meldeImBalken('Hier nicht verfügbar.'); return; }
+  k.click();
+}
 
 /** Panel der Insel: Plotgrössen und Lastfälle (26. November). */
 function inselLastfallHtml() {

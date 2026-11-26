@@ -4491,6 +4491,10 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf var(--d-mittel) var
 .viewer-kopf { right: calc(6px + var(--wz-kopf, var(--wz-breite, 0px))); }
 #viewer .legende:not(.gezogen) {
   right: auto; left: calc(100% - 10px); transform: translateX(-100%);
+  /* 26. November («springt die untere resultatbox hin und her»): rechts verankert
+     bekam die Legende nur 10 px verfügbare Breite, brach um und wurde höher als
+     in der Mitte - und kippte zwischen beiden Lagen. Eine Breite für beide Lagen. */
+  width: max-content; max-width: calc(100% - var(--wz-breite, 0px) - 30px);
   transition: left var(--t-fahrt), transform var(--t-fahrt);
 }
 #viewer.wz-eng .legende:not(.gezogen) { left: calc((100% - var(--wz-breite, 0px)) / 2); transform: translateX(-50%); }

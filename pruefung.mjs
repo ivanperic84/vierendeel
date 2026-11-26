@@ -44425,6 +44425,27 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('352  Bild-Knopf, Tastenkürzel, Legende springt nicht (26. November)');
+/* «gibt es einen bild aufnehmen button für die resultat bibliothek? wo könnte
+ * man diesen anordnen? erweitere noch die tastaturbefehle. wenn ich beim
+ * resultat die linie einschalte dann springt die untere resultatbox hin und her.» */
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Knopf «Bild aufnehmen» unten links neben dem Strichbild',
+       LQ.includes("iconKnopf('v-bild', 'kamera',") && LQ.includes("ui.el('v-bild').onclick = () => app.bildAufnehmen?.();")
+       && AQ.includes("bildAufnehmen: () => handlung('Bild aufnehmen', () => bildAufnehmen(app)),"));
+  const neueTasten = [["'linie', taste: 'v'"], ["'werte', taste: 'w'"], ["'strich', taste: 's'"], ["'modellGruppe', taste: 'm'"],
+    ["'lastenGruppe', taste: 'j'"], ["'explosion', taste: 'e'"], ["'insel', taste: 'f'"], ["'bild', taste: 'a'"], ["'bilder', taste: 'u'"]];
+  wahr('Neue Tastenkürzel v w s m j e f a u', neueTasten.every(([t]) => AQ.includes(`{ id: ${t}`)));
+  const belegt = [...AQ.matchAll(/taste: '([a-z0-9?])'/g)].map((m) => m[1]);
+  wahr('Keine Taste doppelt belegt', new Set(belegt).size === belegt.length);
+  wahr('Legende: eine Breite in beiden Lagen (kein Kippen)',
+       CQ.includes('width: max-content; max-width: calc(100% - var(--wz-breite, 0px) - 30px);'));
+}
+
+// ===========================================================================
 titel('351  Werte am Mastfuss nicht unter der Werkzeugleiste (26. November)');
 /* «beim rechten fundament bei einer jochreihe die spannung nicht angeschrieben
  * … beim mastfuss». Gemessen: die Zahl lag unter der Werkzeugleiste bzw. hinter
@@ -44542,7 +44563,7 @@ titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (
        && BQ.includes('async function zuschneiden(url)') && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
        && STQ.includes('export async function bilderSichern(id, liste)') && STQ.includes("const BILDER = 'bilder|';"));
   wahr('Legende: in die Mitte nur, wenn die offene Leiste sie in der Höhe überdeckt (`wz-eng`), neu bewertet bei Grösse',
-       LQ.includes('eng = oben > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")
+       LQ.includes('eng = r.top > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")
        && LQ.includes('new ResizeObserver') && !css.includes('#viewer.wz-offen .legende'));
 }
 
