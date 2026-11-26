@@ -1597,7 +1597,9 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
     const wM = { ...w, mastVorhanden: true, schneeAktiv: true };
     const kw = U.sichtbareFelder('ein', wM).map((f) => f.key);
     // Seit dem 23. November die EK (1-6) und der Schalter Einheitswind statt der Windstufe.
-    wahr('Wind: EK zuerst, Einheitswind, dann Joch und beide Mastrichtungen', kw[0] === 'ekWahl' && kw[1] === 'einheitswind'
+    // Seit dem 26. November steht die EK in einer eigenen Gruppe («nicht in der gruppe wind zu führen»).
+    wahr('Wind: Einheitswind zuerst, dann Joch und beide Mastrichtungen (EK in eigener Gruppe)',
+         kw[0] === 'einheitswind' && !kw.includes('ekWahl') && U.sichtbareFelder('klima', wM).map((f) => f.key).join() === 'ekWahl'
          && ['wkManuell', 'mastWindX', 'mastWindY'].every((k) => kw.includes(k)), kw.join(', '));
     const ks = U.sichtbareFelder('schnee', wM).map((f) => f.key);
     wahr('Schnee: ja/nein, Klasse, Last', ks.join(',') === 'schneeAktiv,schneeKlasse,skManuell', ks.join(', '));
@@ -44433,6 +44435,20 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('364  Lasten: Einwirkungsklasse eigene Gruppe; Schnee mit Lastwert vorn (26. November)');
+{
+  const S364 = await import(J('ui.schema.js'));
+  const ek = S364.FELDER.find((f) => f.key === 'ekWahl');
+  const sk = S364.FELDER.find((f) => f.key === 'schneeKlasse');
+  wahr('EK in der Gruppe «Einwirkungsklasse», nicht unter Wind', ek?.gruppe === 'klima'
+       && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes("gruppen: ['klima', 'staendig', 'ein', 'schnee'"));
+  wahr('Schnee: Auswahl zeigt den Lastwert, die Höhenlage steht als Fusszeile',
+       sk?.optionen?.every((o) => /^s_ref \d\.\d\d kN\/m²$/.test(o.text))
+       && sk.notiz({ schneeKlasse: '1.25' }) === 'über 1000 m ü. M. (EK4–6)'
+       && sk.notiz({ schneeKlasse: '0.9' }) === 'unter 1000 m ü. M. (EK1–3)');
 }
 
 // ===========================================================================

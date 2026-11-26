@@ -448,6 +448,12 @@ export const GRUPPEN = [
    * (Stufe, Reduktion, Joch, Masten in beiden Richtungen), Ständig, Schnee,
    * Bestandesschutz. Die Schlüssel der Felder bleiben.
    */
+  /*
+   * EINWIRKUNGSKLASSE FÜR SICH (26. November). Weisung: «Die auswahl der
+   * einwirkungskombination wirkt sich auf wind und schnee aus, dies ist also
+   * nicht in der gruppe wind zu führen.» Eigene Gruppe vor Wind und Schnee.
+   */
+  { id: 'klima', titel: 'Einwirkungsklasse' },
   { id: 'ein',   titel: 'Wind', feinTitel: 'Nur Ersatzbalken' },
   { id: 'staendig', titel: 'Ständige Lasten' },
   { id: 'schnee', titel: 'Schnee' },
@@ -2186,7 +2192,7 @@ export const FELDER = [
     standard: '0.9', optionen: opt(WIND_KLASSEN) },
   { key: 'windKlasseVorher', gruppe: 'ein', typ: 'text', label: 'Windstufe hinter dem Einheitswind',
     versteckt: true, standard: '0.9' },
-  { key: 'ekWahl', gruppe: 'ein', typ: 'auswahl', label: 'Einwirkungsklasse (EK)',
+  { key: 'ekWahl', gruppe: 'klima', typ: 'auswahl', label: 'Einwirkungsklasse (EK)',
     optionen: opt(EK_KLASSEN), wertAus: (w) => ekBasisVon(w),
     sichtbar: (w) => w.lastHerkunft === 'tabelle',
     hinweis: 'Windstufe (EK1/4 q 0.90, EK2/5 1.10, EK3/6 1.30 kN/m²) und Höhenlage '
@@ -2290,8 +2296,15 @@ export const FELDER = [
     hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
       ? 'Die Laufmeterlast liegt auf dem Joch — am Einzelmasten trägt sie '
       + 'niemand. Schnee auf Anbauteilen zählt unabhängig davon.' : '') },
-  { key: 'schneeKlasse', gruppe: 'schnee', typ: 'auswahl', label: 'Schneelast',
-    standard: '1.25', optionen: opt(SCHNEE_KLASSEN),
+  /*
+   * Der Lastwert vorn, die Höhenlage in der Fusszeile (26. November, «die info
+   * über die meereshöhe für den schnee kann in einer fusszeile afgeführt
+   * werden, der lastwert ist wichtiger»).
+   */
+  { key: 'schneeKlasse', gruppe: 'schnee', typ: 'auswahl', label: 'Referenz-Schneelast',
+    standard: '1.25', optionen: SCHNEE_KLASSEN.map((x) => ({ wert: x.key, text: `s_ref ${x.sk.toFixed(2)} kN/m²` })),
+    notiz: (w) => (SCHNEE_KLASSEN.find((x) => x.key === String(w.schneeKlasse))?.hoch
+      ? 'über 1000 m ü. M. (EK4–6)' : 'unter 1000 m ü. M. (EK1–3)'),
     sichtbar: (w) => w.lastHerkunft === 'tabelle' && w.schneeAktiv
                   && tragwerksart(w).key !== 'einzelmast' },
 

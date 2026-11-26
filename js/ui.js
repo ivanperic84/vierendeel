@@ -226,7 +226,7 @@ export const EINGABE_TABS = [
     gruppen: ['art', 'geo', 'aufl', 'mast', 'prof', 'blech', 'stueck'] },
   { id: 'anbau', titel: 'Anbauteile', icon: 'anbau', gruppen: ['trasse', 'anbau'] },
   // Nach Einwirkung gegliedert (6. Oktober): ständig, Wind, Schnee, Bestandesschutz.
-  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['staendig', 'ein', 'schnee', 'bestand', 'havarie', 'komb'] },
+  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['klima', 'staendig', 'ein', 'schnee', 'bestand', 'havarie', 'komb'] },
 ];
 
 /** Reiter der Eingabe, die in dieser Stufe etwas zeigen (15. November). */
