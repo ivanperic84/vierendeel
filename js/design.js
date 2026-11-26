@@ -50,7 +50,8 @@ export const FARBEN = {
     warn: '#735a0c', warnS: 'rgba(154,123,26,0.10)',
     fail: '#a02020', failS: 'rgba(160,32,32,0.08)',
     scrim: 'rgba(0,0,0,0.35)',
-    viewerBg: '#e8eaef',
+    // Heller (26. November, «diese hintergrundfarbe etwas heller machen»); vorher #e8eaef.
+    viewerBg: '#f4f5f8',
     stahl: '#9aa5b8', stahlKante: '#5a6478',
     blech: '#c98a35', blechKante: '#8a5c18',
     achse: '#a02020',
