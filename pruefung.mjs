@@ -44439,6 +44439,16 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('368  Mass L zwischen den Mastachsen; Körper im Verlauf der Linie (26. November)');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('L von Mastachse zu Mastachse, ohne Masten die Gurtlänge',
+       RQ.includes('const mitMasten = Number.isFinite(mastFussZ) && !m.stoss;') && RQ.includes(': `L = ${(mx1 - mx0).toFixed(2)} m`,'));
+  wahr('Linie in «Verlauf»: der Körper trägt denselben Verlauf',
+       RQ.includes("if (this.zustand && this.zlFarbe === 'frei' && !this.setzModus) {"));
+}
+
+// ===========================================================================
 titel('367  Blätter: Skizze schräg projiziert, Anker in seiner Richtung; Strichbild dunkel (26. November)');
 {
   const KR367 = await import(J('core.reaktionen.js'));

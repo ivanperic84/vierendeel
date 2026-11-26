@@ -1635,13 +1635,21 @@ export function erzeugeSzene(m, erg) {
   // Ein Einzelmast hat keine Jochlaenge - dort stand «L = 0.00 m» quer
   // ueber dem Masten (gesehen am 18. September).
   if (m.tragwerksart !== 'einzelmast') {
+    /*
+     * >>> L ZWISCHEN DEN MASTACHSEN (26. November). <<< Weisung: «das L bei
+     * der vermassung sollte sich auf die mastachsen beziehen.» Mit Kragarm
+     * stand die Gurtlänge da (19.00 m bei c_A 0.2 / c_B 0.3), die Masten
+     * stehen 18.50 m auseinander. Ohne Masten bleibt die Gurtlänge.
+     */
+    const mitMasten = Number.isFinite(mastFussZ) && !m.stoss;
+    const mx0 = mitMasten ? xA : 0, mx1 = mitMasten ? xB : m.L;
     masse.push({
       feld: 'L', tab: 'geo', achse: 'x',
-      p0: [0, 0, zUnten - massTief], p1: [m.L, 0, zUnten - massTief],
+      p0: [mx0, 0, zUnten - massTief], p1: [mx1, 0, zUnten - massTief],
       ab: [0, 0, -1], d: 0,
       // Am Stoss (2. Oktober) der gebaute Gurt, mit der Standardlänge dazu.
       text: m.stoss ? `L = ${m.L.toFixed(2)} m · Stoss, Joch ${(m.Lnenn ?? m.L).toFixed(2)} m`
-                    : `L = ${m.L.toFixed(2)} m`,
+                    : `L = ${(mx1 - mx0).toFixed(2)} m`,
     });
   }
   if (schnittAktiv) {
@@ -5893,6 +5901,14 @@ export class Modellansicht {
       const min = !p.fest && this.skalaMin > 0 && p.key === this.modus && this.skalaMin < max ? this.skalaMin : 0;
       const anteil = Math.max(0, (Math.abs(v) - min) / ((max - min) || 1));
       // Verlauf aus zwei Farben (22. November, wie bei der Linie).
+      /*
+       * Mit der Linie in «Verlauf» trägt auch der Körper diesen Verlauf
+       * (26. November, «die legendenfarbe saoll auch für den körper gelten,
+       * sonst nicht verständlich»).
+       */
+      if (this.zustand && this.zlFarbe === 'frei' && !this.setzModus) {
+        return farbMisch(this.zlFreiVon ?? '#f3e2bd', this.zlFrei ?? '#e0a030', Math.min(1, anteil));
+      }
       if (this.linienFarbe === 'verlauf' && !this.setzModus && !this.zustand) {
         return farbMisch(this.flFreiVon ?? '#f3e2bd', this.flFrei ?? '#e0a030', Math.min(1, anteil));
       }
