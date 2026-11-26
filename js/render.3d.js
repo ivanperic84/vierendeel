@@ -2998,6 +2998,23 @@ export class Modellansicht {
     const grenze = aG > 0 ? (pG?.fest ? aG : aG * (z.vmax || 0)) : 0;
     const zlPunkte = [];
     this._zlPunkte = zlPunkte;
+    /*
+     * >>> DER ANKER BEKOMMT SEINE ZAHL (26. November). <<< Frage: «bei der
+     * darstellung im 3d wird die normalkraft im anker nicht dargestellt,
+     * warum?» Gemessen: gezeichnet wird sie, aber die Druckstütze sind zwei
+     * U-Profile (je die Hälfte, z. B. 23.7 kN), und angeschrieben wird nur ab
+     * 25 % des grössten Werts im Bild (Gurt 106 kN). Jetzt steht je Anker der
+     * grösste Wert seines Profils immer da.
+     */
+    const ankerMax = new Map();
+    (z.linien ?? []).forEach((l) => {
+      const m = /(?:^|_)ANKER(?:PROFIL)?_([^_]+)/.exec(l.name ?? '');
+      if (!m || /BLECH/.test(l.name)) return;
+      const w = Math.max(0, ...l.pkt.map((x) => (x.leer ? 0 : Math.abs(x.v))));
+      const alt = ankerMax.get(m[1]);
+      if (!alt || w > alt.w) ankerMax.set(m[1], { w, l });
+    });
+    const ankerLinien = new Set([...ankerMax.values()].map((x) => x.l));
     z.linien.forEach((l) => {
       const d = versatz(l.name);
       if (!d) return;
@@ -3021,7 +3038,7 @@ export class Modellansicht {
       const ok = q.filter((x) => !x.x.leer && x.Q);
       if (!ok.length || blass) return;
       const e = ok.reduce((x, y) => (Math.abs(y.x.v) > Math.abs(x.x.v) ? y : x));
-      if (Math.abs(e.x.v) >= 0.25 * z.vmax && Math.abs(e.x.v) > 1e-3) {
+      if ((Math.abs(e.x.v) >= 0.25 * z.vmax || ankerLinien.has(l)) && Math.abs(e.x.v) > 1e-3) {
         marken.push({ x: e.Q[0] + 6 * s, y: e.Q[1], text: fmt(e.x.v), farbe: farbe(e.x.v, 0.82), v: Math.abs(e.x.v) });
       }
     });

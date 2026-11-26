@@ -350,6 +350,10 @@ export function reaktionsZeilen(roh) {
       ...(a.art === 'jochende' ? { tw: a.tw, ende: a.ende } : {}),
       haupt: zeile(zustaende),
       havarie: zeile(hav),
+      // Aufgeteilt (26. November, Kästchen «ständig / veränderlich»): das ganze
+      // G für sich und der veränderliche Anteil allein (Wind, Schnee), je Grösse.
+      staendig: G ? zeile([{ key: 'G', bez: 'Ständig', r: G }]) : null,
+      veraenderlich: zeile(veraenderlich.map((l) => ({ key: l.key, bez: l.bez, r: r(l.key) })).filter((z) => z.r)),
       anteil: { quer: anteil(quer), laengs: anteil(laengs) },
     };
   });

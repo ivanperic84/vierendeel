@@ -74,7 +74,18 @@ function spaltenVon(z) {
  * @param {object} z   Zeile aus `reaktionsZeilen`, angereichert mit
  *                     name, fundament (Typ-Objekt), anker (Angaben)
  */
-function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {}) {
+/*
+ * >>> OHNE SPALTE «MASSGEBENDER FALL», AUFTEILUNG WÄHLBAR (26. November). <<<
+ * Weisung: «hier die spalte massgebender fall ausblenden, man sieht es wenn
+ * man über die werte fährt was gerechnet wurde um es kurz zu checken. was man
+ * aber machen könnte ist, die aufteilung per checkbox auslösen, dass die
+ * veränderlichen und ständigen separat aufgeführt werden in der tabelle.
+ * zudem was noch auffällt, das fundament ist nicht aufgeführt beim anker.»
+ * Der Fall steht im Titel jeder Zahl; mit `aufteilen` zwei Zeilen «ständig»
+ * und «veränderlich» unter der Einwirkung; am Anker Typ und Standardlast des
+ * Ankerfundaments.
+ */
+function auflagerZeilen(z, { kurz = false, havarie = true, standard = true, aufteilen = false } = {}) {
   const mast = z.art === 'mast';
   const hat = spaltenVon(z);
   const titel = (b, key) => (b?.[key]?.bez ? ` title="${esc(b[key].bez)}"` : '');
@@ -102,15 +113,18 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
   // bestimmen können ob man den havariefall / standardlasten / Hinweistext
   // mit plotten will»).
   const zul = standard && mast && z.fundament ? z.fundament : null;
+  const af = z.art === 'anker' ? (z.ankerFund ?? null) : null;
+  const afZul = standard && af?.nachweise?.length ? af : null;
   const hav = havarie ? z.havarie : null;
   const gew = z.gewaehlt ?? null;
-  const n = 1 + (hav ? 1 : 0) + (gew ? 1 : 0) + (zul ? 1 : 0);
+  const teile = aufteilen ? [['ständig', z.staendig], ['veränderlich', z.veraenderlich]].filter(([, b]) => b) : [];
+  const n = 1 + teile.length + (hav ? 1 : 0) + (gew ? 1 : 0) + (zul || afZul ? 1 : 0);
   // Der Typ steht auch, wenn die Zeile der Standardlasten aus ist.
   const fund = mast ? esc(z.unterbau ?? z.fundament?.typ ?? '–')
     : z.art === 'jochende' ? 'Jochauflager'
     : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
-    : esc([z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
-      .filter(Boolean).join(' · ') || 'Ankerfundament');
+    : `${af?.typ ? `${esc(af.typ)}<br>` : ''}<span class="rk-x">${esc([z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
+      .filter(Boolean).join(' · ') || 'Ankerfundament')}</span>`;
   // «Längsanker» bricht in der schmalen Spalte an der Fuge, nicht irgendwo.
   const nameHtml = esc(z.name).replace('Längsanker', 'Längs&shy;anker');
   const zeilen = [];
@@ -119,29 +133,42 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
     <td rowspan="${n}" class="rk-fund">${fund}</td>
     <td class="rk-art">Einwirkung</td>
     <td class="num"${vTitel(z.haupt)}>${vText(z.haupt)}</td>${werte(z.haupt)}
-    <td class="num"${anteilTitel(z.anteil?.quer)}>${mast || z.art === 'jochende' ? anteil(z.anteil?.quer) : '–'}</td>
-    ${kurz ? '' : `<td class="rk-anm">${esc(massgebend(z.haupt))}</td>`}</tr>`);
+    <td class="num"${anteilTitel(z.anteil?.quer)}>${mast || z.art === 'jochende' ? anteil(z.anteil?.quer) : '–'}</td></tr>`);
+  teile.forEach(([was, b]) => {
+    zeilen.push(`<tr class="rk-teil"><td class="rk-art">${was}</td>
+      <td class="num"${vTitel(b)}>${vText(b)}</td>${werte(b)}<td class="num rk-leer">–</td></tr>`);
+  });
   if (hav) {
-    zeilen.push(`<tr class="rk-havarie"><td class="rk-art">Havarie</td>
+    zeilen.push(`<tr class="rk-havarie"><td class="rk-art" title="${esc(massgebend(hav))}">Havarie</td>
       <td class="num"${vTitel(hav)}>${vText(hav)}</td>${werte(hav)}
-      <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(massgebend(hav))}</td>`}</tr>`);
+      <td class="num rk-leer">–</td></tr>`);
   }
   if (gew) {
     // Der oben gewählte Lastfall (2. Oktober), mit Vorzeichen.
     zeilen.push(`<tr class="rk-gewaehlt"><td class="rk-art">gewählter Fall</td>
       <td class="num">${f0(gew.Vmin.wert)}</td>${REAKTION_SPALTEN.map((s) => (hat.has(s.key)
         ? `<td class="num">${f0(gew[s.key]?.wert)}</td>` : '<td class="num rk-leer">–</td>')).join('')}
-      <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(gew.bez)}</td>`}</tr>`);
+      <td class="num rk-leer">–</td></tr>`);
   }
   if (zul) {
-    zeilen.push(`<tr class="rk-zul"><td class="rk-art">Standardlast</td>
+    zeilen.push(`<tr class="rk-zul"><td class="rk-art" title="zulässig, Gelände ${esc(gelaendeVon(zul.gelaende).text)}">Standardlast</td>
       <td class="num">0 / ${f0(zul.Vmax)}</td>
       <td class="num" title="veränderlich allein ≤ ${f0(zul.Mq_ver)}">${f0(zul.Mq)}</td>
       <td class="num" title="veränderlich allein ≤ ${f0(zul.Hq_ver)}">${f0(zul.Hq)}</td>
       <td class="num">${f0(zul.Ml)}</td><td class="num">${f0(zul.Hl)}</td>
       <td class="num">${f0(zul.T)}</td>
-      <td class="num">${Number(zul.Mq) > 0 ? `${Math.round(100 - 100 * zul.Mq_ver / zul.Mq)} / ${Math.round(100 * zul.Mq_ver / zul.Mq)}` : '–'}</td>
-      ${kurz ? '' : `<td class="rk-anm">zulässig, Gelände ${esc(gelaendeVon(zul.gelaende).text)}</td>`}</tr>`);
+      <td class="num">${Number(zul.Mq) > 0 ? `${Math.round(100 - 100 * zul.Mq_ver / zul.Mq)} / ${Math.round(100 * zul.Mq_ver / zul.Mq)}` : '–'}</td></tr>`);
+  }
+  if (afZul) {
+    // Ankerfundament: V als Zug (abhebend, negativ) / Druck, H in der Richtung des Ankers.
+    const nw = Object.fromEntries(afZul.nachweise.map((x) => [x.key, x]));
+    const hKey = afZul.quer ? 'Hq' : 'Hl';
+    zeilen.push(`<tr class="rk-zul"><td class="rk-art" title="zulässige Lasten mit Ankerplatte, ${esc(afZul.typ)}">Standardlast</td>
+      <td class="num" title="Zug (abhebend) / Druck">${nw.Vzug ? `−${f0(nw.Vzug.zul)}` : '–'} / ${nw.Vdruck ? f0(nw.Vdruck.zul) : '–'}</td>
+      ${['Mq', 'Hq', 'Ml', 'Hl', 'T'].map((k) => (k === hKey
+        ? `<td class="num" title="bei Zug / bei Druck">${nw.Hzug ? f0(nw.Hzug.zul) : '–'} / ${nw.Hdruck ? f0(nw.Hdruck.zul) : '–'}</td>`
+        : '<td class="num rk-leer">–</td>')).join('')}
+      <td class="num rk-leer">–</td></tr>`);
   }
   return zeilen.join('');
 }
@@ -154,12 +181,10 @@ function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {
  * (`table-layout: fixed`), die sechs Wertespalten gleich breit, rechtsbündig
  * mit Ziffern gleicher Breite.
  */
-export function reaktionenTabelleHtml(daten, { kurz = false, havarie = true, standard = true } = {}) {
+export function reaktionenTabelleHtml(daten, { kurz = false, havarie = true, standard = true, aufteilen = false } = {}) {
   const zeilen = daten?.zeilen ?? [];
   if (!zeilen.length) return '';
-  const breiten = kurz
-    ? [11, 12, 11, 12, 8.4, 8.4, 8.4, 8.4, 8.4, 12]
-    : [8, 10, 8, 10, 7.2, 7.2, 7.2, 7.2, 7.2, 8, 20];
+  const breiten = [11, 12, 11, 12, 8.4, 8.4, 8.4, 8.4, 8.4, 12];
   return `<table class="dt rk-tabelle${kurz ? ' rk-kurz' : ''}">
     <colgroup>${breiten.map((b) => `<col style="width:${b}%">`).join('')}</colgroup>
     <thead>
@@ -168,13 +193,12 @@ export function reaktionenTabelleHtml(daten, { kurz = false, havarie = true, sta
         <th colspan="2" class="rk-gruppe">Lastfall quer zum Gleis</th>
         <th colspan="2" class="rk-gruppe">Lastfall längs zum Gleis</th>
         <th class="rk-gruppe">Torsion</th>
-        <th rowspan="2" class="num">ständig / veränderl. [%]</th>
-        ${kurz ? '' : '<th rowspan="2">massgebender Fall</th>'}</tr>
+        <th rowspan="2" class="num">ständig / veränderl. [%]</th></tr>
       <tr><th class="num">F<sub>z</sub> (V) min / max<br>[kN]</th>
         ${['Mq', 'Hq', 'Ml', 'Hl', 'T'].map((k) =>
           `<th class="num">${KOPF[k][0]}<br>[${KOPF[k][1]}]</th>`).join('')}</tr>
     </thead>
-    <tbody>${zeilen.map((z) => auflagerZeilen(z, { kurz, havarie, standard })).join('')}</tbody>
+    <tbody>${zeilen.map((z) => auflagerZeilen(z, { kurz, havarie, standard, aufteilen })).join('')}</tbody>
   </table>`;
 }
 
@@ -200,7 +224,7 @@ export function reaktionenKurzHtml(daten) {
     const breite = Math.floor(62 / n);
     const fund = z.art === 'mast' ? (z.unterbau ?? zul?.typ ?? '')
       : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
-      : [z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
+      : [z.ankerFund?.typ, z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
         .filter(Boolean).join(' · ');
     const zeile = (label, einheit, werte, zulWert) => `<tr><th>${label} <span class="rk-einheit">[${einheit}]</span></th>${
       werte.join('')}${zul ? `<td class="num rk-zulw">${zulWert}</td>` : ''}</tr>`;
@@ -582,7 +606,7 @@ export function hinweiseBereinigen(html) {
  * Das Blatt als eigenständiges HTML-Dokument (A4 quer), zum Drucken oder
  * als PDF.
  */
-export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hinweise = true,
+export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hinweise = true, aufteilen = false,
                                               hinweisText = null } = {}) {
   const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
     daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
@@ -611,6 +635,7 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
     tbody tr.rk-haupt td { border-top: 1.6px solid #888; }
     .rk-havarie td { color: #8a3a00; background: #fff7f0; }
     .rk-zul td { color: #555; background: #f7f7f7; font-style: italic; }
+    .rk-teil td { color: #3a4a7a; background: #f5f7fc; }
     .rk-leer { color: #bbb; }
     .rk-anm { font-size: 9.5px; color: #444; white-space: normal; }
     .rk-hinweise { margin: 6px 0 0 16px; padding: 0; }
@@ -630,7 +655,7 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
     <figure>${achsSvg()}
       <figcaption>Achssystem der Tabelle</figcaption></figure>
   </div>
-  ${reaktionenTabelleHtml(daten, { havarie, standard })}
+  ${reaktionenTabelleHtml(daten, { havarie, standard, aufteilen })}
   ${hinweise ? `<div id="rk-hinweise" contenteditable="true" spellcheck="false"
     title="Text bearbeitbar - in der Leiste oben als Vorlage speichern">${
     hinweisText ? hinweiseBereinigen(hinweisText) : hinweiseHtml(daten, { havarie, standard })}</div>` : ''}

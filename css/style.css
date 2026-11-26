@@ -4624,3 +4624,8 @@ button.wz-haupt { padding: 3px 0 4px; }
 .bs-vorschau img { max-width: 92vw; max-height: 84vh; background: #fff; border-radius: var(--m-r1); box-shadow: 0 10px 40px rgba(0,0,0,.5); }
 .bs-vorschau figcaption { color: #e6e8ec; font-size: 13px; }
 .bs-vorschau .melde-x { position: absolute; top: 14px; right: 18px; font-size: 26px; color: #e6e8ec; background: none; border: 0; cursor: pointer; }
+
+/* Köpfe je Bauteil in der Maske (26. November, ui.js feldHtml). */
+.teil-kopf { margin: 14px 0 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); border-left: 3px solid var(--acc); border-radius: 0 var(--m-r1) var(--m-r1) 0; }
+.feld.teil-anker, .feld.teil-erstes:has(+ .feld.teil-anker), .teil-kopf + .feld.teil-erstes { border-left: 2px solid color-mix(in srgb, var(--acc) 35%, transparent); padding-left: 8px; }

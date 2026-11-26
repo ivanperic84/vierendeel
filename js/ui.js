@@ -3088,7 +3088,14 @@ export function feldHtml(f, wert, werte) {
    * kann «Ende B · Mast M2» daraus machen: was gemeint ist, und woran es
    * steht.
    */
-  return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
+  /*
+   * KÖPFE JE BAUTEIL (26. November): «darauf achten das die eingabeparameter
+   * je bauteil gut zu unterscheiden sind, man kann sich verlieren beim
+   * skrollen». `teilKopf` setzt einen Kopf («Mast M1», «Anker M1») vor das
+   * Feld, `teil` einen Randstrich an alle Felder des Bauteils.
+   */
+  const tk = typeof f.teilKopf === 'function' ? f.teilKopf(werte) : f.teilKopf;
+  return `${tk ? `<div class="teil-kopf">${esc(tk)}</div>` : ''}<div class="feld${gesperrt ? ' gesperrt' : ''}${f.teil ? ` teil-${f.teil}` : ''}${f.teilKopf ? ' teil-erstes' : ''}">
     <label for="${id}">${esc(label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
     ${inhalt}${optionsSkizze(f.key, wert, werte)}${notizHtml}${hinweis}</div>`;
 }
@@ -7834,9 +7841,13 @@ export function buegelBlockHtml(opt, urteil) {
   // «eingespannt bis zur Grenze der Hakenschrauben» rechnet die Grenze
   // exakt. Bei Überschreitung steht der Weg dorthin als Satz da.
   const knopf = b && ueber
-    ? `<p class="notiz" style="margin:4px 0 0">Abhilfe: unter Auflager «Anschluss Joch am Masten»
-        die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann sucht die
-        App die Grenzfeder K_X, bei der der Untergurt höchstens F_Grenz weitergibt.</p>` : '';
+    ? (b.feder?.K
+      ? `<p class="notiz" style="margin:4px 0 0">Die Grenzfeder K_X ist gesetzt. Ihre Suche hält F_Grenz
+          für die Lasten ohne Eigengewicht des Jochs; Rückhaltekraft, Seilausfall und Theorie
+          2. Ordnung kommen erst danach dazu und können die Kraft über F_Grenz heben.</p>`
+      : `<p class="notiz" style="margin:4px 0 0">Abhilfe: unter Auflager «Anschluss Joch am Masten»
+        die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann setzt die
+        App die Grenzfeder K_X, bei der der Untergurt höchstens F_Grenz weitergibt.</p>`) : '';
   const vor = vorschlag?.K ? `<p class="notiz" style="margin:4px 0 0">Grenzfeder
       <b>K_X = ${Math.round(vorschlag.K).toLocaleString('de-CH')} kN/m</b>
       (${esc(vorschlag.gurte.join(' und '))}) - F = ${f2(vorschlag.F)} / ${f2(vorschlag.Fgrenz)} kN.

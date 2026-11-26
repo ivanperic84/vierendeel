@@ -479,9 +479,9 @@ export function gespreiztFlaechen(G, { x, zFuss, achse = 'y', opt = {} }) {
 }
 
 /** Vergrösserung des Profilschnitts unter dem Masten (23. November). */
-export const PROFILSCHNITT_FAKTOR = 2;
+export const PROFILSCHNITT_FAKTOR = 1.4;   // 26. November: «etwas kleiner … weiter nach unten» (vorher 2)
 /** Abstand des Profilschnitts unter dem Fundamentklotz [m] (23. November: «weiter unten … etwas kleiner»). */
-export const PROFILSCHNITT_TIEFE = 0.6;
+export const PROFILSCHNITT_TIEFE = 1.0;   // 26. November (vorher 0.6)
 
 export function mastKoerper(o) {
   const flaechen = [];

@@ -34,7 +34,7 @@ import { mastprofile, mastprofileWahl, gitterBasisName, gitterOhneOben, gitterOb
          STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
          fundamentFuerMast, istGittermast, GELAENDE, gelaendeVon,
-         fundamentKandidaten, fundamentlastenDa } from './data.masten.js';
+         fundamentKandidaten, fundamentlastenDa, ankerfundamenttypen } from './data.masten.js';
 import { UNTERBAU_ARTEN, STUETZEN_VORSCHLAEGE, RIEGEL_VORSCHLAEGE, unterbauVon } from './data.unterbau.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
@@ -1009,7 +1009,7 @@ export const FELDER = [
     hinweis: 'Reale Nummer aus dem Querprofil (z. B. 14). Ersetzt M1 in '
            + 'Anzeige, Bericht und Excel; gerechnet und ausgeleitet wird '
            + 'weiter unter M1. Leer: M1.' },
-  { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
+  { key: 'mastProfil', teilKopf: (w) => `Mast ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(), gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 260',
     // Schulung (15. November, «dgp und gittermasten nicht aufführen»): nur Walzprofile.
     optionenAus: () => opt(mastprofileWahl().filter((p) => !EINFACH || (!p.gitter && !p.gespreizt)), 'name', 'name'),
@@ -1463,7 +1463,7 @@ export const FELDER = [
    * Felder gelten dem angewählten Masten und schreiben `unterbau` an ihm
    * (app.js, `UB_FELDER`); im Satz steht davon nichts flach.
    * ========================================================================= */
-  { key: 'ubAn', gruppe: 'mast', typ: 'schalter', label: 'Mast steht auf Perrondach (Unterbau)',
+  { key: 'ubAn', teilKopf: 'Unterbau (Perrondach)', gruppe: 'mast', typ: 'schalter', label: 'Mast steht auf Perrondach (Unterbau)',
     standard: false, wertAus: (w) => ubAn(w), sichtbar: (w) => mastDa(w),
     hinweis: 'Unter dem Mastfuss eine Stütze oder ein Querbalken auf zwei Stützen bis aufs Terrain. '
            + 'Der Mast ist damit so weich, wie er steht; am Übergang stehen die Kräfte, die er an den '
@@ -1587,7 +1587,7 @@ export const FELDER = [
    * Er gehoert dem ANGEWAEHLTEN Masten, wie Profil und Hoehe: die
    * Kachelreihe darueber sagt, welcher gemeint ist.
    * ====================================================================== */
-  { key: 'ankerTyp', gruppe: 'mast', typ: 'auswahl',
+  { key: 'ankerTyp', teilKopf: (w) => `Anker ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(), gruppe: 'mast', typ: 'auswahl',
     label: (w) => `Zuganker / Druckstütze ${
       gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: '', wertAus: amAnker('typ', ''),
@@ -1600,14 +1600,14 @@ export const FELDER = [
     hinweis: 'Ein schräger Stab vom Masten zu einem eigenen Fundament, an '
            + 'beiden Enden gelenkig — er trägt nur Normalkraft. Die Stütze '
            + 'nimmt Zug und Druck, der Seilanker nur Zug.' },
-  { key: 'ankerH', gruppe: 'mast', typ: 'schieber',
+  { key: 'ankerH', teil: 'anker', gruppe: 'mast', typ: 'schieber',
     label: 'Anschlusshöhe des Ankers am Masten',
     sym: 'h_A', einheit: 'm', standard: 7.79, schritt: 0.05, zugSchritt: 0.5,
     min: 0.5, max: 20, wertAus: amAnker('h', 7.79),
     sichtbar: ankerDa,
     hinweis: 'Über dem Mastfuss gemessen — dem Referenzpunkt des Modells. '
            + 'Tief angeschlossen wird der Stab flacher und damit wirksamer.' },
-  { key: 'ankerA', gruppe: 'mast', typ: 'schieber',
+  { key: 'ankerA', teil: 'anker', gruppe: 'mast', typ: 'schieber',
     label: 'Abstand des Ankerfundaments',
     sym: 'a_A', einheit: 'm', standard: 4.5, schritt: 0.05, zugSchritt: 0.5,
     min: 0.5, max: 20, wertAus: amAnker('a', 4.5),
@@ -1620,7 +1620,7 @@ export const FELDER = [
    * «man sollte ein zusätzliches feld anfügen für die Anker wo man den
    * abstand zum oberen anker anpassen kann». Nur beim Typ mit zwei Seilen.
    */
-  { key: 'ankerD', gruppe: 'mast', typ: 'schieber',
+  { key: 'ankerD', teil: 'anker', gruppe: 'mast', typ: 'schieber',
     label: 'Abstand des unteren Ankers zum oberen',
     sym: 'd_A', einheit: 'm', standard: DOPPELANKER_ABSTAND_VOR, schritt: 0.05, zugSchritt: 0.5,
     min: 0.1, max: 12,
@@ -1644,7 +1644,7 @@ export const FELDER = [
    * Speicherorte fuer dieselbe Groesse laufen auseinander. Wer ihn
    * eintraegt, verstellt damit die HOEHE; der Abstand bleibt stehen.
    */
-  { key: 'ankerWinkel', gruppe: 'mast', typ: 'schieber',
+  { key: 'ankerWinkel', teil: 'anker', gruppe: 'mast', typ: 'schieber',
     label: 'Neigung des Ankers',
     sym: 'α', einheit: '°', standard: 60, schritt: 1, zugSchritt: 5,
     min: 5, max: 85,
@@ -1671,7 +1671,7 @@ export const FELDER = [
    * Das ist keine Feinheit: in der falschen Ebene bekommt er rechnerisch
    * NULL und entlastet den Masten nicht.
    */
-  { key: 'ankerRichtung', gruppe: 'mast', typ: 'auswahl',
+  { key: 'ankerRichtung', teil: 'anker', gruppe: 'mast', typ: 'auswahl',
     // Neue Anker kommen laengs (17. September); ein alter ohne Angabe
     // rechnet der Kern quer - die Anzeige sagt dasselbe.
     label: 'Ebene des Ankers', standard: 'y',
@@ -1686,7 +1686,7 @@ export const FELDER = [
     hinweis: 'Der Stab hält nur die Richtung, in der er liegt. Am Abfangjoch '
            + 'ist die grosse Kraft der Leiterzug in GLEISRICHTUNG; ein Anker '
            + 'quer dazu hält davon nichts.' },
-  { key: 'ankerSeite', gruppe: 'mast', typ: 'auswahl',
+  { key: 'ankerSeite', teil: 'anker', gruppe: 'mast', typ: 'auswahl',
     label: 'Seite des Ankerfundaments', standard: 'plus',
     wertAus: amAnker('seite', 'plus'),
     optionenAus: (w) => (gewaehlterMast(w)?.anker?.richtung === 'y'
@@ -1699,7 +1699,7 @@ export const FELDER = [
     sichtbar: ankerDa,
     hinweis: 'Der Anker steht auf der Seite, zu der er ZIEHT — gegen die '
            + 'Kraft, die den Masten kippt.' },
-  { key: 'ankerBef', gruppe: 'mast', typ: 'auswahl',
+  { key: 'ankerBef', teil: 'anker', gruppe: 'mast', typ: 'auswahl',
     label: 'Befestigung an Fundament und Mast', standard: 'ankerplatte',
     wertAus: amAnker('befestigung', 'ankerplatte'),
     optionen: ANKER_BEFESTIGUNGEN.map(
@@ -1709,6 +1709,22 @@ export const FELDER = [
     hinweis: 'Auf ZUG begrenzt nicht die Stütze, sondern die Befestigung: '
            + 'an Ankerplatte und Vorsetzkonsole gilt der grössere Wert, an '
            + 'Ankereisen oder Anschlussbügel der kleinere.' },
+  /*
+   * >>> DAS ANKERFUNDAMENT IN DER MASKE (26. November). <<< Weisung: «hier
+   * sollte man auch das fundament einstellen können, es kann sein das man ein
+   * bestand nachrechnet das den typ vorgibt.» Leer = kleinster passender Typ
+   * (23. November); sonst der gewählte - wie im Ankerdialog.
+   */
+  { key: 'ankerFund', teil: 'anker', gruppe: 'mast', typ: 'auswahl',
+    label: 'Ankerfundament', standard: '',
+    wertAus: amAnker('fundament', ''),
+    optionenAus: () => [{ wert: '', text: 'kleinster passender Typ' },
+      ...ankerfundamenttypen().map((t2) => ({ wert: t2.typ,
+        text: `${t2.typ}${t2.abmessung ? ` (${t2.abmessung})` : ''}` }))],
+    optionen: [{ wert: '', text: 'kleinster passender Typ' }],
+    sichtbar: (w) => ankerDa(w) && ankerfundamenttypen().length > 0,
+    hinweis: 'Bausortiment, zulässige Lasten mit Ankerplatte. Für einen Bestand '
+           + 'den vorhandenen Typ wählen; leer sucht die App den kleinsten, der hält.' },
   /*
    * DER ANSCHLUSS GEHOERT ZUR AUFLAGERUNG, nicht zum Masten: er sagt, wie
    * das JOCHENDE gehalten wird. Sichtbar ist er trotzdem nur mit Masten -

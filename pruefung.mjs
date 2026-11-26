@@ -34415,7 +34415,8 @@ titel('169 b  Reaktionskräfte: Köpfe nach dem Achssystem, Anker A14, Skizze');
         'Lastfall längs zum Gleis'].every((t) => html.includes(t)));
   wahr('Festes Raster: colgroup, sechs gleich breite Wertespalten',
        /<colgroup>/.test(html)
-       && (html.match(/<col style="width:7\.2%">/g) ?? []).length === 5);
+       // 26. November: ohne Spalte «massgebender Fall» - fünf Wertespalten 8.4 %.
+       && (html.match(/<col style="width:8\.4%">/g) ?? []).length === 5);
   const app = APP_QUELLE();
   wahr('Die Anwendung nennt den Anker «A» + Mastnummer',
        app.includes("name: z.art === 'anker' ? `A${mastAnzeigeText(z.id, anzeigeKarte)}`"));
@@ -41229,7 +41230,7 @@ titel('264  Havarie: nur abgezogene Leiter stehen nicht in der Liste');
     wahr('Schiene: der Anker kommt aus dem Stabwerk, wenn es gilt',
          readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes("swG?.h?.ankerJe?.[namen[ende]]?.nachweis ?? e.anker[ende]?.nachweis"));
     wahr('Reaktionsblatt: der Havariefall ist beim Start abgewählt',
-         APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true };'));
+         APP_QUELLE().includes('let reaktionsWahl = { havarie: false, standard: true, hinweise: true, aufteilen: false };'));
   }
 }
 
@@ -44274,8 +44275,9 @@ titel('339  EK 1-6 ohne eigene Windwahl, Einheitswind als Schalter (core.lasten.
   const e3 = L.ekFelder({ ...w2, ...e2 }, { einheit: false });
   wahr('Einheitswind aus: zurück auf die Stufe der EK', e3.windKlasse === '0.9');
   const RK = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
-  wahr('Profilschnitt × 2, 0.6 m unter dem Fundament (Linie, nicht anklickbar)',
-       RK.includes('export const PROFILSCHNITT_FAKTOR = 2;') && RK.includes('profilschnitt: true')
+  // 26. November: «etwas kleiner machen und weiter nach unten» - × 1.4, 1.0 m.
+  wahr('Profilschnitt × 1.4, 1.0 m unter dem Fundament (Linie, nicht anklickbar)',
+       RK.includes('export const PROFILSCHNITT_FAKTOR = 1.4;') && RK.includes('export const PROFILSCHNITT_TIEFE = 1.0;') && RK.includes('profilschnitt: true')
        // 26. November: senkrecht, in der Längsansicht lesbar.
        && RK.includes('[x + p[0] * k, 0, zB + p[1] * k]'));
   const AB = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
@@ -44424,6 +44426,25 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('359  Anker: Fundament in der Maske, Köpfe je Bauteil; Reaktionsblatt; Ankerkraft im 3D (26. November)');
+{
+  const SQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  const EQ = readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Maske: Feld Ankerfundament, Köpfe «Mast», «Unterbau», «Anker» und Randstrich',
+       SQ.includes("{ key: 'ankerFund', teil: 'anker', gruppe: 'mast', typ: 'auswahl',")
+       && SQ.includes("teilKopf: (w) => `Anker ${") && APP_QUELLE().includes("ankerFund: 'fundament',")
+       && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('<div class="teil-kopf">'));
+  wahr('Reaktionsblatt: keine Spalte «massgebender Fall», Aufteilung ständig / veränderlich, Ankerfundament mit Standardlast',
+       !EQ.includes('<th rowspan="2">massgebender Fall</th>') && EQ.includes("const teile = aufteilen ?")
+       && EQ.includes('if (afZul) {') && readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8').includes('staendig: G ? zeile('));
+  wahr('3D: der grösste Wert je Anker steht immer an der Linie',
+       RQ.includes('ankerLinien.has(l)'));
+  wahr('Hakenschrauben: kein Verweis mehr auf den entfallenen Knopf',
+       !APP_QUELLE().includes('Die Grenzfeder K_X sucht der Knopf'));
 }
 
 // ===========================================================================

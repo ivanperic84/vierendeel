@@ -1024,7 +1024,9 @@ function reaktionsDaten() {
              fundament: z.art === 'jochende' ? 'Jochauflager' : fund,
              unterbau,
              gewaehlt: gewaehlt?.get(z.knoten) ?? null,
-             anker: z.art === 'anker' ? (m?.anker ?? null) : null };
+             anker: z.art === 'anker' ? (m?.anker ?? null) : null,
+             // Das Ankerfundament (26. November, «das fundament ist nicht aufgeführt beim anker»).
+             ankerFund: z.art === 'anker' ? (g?.h?.ankerfundamentJe?.[z.id] ?? null) : null };
   });
   /*
    * >>> TYPEN UND LÄNGEN IN DER SKIZZE (30. September). <<<
@@ -1071,7 +1073,7 @@ function reaktionsDaten() {
 // will»).
 // Havariefall beim Start aus (Weisung 9. Oktober, mit Bild der Leiste: «Hier
 // beim start havarie deaktivieren»); das Kästchen holt ihn dazu.
-let reaktionsWahl = { havarie: false, standard: true, hinweise: true };
+let reaktionsWahl = { havarie: false, standard: true, hinweise: true, aufteilen: false };
 /*
  * >>> DIE HINWEISE DES REAKTIONSBLATTS ALS VORLAGE (1. Oktober). <<<
  * «den textblock bearbeitbar machen und man sollte es als vorlage speichern
@@ -1093,6 +1095,8 @@ function reaktionsBlatt() {
   const wahl = {
     optionen: [{ key: 'havarie', label: 'Havariefall' },
                { key: 'standard', label: 'Standardlasten' },
+               // 26. November: «die aufteilung per checkbox auslösen».
+               { key: 'aufteilen', label: 'ständig / veränderlich' },
                { key: 'hinweise', label: 'Hinweise' }],
     zustand: reaktionsWahl,
     merken,
@@ -1832,10 +1836,12 @@ function neuRechnen(neuZeichnen = true) {
             // Leer ein Platzhalter: sonst entsteht beim ersten Aufbau (noch ohne
             // Stabwerk) kein Behälter, und die Meldung käme nie an.
             if (!b?.ueber) return '<span hidden></span>';
+            // 26. November: der Verweis auf den Knopf (gibt es seit dem 17. Nov.
+            // nicht mehr) ist weg; der Satz sagt, was jetzt gilt.
             return `<p class="notiz fail-text" style="margin:6px 0 0"><b>Hakenschrauben überschritten</b>:
-              ${b.F.toFixed(2)} kN &gt; F_Grenz ${b.Fgrenz} kN (${b.wer}) mit dieser
-              Auflagerbedingung. Die Grenzfeder K_X sucht der Knopf im Block
-              «Hakenschrauben» der Übersicht.</p>`;
+              ${b.F.toFixed(2)} kN &gt; F_Grenz ${b.Fgrenz} kN (${b.wer}). ${b.feder
+                ? 'Die Grenzfeder K_X ist gesetzt; die Überschreitung kommt aus Anteilen, die ihre Suche nicht kennt (Rückhaltekraft, Seilausfall, Theorie 2. Ordnung).'
+                : 'Abhilfe: unter «Anschluss Joch am Masten» die Stufe «eingespannt bis zur Grenze der Hakenschrauben» wählen - dann setzt die App die Grenzfeder K_X selbst.'}</p>`;
           })() }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);
@@ -5364,6 +5370,7 @@ function vorlagenZusammenfuehren(w) {
 const ANKERFELDER = {
   ankerTyp: 'typ', ankerH: 'h', ankerA: 'a', ankerD: 'd',
   ankerRichtung: 'richtung', ankerSeite: 'seite', ankerBef: 'befestigung',
+  ankerFund: 'fundament',
 };
 
 /**
