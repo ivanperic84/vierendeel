@@ -44560,7 +44560,7 @@ titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (
   const ber = AQ.slice(AQ.indexOf('function berichteMenue()'), AQ.indexOf('function exportMenue()'));
   const mod = AQ.slice(AQ.indexOf('function exportMenue()'), AQ.indexOf('function exportMenueVerdrahten'));
   wahr('Zwei Knöpfe: «Modell & Daten» (AxisVM, PyNite, Excel, Viewer) und «Berichte» (Bericht, Blätter, Bilder)',
-       AQ.includes('id="btn-berichte"') && AQ.includes('<span>Modell &amp; Daten</span')
+       AQ.includes('id="btn-berichte"') && AQ.includes('<span>Modell</span')  // 26. November: «hier nur modell anschreiben»
        && AQ.includes("exportMenueVerdrahten(ui.el('btn-berichte'), berichteMenue)")
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'exportKlick', 'viewerAusleiten(app)'].every((t) => mod.includes(t))
        && !mod.includes('dialogBericht(app)') && !mod.includes('reaktionsBlatt')

@@ -6639,7 +6639,7 @@ function baueKopf() {
          ><span class="tb-pfeil" aria-hidden="true">▾</span></button>`
         : `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-ausleiten" type="button"
          title="Modell und Daten: AxisVM (COM-Brücke, SAF, DXF), PyNite, Gegenrechnung, Excel, Viewer"
-         aria-label="Modell und Daten" aria-haspopup="menu">${icon('export')}<span>Modell &amp; Daten</span
+         aria-label="Modell" aria-haspopup="menu">${icon('export')}<span>Modell</span
          ><span class="tb-pfeil" aria-hidden="true">▾</span></button>
          <button class="btn-icon btn-icon-text" id="btn-berichte" type="button"
          title="Berichte: Nachweisbericht, Blätter (Reaktionen, Jochanschluss, Bestandesschutz), Bilder des 3D"
