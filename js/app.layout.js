@@ -13,6 +13,7 @@ import { alleZeigen, nurDiesesZeigen, inselMorph } from './app.kontext.js';
 import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
 import { MASS, esc, icon, iconKnopf, tokensAufElement } from './design.js';
+import { morph } from './ui.bewegung.js';
 import { ANSICHTEN, LASTARTEN, MODI, PLOTS, FIGUR_MODI } from './render.3d.js';
 import { plotErlaubt, EINFACH } from './stufe.js';
 import * as ui from './ui.js';
@@ -182,8 +183,11 @@ export function baueModellWerkzeuge(app) {
       + 'Schwerachsen in der Plotfarbe; mit «Linie» das graue System mit der Zustandslinie', strichAn())
     // Bild aufnehmen (26. November, «gibt es einen bild aufnehmen button für die
     // resultat bibliothek?»): neben dem Strichbild - erst einstellen, dann aufnehmen.
-    + iconKnopf('v-bild', 'kamera', 'Bild des 3D aufnehmen - in die Bildsammlung (Taste a; '
-      + 'die Sammlung unter Berichte → Bilder)');
+    + iconKnopf('v-bild', 'kamera', 'Bild des 3D aufnehmen - in die Bildsammlung und die Zwischenablage (Taste a). '
+      + 'Rechtsklick: Rahmen (Bildausschnitt) festlegen')
+    // Ansicht festhalten (26. November, «kamerafreez»): Blick, Ausschnitt, Ebenen, Plot.
+    + iconKnopf('v-fest', 'schloss', 'Ansicht festhalten: Blick und Ausschnitt sperren, Ebenen und Plot merken. '
+      + 'Nochmals: lösen. Rechtsklick: zurück zur festgehaltenen Ansicht', Boolean(app.ansicht?.kameraFest));
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -230,6 +234,9 @@ export function baueModellWerkzeuge(app) {
   ui.el('v-strich').setAttribute('aria-pressed', String(strichAn()));
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-bild').onclick = () => app.bildAufnehmen?.();
+  ui.el('v-bild').oncontextmenu = (e) => { e.preventDefault(); app.bildRahmen?.(); };
+  ui.el('v-fest').onclick = () => app.ansichtFesthalten?.(false);
+  ui.el('v-fest').oncontextmenu = (e) => { e.preventDefault(); app.ansichtFesthalten?.(true); };
   ui.el('v-ganz').onclick = () => {
     app.station = null; app.ansicht.station = null;
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
@@ -1086,7 +1093,7 @@ function balkenVerdrahten(app, n) {
   });
   const stopp = (el) => el.addEventListener('pointerdown', (e) => e.stopPropagation());
   const neu = () => { app.ansicht.zeichne(); zeichneLegende(app); };
-  n.querySelectorAll('[data-balken]').forEach((b) => { stopp(b); b.onclick = () => { balkenOffen = !balkenOffen; zeichneLegende(app); }; });
+  n.querySelectorAll('[data-balken]').forEach((b) => { stopp(b); b.onclick = () => morph(ui.el('legende'), () => { balkenOffen = !balkenOffen; zeichneLegende(app); }); });
   n.querySelectorAll('[data-leg-farbe]').forEach((b) => {
     stopp(b); b.onclick = () => { app.ansicht.linienFarbe = b.dataset.legFarbe; neu(); };
   });
@@ -1156,7 +1163,7 @@ export function zeichneLegende(app) {
     balkenVerdrahten(app, n);
     const ibz = n.querySelector('[data-leg-info]');
     ibz.addEventListener('pointerdown', (e) => e.stopPropagation());
-    ibz.onclick = (e) => { e.stopPropagation(); legendeInfo = !legendeInfo; zeichneLegende(app); };
+    ibz.onclick = (e) => { e.stopPropagation(); morph(ui.el('legende'), () => { legendeInfo = !legendeInfo; zeichneLegende(app); }); };
     if (legendeLage) {
       n.classList.add('gezogen'); n.style.left = `${legendeLage.links}px`; n.style.top = `${legendeLage.oben}px`;
     } else { n.classList.remove('gezogen'); n.style.left = ''; n.style.top = ''; }
@@ -1201,7 +1208,7 @@ export function zeichneLegende(app) {
     const ib = n.querySelector('[data-leg-info]');
     if (ib) {
       ib.addEventListener('pointerdown', (e) => e.stopPropagation());
-      ib.onclick = (e) => { e.stopPropagation(); legendeInfo = !legendeInfo; zeichneLegende(app); };
+      ib.onclick = (e) => { e.stopPropagation(); morph(ui.el('legende'), () => { legendeInfo = !legendeInfo; zeichneLegende(app); }); };
     }
     fertig();
     return;

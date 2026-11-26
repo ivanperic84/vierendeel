@@ -32,6 +32,7 @@ import { ankerTypen } from './data.anker.js';
 import { globaleVorlagen, globaleVorlagenAn, setzeGlobaleVorlagenAn, setzeGlobaleVorlagen,
          globaleVorlageAblegen, setzeEigeneVorlagen } from './data.anbauteile.js';
 import { profilBlattHtml } from './ui.profilblatt.js';
+import { bildOptionenHtml, bildOptionenVerdrahten } from './app.bilder.js';
 
 function dialogKlassen(app) {
   if (!app.letzte) return;
@@ -569,7 +570,10 @@ function vorlagenVerwaltungVerdrahten(app, rahmen, neu) {
 export function dialogOptionen(app) {
   const koerper = () =>
     ui.optionenReiterHtml(app.werte, optThema)
-    + `<div id="opt-koerper">${optThema === 'vorlagen' ? vorlagenVerwaltungHtml(app)
+    + `<div id="opt-koerper">${optThema === 'bilder'
+      ? `<p class="notiz">Gilt jeder Aufnahme («Bild aufnehmen», Taste a) in allen Projekten dieses Browsers.
+          Rechtsklick auf die Kamera legt den Rahmen fest.</p>${bildOptionenHtml()}`
+      : optThema === 'vorlagen' ? vorlagenVerwaltungHtml(app)
       : ui.optionenHtml(app.werte, optThema)}</div>`;
   // FESTE HOEHE (Weisung, 1. September): sechs Reiter mit sehr verschieden
   // viel Inhalt, und der Scrim zentriert. Ohne feste Hoehe sprang das Fenster
@@ -612,6 +616,7 @@ export function dialogOptionen(app) {
     const fenster = rahmen.querySelector('[data-daten-fenster]');
     if (fenster) fenster.onclick = () => app.dialogBauteildaten();
     if (optThema === 'vorlagen') vorlagenVerwaltungVerdrahten(app, rahmen, neu);
+    if (optThema === 'bilder') bildOptionenVerdrahten(rahmen);
 
     // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
     // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.

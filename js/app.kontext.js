@@ -21,6 +21,7 @@ import { sortimentstypen } from './data.tragjoche.js';
 import { abfangjoche } from './data.abfangjoche.js';
 import { LEICHT, mehrAn } from './stufe.js';
 import * as ui from './ui.js';
+import { morph } from './ui.bewegung.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
 let kontextMenue = null;
@@ -33,19 +34,8 @@ export const kontextOffen = () => Boolean(kontextMenue);
  * einem Bild von 344 × 34 auf 497 × 169 px. Jetzt Breite und Höhe als FLIP
  * (vorher messen, umstellen, nachher messen, dazwischen animieren).
  */
-export function inselMorph(el, aendern) {
-  const a = el.getBoundingClientRect();
-  aendern();
-  const b = el.getBoundingClientRect();
-  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (still || typeof el.animate !== 'function' || (a.width === b.width && a.height === b.height)) return;
-  el.style.overflow = 'hidden';
-  const an = el.animate([{ width: `${a.width}px`, height: `${a.height}px` },
-                         { width: `${b.width}px`, height: `${b.height}px` }],
-                        { duration: 380, easing: 'cubic-bezier(.3, 1.15, .5, 1)' });
-  const fertig = () => { el.style.overflow = ''; };
-  an.onfinish = fertig; an.oncancel = fertig;
-}
+// Seit dem 26. November eine Stelle für die ganze App (ui.bewegung.js, `morph`).
+export function inselMorph(el, aendern) { morph(el, aendern); }
 
 export function kontextSchliessen(app) {
   if (kontextMenue?.inselZu) {

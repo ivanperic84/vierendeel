@@ -4474,6 +4474,7 @@ export class Modellansicht {
    * Nähe nicht. Die Richtung ist die der Hand - das Bild folgt dem Finger.
    */
   _schiebe(dx, dy) {
+    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const { rechts, hoch } = this._basis();
     const w = this._weltProPixel();
     this.kamera.pan = add(this.kamera.pan,
@@ -4499,6 +4500,7 @@ export class Modellansicht {
    * grossen Bildschirm dieselbe Handbewegung für denselben Winkel.
    */
   _drehe(dx, dy, raster = false) {
+    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const breite = this.cv.getBoundingClientRect().width || 1;
     const s = Math.PI / Math.max(320, breite) / this._dpr();
     const k = this.kamera;
@@ -4550,6 +4552,7 @@ export class Modellansicht {
    * vermeiden, denn dort hat jede Tiefe ihren eigenen Massstab.
    */
   _zoome(faktor, px = null, py = null) {
+    if (this.kameraFest) return;   // Ansicht festgehalten (26. November)
     const k = this.kamera;
     const [min, max] = this._abstandsgrenzen();
     const neu = Math.max(min, Math.min(max, k.dist * faktor));
@@ -4967,9 +4970,23 @@ export class Modellansicht {
      * mit `weiss` auf weissem Grund statt der Hintergrundfarbe des Themas.
      */
     if (opt.aktuell) {
+      /*
+       * Output-Einstellungen (26. November): Auflösung (`faktor` - der Canvas
+       * wird grösser, Schrift und Striche wachsen mit), Systemachsen aus,
+       * Strichbild für diese eine Aufnahme.
+       */
+      const f = Math.max(1, Math.min(4, Number(opt.faktor) || 1));
+      const alt = { w: this.cv.width, h: this.cv.height, strich: this.strich, px: this._px() };
       this._weiss = Boolean(opt.weiss);
+      this._ohneAchsen = Boolean(opt.ohneAchsen);
+      if (opt.strich !== undefined) this.strich = opt.strich;
+      if (f > 1) { this._pxFest = alt.px * f; this.cv.width = Math.round(alt.w * f); this.cv.height = Math.round(alt.h * f); }
       try { this.zeichneJetzt(); return this.cv.toDataURL('image/png'); }
-      finally { this._weiss = false; this.zeichneJetzt(); }
+      finally {
+        this._weiss = false; this._ohneAchsen = false; this.strich = alt.strich;
+        if (f > 1) { this._pxFest = null; this.cv.width = alt.w; this.cv.height = alt.h; }
+        this.zeichneJetzt();
+      }
     }
     const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
     const alt = { kamera: structuredClone(this.kamera), fokus: this.fokus,
@@ -7004,6 +7021,7 @@ export class Modellansicht {
    * darunter: 46 + 30 + 12 = 88. Mit 92 bleibt etwas Luft.
    */
   _achsenkreuz(c, t) {
+    if (this._ohneAchsen) return;   // Bild-Output ohne Systemachsen (26. November)
     const { rechts, hoch, vor } = this._basis();
     const s = this._s;
     const o = [54 * s, this.cv.height - ACHSENKREUZ_HOCH * s], l = ACHSENKREUZ_ARM * s;

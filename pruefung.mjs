@@ -43647,7 +43647,9 @@ titel('312  Die Insel fährt mit den Grundwerten aus, zweiter Klick fährt ein')
   wahr('Werkzeugleiste ohne sichtbaren Balken, Höhe bis Fenster − 20 px (vorher − 66)',
        css2.includes('.viewer-tools-r { max-height: calc(100% - 20px); scrollbar-width: none; }'));
   wahr('Die Insel wächst und schrumpft weich (FLIP auf Breite und Höhe)',
-       KQ.includes('function inselMorph(el, aendern)') && KQ.includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` }"));
+       // 26. November: eine Stelle für die ganze App (ui.bewegung.js, `morph`).
+       KQ.includes('export function inselMorph(el, aendern) { morph(el, aendern); }')
+       && readFileSync(join(HIER, 'js', 'ui.bewegung.js'), 'utf8').includes("el.animate([{ width: `${a.width}px`, height: `${a.height}px` },"));
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
   wahr('Stilblatt: Insel ausgefahren, Panel statisch, Grundwerte nie unter «EK1…»',
        css.includes('.viewer-oben.offen {') && css.includes('.viewer-oben .kontext.insel-panel {')
@@ -44425,6 +44427,36 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('356  Insel-Bewegung in der ganzen App; Bild-Output, Zwischenablage, Rahmen, Ansicht festhalten (26. November)');
+/* «bei allen animationen die vorlage von der dynamic islang übernehmen …
+ * global für die gesamte app», «in diesem fenster und unter den optionen
+ * einstellungen über den output definieren können. beim foto machen
+ * automatisch in den zwischenspeicher legen. wenn man rechtsklick macht kann
+ * man einen bericht definieren mit rahmen im 3d fenster.», dazu
+ * «kamerafreez button». */
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.bewegung.js'), 'utf8');
+  const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Insel-Bewegung: morph, inselAuf, Menüs und Dialoge wachsen, Klappabschnitte, Legende',
+       UQ.includes('export function morph(el, aendern)') && UQ.includes('export function inselAuf(el)')
+       && UQ.includes("if (n.matches?.('.kontext') && !n.classList.contains('insel-panel')) inselAuf(n);")
+       && UQ.includes('inselAuf(dlg);') && LQ.includes("morph(ui.el('legende'), () => { balkenOffen = !balkenOffen;"));
+  const { BILD_VORGABE } = await import(J('app.bilder.js'));
+  wahr('Output-Vorgaben: Auflösung, Hintergrund, Benennung, Legende, Systemachsen, Format, Name, Zwischenablage',
+       ['faktor', 'hintergrund', 'strich', 'zuschnitt', 'titel', 'legende', 'achsen', 'format', 'muster', 'zwischenablage']
+         .every((k) => k in BILD_VORGABE) && BILD_VORGABE.zwischenablage === true);
+  wahr('Zwischenablage, Rahmen (Rechtsklick), Ansicht festhalten',
+       BQ.includes("new ClipboardItem({ 'image/png': blob })") && BQ.includes('export function rahmenBearbeiten(app)')
+       && LQ.includes("ui.el('v-bild').oncontextmenu") && LQ.includes("ui.el('v-fest').onclick")
+       && RQ.includes('if (this.kameraFest) return;   // Ansicht festgehalten'));
+  wahr('Aufnahme: Auflösung und ohne Systemachsen im Renderer',
+       RQ.includes('this._ohneAchsen = Boolean(opt.ohneAchsen);') && RQ.includes('if (this._ohneAchsen) return;'));
+  wahr('Optionen: Reiter «Bild-Output»', readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8').includes("{ key: 'bilder', titel: 'Bild-Output', eigen: true }"));
+}
+
+// ===========================================================================
 titel('355  Dialog «Neues Querprofil» umgebaut (26. November)');
 /* «hier die eingabeparameter bezüglich der tragwerkssystem hinterfragen»,
  * dann «vorschläge für umbau neues querprofil modal umsetzen». */
@@ -44602,8 +44634,8 @@ titel('346  Export in zwei Knöpfen, Bildsammlung, Legende nur bei Platzmangel (
        && ['dialogBericht(app)', 'reaktionsBlatt', 'anschlussBlatt', 'bestandBlatt', 'bildAufnehmen(app)', 'bildsammlungZeigen(app)']
          .every((t) => ber.includes(t)));
   wahr('Bildsammlung: das 3D wie es steht, hell, weisser Grund, zugeschnitten; je Eintrag in IndexedDB, nicht im Paket',
-       BQ.includes('momentaufnahme(null, { aktuell: true, weiss: true })') && BQ.includes("uebertrageTokens('hell')")
-       && BQ.includes('async function zuschneiden(url)') && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
+       BQ.includes('momentaufnahme(null, { aktuell: true, weiss, faktor: Number(o.faktor) || 1,') && BQ.includes("uebertrageTokens('hell')")
+       && BQ.includes('async function zuschneiden(url, grund = [255, 255, 255])') && RQ.includes("c.fillStyle = (this._weiss || this.strich) ? '#ffffff' : t.viewerBg;")
        && STQ.includes('export async function bilderSichern(id, liste)') && STQ.includes("const BILDER = 'bilder|';"));
   wahr('Legende: in die Mitte nur, wenn die offene Leiste sie in der Höhe überdeckt (`wz-eng`), neu bewertet bei Grösse',
        LQ.includes('eng = r.top > 0 && unten + 6 > oben;') && LQ.includes("v.classList.toggle('wz-eng', eng);")

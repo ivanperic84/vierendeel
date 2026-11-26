@@ -2740,6 +2740,8 @@ export const OPTIONEN_THEMEN = [
   // Eigene Vorlagen projektübergreifend (7. Oktober): Liste und Schalter,
   // verdrahtet in app.optionen.js.
   { key: 'vorlagen', titel: 'Eigene Vorlagen', eigen: true },
+  // Bild-Output (26. November): dieselben Felder wie im Fenster «Bildsammlung».
+  { key: 'bilder', titel: 'Bild-Output', eigen: true },
   /*
    * DIE DATENBASIS GEHOERT HIERHER (Weisung, 1. September).
    *

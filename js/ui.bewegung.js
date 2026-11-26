@@ -62,29 +62,84 @@ function reiter(e) {
   }, 0);
 }
 
+/* ===========================================================================
+ * >>> WIE DIE INSEL, IN DER GANZEN APP (26. November). <<< Weisung: «bei allen
+ * animationen die vorlage von der dynamic islang übernehmen im 3d frenster mit
+ * den einzelnen boxen, es stellst sich noch die frage ob man es global für die
+ * gesamte app anwenden kann?», auf Rückfrage «Ganze App»: dieselbe Bewegung wie
+ * die Insel (Breite und Höhe der Box wachsen bzw. schrumpfen, Feder-Kurve,
+ * 380 ms) - Kontextmenüs, Menüs, Dialoge wachsen aus einer kleinen Pille auf,
+ * Klappabschnitte und die Legende ändern ihre Grösse weich.
+ * ======================================================================== */
+export const INSEL_KURVE = 'cubic-bezier(.3, 1.15, .5, 1)';
+export const INSEL_DAUER = 380;
+
+/** Grössenwechsel einer Box weich (die Insel, `inselMorph`). */
+export function morph(el, aendern) {
+  if (!el) { aendern(); return; }
+  const a = el.getBoundingClientRect();
+  aendern();
+  const b = el.getBoundingClientRect();
+  if (still() || typeof el.animate !== 'function' || (a.width === b.width && a.height === b.height)) return;
+  const ov = el.style.overflow;
+  el.style.overflow = 'hidden';
+  const an = el.animate([{ width: `${a.width}px`, height: `${a.height}px` },
+                         { width: `${b.width}px`, height: `${b.height}px` }],
+                        { duration: INSEL_DAUER, easing: INSEL_KURVE });
+  const fertig = () => { el.style.overflow = ov; };
+  an.onfinish = fertig; an.oncancel = fertig;
+}
+
+/** Eine neue Box wächst aus einer kleinen Pille zu ihrer Grösse auf. */
+export function inselAuf(el) {
+  if (!el || still() || typeof el.animate !== 'function') return;
+  const b = el.getBoundingClientRect();
+  if (!(b.width > 0 && b.height > 0)) return;
+  const ov = el.style.overflow;
+  el.style.overflow = 'hidden';
+  const an = el.animate([
+    { width: `${Math.min(b.width, 140)}px`, height: `${Math.min(b.height, 34)}px`, opacity: 0.35 },
+    { width: `${b.width}px`, height: `${b.height}px`, opacity: 1 }],
+  { duration: INSEL_DAUER, easing: INSEL_KURVE });
+  const fertig = () => { el.style.overflow = ov; };
+  an.onfinish = fertig; an.oncancel = fertig;
+}
+
 /*
- * >>> KLAPPABSCHNITTE OEFFNEN WEICH (22. November). <<< Nur beim Klick auf
- * den Kopf - ein Neuaufbau der Maske (bei jeder Eingabe) soll nicht jedes
- * Mal einblenden.
+ * Klappabschnitte öffnen wie die Insel (vorher eingeblendet, 22. November).
+ * Nur beim Klick auf den Kopf - ein Neuaufbau der Maske soll nicht jedes Mal
+ * animieren. Geschlossen wird ohne Bewegung.
  */
 function klappen(e) {
   const s = e.target.closest?.('details > summary');
   if (!s || still()) return;
   const d = s.parentElement;
-  if (d.open) return;                 // schliesst - ohne Bewegung
-  d.classList.add('oeffnet');
-  setTimeout(() => d.classList.remove('oeffnet'), 400);
+  if (d.open) return;
+  const a = d.getBoundingClientRect().height;
+  setTimeout(() => {
+    if (!d.open || typeof d.animate !== 'function') return;
+    const b = d.getBoundingClientRect().height;
+    if (b <= a) return;
+    const ov = d.style.overflow;
+    d.style.overflow = 'hidden';
+    const an = d.animate([{ height: `${a}px` }, { height: `${b}px` }], { duration: INSEL_DAUER, easing: INSEL_KURVE });
+    const fertig = () => { d.style.overflow = ov; };
+    an.onfinish = fertig; an.oncancel = fertig;
+  }, 0);
 }
 
-/** Ein Dialog wächst aus dem zuletzt angetippten Knopf heraus. */
+/** Ein Dialog wächst wie die Insel auf (26. November; vorher Skalierung aus dem Knopf). */
 export function dialogAusKnopf(dlg) {
-  if (!dlg || still() || !zuletzt) return;
-  const r = dlg.getBoundingClientRect();
-  const ox = zuletzt.left + zuletzt.width / 2 - r.left;
-  const oy = zuletzt.top + zuletzt.height / 2 - r.top;
-  dlg.style.transformOrigin = `${ox}px ${oy}px`;
-  dlg.classList.add('waechst');
   zuletzt = null;
+  inselAuf(dlg);
+}
+
+/* Menüs und Kontextmenüs, die irgendwo eingehängt werden, wachsen auf. */
+function neueBoxen(liste) {
+  liste.forEach((m) => m.addedNodes.forEach((n) => {
+    if (!(n instanceof Element)) return;
+    if (n.matches?.('.kontext') && !n.classList.contains('insel-panel')) inselAuf(n);
+  }));
 }
 
 let an = false;
@@ -94,4 +149,7 @@ export function bewegungStarten() {
   document.addEventListener('pointerdown', welle, true);
   document.addEventListener('click', reiter, true);
   document.addEventListener('click', klappen, true);
+  if (typeof MutationObserver !== 'undefined' && document.body) {
+    new MutationObserver(neueBoxen).observe(document.body, { childList: true });
+  }
 }
