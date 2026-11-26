@@ -426,7 +426,8 @@ export async function bildAufnehmen(app) {
   const r = await aufnehmenInListe(app, liste);
   if (!r) { app.meldeImBalken('Kein 3D-Bild vorhanden.'); return; }
   await store.bilderSichern(id, liste);
-  app.meldeImBalken(`Bild aufgenommen${r.ab ? ' und in die Zwischenablage gelegt' : ''} - ${liste.length} in der Sammlung.`);
+  app.meldeImBalken(`Bild aufgenommen${r.ab ? ' und in die Zwischenablage gelegt' : ''} - ${liste.length} in der Sammlung.`,
+    { knopf: { text: 'Bildsammlung', tun: () => bildsammlungZeigen(app) } });
 }
 
 function dateiname(app, b, i) {

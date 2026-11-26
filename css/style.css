@@ -4605,3 +4605,9 @@ button.wz-haupt { padding: 3px 0 4px; }
 .bild-rahmen-wahl .brw-box { position: absolute; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); pointer-events: none; }
 .bild-rahmen-wahl .brw-leiste { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;
   padding: 6px 10px; background: color-mix(in srgb, var(--s2) 92%, transparent); border: 1px solid var(--ol); border-radius: var(--m-r2); cursor: default; font-size: 12px; color: var(--on2); }
+
+/* Meldung mit × oben rechts (26. November). */
+#viewer-balken { position: relative; } #viewer-balken:has(.melde-x) { padding-right: 32px; }
+#viewer-balken .melde-x { position: absolute; top: 3px; right: 5px; width: 22px; height: 22px; border: 0; background: none;
+  color: var(--dim); font-size: 16px; line-height: 1; cursor: pointer; border-radius: var(--m-r1); }
+#viewer-balken .melde-x:hover { color: var(--on); background: var(--s3, rgba(127,127,127,.15)); }

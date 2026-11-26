@@ -44427,6 +44427,16 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('357  Meldungen gehen von selbst, × oben rechts, Link zur Bildsammlung (26. November)');
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Meldung: Dauer nach Länge, × oben rechts, Knopf als Handlung',
+       AQ.includes('function meldeImBalken(text, { dauer = null, knopf = null } = {}) {')
+       && AQ.includes('class="melde-x" data-meldung-zu') && AQ.includes("if (n.matches(':hover')) { setTimeout(weg, 1500); return; }")
+       && readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8').includes("{ knopf: { text: 'Bildsammlung', tun: () => bildsammlungZeigen(app) } }"));
+}
+
+// ===========================================================================
 titel('356  Insel-Bewegung in der ganzen App; Bild-Output, Zwischenablage, Rahmen, Ansicht festhalten (26. November)');
 /* «bei allen animationen die vorlage von der dynamic islang übernehmen …
  * global für die gesamte app», «in diesem fenster und unter den optionen

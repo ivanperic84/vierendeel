@@ -5475,13 +5475,24 @@ function buegelUebernehmen() {
 }
 const buegelAnzeige = () => (buegelVorschlag?.kennung === eingabeKennung(werte) ? buegelVorschlag : null);
 
-function meldeImBalken(text, { dauer = 0 } = {}) {
+/*
+ * >>> MELDUNGEN GEHEN VON SELBST (26. November). <<< Weisung, mit Bild der
+ * Meldung «Bild aufgenommen …»: «diese infofenster nach einer weile von selbst
+ * schliessen. anstatt schliessen ein x zum schliessen oben rechts und als
+ * button könnte man hier einen direktlink zur bibliothed setzen.» Jede Meldung
+ * schliesst nach 5-12 s (nach Länge; solange die Maus darauf ist, nicht), ein
+ * × oben rechts schliesst sofort; `knopf` setzt eine Handlung daneben.
+ */
+function meldeImBalken(text, { dauer = null, knopf = null } = {}) {
   const n = ui.el('viewer-balken');
   if (!n) return;
   n.hidden = false;
   n.innerHTML = `<span>${esc(text)}</span>`
-    + '<button class="btn btn-mini" data-meldung-zu>Schliessen</button>';
+    + (knopf ? `<button class="btn btn-mini btn-acc" data-meldung-tun type="button">${esc(knopf.text)}</button>` : '')
+    + '<button class="melde-x" data-meldung-zu type="button" title="Schliessen" aria-label="Schliessen">×</button>';
   n.querySelector('[data-meldung-zu]').onclick = () => zeichneBalken();
+  if (knopf) n.querySelector('[data-meldung-tun]').onclick = () => { zeichneBalken(); knopf.tun(); };
+  if (dauer === null) dauer = Math.min(12000, Math.max(5000, String(text).length * 70));
   /*
    * EINE AUSKUNFT DARF VON SELBST GEHEN (Durchsicht vom 18. September,
    * Punkt U5): «Letzter Stand wiederhergestellt» lag auf dem Laptop ueber
@@ -5490,7 +5501,12 @@ function meldeImBalken(text, { dauer = 0 } = {}) {
    */
   if (dauer > 0) {
     const inhalt = n.innerHTML;
-    setTimeout(() => { if (n.innerHTML === inhalt) zeichneBalken(); }, dauer);
+    const weg = () => {
+      if (n.innerHTML !== inhalt) return;
+      if (n.matches(':hover')) { setTimeout(weg, 1500); return; }
+      zeichneBalken();
+    };
+    setTimeout(weg, dauer);
   }
 }
 
