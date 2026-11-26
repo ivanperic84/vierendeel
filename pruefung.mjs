@@ -44422,6 +44422,25 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('349  Ankerfundament im 3D gefärbt; Strichbild lesbar im dunklen Thema (26. November)');
+/* «die fundamente bei den ankern aufführen wie bei den masten, abhängig der
+ * grenzwerte und der einwirkung» und, mit Bild, «die sichtbarkeit bei dieser
+ * einstellung ist nicht gegeben». */
+{
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const DQ = readFileSync(join(HIER, 'js', 'design.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Ankerfundament: Klotz trägt das η des Ankerfundaments, zugeordnet über den Abstand a',
+       AQ.includes("if (!/^ANKERFUNDAMENT_/.test(String(f.teil ?? '')) || !f.punkte?.length) return;")
+       && AQ.includes('const q = g?.h?.ankerfundamentJe?.[name];')
+       && AQ.includes('Math.abs(Math.hypot(xm - (Number(m.x) || 0), ym) - a)'));
+  wahr('Strichbild: helles Design am Modellfenster, Glas deckender',
+       DQ.includes('export function tokensAufElement(el, thema)')
+       && LQ.includes("tokensAufElement(ui.el('viewer'), an ? 'hell' : null);")
+       && readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('#viewer[data-thema="hell"] .legende'));
+}
+
+// ===========================================================================
 titel('348  Lastfall und Resultatplot in der Insel (26. November)');
 /* «wie könnte man die eingabe bei der dynamic island ermöglichen für die
  * eingabe des lastfalls und des resultatplotts», auf Rückfrage «Ausfahren mit

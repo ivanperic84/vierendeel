@@ -4581,3 +4581,10 @@ button.wz-haupt { padding: 3px 0 4px; }
 .insel-panel .insel-plots { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 8px 6px; }
 .insel-panel .insel-lf { max-height: min(52vh, 460px); overflow-y: auto; padding: 0 4px 4px; min-width: 300px; }
 .insel-panel .insel-lf .lf-matrix-knopf { padding: 6px 4px 2px; }
+
+/* Strichbild (26. November): das Glas über Weiss etwas deckender, damit Insel,
+   Werkzeugleiste und Legende lesbar bleiben (helles Design am #viewer). */
+#viewer[data-thema="hell"] .viewer-oben,
+#viewer[data-thema="hell"] .viewer-tools-r:not(:has(> #wz-auf)),
+#viewer[data-thema="hell"] .viewer-tools-r > #wz-auf,
+#viewer[data-thema="hell"] .legende { background: color-mix(in srgb, var(--s2) 82%, transparent); }

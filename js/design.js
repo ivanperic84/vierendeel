@@ -412,6 +412,24 @@ export function uebertrageTokens(thema = 'dunkel') {
   return f;
 }
 
+/**
+ * >>> DAS HELLE DESIGN NUR FÜR EIN ELEMENT (26. November). <<< Gemeldet mit
+ * Bild: im Strichbild (weisser Grund) waren Insel, Werkzeugleiste und
+ * Legende im dunklen Design nicht lesbar - helle Schrift auf durchsichtig
+ * dunklem Glas über Weiss. Die Farbtokens werden am Element gesetzt
+ * (überschreiben die der Wurzel); `null` nimmt sie wieder weg.
+ */
+export function tokensAufElement(el, thema) {
+  if (!el) return;
+  const f = FARBEN[thema ?? ''] ?? null;
+  Object.keys(FARBEN.hell).forEach((k) => {
+    const v = '--' + k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
+    if (f) el.style.setProperty(v, f[k]); else el.style.removeProperty(v);
+  });
+  if (f) el.dataset.thema = thema; else delete el.dataset.thema;
+  el.style.colorScheme = f ? (thema === 'hell' ? 'light' : 'dark') : '';
+}
+
 /** Aktuelle Farbtokens (nach uebertrageTokens). */
 export function tokens(thema) {
   return FARBEN[thema ?? (typeof document !== 'undefined'

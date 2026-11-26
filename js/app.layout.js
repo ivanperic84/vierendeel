@@ -12,7 +12,7 @@
 import { alleZeigen, nurDiesesZeigen, inselMorph } from './app.kontext.js';
 import { zeichnungMenueUmschalten } from './app.zeichnung.js';
 import { lageVon, tragwerkeSortiert, tragwerksart, versteckt } from './core.constants.js';
-import { MASS, esc, icon, iconKnopf } from './design.js';
+import { MASS, esc, icon, iconKnopf, tokensAufElement } from './design.js';
 import { ANSICHTEN, LASTARTEN, MODI, PLOTS, FIGUR_MODI } from './render.3d.js';
 import { plotErlaubt, EINFACH } from './stufe.js';
 import * as ui from './ui.js';
@@ -114,6 +114,8 @@ export function strichAn() {
 export function strichSetzen(app, an) {
   try { localStorage.setItem(STRICH_KEY, an ? '1' : '0'); } catch { /* ohne Speicher */ }
   if (app.ansicht) { app.ansicht.strich = an; app.ansicht.zeichne(); }
+  // Lesbarkeit (26. November): auf weissem Grund das helle Design am Modellfenster.
+  tokensAufElement(ui.el('viewer'), an ? 'hell' : null);
   const k = ui.el('v-strich');
   if (k) { k.classList.toggle('on', an); k.setAttribute('aria-pressed', String(an)); }
 }
@@ -216,6 +218,7 @@ export function baueModellWerkzeuge(app) {
    * der Knopf ruft jetzt dieselbe Handlung und faehrt danach heran.
    */
   if (app.ansicht) app.ansicht.strich = strichAn();
+  tokensAufElement(ui.el('viewer'), strichAn() ? 'hell' : null);
   ui.el('v-strich').setAttribute('aria-pressed', String(strichAn()));
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-ganz').onclick = () => {

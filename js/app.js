@@ -2960,6 +2960,33 @@ function fundamenteFaerben(szene) {
     if (ta && ta.name === `Mast ${name}` && Number.isFinite(ta.fundament?.A?.eta)) return ta.fundament.A.eta;
     return kern[name] ?? null;
   };
+  /*
+   * >>> AUCH DAS ANKERFUNDAMENT (26. November). <<< Weisung: «die fundamente
+   * bei den ankern aufführen wie bei den masten, abhängig der grenzwerte und
+   * der einwirkung». Der Klotz am Fuss der Strebe trägt im Plot η das η des
+   * Ankerfundaments (`ankerfundamentJe`, Bausortiment mit Ankerplatte) -
+   * zugeordnet über die Lage: Abstand des Klotzes vom Mastfuss = a des Ankers.
+   */
+  const ankerMasten = masten.filter((m) => m.anker);
+  szene.flaechen.forEach((f) => {
+    if (!/^ANKERFUNDAMENT_/.test(String(f.teil ?? '')) || !f.punkte?.length) return;
+    const xm = f.punkte.reduce((a, q) => a + q[0], 0) / f.punkte.length;
+    const ym = f.punkte.reduce((a, q) => a + q[1], 0) / f.punkte.length;
+    let best = null;
+    ankerMasten.forEach((m) => {
+      const a = Number(m.anker?.a) || 0;
+      const d = Math.abs(Math.hypot(xm - (Number(m.x) || 0), ym) - a);
+      if (d < 0.8 && (!best || d < best.d)) best = { m, d };
+    });
+    if (!best) return;
+    const name = mastName(werte, best.m);
+    const q = g?.h?.ankerfundamentJe?.[name];
+    if (!Number.isFinite(q?.eta)) return;
+    f.werte = { ...(f.werte ?? {}), eta: q.eta };
+    f.fundamentEta = q.eta;
+    f.stabwerk = true;
+    f.label = `Ankerfundament ${name} · ${q.typ ?? ''} · η ${q.eta.toFixed(3)}`;
+  });
   szene.flaechen.forEach((f) => {
     if (!/^FUNDAMENT_/.test(String(f.teil ?? '')) || !f.punkte?.length) return;
     const xs = f.punkte.map((q) => q[0]);
