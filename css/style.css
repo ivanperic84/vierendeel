@@ -4615,6 +4615,12 @@ button.wz-haupt { padding: 3px 0 4px; }
 /* Ansichten und Bildsammlung (26. November). */
 .an-liste input[type=text] { width: 100%; min-width: 220px; }
 .an-liste .an-knoepfe { white-space: nowrap; }
+.an-liste td.an-mini { width: 128px; padding: 4px 6px; }
+.an-liste .an-mini img { display: block; width: 120px; height: auto; max-height: 80px; object-fit: cover; border-radius: var(--m-r1);
+  border: 1px solid var(--ol); cursor: pointer; }
+.an-liste .an-mini img:hover { border-color: var(--acc); }
+.an-liste .an-mini span { display: grid; place-items: center; width: 120px; height: 68px; border: 1px dashed var(--ol);
+  border-radius: var(--m-r1); color: var(--dim); }
 .bs-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .bs-kopf .bs-wo { margin: 0; }
 .bs-opt { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--ol); border-radius: var(--m-r2); }

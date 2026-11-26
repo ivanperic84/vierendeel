@@ -44429,6 +44429,15 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('360  Ansichten mit Miniatur (26. November)');
+{
+  const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');
+  wahr('Miniatur beim Speichern, im Fenster, nachgetragen beim Aufrufen',
+       BQ.includes('mini: miniatur(app),') && BQ.includes('<td class="an-mini">')
+       && BQ.includes('if (i != null && !v.mini) {'));
+}
+
+// ===========================================================================
 titel('359  Anker: Fundament in der Maske, Köpfe je Bauteil; Reaktionsblatt; Ankerkraft im 3D (26. November)');
 {
   const SQ = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');

@@ -189,6 +189,31 @@ const ANSICHTEN_KEY = 'tragjoch-ansichten';
 const ansichtenLesen = () => { try { return JSON.parse(localStorage.getItem(ANSICHTEN_KEY) || '[]'); } catch { return []; } };
 const ansichtenSetzen = (l) => { try { localStorage.setItem(ANSICHTEN_KEY, JSON.stringify(l)); } catch { /* nur Ansicht */ } };
 
+/*
+ * >>> MINIATUR JE ANSICHT (26. November). <<< Weisung, mit Bild des Fensters:
+ * «hier eine miniaturansicht aufführen, sonst ist es schwer diese zu
+ * unterscheiden.» Beim Speichern wird das 3D, wie es dasteht, auf 160 px
+ * Breite verkleinert (JPEG, rund 5 kB) und mit der Ansicht gemerkt. Ältere
+ * Ansichten ohne Miniatur bekommen sie beim nächsten Aufrufen.
+ */
+const MINI_BREITE = 160;
+function miniatur(app) {
+  const cv = app.ansicht?.cv;
+  if (!cv?.width || !cv.height) return null;
+  try {
+    app.ansicht.zeichneJetzt?.();
+    const h = Math.max(1, Math.round(MINI_BREITE * cv.height / cv.width));
+    const k = document.createElement('canvas');
+    k.width = MINI_BREITE; k.height = h;
+    const g = k.getContext('2d');
+    g.fillStyle = getComputedStyle(cv).backgroundColor || '#000';
+    g.fillRect(0, 0, MINI_BREITE, h);
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cv, 0, 0, MINI_BREITE, h);
+    return k.toDataURL('image/jpeg', 0.72);
+  } catch { return null; }
+}
+
 /** Die jetzige Ansicht als Eintrag (Name als Vorschlag). */
 function ansichtJetzt(app, nr) {
   const a = app.ansicht;
@@ -200,6 +225,7 @@ function ansichtJetzt(app, nr) {
     gruppen: structuredClone(a.gruppen), modus: a.modus, werte: a.werteAnschreiben, explosion: a.explosion ?? 0,
     linie: document.getElementById('wz-r-linie')?.getAttribute('aria-pressed') === 'true',
     strich: document.getElementById('v-strich')?.getAttribute('aria-pressed') === 'true',
+    mini: miniatur(app),
   };
 }
 
@@ -212,7 +238,7 @@ export function ansichtSpeichern(app) {
   app.meldeImBalken(`«${v.name}» gespeichert - Rechtsklick auf den Knopf ruft sie auf.`);
 }
 
-function ansichtAnwenden(app, v) {
+function ansichtAnwenden(app, v, i = null) {
   const a = app.ansicht;
   if (!a || !v) return;
   if (v.modus && a.modus !== v.modus) app.plotWahl?.(v.modus);
@@ -226,6 +252,11 @@ function ansichtAnwenden(app, v) {
   a.werteAnschreiben = Boolean(v.werte);
   a.explosion = Number(v.explosion) || 0;
   app.nachAnsicht?.();
+  if (i != null && !v.mini) {
+    // Ältere Ansicht ohne Miniatur: jetzt, wo sie dasteht, nachtragen.
+    const liste = ansichtenLesen();
+    if (liste[i] && liste[i].name === v.name) { liste[i].mini = miniatur(app); ansichtenSetzen(liste); }
+  }
   app.meldeImBalken(`«${v.name}» aufgerufen.`);
 }
 
@@ -235,7 +266,7 @@ export function ansichtWahl(app, e) {
   const punkte = [{ kopf: liste.length ? 'Gespeicherte Ansichten' : 'Noch keine Ansicht gespeichert' }];
   liste.slice().reverse().forEach((v, k) => {
     const i = liste.length - 1 - k;
-    punkte.push({ text: v.name, tun: () => ansichtAnwenden(app, ansichtenLesen()[i]) });
+    punkte.push({ text: v.name, tun: () => ansichtAnwenden(app, ansichtenLesen()[i], i) });
   });
   punkte.push(null, { text: 'Aktuelle Ansicht speichern', tun: () => ansichtSpeichern(app) });
   if (liste.length) punkte.push({ text: 'Ansichten verwalten …', tun: () => ansichtenVerwalten(app) });
@@ -252,6 +283,9 @@ export function ansichtWahl(app, e) {
 export function ansichtenVerwalten(app) {
   let liste = ansichtenLesen();
   const koerper = () => (liste.length ? `<table class="dt an-liste"><tbody>${liste.map((v, i) => `<tr>
+      <td class="an-mini">${v.mini
+        ? `<img src="${esc(v.mini)}" alt="" data-an-auf="${i}" title="Aufrufen">`
+        : '<span title="Miniatur folgt beim nächsten Aufrufen">–</span>'}</td>
       <td><input type="text" data-an-name="${i}" value="${esc(v.name)}" aria-label="Name der Ansicht"></td>
       <td class="ablage-meta">${esc(v.datum ?? '')}</td>
       <td class="an-knoepfe"><button class="btn btn-mini btn-acc" data-an-auf="${i}" type="button">Aufrufen</button>
@@ -273,7 +307,7 @@ export function ansichtenVerwalten(app) {
       liste[i] = { ...ansichtJetzt(app, i + 1), name: liste[i].name };
       neu(); app.meldeImBalken(`«${liste[i].name}» überschrieben.`);
     }
-    else if (t.matches('[data-an-auf]')) { const v = liste[+t.dataset.anAuf]; d.zu?.(); ansichtAnwenden(app, v); }
+    else if (t.matches('[data-an-auf]')) { const i = +t.dataset.anAuf; const v = liste[i]; d.zu?.(); ansichtAnwenden(app, v, i); }
     else if (t.matches('[data-an-neu]')) { liste.push(ansichtJetzt(app, liste.length + 1)); liste = liste.slice(-30); neu(); }
     else if (t.matches('[data-an-alleweg]')) {
       if (!liste.length || !confirm(`Alle ${liste.length} gespeicherten Ansichten löschen?`)) return;
