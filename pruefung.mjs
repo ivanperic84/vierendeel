@@ -44438,6 +44438,19 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('366  Doppel-Abfangjoch: ein Mastkopf; Zahl je Mast; Ausgeblendetes nicht greifbar (26. November)');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Mastkopf ohne eingetragene Länge: Anspruch aller Tragwerke am Masten und eigene Vorgabe',
+       APP_QUELLE().includes("const fremd = m ? mastLaengeMindestens({ ...werte, twId: satz.twId ?? 'T1' }, m.id) : 0;")
+       && APP_QUELLE().includes('const eigen = mastLaengeFuer(satz, hoehe);'));
+  wahr('Linie: der grösste Wert je Mast steht immer da',
+       RQ.includes('(MAST_[^_]+)_S'));
+  wahr('Ausgeblendete Masten und Anbauteile sind nicht greifbar',
+       RQ.includes("if (!this._ebeneAn('mast')) return null;") && RQ.includes('const im = liste.filter((b) => sichtbar.has(b.teil)'));
+}
+
+// ===========================================================================
 titel('365  Bild-Output: Legende und Balken zurückgenommen (26. November)');
 {
   const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');

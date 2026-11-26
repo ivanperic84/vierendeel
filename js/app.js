@@ -3928,8 +3928,28 @@ function abfangMastenAngabe(satz, namen) {
       ? Number(ende === 'B' ? (satz.mastFussB ?? satz.mastFuss) : satz.mastFuss) || 0 : 0;
     const hoehe = (Number(zweiH ? (satz.mastHB ?? satz.mastH) : satz.mastH) || 0) - fuss;
     if (!profil || !(hoehe > 0)) return null;
-    const roh = Number(zwei ? (satz.mastLaengeB || satz.mastLaenge)
-                            : satz.mastLaenge) || 0;
+    let roh = Number(zwei ? (satz.mastLaengeB || satz.mastLaenge)
+                          : satz.mastLaenge) || 0;
+    /*
+     * >>> EIN MAST, EIN KOPF - EGAL WELCHES JOCH GEWÄHLT IST (26. November). <<<
+     * Gemeldet: «mastdarstellung im 3d bei einem doppel abfangjoch checken,
+     * die mastsptize wenn knapp über dem joch springt jenachdem welches joch
+     * man gerade aktiv hat.» Ohne eingetragene Länge endete der Kopf über dem
+     * Anschluss des GEWÄHLTEN Jochs. Jetzt mindestens die Länge, die die
+     * übrigen Tragwerke am Masten brauchen (`mastLaengeMindestens`) - wie im
+     * Stabmodell, wo der Mast so hoch ist wie der längste Anspruch.
+     */
+    if (!(roh > 0)) {
+      try {
+        const tw = tragwerkeVon(werte).find((t) => t.id === (satz.twId ?? 'T1'));
+        const m = tw ? mastenFuer(werte, tw)[ende === 'A' ? 0 : 1] : null;
+        const fremd = m ? mastLaengeMindestens({ ...werte, twId: satz.twId ?? 'T1' }, m.id) : 0;
+        // Dazu die eigene Vorgabe (wie das Stabmodell, `mastLaengeFuer`).
+        const eigen = mastLaengeFuer(satz, hoehe);
+        const L = Math.max(fremd, eigen);
+        if (L > hoehe) roh = L;
+      } catch { /* nur das Bild */ }
+    }
     return {
       profil, hoehe, name: namen?.[ende] ?? null,
       stegrichtung: (zwei ? (satz.mastStegB ?? satz.mastSteg)

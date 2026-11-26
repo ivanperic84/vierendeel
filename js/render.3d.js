@@ -3009,7 +3009,13 @@ export class Modellansicht {
      */
     const ankerMax = new Map();
     (z.linien ?? []).forEach((l) => {
-      const m = /(?:^|_)ANKER(?:PROFIL)?_([^_]+)/.exec(l.name ?? '');
+      /*
+       * Auch je Mast (26. November, «hier wird wieder kein wert beim rechten
+       * masten geplottet»): mit der Linie stand am rechten Masten der Doppel-
+       * Abfangjoche keine Zahl - sein grösstes N lag unter 25 % des Gurts.
+       * Jetzt trägt jeder Mast seinen grössten Wert immer.
+       */
+      const m = /(?:^|_)ANKER(?:PROFIL)?_([^_]+)/.exec(l.name ?? '') ?? /(?:^|_)(MAST_[^_]+)_S\d+$/.exec(l.name ?? '');
       if (!m || /BLECH/.test(l.name)) return;
       const w = Math.max(0, ...l.pkt.map((x) => (x.leer ? 0 : Math.abs(x.v))));
       const alt = ankerMax.get(m[1]);
@@ -3532,6 +3538,14 @@ export class Modellansicht {
   _mastEndeUnter(e) {
     const gs = this.szene?.mastZiehen;
     if (!gs) return null;
+    /*
+     * AUSGEBLENDET HEISST NICHT GREIFBAR (26. November, «wenn bauteile
+     * ausgeblendet im 3d dann sollten diese auch nicht anklickbar sein
+     * (versehentliches verschieben mit drag and drop zum beispiel)»). Der
+     * Griff an Kopf und Fuss ging bisher nach der Lage auf der Mastachse,
+     * auch mit ausgeschalteten Masten bzw. «Modell aus».
+     */
+    if (!this._ebeneAn('mast')) return null;
     const [px, py] = this._geraetePunkt(e);
     const proj = this._projektor();
     let best = null;
@@ -4314,7 +4328,10 @@ export class Modellansicht {
     }
     const proj = this._projektor();
     const rand = 6 * this._s;
-    const im = liste.filter((b) => [b.xMin, b.xMax, b.zMin, b.zMax].every(Number.isFinite))
+    // Nur Teile, von denen im Bild etwas steht (26. November): der Umriss
+    // fing sonst auch ausgeblendete Anbauteile.
+    const sichtbar = new Set(this._sichtbareFlaechen().filter((f) => f.anbauteil && !f.passiv).map((f) => f.teil));
+    const im = liste.filter((b) => sichtbar.has(b.teil) && [b.xMin, b.xMax, b.zMin, b.zMax].every(Number.isFinite))
       .map((b) => {
         const q = [[b.xMin, b.zMin], [b.xMax, b.zMin], [b.xMin, b.zMax], [b.xMax, b.zMax]]
           .map(([x, z]) => proj([x, 0, z])).filter(Boolean);
