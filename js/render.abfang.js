@@ -1079,6 +1079,8 @@ export function abfangSzene(typ, jt, opt = {}) {
     x0 = 0; x1 = jt; y0 = -0.5; y1 = 0.5; z0 = -0.5; z1 = 0.5;
   }
 
+  // Strichbild (26. November): Gurte und Bleche haben hier keine Achslinie.
+  rohFlaechen.forEach((f) => { if (f.gruppe === 'profil' || f.gruppe === 'blech') f.ohneAchse = true; });
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel,
     vektoren, lastflaechen,

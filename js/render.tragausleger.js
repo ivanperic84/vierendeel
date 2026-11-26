@@ -437,6 +437,8 @@ export function auslegerSzene(satz, opt = {}) {
   }));
   if (!Number.isFinite(gx0)) { gx0 = -1; gx1 = 1; gy0 = -1; gy1 = 1; gz0 = -1; gz1 = 1; }
 
+  // Strichbild (26. November): die UPE und Bleche haben keine Achslinie.
+  rohFlaechen.forEach((f) => { if (f.gruppe === 'profil' || f.gruppe === 'blech') f.ohneAchse = true; });
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel, vektoren,
     lastflaechen,

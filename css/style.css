@@ -2539,7 +2539,10 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
     -webkit-app-region: drag;
     app-region: drag;
   }
-  .topbar button, .topbar .tb-mitte, .topbar #kopf-werkzeuge {
+  /* Ziehen auch im Bereich des Projektnamens (26. November, «nicht nur im
+     bereich des vierendeel sonder auch im bereich des projektnamen»): nur die
+     Bedienelemente selbst sind ausgenommen, nicht ihre Behälter. */
+  .topbar button, .topbar select, .topbar input, .topbar a, .topbar label {
     -webkit-app-region: no-drag;
     app-region: no-drag;
   }

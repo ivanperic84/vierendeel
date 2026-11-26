@@ -44434,10 +44434,16 @@ titel('362  Strichbild feiner, gleich für alle Tragwerksarten, Ebenen konsisten
 {
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Systemachse grau strichpunktiert, Achsen 1.4 px (Bleche 1.0, Anker 1.1)',
-       RQ.includes("c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);") && RQ.includes('c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s;')
+       RQ.includes("c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);") && RQ.includes('c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s * this._strichDicke();')
        && !RQ.includes('c.lineWidth = (l.gurt || l.schwerachse ? 2.4 : l.blechachse ? 1.8 : 1.4) * s;'));
-  wahr('Flächen mit Wert im Strichbild mit Ton und Kante in der Plotfarbe (Abfangjoch, Tragausleger)',
-       RQ.includes('const mitWert = !strichD &&'));
+  // 26. November, zweiter Anlauf: Körper wieder leicht und einfarbig; nur Teile ohne Achslinie
+  // (Abfangjoch, Tragausleger) tragen die Kante in der Plotfarbe; Linien dünner mit dem Zoom.
+  wahr('Strichbild: Körper einfarbig, Kante farbig nur ohne Achse; Liniendicke mit dem Zoom',
+       !RQ.includes('const mitWert = !strichD &&') && RQ.includes('const kanteFarbig = !strichD && f.ohneAchse')
+       && RQ.includes('_strichDicke() {') && readFileSync(join(HIER, 'js', 'render.abfang.js'), 'utf8').includes('f.ohneAchse = true')
+       && readFileSync(join(HIER, 'js', 'render.tragausleger.js'), 'utf8').includes('f.ohneAchse = true'));
+  wahr('Fenster ziehen auch neben dem Projektnamen (nur Bedienelemente ausgenommen)',
+       !readFileSync(join(HIER, 'css', 'style.css'), 'utf8').includes('.topbar button, .topbar .tb-mitte, .topbar #kopf-werkzeuge {'));
   wahr('Achsen folgen der Ebene ihres Körpers (Masten, Gurte, Bleche)',
        RQ.includes("const ebene = l.schwerachse ? 'mast'") && RQ.includes(": l.gurt ? 'profil'"));
 }

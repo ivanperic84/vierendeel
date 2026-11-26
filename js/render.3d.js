@@ -5358,24 +5358,22 @@ export class Modellansicht {
          * und eine feine Kante in der Plotfarbe (im Plot «Pos» die Farbe der
          * Position) - das Tragjoch dazu seine Achsen.
          */
-        const mitWert = !strichD && ((strichPlot && f.werte && Number.isFinite(f.werte[strichPlot.feld])
+        /*
+         * Zurück zum leichten, einfarbigen Körper (26. November, «ich fand
+         * die vorherige darstellung inderm der körper ganz leicht ist und
+         * monoton und die stäbe in der farbe sind besser»). Nur die Teile
+         * ohne eigene Achse (Gurte und Bleche von Abfangjoch und Tragausleger,
+         * `ohneAchse`) tragen ihre Kante in der Plotfarbe - sonst stünden sie
+         * ohne Resultat da.
+         */
+        const kanteFarbig = !strichD && f.ohneAchse && ((strichPlot && f.werte && Number.isFinite(f.werte[strichPlot.feld])
           && !this._passivGrau(f, strichPlot)) || (this.modus === 'positionen' && f.farbeBauteil));
-        if (mitWert) {
-          c.globalAlpha = tragend ? 0.28 : 0.2;
-          c.fillStyle = f._farbe;
-          c.fill();
-          c.globalAlpha = tragend ? 0.85 : 0.6;
-          c.lineWidth = 0.6 * this._s;
-          c.strokeStyle = f._farbe;
-          c.stroke();
-          return;
-        }
         c.globalAlpha = tragend ? 0.55 : 0.35;
         c.fillStyle = '#f2f2f0';
         c.fill();
-        c.globalAlpha = tragend ? 0.55 : 0.4;
-        c.lineWidth = 0.5 * this._s;
-        c.strokeStyle = '#acaca6';
+        c.globalAlpha = kanteFarbig ? 0.9 : tragend ? 0.55 : 0.4;
+        c.lineWidth = (kanteFarbig ? 1.0 * this._strichDicke() : 0.5) * this._s;
+        c.strokeStyle = kanteFarbig ? f._farbe : '#acaca6';
         c.stroke();
         return;
       }
@@ -5770,6 +5768,34 @@ export class Modellansicht {
     // Zusätzlich: wo weniger als 40 px je Meter bleiben, wird stark gesiebt.
     const dichte = Math.max(0.15, Math.min(1, pxProM / 40));
     return Math.max(3, Math.round(spalten * zeilen * 0.35 * dichte));
+  }
+
+  /*
+   * >>> LINIEN DES STRICHBILDS MIT DEM ZOOM (26. November). <<< Weisung: «kannst
+   * du die linien mit dem zoom etwas anpassen, diese sind sehr dick wenn man
+   * wegzoomt in der strichbilddarstellung.» Faktor 0.35 … 1 aus den Pixeln je
+   * Meter um den Blickpunkt: ab rund 60 px/m volle Dicke, weit weg dünner.
+   * Je Bild einmal gerechnet.
+   */
+  _strichDicke() {
+    const schl = `${JSON.stringify(this.kamera)}|${this.projektion}|${this.cv.width}x${this.cv.height}`;
+    if (this._strichDickeKey === schl && this._strichDickeWert) return this._strichDickeWert;
+    let k = 1;
+    try {
+      const proj = this._projektor();
+      const z = this.kamera.ziel ?? [0, 0, 0];
+      const p0 = proj(z);
+      if (p0) {
+        let ppm = 0;
+        [[1, 0, 0], [0, 1, 0], [0, 0, 1]].forEach((d) => {
+          const q = proj([z[0] + d[0], z[1] + d[1], z[2] + d[2]]);
+          if (q) ppm = Math.max(ppm, Math.hypot(q[0] - p0[0], q[1] - p0[1]) / (this._s || 1));
+        });
+        if (ppm > 0) k = Math.max(0.35, Math.min(1, ppm / 60));
+      }
+    } catch { k = 1; }
+    this._strichDickeKey = schl; this._strichDickeWert = k;
+    return k;
   }
 
   /** Steht die Fläche grau im Hintergrund? (passiv und ohne Wert aus dem Stabwerk) */
@@ -6334,14 +6360,14 @@ export class Modellansicht {
       if (this.strich && l.stark && !traegt && !l.schwerachse) {
         c.strokeStyle = '#8c8c86';
         c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);
-        c.lineWidth = 0.7 * s;
+        c.lineWidth = 0.7 * s * Math.max(0.7, this._strichDicke());
         c.globalAlpha = 0.9;
       } else if (this.strich && (l.schwerachse || traegt)) {
         // C: in der Plotfarbe; D (mit Linie) und ohne Wert: graues System.
         if (this.zustand) c.strokeStyle = '#7a7a76';
         else if (!l.werte && !l.passiv) c.strokeStyle = '#4c4c48';
         c.setLineDash([]);
-        c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s;
+        c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s * this._strichDicke();
         c.globalAlpha = 1;
       }
       if ((l.schwerachse || traegt) && this._unauffaellig(l)) c.globalAlpha = Math.min(c.globalAlpha, 0.08);
