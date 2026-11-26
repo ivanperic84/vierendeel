@@ -2368,6 +2368,8 @@ const HAUPTSCHALTER = {
   // die Lasten des Jochs stehen (22. November, «hier wird immernoch die last
   // angezeigt obwohl da modell ausgeblendet ist»).
   blechSteh: 'modell', blechLieg: 'modell',
+  // Leiter und Trasse als Ebenen (26. November, «und als layersteuerung?»).
+  leiter: 'modell', trasse: 'modell',
   auflager: 'modell', mast: 'modell', masse: 'modell', raster: 'modell',
   // Die eingefuegte Zeichnung und ihre Masskette haengen an einer eigenen
   // Gruppe: sie kommen von aussen, nicht aus der Rechnung. Vorher stand die
@@ -2521,6 +2523,7 @@ export class Modellansicht {
     // blechSteh / blechLieg (17. November): stehende und liegende Bleche
     // getrennt; `blech` bleibt der gemeinsame Schalter dahinter.
     this.ebenen = { profil: true, blech: true, blechSteh: true, blechLieg: true, anbau: true, achse: true,
+                    leiter: true, trasse: true,
                     last: true, kraefte: false, masse: true, schnitt: true,
                     raster: true, marken: true, auflager: true,
                     // Der Mast ist ein Bauteil, kein Auflagerzeichen - er
@@ -5882,7 +5885,7 @@ export class Modellansicht {
     this._trasseTreffer = null;
     this._profilTreffer = [];
     const g = this.szene?.grenzen;
-    if (!g || this.trasseZeigen === false || this.setzModus || (this.explosion ?? 0) > 0) return;
+    if (!g || this.trasseZeigen === false || !this._ebeneAn('trasse') || this.setzModus || (this.explosion ?? 0) > 0) return;
     const fd = (this.szene.marken ?? []).filter((m) => m.fahrdraht && m.p
       && !(m.amMast && (m.abfang === 'einseitig' || m.abfang === 'beidseitig')))
       .sort((a, b) => a.p[0] - b.p[0]);
@@ -6014,6 +6017,8 @@ export class Modellansicht {
       if (f.gruppe === 'blech') da.add(blechLiegend(f) ? 'blechLieg' : 'blechSteh');
     });
     if ((sz.masse ?? []).length) da.add('masse');
+    if ((sz.marken ?? []).some((m) => m.leiter)) da.add('leiter');
+    if (sz.grenzen && this.trasseZeigen !== false) da.add('trasse');
     da.add('raster');
     return da;
   }
@@ -6442,7 +6447,7 @@ export class Modellansicht {
     c.save();
     c.strokeStyle = t.on; c.lineWidth = 1 * s; c.globalAlpha = 0.65;
     this.szene.marken.forEach((mk) => {
-      if (!mk.leiter || !this._imFokus(mk.p[0])) return;
+      if (!mk.leiter || !this._ebeneAn('leiter') || !this._imFokus(mk.p[0])) return;
       const n = Math.max(1, Math.min(12, mk.leiterN ?? 1));
       /*
        * >>> DIE ABFANGART IST ZU SEHEN (20. November). <<< Wie am Abfangjoch:

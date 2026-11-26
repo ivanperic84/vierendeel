@@ -40072,9 +40072,10 @@ titel('253  Leiterstrich im Modell; Drahtwerke einzeln; eigene Vorlagen projekt�
  * festlegen.» */
 {
   const r253 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
-  wahr('Leiter: Marke mit `leiter`, feiner Strich ±0.6 m in y, 1 px, auch ohne Lastebene',
+  // 26. November: eigene Ebene «Leiter» (Abschnitt 350).
+  wahr('Leiter: Marke mit `leiter`, feiner Strich ±0.6 m in y, 1 px, Ebene «Leiter»',
        (r253.match(/leiter: t\.rolle === 'drahtwerk'/g) ?? []).length === 2
-       && r253.includes('if (!mk.leiter || !this._imFokus(mk.p[0])) return;')
+       && r253.includes("if (!mk.leiter || !this._ebeneAn('leiter') || !this._imFokus(mk.p[0])) return;")
        && r253.includes('c.lineWidth = 1 * s; c.globalAlpha = 0.65;'));
   const UI253 = await import(J('ui.js'));
   const zwei = A.neuesAnbauteil('leiter-traverse', 4);
@@ -44419,6 +44420,20 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('350  Leiter und Trasse als Ebenen der Werkzeugleiste (26. November)');
+/* «wie kann man die leiter und das trasse ausschalten?», «und als
+ * layersteuerung?» - für Resultatplots ohne störende Elemente. */
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const LQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Schalter Leiter und Trasse in der Gruppe Modell',
+       LQ.includes("{ key: 'leiter', icon: 'leiter'") && LQ.includes("{ key: 'trasse', icon: 'trasse'"));
+  wahr('Renderer: Ebenen an, am Hauptschalter Modell, Trasse und Leiter fragen sie ab',
+       RQ.includes("leiter: 'modell', trasse: 'modell',") && RQ.includes('leiter: true, trasse: true,')
+       && RQ.includes("!this._ebeneAn('trasse')") && RQ.includes("da.add('leiter')"));
 }
 
 // ===========================================================================

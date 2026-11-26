@@ -224,6 +224,9 @@ export const ICONS = {
   // Stehende und liegende Bleche getrennt (17. November).
   blechSteh: 'M6 4h3v12H6zM11 4h3v12h-3z',
   blechLieg: 'M4 6h12v3H4zM4 11h12v3H4z',
+  // Leiter und Trasse (26. November).
+  leiter: 'M2 8h16M2 12h16M6 6v4M14 10v4',
+  trasse: 'M5 18L8 2M15 18L12 2M10 18v-3M10 12V9M10 6V3',
   achse: 'M3 10h14M10 3v14',
   stab: 'M4 5h12M4 15h12M4 5v10M16 5v10M10 5v10',
   mass: 'M3 7v6M17 7v6M3 10h14',

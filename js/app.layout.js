@@ -46,6 +46,10 @@ const WZ_MODELL = (app) => [
   // Last gehoert - der Wuerfel am Angriffspunkt und die Pfeile - bleibt
   // drueben und geht mit ihr.
   { key: 'anbau', icon: 'anbau', text: 'Anbauteile: Ständer, Ausleger, Traverse' },
+  // Leiter und Trasse (26. November): «wie kann man die leiter und das trasse
+  // ausschalten?», dann «und als layersteuerung?». Nur das Bild.
+  { key: 'leiter', icon: 'leiter', text: 'Leiter (feine Striche in Gleisrichtung)' },
+  { key: 'trasse', icon: 'trasse', text: 'Trasse (Gleis zur Orientierung)' },
   // Die Schwerachsen SIND das Stabmodell: sie tragen feldweise dieselben
   // Kennwerte wie die Volumenkörper und werden ebenso eingefärbt. Wer das
   // Stabmodell allein sehen will, schaltet Gurtprofile und Bindebleche ab -
