@@ -2320,7 +2320,9 @@ export function entdoppelteWerte(kandidaten, nk = 2) {
   kandidaten.forEach((k) => {
     // Ohne Bauteilangabe gibt es nichts zu vergleichen.
     if (!k.teil) { frei.push(k); return; }
-    const s = `${k.teil}|${k.v.toFixed(nk)}`;
+    // Mit dem Ort (26. November): die Masten zweier Tragwerke heissen beide
+    // «MAST_A» - bei gleichem Wert fiel die Zahl am einen Fuss weg.
+    const s = `${k.teil}|${k.ort ?? ''}|${k.v.toFixed(nk)}`;
     const g = gruppen.get(s);
     if (g) g.push(k); else gruppen.set(s, [k]);
   });
@@ -3060,9 +3062,12 @@ export class Modellansicht {
     c.font = this._wertFont();
     c.textBaseline = 'middle';
     const belegt = new Set(), R = 46 * s;
+    // Rechter Rand: die Werkzeugleiste (26. November) - dort weicht die Zahl nach links aus.
+    const rechtsFrei = this.cv.width - this._randGeraet();
     marken.sort((a, b) => b.v - a.v).forEach((m) => {
       const w = c.measureText(m.text).width;
-      const x = m.links ? m.x - w : m.x;
+      let x = m.links ? m.x - w : m.x;
+      if (!m.links && x + w > rechtsFrei) x = m.x - 12 * s - w;
       const key = `${Math.round(x / R)},${Math.round(m.y / (R / 2.5))}`;
       if (belegt.has(key)) return;
       belegt.add(key);
@@ -5513,7 +5518,8 @@ export class Modellansicht {
       if (!Number.isFinite(v) || !f._2d?.length) return;
       const mx = f._2d.reduce((s, q) => s + q[0], 0) / f._2d.length;
       const my = f._2d.reduce((s, q) => s + q[1], 0) / f._2d.length;
-      kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v), teil: f.teil });
+      const ort = f.punkte?.length ? Math.round(f.punkte.reduce((s, q) => s + q[0], 0) / f.punkte.length * 2) / 2 : '';
+      kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v), teil: f.teil, ort });
     });
     /*
      * >>> DIE ENDFELDER BLIEBEN LEER (Weisung, 28. August: «das Endfeld auf
@@ -5582,15 +5588,24 @@ export class Modellansicht {
       if (belegt.some((b) => Math.abs(b.x - k.x) < 58 * this._s &&
                              Math.abs(b.y - k.y) < (amMast || b.amMast ? dy : 21 * this._s))) continue;
       const text = k.v.toFixed(p.nk);
-      // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
-      // und aus 118 wurde ein lesbares, aber falsches 18. Eine halbe Zahl ist
-      // schlimmer als keine - das Bauteil dazu liegt ohnehin halb draussen.
-      if (!this._imBild(c, text, k.x, k.y, this._wertGroesse(), WERT_STREIFEN)) continue;
-      // Und gegenueber Bemassung, Marken und Pfeiltexten weicht die Zahl aus:
-      // sie steht als Farbe ohnehin schon am Bauteil.
       const w = this._textBreite(c, text) + (7 + WERT_STREIFEN) * s;
-      const x = k.x - 3 * s, y = k.y - hoehe + 2 * s, h = hoehe + 3 * s;
-      if (!this._frei(x, y, w, h)) continue;
+      /*
+       * >>> AM MASTEN AUSWEICHEN STATT WEGFALLEN (26. November). <<< Gemeldet:
+       * «beim rechten fundament bei einer jochreihe die spannung nicht
+       * angeschrieben … beim mastfuss». Gemessen: das senkrechte Höhenmass
+       * «H_B» belegt dort 45 × 141 px über dem Fuss; die Zahl versuchte nur
+       * eine Stelle und fiel weg. Am Masten versucht sie jetzt links und
+       * rechts daneben, bevor sie aufgibt.
+       */
+      const stellen = amMast ? [[k.x, k.y], [k.x - w - 6 * s, k.y], [k.x + 14 * s, k.y]] : [[k.x, k.y]];
+      const st = stellen.find(([sx, sy]) =>
+        // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
+        // und aus 118 wurde ein lesbares, aber falsches 18.
+        this._imBild(c, text, sx, sy, this._wertGroesse(), WERT_STREIFEN)
+        // Und gegenueber Bemassung, Marken und Pfeiltexten weicht die Zahl aus.
+        && this._frei(sx - 3 * s, sy - hoehe + 2 * s, w, hoehe + 3 * s));
+      if (!st) continue;
+      const x = st[0] - 3 * s, y = st[1] - hoehe + 2 * s, h = hoehe + 3 * s;
       this._belegt.push({ x, y, w, h });
       belegt.push({ ...k, amMast });
       gesetzt++;
@@ -5617,7 +5632,7 @@ export class Modellansicht {
        * groesser, auf einem fast deckenden Kaestchen; die Skalenfarbe steht
        * als Streifen links daneben, damit die Zahl ihre Farbe behaelt.
        */
-      this._wertMarke(c, t, text, k.x, k.y, farbeVon(k.v));
+      this._wertMarke(c, t, text, st[0], st[1], farbeVon(k.v));
     }
   }
 
@@ -5664,7 +5679,14 @@ export class Modellansicht {
     const s = this._s;
     const hoehe = groesse * s;
     const b = this._textBreite(c, text) + (7 + zusatz) * s;
-    return x - 3 * s >= 0 && x - 3 * s + b <= this.cv.width
+    /*
+     * >>> NICHT UNTER DIE WERKZEUGLEISTE (26. November). <<< Gemeldet: «beim
+     * rechten fundament bei einer jochreihe die spannung nicht angeschrieben».
+     * Gemessen: die Zahl am rechten Mastfuss wurde gezeichnet - rechts neben
+     * dem Fuss, unter der Werkzeugleiste. Die rechte Grenze ist jetzt deren
+     * Rand (`_randGeraet`); die Zahl weicht dann nach links aus.
+     */
+    return x - 3 * s >= 0 && x - 3 * s + b <= this.cv.width - this._randGeraet()
         && y - hoehe + 2 * s >= 0 && y + 3 * s <= this.cv.height;
   }
 

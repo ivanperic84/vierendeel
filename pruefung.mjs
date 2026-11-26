@@ -28909,7 +28909,7 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     // Seit dem 2. Oktober ohne Streifen, die Ziffer leicht zur Resultatfarbe
     // getoent («den text ganz leicht in der farbe des resultats»).
     wahr('Die Ziffer steht in der Textfarbe, leicht getoent, nicht fett',
-         /_wertMarke\(c, t, text, k\.x, k\.y, farbeVon\(k\.v\)\)/.test(q115)
+         /_wertMarke\(c, t, text, st\[0\], st\[1\], farbeVon\(k\.v\)\)/.test(q115)  // 26. November: Ausweichstelle st
          && /c\.fillStyle = wertTon\(t\.on2 \?\? t\.on, farbe\);\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
          && /`400 \$\{Math\.round\(this\._wertGroesse\(\)/.test(q115)
          && /saum \?\? deckung/.test(q115));
@@ -44422,6 +44422,24 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('351  Werte am Mastfuss nicht unter der Werkzeugleiste (26. November)');
+/* «beim rechten fundament bei einer jochreihe die spannung nicht angeschrieben
+ * … beim mastfuss». Gemessen: die Zahl lag unter der Werkzeugleiste bzw. hinter
+ * dem Höhenmass; zwei Masten «MAST_A» gleichen Werts wurden zusammengelegt. */
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const R = await import(J('render.3d.js'));
+  wahr('Bildgrenze rechts = Rand der Werkzeugleiste',
+       RQ.includes('x - 3 * s + b <= this.cv.width - this._randGeraet()')
+       && RQ.includes('if (!m.links && x + w > rechtsFrei) x = m.x - 12 * s - w;'));
+  wahr('Am Masten weicht die Zahl links / rechts aus',
+       RQ.includes('const stellen = amMast ? [[k.x, k.y], [k.x - w - 6 * s, k.y], [k.x + 14 * s, k.y]] : [[k.x, k.y]];'));
+  const ent = R.entdoppelteWerte([
+    { v: 153, x: 0, y: 0, teil: 'MAST_A', ort: 0 }, { v: 153, x: 50, y: 0, teil: 'MAST_A', ort: 40 }], 0);
+  wahr('Gleicher Wert am gleichnamigen Masten zweier Tragwerke bleibt zweimal stehen', ent.length === 2);
 }
 
 // ===========================================================================
