@@ -39427,7 +39427,7 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
   wahr('Lastfalltabelle: eine Zeile wählt den Fall', /data-lf-wahl/.test(readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'))
        && /app\.anzeigeKombi = z\.dataset\.lfWahl/.test(app238));
   wahr('Neues Tragwerk aus der Projektablage öffnet den Parameterdialog', /dialogTragwerk\(app, t0\.id, null, \{ grundwerte: true, blatt: opt\.blatt \?\? null \}\)/.test(app238));
-  wahr('Startdialog: Vorlage «Abfangjoch mit Anker»', /data-tw-vorlage="abfangjoch-anker"/.test(readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8')) && /function abfangjochMitAnker/.test(app238));
+  wahr('Startdialog: Vorlage «Abfangjoch mit Anker»', /id="dlg-tw-anker"/.test(readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8'))  /* 26. Nov.: unter der Art */ && /function abfangjochMitAnker/.test(app238));
   wahr('Duplizieren fragt, wohin (dieselben Masten oder daneben)', /name="kopie-wo" value="hoehe"/.test(kq));
   wahr('Kontextmenü: Art und Neues Tragwerk als Auswahl', /label: 'Art', wert: tragwerksart\(t\)\.key/.test(kq)
        && /label: `Neu bei x/.test(kq) && !/Art wechseln auf: \$\{a\.label\}/.test(kq));
@@ -42059,7 +42059,7 @@ titel('275  Durchsicht der Bedienung: Leistenbreite, Sprungleiste, Lastfall-Fens
        DQ.includes('id="dlg-tw-ohne"') && AQ.includes("const NEU_OHNE_TEILE = 'tragjoch-neu-ohne-teile'")
        && AQ.includes('else if (opt.ohneTeile) werte = setzeAnbauteileAn(werte, []);'));
   wahr('Neues Querprofil: Vorlage «Abfangjoch mit Anker» im selben Dialog',
-       DQ.includes('data-tw-vorlage="abfangjoch-anker"'));
+       DQ.includes('id="dlg-tw-anker"'));  // 26. November: «mit Anker» unter der Art Abfangjoch
   wahr('Knopf der Ablage heisst «Neues Querprofil»',
        !readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8').includes('Neues Querprofil (leer)'));
 }
@@ -44422,6 +44422,22 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('355  Dialog «Neues Querprofil» umgebaut (26. November)');
+/* «hier die eingabeparameter bezüglich der tragwerkssystem hinterfragen»,
+ * dann «vorschläge für umbau neues querprofil modal umsetzen». */
+{
+  const DQ = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  const iL = DQ.indexOf('<label for="dlg-tw-l">Jochlänge</label>'), iT = DQ.indexOf('<select id="dlg-tw-typ">');
+  wahr('Jochlänge vor dem Typ, Typen ohne diese Länge gesperrt', iL > 0 && iT > iL
+       && DQ.includes("o.passt === false && o.wert !== typJetzt ? ' disabled' : ''"));
+  wahr('Einzelmast: Mastlänge statt Anschlusshöhe', DQ.includes('<label for="dlg-tw-ml">Mastlänge gesamt</label>'));
+  wahr('Mastprofil im Dialog, geschrieben an die Masten des Tragwerks',
+       DQ.includes('<select id="dlg-tw-mp">') && DQ.includes('const mastenSchreiben = (tw) => {'));
+  wahr('Lage nur beim weiteren Tragwerk, nicht im neuen Querprofil',
+       DQ.includes("${blatt ? '' : `<div class=\"feld\"><label for=\"dlg-tw-x\">") || DQ.includes('${blatt ? \'\' : `<div class="feld"><label for="dlg-tw-x">'));
 }
 
 // ===========================================================================

@@ -141,6 +141,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Dialog «Neues Querprofil» umgebaut (26. November) | Im Wortlaut: «hier die eingabeparameter bezüglich der tragwerkssystem hinterfragen, es scheint nicht immer logisch zu sein.», auf sieben Vorschläge «vorschläge für umbau neues querprofil modal umsetzen». (1) **Jochlänge vor dem Typ**; Typen, die die Länge nicht führen, gesperrt und angeschrieben, die Liste nennt je Typ seinen Bereich; eine Länge, die der gewählte Typ nicht führt, setzt den ersten passenden (Tragjoch gleicher Bauweise, Abfangjoch des Sortiments). (2) Feld heisst überall **«Jochlänge»**, darunter die Stützweite (ohne / mit Kragarm). (3) **Einzelmast: «Mastlänge gesamt»** statt Anschlusshöhe (Regel 18. September). (4) **Mastprofil** im Dialog, geschrieben an die Masten des Tragwerks; sind vorhandene Masten gewählt, bleiben sie (Zeile sagt es); die Mastlänge ohne eigene Angabe steht darunter (`mastLaengeVorgabe`). (5) **Lage** nur beim weiteren Tragwerk, nicht im neuen Querprofil. (6) **«mit Anker»** als Kästchen unter der Art Abfangjoch statt als Vorlage-Knopf. (7) Hinweis zur Höhe kurz: «gilt für beide Masten; je Mast in der Maske änderbar». Im Browser: Länge 30 → J120 (10 Typen gesperrt); Einzelmast 10 m angelegt → M1 10 m; Tragjoch mit HEM 240 → M1/M2 HEM 240; Stand danach zurückgestellt. Prüfstand 7812 |
 | Jochanschluss mit dem gewählten Lastfall (26. November) | Mit Bild des Blocks, im Wortlaut: «kann man hier auch den gewählten lastfall aufführen wie bei den reaktionskräften bei den fundamenten.» Ist oben ein einzelner Lastfall gewählt, trägt die Resultierende je Jochende eine Spalte «gew. Fall» mit Vorzeichen (`anschlussKraefte` mit `nurFall`, `anschlussGewaehlt` in app.js), auch am Mittelmasten. Im Browser (Wind +y): F_z −10.2, F_y 5.8 kN; danach zurück auf umhüllend. |
 | Knopf «Modell» (26. November) | Mit Bild des Knopfs, im Wortlaut: «hier nur modell anschreiben». Der Knopf «Modell & Daten» heisst «Modell» (Inhalt und Titel beim Überfahren unverändert: AxisVM, PyNite, Gegenrechnung, Excel, Viewer). |
 | Ankerfundament im 3D wie unter dem Masten (26. November) | Mit Bild (kleiner Kopf am Fuss der Strebe), im Wortlaut: «fundamentdarstellung gleich machen bei den ankerfundamenten wie bei den masten im 3d». Ändert 11. September («ein senkrechter Kopf, doppelt so dick wie der Stab»): derselbe Klotz wie unter dem Mastfuss (Breite 4 × halbe Mastbreite, Höhe wie dort) unter dem Fusspunkt der Strebe (`ankerTeile`, render.koerper.js); gefärbt im Plot η wie seit dem 26. November. Nur Bild. Im Browser mit Probeanker U12 an M1 angesehen, Stand danach zurückgestellt. Prüfstand 7806 |
@@ -3191,7 +3192,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 7808 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 7812 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

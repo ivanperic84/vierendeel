@@ -8,7 +8,7 @@
  * Kontextobjekt aus app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { einzelmastLaenge } from './core.auflager.js';
+import { einzelmastLaenge, mastLaengeVorgabe } from './core.auflager.js';
 import { TRAGWERKSARTEN, anschlusshoehe, gewaehlterMast, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkPos, tragwerkeSortiert, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
@@ -554,6 +554,15 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     teileMit: false,
     // Die gewählten Masten (30. September) - leer heisst «neu setzen».
     mA: '', mB: '',
+    /*
+     * >>> MASTEN IM FENSTER (26. November, Umbau «Neues Querprofil»). <<<
+     * Weisung: «vorschläge für umbau neues querprofil modal umsetzen». Profil
+     * (gilt für die Masten dieses Tragwerks) und - am Einzelmasten - die
+     * Länge; vorher kamen beide still vom bisherigen Stand.
+     */
+    profil: erstenMastVon(app, t ?? vorlage)?.profil ?? (t ?? vorlage)?.mastProfil ?? app.werte.mastProfil ?? 'HEB 260',
+    mastL: Number(erstenMastVon(app, t ?? vorlage)?.laenge) > 0
+      ? Number(erstenMastVon(app, t ?? vorlage).laenge) : einzelmastLaenge(app.werte),
   };
   // Auch beim frisch begonnenen Blatt aus der Projektablage (6. Oktober,
   // `vor.grundwerte`): dort ist das erste Tragwerk schon angelegt.
@@ -776,6 +785,26 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     </fieldset>`;
   };
 
+  /*
+   * Das Mastprofil im Fenster (26. November). Sind vorhandene Masten gewählt,
+   * bleiben sie, wie sie sind - nur eine Zeile sagt, was dort steht.
+   */
+  const mastProfilHtml = () => {
+    const gewaehlt = [e.mA, e.mB].map(mastVon).filter(Boolean);
+    if (neuesTragwerk && gewaehlt.length) {
+      return `<p class="notiz">Masten: ${esc(gewaehlt.map((m) => `${mName(m)} ${m.profil ?? app.werte.mastProfil ?? ''}`).join(' · '))}
+        — vorhanden, sie bleiben, wie sie sind.</p>`;
+    }
+    const laenge = e.art === 'einzelmast' ? e.mastL
+      : istAusleger() ? null
+      : mastLaengeVorgabe(e.H, (() => { try { return istAbfang() ? 0 : getTragjoch(e.typ)?.jd; } catch { return 0; } })());
+    return `<div class="feld"><label for="dlg-tw-mp">Mastprofil${artDef().masten >= 2 ? ' (beide Masten)' : ''}</label>
+      <select id="dlg-tw-mp">${mastprofileWahl().map((p) =>
+        `<option value="${esc(p.name)}"${p.name === gitterBasisName(e.profil) ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+      <small class="hinweis">${laenge ? `Mastlänge ${laenge.toFixed(2)} m${e.art === 'einzelmast' ? '' : ' (aus der Anschlusshöhe, ohne eigene Angabe)'}`
+        : 'Mastlänge: Höhe des Auslegers + Aufhängung'} · Stegrichtung, Fundament und Anker in der Maske.</small></div>`;
+  };
+
   const koerper = () => {
     const b = bereich();
     if (istAusleger()) e.L = tragauslegerNaechsteLaenge(e.L) ?? e.L;
@@ -787,9 +816,15 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       // dem Profil), keine Vergleichsmodelle (SIGNAL-AXISVM) im neuen Blatt.
       ? abfangjoche().map((a) => ({ wert: a.typ,
           text: `${a.typ}${a.profil && a.profil !== a.typ ? ` · ${a.profil}` : ''}${(a.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''} · ${abfangLaengenbereich(a).text}` }))
-      : sortimentstypen().map((j) => ({ wert: j.typ,
-          text: `${j.typ} · jd ${j.jd} mm${(j.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''}` }));
+      : sortimentstypen().map((j) => ({ wert: j.typ, passt: passtJoch(j, e.L),
+          text: `${j.typ} · jd ${j.jd} mm${(j.bauweise ?? 'neu') === 'alt' ? ' (Bestand)' : ''} · ${laengenbereich(j).text}` }));
     const typJetzt = istAusleger() ? String(e.L) : istAbfang() ? e.abfangTyp : e.typ;
+    // Typen, die die Jochlänge nicht führen, sind gesperrt (der gewählte bleibt wählbar).
+    if (istAbfang()) typListe.forEach((o) => {
+      try { const b = abfangLaengenbereich(getAbfangjoch(o.wert)); o.passt = e.L >= b.min - 1e-9 && e.L <= b.max + 1e-9; }
+      catch { o.passt = true; }
+    });
+    const kragSum = !neuesTragwerk && t ? (Number(t.kragA) || 0) + (Number(t.kragB) || 0) : 0;
     return `
     <div class="feld"><label>Welche Art</label>
       <div class="ank-lagen" role="radiogroup" aria-label="Tragwerksart">
@@ -800,15 +835,28 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
             aria-checked="${a.key === e.art}"
             title="${esc(a.kurz)}">${esc(a.label)}</button>`).join('')}
       </div>
-      <small class="hinweis">${esc(artDef().kurz)}</small></div>
+      <small class="hinweis">${esc(artDef().kurz)}</small>
+      ${blatt && istAbfang() ? `<label class="dlg-nicht-mehr"><input type="checkbox" id="dlg-tw-anker"${
+        blatt.vorlage === 'abfangjoch-anker' ? ' checked' : ''}> mit Anker — A160 12.00 m, zwei abgefangene
+        Tragseile N-FL, Druckstütze längs an beiden Masten</label>` : ''}</div>
 
     ${mastenHtml()}
+
+    ${mitLaenge() ? `<div class="feld">
+      <label for="dlg-tw-l">Jochlänge</label>
+      <input id="dlg-tw-l" type="number" step="0.5" min="${b.min}"
+             max="${b.max}" value="${e.L.toFixed(2)}">
+      <small class="hinweis">m · ${istAbfang()
+        ? `Trägerlänge; die Masten stehen je um den Überstand innen`
+        : `Stützweite ${(e.L - kragSum).toFixed(2)} m${kragSum > 0 ? ` (Kragarme ${kragSum.toFixed(2)} m)` : ' (ohne Kragarm)'}`}${b.text
+        ? ` · ${istAbfang() ? e.abfangTyp : e.typ} führt ${esc(b.text)}` : ''}</small></div>` : ''}
 
     ${artDef().traeger ? `<div class="feld">
       <label for="dlg-tw-typ">${istAusleger() ? 'Auslegerlänge' : 'Welcher Typ'}</label>
       <select id="dlg-tw-typ">${typListe.map((o) =>
-        `<option value="${esc(o.wert)}"${o.wert === typJetzt ? ' selected' : ''}
-          >${esc(o.text)}</option>`).join('')}</select>
+        `<option value="${esc(o.wert)}"${o.wert === typJetzt ? ' selected' : ''}${
+          o.passt === false && o.wert !== typJetzt ? ' disabled' : ''}
+          >${esc(o.text)}${o.passt === false ? ' — führt diese Länge nicht' : ''}</option>`).join('')}</select>
       <small class="hinweis">${istAusleger()
         ? 'Länge des Sortiments — sie wählt Blechraster und Aufhängung.'
         : istAbfang()
@@ -823,25 +871,23 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
             data-tw-seite="${k}" role="radio" aria-checked="${e.seite === k}">${txt}</button>`).join('')}
       </div></div>` : ''}
 
-    ${mitLaenge() ? `<div class="feld">
-      <label for="dlg-tw-l">${istAbfang() ? 'Jochlänge (Träger)' : 'Stützweite'}</label>
-      <input id="dlg-tw-l" type="number" step="0.5" min="${b.min}"
-             max="${b.max}" value="${e.L.toFixed(2)}">
-      <small class="hinweis">m${b.text
-        ? ` · das Sortiment führt ${esc(b.text)}` : ''}</small></div>` : ''}
-
-    ${artDef().masten >= 1 ? `<div class="feld">
+    ${e.art === 'einzelmast' ? `<div class="feld">
+      <label for="dlg-tw-ml">Mastlänge gesamt</label>
+      <input id="dlg-tw-ml" type="number" step="0.5" min="2" max="25" value="${e.mastL.toFixed(2)}">
+      <small class="hinweis">m · Fuss bis Kopf; die Anbauteile stehen mit ihrer Höhe über Fundament.</small></div>`
+    : artDef().masten >= 1 ? `<div class="feld">
       <label for="dlg-tw-h">${istAusleger() ? 'Höhe Ausleger über Fundament' : 'Anschlusshöhe'}</label>
       <input id="dlg-tw-h" type="number" step="0.1" min="2" max="20"
              value="${e.H.toFixed(2)}">
-      <small class="hinweis">m · über dem Mastfuss, gemessen an
-        ${esc(erstenMastVon(app, t)?.id ?? 'M1')}. Der zweite Mast folgt ihr,
-        solange er nicht eigens verstellt ist.</small></div>` : ''}
+      <small class="hinweis">m · über dem Mastfuss${artDef().masten >= 2
+        ? ', gilt für beide Masten; je Mast in der Maske änderbar' : ''}.</small></div>` : ''}
 
-    <div class="feld"><label for="dlg-tw-x">Lage auf dem Querprofil</label>
+    ${mastProfilHtml()}
+
+    ${blatt ? '' : `<div class="feld"><label for="dlg-tw-x">Lage auf dem Querprofil</label>
       <input id="dlg-tw-x" type="number" step="0.05" value="${e.x0.toFixed(2)}">
       <small class="hinweis">m · quer zum Gleis, in der Jochachse, ab dem
-        Nullpunkt der Zeichnung.</small></div>
+        Nullpunkt der Zeichnung.</small></div>`}
 
     ${grundwerteHtml()}
 
@@ -875,10 +921,6 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       <div class="dlg-wahl">
         <label><input type="checkbox" id="dlg-tw-ohne"${blatt.ohneTeile ? ' checked' : ''}${
           blatt.vorlage === 'abfangjoch-anker' ? ' disabled' : ''}> ohne Beispiel-Anbauteile (leeres Tragwerk)</label>
-        <button type="button" class="btn btn-mini${blatt.vorlage === 'abfangjoch-anker' ? ' an' : ''}"
-          data-tw-vorlage="abfangjoch-anker"
-          title="A160 12.00 m, zwei abgefangene Tragseile N-FL (3.50 – 4.50 – 3.50 m), Druckstütze längs an beiden Masten"
-          >Abfangjoch mit Anker</button>
       </div></div>` : '');
   const d = app.dialog(blatt ? 'Neues Querprofil' : neuesTragwerk ? 'Neues Tragwerk'
                                  : `${tragwerkName(t, app.werte)} bearbeiten`,
@@ -899,10 +941,9 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       const neuStart = (art, ohne) => { blattBleibt = true; blatt.neu(art, ohne); };
       const oh = n.querySelector('#dlg-tw-ohne');
       if (oh) oh.onchange = () => neuStart(blatt.vorlage, oh.checked);
-      n.querySelectorAll('[data-tw-vorlage]').forEach((b) => {
-        b.onclick = () => neuStart(blatt.vorlage === b.dataset.twVorlage ? 'abfangjoch' : b.dataset.twVorlage,
-                                   blatt.ohneTeile);
-      });
+      // «mit Anker» steht seit dem 26. November unter der Art Abfangjoch.
+      const ak = n.querySelector('#dlg-tw-anker');
+      if (ak) ak.onchange = () => neuStart(ak.checked ? 'abfangjoch-anker' : 'abfangjoch', blatt.ohneTeile);
     }
     n.querySelectorAll('[data-tw-art]').forEach((b) => {
       b.onclick = () => {
@@ -961,6 +1002,35 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     };
     zahl('#dlg-tw-l', 'L');
     zahl('#dlg-tw-h', 'H');
+    zahl('#dlg-tw-ml', 'mastL');
+    const mp = n.querySelector('#dlg-tw-mp');
+    if (mp) mp.onchange = () => { e = { ...e, profil: mp.value === gitterBasisName(e.profil) ? e.profil : mp.value }; };
+    /*
+     * ERST DIE LÄNGE, DANN DER TYP (26. November): führt der gewählte Typ die
+     * eingegebene Jochlänge nicht, springt er auf den ersten, der sie führt
+     * (Tragjoch gleicher Bauweise; Abfangjoch des Sortiments), und die Liste
+     * sperrt die übrigen.
+     */
+    const lEl = n.querySelector('#dlg-tw-l');
+    if (lEl) lEl.addEventListener('change', () => {
+      const v = parseFloat(lEl.value);
+      if (!Number.isFinite(v)) return;
+      e = { ...e, L: v };
+      if (istAbfang()) {
+        const passt = (a) => { try { const b = abfangLaengenbereich(a); return v >= b.min - 1e-9 && v <= b.max + 1e-9; } catch { return false; } };
+        try { if (!passt(getAbfangjoch(e.abfangTyp))) { const a = abfangjoche().find(passt); if (a) e.abfangTyp = a.typ; } } catch { /* ohne Sortiment */ }
+      } else if (!istAusleger()) {
+        let j = null;
+        try { j = getTragjoch(e.typ); } catch { /* ohne Sortiment */ }
+        if (j && !passtJoch(j, v)) {
+          const alt = String(e.typ).endsWith('-alt');
+          const k = sortimentstypen().find((x) => String(x.typ).endsWith('-alt') === alt && passtJoch(x, v))
+            ?? sortimentstypen().find((x) => passtJoch(x, v));
+          if (k) e.typ = k.typ;
+        }
+      }
+      neu();
+    });
     zahl('#dlg-tw-x', 'x0');
     // Wer Lage oder Länge von Hand setzt, verlässt die Mastwahl.
     ['#dlg-tw-l', '#dlg-tw-x'].forEach((sel) => {
@@ -984,6 +1054,21 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     n.querySelectorAll('input[name="dlg-tw-teile"]').forEach((r) => {
       r.onchange = () => { if (r.checked) e = { ...e, teileMit: r.value === 'mit' }; };
     });
+    /** Profil (alle Masten des Tragwerks) und Länge des Einzelmasten (26. November). */
+    const mastenSchreiben = (tw) => {
+      const ms = mastenVon(app.werte).filter((m) => (m.traegt ?? []).includes(tw));
+      if (!ms.length) return;
+      const neuGewaehlt = neuesTragwerk && [e.mA, e.mB].some(Boolean);
+      if (!neuGewaehlt) ms.forEach((m) => {
+        if ((m.profil ?? app.werte.mastProfil) === e.profil) return;
+        app.aendern('mastAktiv', m.id);
+        app.aendern('mastProfil', e.profil);
+      });
+      if (e.art === 'einzelmast' && e.mastL > 0 && Math.abs(e.mastL - (Number(ms[0].laenge) || 0)) > 1e-9) {
+        app.aendern('mastAktiv', ms[0].id);
+        app.aendern('mastLaenge', e.mastL);
+      }
+    };
     n.querySelector('[data-tw-ok]').onclick = () => {
       blattBleibt = true;
       d.zu();
@@ -1018,6 +1103,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         if (istAusleger()) {
           app.aendern('L', e.L);
           app.aendern('auslegerSeite', e.seite);
+          mastenSchreiben(app.werte.twId ?? 'T1');
           // Der Mast wächst bis zur Aufhängung mit (30. September).
           app.aendern('auslegerMastAnbau', true);
           return;
@@ -1043,6 +1129,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
           app.aendern('mastAktiv', m1Neu.id);
           app.aendern('mastH', e.H);
         }
+        mastenSchreiben(tNeu.id);
         return;
       }
       if (tragwerksart(t).key !== e.art) {
@@ -1058,7 +1145,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
                 istAbfang() ? e.abfangTyp : e.typ);
       }
       if (mitLaenge()) app.aendern('L', e.L);
-      app.aendern('tragwerkLage', { id, x: e.x0 });
+      if (!blatt) app.aendern('tragwerkLage', { id, x: e.x0 });
       /*
        * DIE HOEHE ZULETZT, und ueber den MASTEN: `mastH` gehoert dem
        * gewaehlten Masten, nicht dem Tragwerk. Erst M1 anwaehlen, dann
@@ -1069,6 +1156,7 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         app.aendern('mastAktiv', m1.id);
         app.aendern('mastH', e.H);
       }
+      mastenSchreiben(id);
       // Nach der Höhe: der Mast wächst bis zur Aufhängung mit (30. Sept.).
       if (istAusleger()) app.aendern('auslegerMastAnbau', true);
     };
