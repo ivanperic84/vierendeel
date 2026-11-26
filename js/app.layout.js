@@ -186,7 +186,7 @@ export function baueModellWerkzeuge(app) {
     + iconKnopf('v-bild', 'kamera', 'Bild des 3D aufnehmen - in die Bildsammlung und die Zwischenablage (Taste a). '
       + 'Rechtsklick: Rahmen (Bildausschnitt) festlegen')
     // Ansicht festhalten (26. November, «kamerafreez»): Blick, Ausschnitt, Ebenen, Plot.
-    + iconKnopf('v-fest', 'ansicht', 'Ansicht speichern: Blick, Ausschnitt, Ebenen, Plot und Darstellung. '
+    + iconKnopf('v-fest', 'ansicht', 'Ansichten: speichern, überschreiben, löschen (Blick, Ausschnitt, Ebenen, Plot, Darstellung). '
       + 'Rechtsklick: gespeicherte Ansicht aufrufen');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
@@ -235,7 +235,8 @@ export function baueModellWerkzeuge(app) {
   ui.el('v-strich').onclick = () => strichSetzen(app, !strichAn());
   ui.el('v-bild').onclick = () => app.bildAufnehmen?.();
   ui.el('v-bild').oncontextmenu = (e) => { e.preventDefault(); app.bildRahmen?.(); };
-  ui.el('v-fest').onclick = () => app.ansichtSpeichern?.();
+  // Klick: Fenster der Ansichten (26. November); Rechtsklick: direkt aufrufen.
+  ui.el('v-fest').onclick = () => app.ansichtenVerwalten?.();
   ui.el('v-fest').oncontextmenu = (e) => { e.preventDefault(); app.ansichtWahl?.(e); };
   ui.el('v-ganz').onclick = () => {
     app.station = null; app.ansicht.station = null;

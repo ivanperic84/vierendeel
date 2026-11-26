@@ -189,19 +189,24 @@ const ANSICHTEN_KEY = 'tragjoch-ansichten';
 const ansichtenLesen = () => { try { return JSON.parse(localStorage.getItem(ANSICHTEN_KEY) || '[]'); } catch { return []; } };
 const ansichtenSetzen = (l) => { try { localStorage.setItem(ANSICHTEN_KEY, JSON.stringify(l)); } catch { /* nur Ansicht */ } };
 
-export function ansichtSpeichern(app) {
+/** Die jetzige Ansicht als Eintrag (Name als Vorschlag). */
+function ansichtJetzt(app, nr) {
   const a = app.ansicht;
-  if (!a) return;
-  const liste = ansichtenLesen();
   const plot = plotName(app);
   const blick = { iso: 'Iso', laengs: 'Längs', quer: 'Quer', oben: 'Drauf' }[a.ansichtKey] ?? 'frei';
-  const v = {
-    name: `Ansicht ${liste.length + 1} · ${plot || a.modus} · ${blick}`, datum: jetzt(),
+  return {
+    name: `Ansicht ${nr} · ${plot || a.modus} · ${blick}`, datum: jetzt(),
     kamera: structuredClone(a.kamera), ansichtKey: a.ansichtKey, ebenen: structuredClone(a.ebenen),
     gruppen: structuredClone(a.gruppen), modus: a.modus, werte: a.werteAnschreiben, explosion: a.explosion ?? 0,
     linie: document.getElementById('wz-r-linie')?.getAttribute('aria-pressed') === 'true',
     strich: document.getElementById('v-strich')?.getAttribute('aria-pressed') === 'true',
   };
+}
+
+export function ansichtSpeichern(app) {
+  if (!app.ansicht) return;
+  const liste = ansichtenLesen();
+  const v = ansichtJetzt(app, liste.length + 1);
   liste.push(v);
   ansichtenSetzen(liste.slice(-30));
   app.meldeImBalken(`«${v.name}» gespeichert - Rechtsklick auf den Knopf ruft sie auf.`);
@@ -237,20 +242,43 @@ export function ansichtWahl(app, e) {
   kontextZeigen(app, [e.clientX, e.clientY], punkte);
 }
 
-function ansichtenVerwalten(app) {
+/*
+ * >>> DAS FENSTER DER ANSICHTEN (26. November). <<< Weisung: «beim klicken auf
+ * ansicht speichern ein modal aufrufen, wo man die ansichten managen kann mit
+ * neu speichern überschreiben oder alle löschen.» Ein Klick auf den Knopf
+ * öffnet es; je Ansicht Name, Aufrufen, Überschreiben (mit der jetzigen
+ * Ansicht), Löschen; unten «Neu speichern» und «Alle löschen».
+ */
+export function ansichtenVerwalten(app) {
   let liste = ansichtenLesen();
-  const koerper = () => (liste.length ? `<table class="dt"><tbody>${liste.map((v, i) => `<tr>
-      <td><input type="text" data-an-name="${i}" value="${esc(v.name)}" style="width:100%"></td>
+  const koerper = () => (liste.length ? `<table class="dt an-liste"><tbody>${liste.map((v, i) => `<tr>
+      <td><input type="text" data-an-name="${i}" value="${esc(v.name)}" aria-label="Name der Ansicht"></td>
       <td class="ablage-meta">${esc(v.datum ?? '')}</td>
-      <td><button class="btn btn-mini" data-an-auf="${i}" type="button">Aufrufen</button>
+      <td class="an-knoepfe"><button class="btn btn-mini btn-acc" data-an-auf="${i}" type="button">Aufrufen</button>
+          <button class="btn btn-mini" data-an-ueber="${i}" type="button" title="Mit der jetzigen Ansicht überschreiben">Überschreiben</button>
           <button class="btn btn-mini" data-an-weg="${i}" type="button">Löschen</button></td></tr>`).join('')}</tbody></table>`
-    : '<p class="notiz">Keine gespeicherten Ansichten.</p>');
-  const d = app.dialog('Gespeicherte Ansichten', `<div data-an>${koerper()}</div>`, '<button class="btn" data-zu>Schliessen</button>');
+    : '<p class="notiz">Noch keine Ansicht gespeichert. «Neu speichern» merkt Blick, Ausschnitt, Ebenen, Plot und Darstellung.</p>');
+  const d = app.dialog('Ansichten', `<p class="notiz" style="margin-top:0">Rechtsklick auf den Knopf ruft eine Ansicht direkt auf.</p>
+    <div data-an>${koerper()}</div>`,
+    `<button class="btn btn-fail" data-an-alleweg type="button">Alle löschen</button>
+     <button class="btn" data-zu type="button">Schliessen</button>
+     <button class="btn btn-acc" data-an-neu type="button">Neu speichern</button>`);
   const neu = () => { ansichtenSetzen(liste); d.node.querySelector('[data-an]').innerHTML = koerper(); };
   d.node.addEventListener('click', (ev) => {
     const t = ev.target instanceof Element ? ev.target : null;
-    if (t?.matches('[data-an-weg]')) { liste.splice(+t.dataset.anWeg, 1); neu(); }
-    else if (t?.matches('[data-an-auf]')) { d.zu?.(); ansichtAnwenden(app, liste[+t.dataset.anAuf]); }
+    if (!t) return;
+    if (t.matches('[data-an-weg]')) { liste.splice(+t.dataset.anWeg, 1); neu(); }
+    else if (t.matches('[data-an-ueber]')) {
+      const i = +t.dataset.anUeber;
+      liste[i] = { ...ansichtJetzt(app, i + 1), name: liste[i].name };
+      neu(); app.meldeImBalken(`«${liste[i].name}» überschrieben.`);
+    }
+    else if (t.matches('[data-an-auf]')) { const v = liste[+t.dataset.anAuf]; d.zu?.(); ansichtAnwenden(app, v); }
+    else if (t.matches('[data-an-neu]')) { liste.push(ansichtJetzt(app, liste.length + 1)); liste = liste.slice(-30); neu(); }
+    else if (t.matches('[data-an-alleweg]')) {
+      if (!liste.length || !confirm(`Alle ${liste.length} gespeicherten Ansichten löschen?`)) return;
+      liste = []; neu();
+    }
   });
   d.node.addEventListener('change', (ev) => {
     const t = ev.target;
@@ -457,7 +485,7 @@ export async function bildsammlungZeigen(app) {
   const wo = app.projekt?.id ? `Eintrag «${esc(app.projekt.name || 'ohne Namen')}»` : 'Arbeitsstand (noch nicht in der Ablage)';
   const koerper = () => (liste.length ? `<div class="bs-raster">${liste.map((b, i) => `
       <figure class="bs-bild" data-i="${i}">
-        <img src="${b.url}" alt="${esc(b.titel)}" loading="lazy">
+        <img src="${b.url}" alt="${esc(b.titel)}" loading="lazy" data-vorschau="${i}" title="Vorschau">
         <figcaption><input type="text" data-titel="${i}" value="${esc(b.titel)}" aria-label="Titel des Bildes">
           <small>${esc(b.datum ?? '')}</small>
           <span class="bs-knoepfe"><button class="btn btn-mini" data-sichern="${i}" type="button">Sichern</button>
@@ -465,10 +493,17 @@ export async function bildsammlungZeigen(app) {
           <button class="btn btn-mini" data-weg="${i}" type="button" title="Bild löschen">Löschen</button></span></figcaption>
       </figure>`).join('')}</div>`
     : '<p class="notiz">Noch keine Bilder. «Bild aufnehmen» legt das 3D, wie es gerade steht, hier ab.</p>');
-  const d = app.dialog('Bildsammlung', `<p class="notiz bs-wo" style="margin-top:0">${wo} · ${liste.length} Bild(er)</p>
-    <details class="bs-opt"><summary>Einstellungen zum Output</summary>${bildOptionenHtml()}</details>
+  /*
+   * 26. November: «beim fenster bildsammlung ein einstellbutton machen damit es
+   * sichtbarer ist. wenn man auf ein bild klick ein vorschau aufrufen, noch in
+   * der fusleiste alle löschen aufführen.»
+   */
+  const d = app.dialog('Bildsammlung', `<div class="bs-kopf"><p class="notiz bs-wo">${wo} · ${liste.length} Bild(er)</p>
+      <button class="btn btn-mini" data-bs-einst type="button" aria-expanded="false">⚙ Einstellungen</button></div>
+    <div class="bs-opt" hidden>${bildOptionenHtml()}</div>
     <div data-bs>${koerper()}</div>`,
-    `<button class="btn" data-aufnehmen type="button">Bild aufnehmen</button>
+    `<button class="btn btn-fail" data-alleweg type="button">Alle löschen</button>
+     <button class="btn" data-aufnehmen type="button">Bild aufnehmen</button>
      <button class="btn btn-acc" data-alle type="button">Alle sichern</button>`, 'dialog-breit');
   bildOptionenVerdrahten(d.node);
   const neu = async () => {
@@ -480,7 +515,16 @@ export async function bildsammlungZeigen(app) {
   d.node.addEventListener('click', async (e) => {
     const t = e.target instanceof Element ? e.target : null;
     if (!t) return;
-    if (t.matches('[data-sichern]')) { const i = +t.dataset.sichern; herunterladen(liste[i].url, dateiname(app, liste[i], i)); }
+    if (t.matches('[data-bs-einst]')) {
+      const o = d.node.querySelector('.bs-opt');
+      o.hidden = !o.hidden; t.setAttribute('aria-expanded', String(!o.hidden)); t.classList.toggle('on', !o.hidden);
+    }
+    else if (t.matches('[data-vorschau]')) vorschau(liste, +t.dataset.vorschau);
+    else if (t.matches('[data-alleweg]')) {
+      if (!liste.length || !confirm(`Alle ${liste.length} Bilder der Sammlung löschen? Das lässt sich nicht rückgängig machen.`)) return;
+      liste = []; await neu();
+    }
+    else if (t.matches('[data-sichern]')) { const i = +t.dataset.sichern; herunterladen(liste[i].url, dateiname(app, liste[i], i)); }
     else if (t.matches('[data-kopie]')) {
       const ok = await inZwischenablage(liste[+t.dataset.kopie].url);
       app.meldeImBalken(ok ? 'Bild in der Zwischenablage.' : 'Zwischenablage nicht verfügbar.');
@@ -496,4 +540,24 @@ export async function bildsammlungZeigen(app) {
       await store.bilderSichern(id, liste);
     }
   });
+}
+
+/** Vorschau eines Bildes, gross; ← → blättert, Esc oder Klick schliesst (26. November). */
+function vorschau(liste, i) {
+  if (!liste[i]) return;
+  let k = i;
+  const n = document.createElement('div');
+  n.className = 'bs-vorschau';
+  const zeig = () => { n.innerHTML = `<figure><img src="${liste[k].url}" alt="${esc(liste[k].titel)}"><figcaption>${esc(liste[k].titel)} · ${k + 1} / ${liste.length}</figcaption></figure>`
+    + '<button class="melde-x" type="button" aria-label="Schliessen">×</button>'; };
+  const zu = () => { n.remove(); document.removeEventListener('keydown', taste, true); };
+  const taste = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); zu(); }
+    else if (e.key === 'ArrowRight') { k = (k + 1) % liste.length; zeig(); }
+    else if (e.key === 'ArrowLeft') { k = (k - 1 + liste.length) % liste.length; zeig(); }
+  };
+  zeig();
+  n.addEventListener('click', zu);
+  document.addEventListener('keydown', taste, true);
+  document.body.appendChild(n);
 }

@@ -4611,3 +4611,16 @@ button.wz-haupt { padding: 3px 0 4px; }
 #viewer-balken .melde-x { position: absolute; top: 3px; right: 5px; width: 22px; height: 22px; border: 0; background: none;
   color: var(--dim); font-size: 16px; line-height: 1; cursor: pointer; border-radius: var(--m-r1); }
 #viewer-balken .melde-x:hover { color: var(--on); background: var(--s3, rgba(127,127,127,.15)); }
+
+/* Ansichten und Bildsammlung (26. November). */
+.an-liste input[type=text] { width: 100%; min-width: 220px; }
+.an-liste .an-knoepfe { white-space: nowrap; }
+.bs-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.bs-kopf .bs-wo { margin: 0; }
+.bs-opt { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--ol); border-radius: var(--m-r2); }
+.bs-bild img[data-vorschau] { cursor: zoom-in; }
+.bs-vorschau { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.bs-vorschau figure { margin: 0; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bs-vorschau img { max-width: 92vw; max-height: 84vh; background: #fff; border-radius: var(--m-r1); box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.bs-vorschau figcaption { color: #e6e8ec; font-size: 13px; }
+.bs-vorschau .melde-x { position: absolute; top: 14px; right: 18px; font-size: 26px; color: #e6e8ec; background: none; border: 0; cursor: pointer; }

@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { bildAufnehmen, bildsammlungZeigen, rahmenBearbeiten, rahmenZeigen, ansichtSpeichern, ansichtWahl } from './app.bilder.js';
+import { bildAufnehmen, bildsammlungZeigen, rahmenBearbeiten, rahmenZeigen, ansichtSpeichern, ansichtWahl, ansichtenVerwalten } from './app.bilder.js';
 import { dialogDimension } from './app.dimension.js';
 import { bewegungStarten, dialogAusKnopf } from './ui.bewegung.js';
 import { viewerAusleiten } from './app.viewer.js';
@@ -228,6 +228,7 @@ const app = {
   // Rahmen und Ansicht festhalten (26. November).
   bildRahmen: () => rahmenBearbeiten(app),
   ansichtSpeichern: () => ansichtSpeichern(app),
+  ansichtenVerwalten: () => ansichtenVerwalten(app),
   ansichtWahl: (e) => ansichtWahl(app, e),
   plotWahl: (k) => plotWahl(k),
   nachAnsicht: () => { ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app); rahmenZeigen(); },

@@ -44427,6 +44427,17 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('358  Fenster der Ansichten; Bildsammlung mit Einstellknopf, Vorschau, Alle löschen (26. November)');
+{
+  const BQ = readFileSync(join(HIER, 'js', 'app.bilder.js'), 'utf8');
+  wahr('Ansichten: Neu speichern, Überschreiben, Löschen, Alle löschen; Klick öffnet das Fenster',
+       BQ.includes('export function ansichtenVerwalten(app)') && BQ.includes('data-an-ueber') && BQ.includes('data-an-alleweg')
+       && BQ.includes('data-an-neu') && readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8').includes("ui.el('v-fest').onclick = () => app.ansichtenVerwalten?.();"));
+  wahr('Bildsammlung: Knopf Einstellungen, Vorschau beim Klick, «Alle löschen» in der Fussleiste',
+       BQ.includes('data-bs-einst') && BQ.includes('function vorschau(liste, i)') && BQ.includes('data-alleweg'));
+}
+
+// ===========================================================================
 titel('357  Meldungen gehen von selbst, × oben rechts, Link zur Bildsammlung (26. November)');
 {
   const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
