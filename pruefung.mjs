@@ -44425,6 +44425,14 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('353  Ankerfundament im 3D wie unter dem Masten (26. November)');
+{
+  const KQ = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
+  wahr('Ankerfundament: Klotz in Mastgrösse unter dem Fusspunkt der Strebe',
+       KQ.includes('const afHalb = halb * 2;') && KQ.includes('[xF, yF, zFuss - afHoch / 2], [2 * afHalb, 2 * afHalb, afHoch]'));
+}
+
+// ===========================================================================
 titel('352  Bild-Knopf, Tastenkürzel, Legende springt nicht (26. November)');
 /* «gibt es einen bild aufnehmen button für die resultat bibliothek? wo könnte
  * man diesen anordnen? erweitere noch die tastaturbefehle. wenn ich beim

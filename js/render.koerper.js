@@ -1118,10 +1118,16 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    * ein Fundament in Mastbreite daneben sagte etwas Falsches ueber ihre
    * Groesse.
    */
-  const afHalb = dick;
-  const afHoch = Math.max(0.28, afHalb * 1.8);
+  /*
+   * >>> WIE AM MASTEN (26. November). <<< Weisung: «fundamentdarstellung gleich
+   * machen bei den ankerfundamenten wie bei den masten im 3d». Derselbe Klotz
+   * wie unter dem Mastfuss (Breite 4 × halbe Mastbreite, Höhe wie dort), UNTER
+   * dem Fusspunkt der Strebe statt als kleiner Kopf darüber.
+   */
+  const afHalb = halb * 2;
+  const afHoch = Math.max(0.35, afHalb * 1.1);
   flaechen.push(...quader(
-    [xF, yF, zFuss + afHoch / 2], [2 * afHalb, 2 * afHalb, afHoch], {
+    [xF, yF, zFuss - afHoch / 2], [2 * afHalb, 2 * afHalb, afHoch], {
       gruppe: 'mast', anker: true, teil: `ANKERFUNDAMENT_${name}`,
       label: `Ankerfundament ${name}`,
     }));
