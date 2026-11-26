@@ -376,6 +376,7 @@ const STIL = `
   .pos { break-inside: avoid; page-break-inside: avoid; border: 1px solid #d3d6dc; border-radius: 4px;
          padding: 6px 8px; margin: 8px 0; }
   .pos h3 { font-size: 11.5px; margin: 0 0 4px; } .pos .ort { color: #666; font-weight: 400; }
+  .pos-rk { margin-top: 8px; } .pos-rk h4 { margin: 0 0 4px; font-size: 11px; }
   .pos-in { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
   .pos table { width: auto; min-width: 300px; }
   .aenderung { margin: 0 0 4px; color: #7a4a00; } .fehler { color: #b3261e; } .kommentar { margin: 0 0 4px; font-style: italic; color: #333; }
@@ -685,7 +686,13 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <td>${esc(t.bez ?? '')}</td>
       <td class="n amp ${ampelVon(eta)}" data-w="${eta}">${zahl(eta)}</td></tr>`).join('');
   const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
-  const rkZeilen = rk.map(({ r, z, m }) => {
+  /*
+   * Die Zellen einer Reaktionszeile ab «Fundament» - für die Liste und (26.
+   * November) für die Positionen: «wenn unter der auswertung die
+   * reaktionskräfte als filter ausgewählt dann die reaktionskräfte bei den
+   * unteren positionen unterhalb der schemata aufführen.»
+   */
+  const rkInhalt = (z, m) => {
     const hat = rkSpalten(z), h = z.haupt, hv = z.havarie, eta = rkEta(z, m);
     const zellen = RK_SP.map((k) => {
       if (!hat.has(k) || !h?.[k]) return '<td class="n" data-w="-1">–</td>';
@@ -697,15 +704,26 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     const vZul = z.art === 'mast' ? rkZul(m, 'V') : null;
     const a = z.anteil?.quer;
     const fu = rkFundament(z, m);
-    return `<tr ${attr(r, fu, eta)}>${kopfZellen(r, z.anzeige)}
-      <td data-w="${esc(fu)}">${esc(fu)}</td>
+    return `<td data-w="${esc(fu)}">${esc(fu)}</td>
       <td class="n" data-w="${h?.Vmax?.wert ?? 0}" title="${esc(`min: ${h?.Vmin?.bez ?? ''} · max: ${h?.Vmax?.bez ?? ''}`)}"><b>${f0(h?.Vmin?.wert)} / ${f0(h?.Vmax?.wert)}</b>${
         hv ? `<small>Hav. ${f0(hv.Vmin?.wert)} / ${f0(hv.Vmax?.wert)}</small>` : ''}${Number.isFinite(vZul) ? `<small>zul 0 / ${f0(vZul)}</small>` : ''}</td>
       ${zellen}
       <td class="n" title="${a ? esc(`ständig ${f0(a.staendig)}, veränderlich ${f0(a.veraenderlich)}`) : ''}">${a ? `${Math.round(a.prozent * 100)} / ${Math.round((1 - a.prozent) * 100)}` : '–'}</td>
       <td>${esc(rkFall(z, h))}</td>
-      <td class="n amp ${ampelVon(eta)}" data-w="${Number.isFinite(eta) ? eta : -1}">${zahl(eta)}</td></tr>`;
-  }).join('');
+      <td class="n amp ${ampelVon(eta)}" data-w="${Number.isFinite(eta) ? eta : -1}">${zahl(eta)}</td>`;
+  };
+  const rkZeilen = rk.map(({ r, z, m }) => `<tr ${attr(r, rkFundament(z, m), rkEta(z, m))}>${kopfZellen(r, z.anzeige)}
+      ${rkInhalt(z, m)}</tr>`).join('');
+  const rkKopf = `<th class="s">Fundament</th>
+    <th class="s n">V min / max [kN]</th>${RK_SP.map((k) => `<th class="s n">±${RK_KOPF[k][0]} [${RK_KOPF[k][1]}]</th>`).join('')}
+    <th class="n">ständig / veränderl. [%]</th><th>massgebender Fall</th><th class="s n">η</th>`;
+  // Je Eintrag die Reaktionen unter dem Schema; sichtbar mit dem Umschalter «Reaktionskräfte».
+  const rkPos = (r) => {
+    const zl = rk.filter((x) => x.r === r);
+    return zl.length ? `<div class="pos-rk" hidden><h4>Reaktionskräfte der Fundamente (charakteristisch)</h4>
+      <div class="rollen"><table><thead><tr><th class="s">Pos.</th>${rkKopf}</tr></thead><tbody>${zl.map(({ z, m }) =>
+        `<tr><td><b>${esc(z.anzeige)}</b></td>${rkInhalt(z, m)}</tr>`).join('')}</tbody></table></div></div>` : '';
+  };
   const kopfR = '<th class="s">Eintrag</th><th class="s n">km</th><th class="s">Pos.</th>';
   const listen = `
   <div class="liste" data-liste="fund"><h3 class="lt">Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th><th>Mast</th>
@@ -713,9 +731,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
     <tbody>${fundZeilen}</tbody></table></div>
     <p class="hinweis">Charakteristische Einwirkungen am Mastfuss gegen die zulässigen Standardlasten; je Grösse η, darunter
       Einwirkung / zulässig [kN, kNm]. Grau: lenkt den Fundamentablauf, kein Nachweis. η nach dem Ablauf.</p></div>
-  <div class="liste" data-liste="rk" hidden><h3 class="lt">Reaktionskräfte der Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}<th class="s">Fundament</th>
-    <th class="s n">V min / max [kN]</th>${RK_SP.map((k) => `<th class="s n">±${RK_KOPF[k][0]} [${RK_KOPF[k][1]}]</th>`).join('')}
-    <th class="n">ständig / veränderl. [%]</th><th>massgebender Fall</th><th class="s n">η</th></tr></thead>
+  <div class="liste" data-liste="rk" hidden><h3 class="lt">Reaktionskräfte der Fundamente</h3><div class="rollen"><table><thead><tr>${kopfR}${rkKopf}</tr></thead>
     <tbody>${rkZeilen}</tbody></table></div>
     <p class="hinweis">Charakteristisch (alle Beiwerte 1, Wind ohne 0.7) am Mastfuss bzw. Ankerfundament, Druck positiv; je Grösse
       der massgebende Betrag, darunter klein Havarie und zulässige Standardlast (rot: über der Standardlast). η des Fundaments nach dem Ablauf.</p></div>
@@ -758,7 +774,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       <div class="pos-in"><div>${eintragSkizze(r)}<p class="hinweis">Profilzeichen am Mastfuss (Grundriss):
         H = Steg in der Jochachse, I = Steg quer zur Jochachse.</p></div>
         <table><thead><tr><th></th><th>Bauteil</th><th class="n">η</th><th>massgebend</th></tr></thead>
-        <tbody>${tz}${mz}</tbody></table></div></div>`;
+        <tbody>${tz}${mz}</tbody></table></div>${rkPos(r)}</div>`;
   }).join('');
   const ordnen = (id) => `<select data-ordnen="${id}">${[['eta', 'η (absteigend)'], ['km', 'km'], ['typ', 'Typ'],
     ['eintrag', 'Eintrag']].map(([k, t], i) => `<option value="${k}"${(id === 1 ? i === 0 : false) ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
@@ -813,6 +829,7 @@ export function projektBlattHtml(res, { fassung = '' } = {}) {
       b.onclick = function () {
         document.querySelectorAll('[data-seg="liste"] button').forEach(function (x) { x.classList.toggle('an', x === b); });
         listen.forEach(function (l) { l.hidden = b.dataset.l !== 'alle' && l.dataset.liste !== b.dataset.l; });
+        document.querySelectorAll('.pos-rk').forEach(function (d) { d.hidden = b.dataset.l !== 'rk'; });
       };
     });
     document.querySelectorAll('[data-seg="amp"] button').forEach(function (b) {

@@ -2595,7 +2595,8 @@ export class Modellansicht {
     // Farbe der Zustandslinie selbst (19. November, «gemeint war nicht das
     // man die linien des modells anpasst, sondern den plott und die farben
     // dazu»): Vorzeichen (rot / blau), Skala (wie der Farbbalken), eine Farbe.
-    this.zlFarbe = 'vorzeichen';
+    // Vorgabe «Skala» (26. November, «als voreinstellung die skala verwenden»).
+    this.zlFarbe = 'skala';
     this.zlFrei = '#e0a030';
     // «eine Farbe» als Verlauf (19. November, «bei eine farbe ein spektrum
     // angeben für farbverlauf»): von zlFreiVon (kleine Werte) bis zlFrei.
@@ -2945,7 +2946,7 @@ export class Modellansicht {
     const POS = [232, 96, 76], NEG = [74, 134, 232];
     const rgba = (f, a) => `rgba(${f.join(',')},${a})`;
     const rgbAus = (str) => (String(str).match(/\d+/g) ?? [138, 147, 166]).slice(0, 3).map(Number);
-    const zf = this.zlFarbe ?? 'vorzeichen';
+    const zf = this.zlFarbe ?? 'skala';
     const hex = (h, ers) => (/^#[0-9a-f]{6}$/i.test(h ?? '') ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : ers);
     const frei = hex(this.zlFrei, [224, 160, 48]);
     const freiVon = hex(this.zlFreiVon, frei);
@@ -5306,6 +5307,7 @@ export class Modellansicht {
       && PLOTS.some((x) => x.key === this.modus) && !this.zustand && !this.strich;
     // Strichbild: C blasse Körper, D (mit Linie) keine Körper der Tragwerke.
     const strichD = this.strich && Boolean(this.zustand);
+    const strichPlot = this.strich ? this._farbPlot() : null;
     liste.forEach((f) => {
       // Die Schattierung hängt an der Flächennormalen, und die dreht sich mit
       // dem Bauteil, nicht mit der Kamera. Sie wird deshalb einmal je Fläche
@@ -5347,12 +5349,33 @@ export class Modellansicht {
       if (this.strich) {
         const tragend = f.gruppe !== 'anbau' && f.gruppe !== 'last' && !f.punkt;
         if (strichD && tragend) return;
+        /*
+         * GLEICH FÜR ALLE TRAGWERKSARTEN (26. November, «die abfangjoche und
+         * restliche bauteile müssen noch auf ihre darstellung gecheckt
+         * werden»). Abfangjoch, Tragausleger und die Masten eines Abfangjochs
+         * führen keine Schwerachsen; im Strichbild standen sie nur blass grau,
+         * ohne Resultat. Jetzt trägt jede Fläche mit Wert einen leichten Ton
+         * und eine feine Kante in der Plotfarbe (im Plot «Pos» die Farbe der
+         * Position) - das Tragjoch dazu seine Achsen.
+         */
+        const mitWert = !strichD && ((strichPlot && f.werte && Number.isFinite(f.werte[strichPlot.feld])
+          && !this._passivGrau(f, strichPlot)) || (this.modus === 'positionen' && f.farbeBauteil));
+        if (mitWert) {
+          c.globalAlpha = tragend ? 0.28 : 0.2;
+          c.fillStyle = f._farbe;
+          c.fill();
+          c.globalAlpha = tragend ? 0.85 : 0.6;
+          c.lineWidth = 0.6 * this._s;
+          c.strokeStyle = f._farbe;
+          c.stroke();
+          return;
+        }
         c.globalAlpha = tragend ? 0.55 : 0.35;
         c.fillStyle = '#f2f2f0';
         c.fill();
-        c.globalAlpha = tragend ? 0.5 : 0.4;
+        c.globalAlpha = tragend ? 0.55 : 0.4;
         c.lineWidth = 0.5 * this._s;
-        c.strokeStyle = '#b8b8b2';
+        c.strokeStyle = '#acaca6';
         c.stroke();
         return;
       }
@@ -6217,8 +6240,18 @@ export class Modellansicht {
       // gelten die Ebenen der Körper, nicht der Schalter «Schwerachsen».
       else if (this.strich) {
         if (!this.gruppen.modell) return;
-        if (l.schwerachse && !this._ebeneAn('mast')) return;
-        if (!l.schwerachse && l.gruppe !== 'achse' && !this._ebeneAn(l.gruppe)) return;
+        /*
+         * Gleich für alle Teile (26. November, «wenn ich die masten ausblende
+         * dann sehe ich auch nicht die linie, beim joch habe ich ein anderes
+         * verhalten. es ist nicht konsistent»): jede Achse folgt der Ebene
+         * ihres Körpers - Masten, Gurte, stehende / liegende Bleche. Vorher
+         * blieben Gurt- und Blechachsen bei ausgeschalteten Gurten stehen.
+         */
+        const ebene = l.schwerachse ? 'mast'
+          : l.gurt ? 'profil'
+            : l.blechachse ? (/Blechachse H_/.test(l.label ?? '') ? 'blechLieg' : 'blechSteh')
+              : l.gruppe === 'achse' ? null : l.gruppe;
+        if (ebene && !this._ebeneAn(ebene)) return;
       }
       /*
        * >>> SCHWERACHSEN HAENGEN NUR AM SCHALTER «SCHWERACHSEN» (22. November). <<<
@@ -6287,11 +6320,28 @@ export class Modellansicht {
       // Mit der Grenze treten auch die Achsen unter der Schwelle zurück
       // (22. November, «diese bleiben sichtbar auch wenn man den regler für
       // die grenze ändert, nur die liniendiagramme werden transparent»).
-      if (this.strich && (l.schwerachse || traegt || l.stark)) {
-        // C: kräftig in der Plotfarbe; D (mit Linie): graues System.
+      /*
+       * >>> STRICHBILD FEINER UND TECHNISCHER (26. November). <<< Frage, mit
+       * Bild des Strichbilds im Plot «Pos»: «ist diese art der darstellung so
+       * korrekt für dich? soder könnte man das feiner und technischer
+       * gestlaten? Der Zuganker ist sehr prägnant und der jochträger hat eine
+       * rote achse.» Vorher trugen alle Achsen 2.4 px, die Systemachse des Jochs
+       * stand voll in ihrer roten Achsfarbe. Jetzt wie eine Planzeichnung:
+       * - Systemachse dünn, grau, strichpunktiert (Achse, kein Bauteil);
+       * - Schwerachsen 1.4 px (Bleche 1.0), in der Plotfarbe nur, wo ein Wert
+       *   da ist, sonst dunkelgrau; der Anker so fein wie die Masten.
+       */
+      if (this.strich && l.stark && !traegt && !l.schwerachse) {
+        c.strokeStyle = '#8c8c86';
+        c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);
+        c.lineWidth = 0.7 * s;
+        c.globalAlpha = 0.9;
+      } else if (this.strich && (l.schwerachse || traegt)) {
+        // C: in der Plotfarbe; D (mit Linie) und ohne Wert: graues System.
         if (this.zustand) c.strokeStyle = '#7a7a76';
+        else if (!l.werte && !l.passiv) c.strokeStyle = '#4c4c48';
         c.setLineDash([]);
-        c.lineWidth = (l.gurt || l.schwerachse ? 2.4 : l.blechachse ? 1.8 : 1.4) * s;
+        c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s;
         c.globalAlpha = 1;
       }
       if ((l.schwerachse || traegt) && this._unauffaellig(l)) c.globalAlpha = Math.min(c.globalAlpha, 0.08);

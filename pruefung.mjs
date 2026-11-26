@@ -43140,7 +43140,7 @@ titel('298  Linie: Teile über die Ebenen, N lotrecht, Farbe des Modells wählba
        pL?.key === 'N' && pN?.key === 'eta' && pF === null && ans._farbPlot()?.key === 'N');
   wahr('Balken der Linie stellt die Linienfarbe ein (+ / −, Skala, eine Farbe), keine Knopfreihe darüber',
        LQ2.includes('data-leg-zl=') && LQ2.includes('data-leg-zlfrei') && !LQ2.includes('data-zl-farbe')
-       && RQ2.includes("const zf = this.zlFarbe ?? 'vorzeichen';"));
+       && RQ2.includes("const zf = this.zlFarbe ?? 'skala';") && RQ2.includes("this.zlFarbe = 'skala';"));
   const UQ3 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Knickfigur-Knöpfe als Fusszeile in der Kachel α_cr', UQ3.includes('kz-knoepfe') && UQ3.includes('data-knick-figur'));
 }
@@ -44426,6 +44426,28 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('362  Strichbild feiner, gleich für alle Tragwerksarten, Ebenen konsistent (26. November)');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Systemachse grau strichpunktiert, Achsen 1.4 px (Bleche 1.0, Anker 1.1)',
+       RQ.includes("c.setLineDash([9 * s, 3 * s, 1.5 * s, 3 * s]);") && RQ.includes('c.lineWidth = (l.blechachse ? 1.0 : l.anker ? 1.1 : 1.4) * s;')
+       && !RQ.includes('c.lineWidth = (l.gurt || l.schwerachse ? 2.4 : l.blechachse ? 1.8 : 1.4) * s;'));
+  wahr('Flächen mit Wert im Strichbild mit Ton und Kante in der Plotfarbe (Abfangjoch, Tragausleger)',
+       RQ.includes('const mitWert = !strichD &&'));
+  wahr('Achsen folgen der Ebene ihres Körpers (Masten, Gurte, Bleche)',
+       RQ.includes("const ebene = l.schwerachse ? 'mast'") && RQ.includes(": l.gurt ? 'profil'"));
+}
+
+// ===========================================================================
+titel('361  Projektauswertung: Reaktionskräfte je Position unter dem Schema (26. November)');
+{
+  const PQ = readFileSync(join(HIER, 'js', 'app.projekt.js'), 'utf8');
+  wahr('Tabelle .pos-rk je Eintrag, sichtbar nur mit dem Umschalter «Reaktionskräfte»',
+       PQ.includes('<div class="pos-rk" hidden>') && PQ.includes("d.hidden = b.dataset.l !== 'rk';")
+       && PQ.includes('${rkPos(r)}</div>`;'));
 }
 
 // ===========================================================================

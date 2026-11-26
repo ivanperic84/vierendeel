@@ -1061,7 +1061,7 @@ function balkenHtml(app, p, linie = false) {
 }
 function balkenLinieHtml(app, p) {
   const a = app.ansicht;
-  const zf = a.zlFarbe ?? 'vorzeichen';
+  const zf = a.zlFarbe ?? 'skala';
   const marken = !p ? [] : p.fest ? ['0', '0.5', '≥ 1.0']
     : [0, 0.33, 0.66, 1].map((f) => ((p.min ?? 0) + (p.max - (p.min ?? 0)) * f).toFixed(p.nk));
   const name = { vorzeichen: 'Vorzeichen', skala: 'Skala', frei: 'Verlauf' }[zf];
