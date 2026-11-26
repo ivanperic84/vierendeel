@@ -6725,6 +6725,20 @@ export class Modellansicht {
     const budget = this._markenBudget();
     const sammlung = [];
     this.szene.marken.forEach((mk) => {
+      /*
+       * >>> ANGRIFFSPUNKTE GREIFBAR AUCH OHNE LASTEN (26. November). <<< Mit
+       * Bild (NT-Ausleger an der Hängestütze, Lasten aus): «Hier auch den
+       * fahrdraht per drag and drop verschiebbar machen». Die Punkte gehören
+       * zur Ebene «Lasten»; war sie aus, liessen sie sich nicht ziehen, obwohl
+       * das Anbauteil im Bild stand. Jetzt bleibt der Griff, solange die
+       * Anbauteile sichtbar sind - gezeichnet wird der Ring nicht.
+       */
+      if (mk.art === 'lastknoten' && mk.zieh && mk.zieh.achse !== 'y'
+          && mk.gruppe && !this._ebeneAn(mk.gruppe) && this._ebeneAn('anbau') && this._imFokus(mk.p[0])) {
+        const q = proj(mk.p);
+        if (q) this._punktTreffer.push({ x: q[0], y: q[1], teil: mk.teil, welt: mk.p, ...mk.zieh });
+        return;
+      }
       if (mk.gruppe && !this._ebeneAn(mk.gruppe)) return;
       if (!this._imFokus(mk.p[0])) return;
       const p = proj(mk.p);

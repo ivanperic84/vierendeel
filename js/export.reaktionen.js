@@ -318,7 +318,8 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   // Eingaben - dann nicht noch einmal die Anbau-Stäbe und Leiter des Modells.
   const linien = skizze.linien.filter((l) => !(anbau && l[4] === 2)).map((l) => {
     const kl = l[4] === 1 ? ' class="sk-seil"' : l[4] === 2 ? ' class="sk-anbau"'
-      : l[4] === 3 && mastGrau ? ' class="sk-mast-grau"' : '';
+      : l[4] === 3 && mastGrau ? ' class="sk-mast-grau"' : l[4] === 3 ? ' class="sk-mast"'
+      : l[4] === 4 ? ' class="sk-blech"' : l[4] === 5 ? ' class="sk-gurt"' : '';
     if (l[4] === 2 && Math.abs(l[0] - l[2]) > 0.02 && Math.abs(l[1] - l[3]) > 0.02) {
       const [ax, az, bx, bz] = l[5] === 1 ? [l[2], l[3], l[0], l[1]] : l;
       return strich(kl, ax, az, ax, bz) + strich(kl, ax, bz, bx, bz);
@@ -462,6 +463,7 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
   return `<svg class="rk-skizze" viewBox="0 0 ${breite} ${hoehe}" width="${breite}" height="${hoehe}"
       xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Übersichtsskizze quer zum Gleis">
     <style>line{stroke:#444;stroke-width:0.7}.sk-boden{stroke:#aaa;stroke-dasharray:4 3}
+      .sk-mast{stroke:#333;stroke-width:1.1}.sk-gurt{stroke:#7d7d7d;stroke-width:0.6}.sk-blech{stroke:#c4c4c4;stroke-width:0.45}
       .sk-seil{stroke:#444;stroke-width:0.8;stroke-dasharray:5 3}
       .sk-anbau{stroke:#1d5fa8;stroke-width:1.1}.sk-mast-grau{stroke:#b4b4b4}
       .sk-leiter{fill:#1d5fa8;stroke:none}

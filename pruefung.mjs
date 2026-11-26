@@ -44439,6 +44439,19 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('369  Skizze als Liniendarstellung; Angriffspunkte greifbar ohne Lasten (26. November)');
+{
+  const KR = await import(J('core.reaktionen.js'));
+  const dat = { knoten: [{ name: 'a', x: 0, y: 0.17, z: 7.5 }, { name: 'b', x: 1, y: 0.17, z: 7.5 }, { name: 'c', x: 0.5, y: 0.17, z: 7.2 }, { name: 'd', x: 0.5, y: 0.17, z: 7.8 }],
+                staebe: [{ name: 'T1_OGL_S0', von: 'a', bis: 'b', art: 'stab' }, { name: 'T1_BV_L_0_2', von: 'c', bis: 'd', art: 'stab' }] };
+  const arten = KR.skizzeAusModell(dat).linien.map((l) => l[4]).sort().join(',');
+  wahr('Gurt Art 5, Blech Art 4 (fein und hell gezeichnet)', arten === '4,5', arten);
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Angriffspunkte greifbar, solange die Anbauteile sichtbar sind (Lasten aus)',
+       RQ.includes("if (mk.art === 'lastknoten' && mk.zieh && mk.zieh.achse !== 'y'"));
+}
+
+// ===========================================================================
 titel('368  Mass L zwischen den Mastachsen; Körper im Verlauf der Linie (26. November)');
 {
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');

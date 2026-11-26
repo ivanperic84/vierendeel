@@ -424,6 +424,14 @@ export function skizzeAusModell(dat) {
     // Art 3 = Mast (9. Oktober, «hier die masten grau darstellen, da die
     // joche wichtig sind»): das Blatt des Jochanschlusses nimmt sie zurück.
     else if (p[4] === 0 && /(?:^|_)(?:MAST|ROHR)_/.test(String(s.name))) p[4] = 3;
+    /*
+     * Art 4 = Blech, 5 = Gurt (26. November, «hier ist der obere balken
+     * unlesbar. die skizze sollte nach dieser darstellung umgestaltet werden
+     * (liniendarstellung)» - mit Bild des Strichbilds): beide fein und hell
+     * gezeichnet, Masten und Anker kräftig.
+     */
+    else if (p[4] === 0 && /(?:^|_)(?:BV|BH|BL)_/.test(String(s.name))) p[4] = 4;
+    else if (p[4] === 0 && /(?:^|_)(?:OG[LR]?|UG[LR]?|V|H|GURT|GABEL)_/.test(String(s.name))) p[4] = 5;
     if (gesehen.has(k)) return;
     gesehen.add(k);
     linien.push(p);
