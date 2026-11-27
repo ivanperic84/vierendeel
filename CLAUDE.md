@@ -633,7 +633,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 **27. November 2026** · Alles gepusht (Weisung «pushen und daten nachtragen»), Arbeitsbaum sauber;
 `Versand/` mit Einzeldatei, Schulung und Datenpaket vom 27. November, COM_Bruecke gleich `com/`. Prüfstand
-**7856** grün. Seit dem 24. November die Zeilen oben in *Entschieden* (Strichbild, Skizzen, Mastspitze RTE 27200,
+**7868** grün. Seit dem 24. November die Zeilen oben in *Entschieden* (Strichbild, Skizzen, Mastspitze RTE 27200,
 Kragarme beim Mastziehen …).
 
 Davor: **23. November 2026** · Alles gepusht bis `8435441` (Weisung «Ja, pushen»), Arbeitsbaum sauber, bereit fuer
