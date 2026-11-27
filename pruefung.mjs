@@ -44441,6 +44441,17 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('376  Anbauteile zuklappbar, mit ihrem Tragwerk; Gruppen zuklappbar (27. November)');
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Block Anbauteile ist eine zuklappbare Gruppe mit dem Tragwerk im Kopf',
+       UQ.includes("return block(gid, gTitel, grpHtml(gid, `${gTitel}${pos ? ` · ${pos}` : ''}`,"));
+  wahr('Gruppen der Anbauteile klappen am Kopf zu, gemerkt je Tragwerk',
+       UQ.includes('data-at-gklapp=') && UQ.includes('const AT_GRUPPE_ZU = new Set();'));
+  wahr('Sprungknopf nennt nur den Titel (nicht die Stückzahl)', UQ.includes("g.querySelector('summary .grp-t') ??"));
+}
+
+// ===========================================================================
 titel('375  Auswertung je Nachweis beim Anklicken; Zahl fährt hin; Traverse am Mast (27. November)');
 {
   const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');

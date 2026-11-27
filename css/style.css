@@ -4691,3 +4691,13 @@ button.wz-haupt { padding: 3px 0 4px; }
 .kz-detail .kzd-formel .klein { color: var(--dim); }
 .kz-detail .kzd-text { white-space: pre-line; font-size: 11px; line-height: 1.45; margin: 4px 0; }
 .nw-zeilen .kz.kz-auf { cursor: pointer; }
+
+/* 27. November: Gruppen der Anbauteile zuklappbar am Kopf. */
+.at-gruppe > .at-gkopf { cursor: pointer; }
+.at-gpfeil { display: inline-block; width: 0; height: 0; margin-right: 6px; vertical-align: middle;
+  border-left: 4px solid currentColor; border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
+  transform: rotate(90deg); transition: transform var(--t-schnell); }
+.at-gruppe.klapp-zu .at-gpfeil { transform: none; }
+.at-gruppe.klapp-zu > :not(.at-gkopf):not(.at-gform) { display: none; }
+.at-gruppe.klapp-zu > .at-gkopf { margin-bottom: 0; border-bottom: 0; }
+.at-gruppe.klapp-zu { padding-bottom: 0; }

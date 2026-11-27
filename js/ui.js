@@ -763,7 +763,7 @@ function verdrahteHavarie(container, werte, onChange) {
 function anbauSprungleiste(container) {
   const chips = [];
   container.querySelectorAll('[data-grp]').forEach((g) => {
-    const t = g.querySelector('summary .grp-titel, summary')?.textContent?.trim().split(/\d+ Vorlage/)[0].trim();
+    const t = (g.querySelector('summary .grp-t') ?? g.querySelector('summary .grp-titel, summary'))?.textContent?.trim().split(/\d+ Vorlage/)[0].trim();
     if (t) chips.push({ art: 'grp', ziel: g.dataset.grp, titel: t.length > 28 ? `${t.slice(0, 26)}…` : t });
   });
   container.querySelectorAll('.at-gruppe .at-gname').forEach((n) => {
@@ -795,6 +795,11 @@ function anbauSprungleiste(container) {
         .find((g) => g.querySelector('.at-gname')?.textContent.trim() === c.ziel) ?? null;
       const d = ziel?.closest('details');
       if (d && !d.open) d.open = true;
+      // Eine zugeklappte Gruppe öffnet der Sprung (27. November).
+      if (ziel?.classList.contains('klapp-zu')) {
+        ziel.classList.remove('klapp-zu');
+        AT_GRUPPE_ZU.delete(`${aktuelleWerte?.twId ?? 'T1'}|${ziel.dataset.atGklapp}`);
+      }
     }
     ziel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }));
@@ -844,7 +849,21 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     if (!g) return '';
     const gTitel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
     const zusatz = extras[gid] ? `<div data-extra="${gid}">${extras[gid]}</div>` : '';
-    if (gid === 'anbau') return block(gid, gTitel, anbauteileHtml(g, werte) + zusatz);
+    /*
+     * >>> ANBAUTEILE ZUKLAPPBAR, MIT IHREM TRAGWERK (27. November). <<< Mit
+     * Bild des Reiters, im Wortlaut: «kann man noch die anbauteile auch
+     * zuklappbarmachen je tragwerksabschnitt, oder wie ist es wenn man eine
+     * jochreihe hat?» Der Block ist eine Gruppe wie die übrigen (zuklappbar,
+     * gemerkt); der Kopf nennt das Tragwerk, dessen Teile darunter stehen -
+     * in einer Reihe zeigt der Reiter immer nur das gewählte Tragwerk.
+     */
+    if (gid === 'anbau') {
+      const aktivT = tragwerkeVon(werte).find((t) => t.id === (werte.twId ?? 'T1'));
+      const pos = aktivT ? tragwerkPos(werte, aktivT) : '';
+      const n = (werte.anbauteile ?? []).length;
+      return block(gid, gTitel, grpHtml(gid, `${gTitel}${pos ? ` · ${pos}` : ''}`,
+        anbauteileHtml(g, werte) + zusatz, `${n} Stück`, true));
+    }
     if (gid === 'havarie') return block(gid, gTitel, havarieHtml(g, werte) + zusatz);
     const felder = sichtbareFelder(gid, werte);
     // Eine Gruppe kann ohne eigenes Eingabefeld auskommen und nur aus einem
@@ -3698,8 +3717,10 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
    */
   const zeilen = [...gruppen.entries()].map(([name, teile]) => {
     const zu = teile.every(({ a }) => a.aktiv === false);
+    // Je Gruppe zuklappbar (27. November), gemerkt je Tragwerk und Name.
+    const klappZu = AT_GRUPPE_ZU.has(`${werte.twId ?? 'T1'}|${name}`);
     return `
-    <div class="at-gruppe${zu ? ' verborgen' : ''}">
+    <div class="at-gruppe${zu ? ' verborgen' : ''}${klappZu ? ' klapp-zu' : ''}" data-at-gklapp="${esc(name)}">
       ${/*
          * >>> DER GRUPPENKOPF WIE EINE BAUTEILZEILE (9. Oktober). <<< Im
          * Wortlaut: «Kannst du die buttongrösse und anordnung gleich machen
@@ -3713,7 +3734,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          */''}
       <div class="at-gkopf" title="Summe der eingeschalteten Teile der Gruppe"${
         teile.find((t) => t.a.farbe) ? ` style="border-left-color:${esc(teile.find((t) => t.a.farbe).a.farbe)}"` : ''}>
-        <span class="at-gname">${name ? `#${esc(name)}` : 'Ohne Gruppe'}</span>
+        <span class="at-gname" title="Gruppe auf- oder zuklappen"><i class="at-gpfeil"></i>${name ? `#${esc(name)}` : 'Ohne Gruppe'}</span>
         <span class="at-x">${teile.length} Stück</span>
         <span class="at-kraft at-gkraft">${esc(gruppeKraft(teile.map((t) => t.a), trasse))} kN</span>
         <span class="at-tasten">
@@ -3830,8 +3851,8 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
    * keine Strecke dafuer, und meist wird nur ein Gleis daneben bedient -
    * die Teile setzt dort die Vorlage bzw. der Vorrat.
    */
-  return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
-    nichtGetragen +
+  // Kopf und Stückzahl stehen seit dem 27. November im zuklappbaren Gruppenkopf (koerper).
+  return nichtGetragen +
     `<div class="at-werkzeuge">
        ${/*
           * >>> «BAUTEIL ZUWEISEN» FRAGT, WELCHES (14. November). <<<
@@ -6118,6 +6139,14 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-gruppe-dup]').forEach((b) => {
     b.addEventListener('click', (e) => { e.stopPropagation(); beiAnbauGruppeDup?.(b.dataset.atGruppeDup); });
   });
+  container.querySelectorAll('[data-at-gklapp]').forEach((g) => {
+    g.querySelector('.at-gkopf')?.addEventListener('click', (e) => {
+      if (e.target.closest('button, input, .at-gform')) return;
+      const k = `${aktuelleWerte?.twId ?? 'T1'}|${g.dataset.atGklapp}`;
+      g.classList.toggle('klapp-zu');
+      if (g.classList.contains('klapp-zu')) AT_GRUPPE_ZU.add(k); else AT_GRUPPE_ZU.delete(k);
+    });
+  });
   container.querySelectorAll('[data-at-gruppe-auge]').forEach((b) => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -8231,6 +8260,7 @@ function fundamentDetailTabelle(q) {
 /** Welche Fundament-Auswertungen aufgeklappt sind (bleibt beim Neuzeichnen). */
 const FUND_OFFEN = new Set();
 const STAB_OFFEN = new Set();
+const AT_GRUPPE_ZU = new Set();
 
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   /*
