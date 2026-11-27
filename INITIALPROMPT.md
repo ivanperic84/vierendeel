@@ -7,7 +7,8 @@ zu lesen, bevor etwas geändert wird.
 
 ## Stand 27. November 2026 - hier weitermachen
 
-**Alles gepusht** (Weisung «pushen und daten nachtragen», 27. November), Arbeitsbaum sauber, Pruefstand **7873**
+**Alles gepusht, bereit fuer den Kontowechsel** (Weisung «alles bereit machen für den accountwechsel», 27. November),
+Arbeitsbaum sauber (ausser den nie verfolgten `Optimieren/` und `com/optimieren_lauf.txt`), Pruefstand **7876**
 gruen. `Versand/`: Einzeldatei und Schulung `…_2026-11-27.html`, Datenpaket `Vierendeel_Datenpaket_2026-11-27.json`,
 COM_Bruecke gleich `com/`. Gebaut seit dem 24. November (Wortlaut in CLAUDE.md, *Entschieden*, oberste Zeilen):
 Strichbild (hell/dunkel), Skizzen der Blaetter schraeg und als Liniendarstellung, Ansichten mit Miniatur,
@@ -16,7 +17,8 @@ Doppel-Abfangjoch, Mass L zwischen den Mastachsen, Fahrdraht greifbar ohne Laste
 Mastziehen (Rest ans gezogene Ende). Danach am selben Tag: Rahmen durchgaengig um alle Bloecke (Masken,
 Auswertung, Anbauteile), Rahmen leuchtet unter der Maus, Schriftreihe 10-14 px ohne Halbschritte,
 Knopfhoehen 22/30/36, Drahtwerke leuchten nur am gewaehlten Tragwerk, Auswertung je Nachweis beim Anklicken
-(Zahl faehrt die Stelle an), Vorlage Leiter-Traverse z 0 mit Fahrleitung als Auflager. Naechster Schritt: neue Weisung abwarten; offene Punkte in CLAUDE.md.
+(Zahl faehrt die Stelle an), Vorlage Leiter-Traverse z 0 mit Fahrleitung als Auflager, Anbauteile zuklappbar mit
+ihrem Tragwerk im Kopf, `serve.py` mit Warteschlange 256 (erste Ladung bricht nicht mehr ab). Naechster Schritt: neue Weisung abwarten; offene Punkte in CLAUDE.md.
 
 ## Stand 23. November 2026 (davor)
 

@@ -633,9 +633,10 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**27. November 2026** · Alles gepusht (Weisung «pushen und daten nachtragen»), Arbeitsbaum sauber;
+**27. November 2026** · Alles gepusht, bereit für den Kontowechsel (Weisung «alles bereit machen für den
+accountwechsel»), Arbeitsbaum sauber;
 `Versand/` mit Einzeldatei, Schulung und Datenpaket vom 27. November, COM_Bruecke gleich `com/`. Prüfstand
-**7873** grün. Seit dem 24. November die Zeilen oben in *Entschieden* (Strichbild, Skizzen, Mastspitze RTE 27200,
+**7876** grün, `durchlauf.mjs` ohne Bruch (Betreiber- und Testdaten). Seit dem 24. November die Zeilen oben in *Entschieden* (Strichbild, Skizzen, Mastspitze RTE 27200,
 Kragarme beim Mastziehen …).
 
 Davor: **23. November 2026** · Alles gepusht bis `8435441` (Weisung «Ja, pushen»), Arbeitsbaum sauber, bereit fuer
