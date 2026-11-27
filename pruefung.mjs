@@ -44439,6 +44439,25 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('370  Mast ziehen: Kragarme bleiben, Rest ans gezogene Ende (27. November)');
+{
+  const C = await import(J('core.constants.js'));
+  const U = await import(J('ui.js'));
+  // J90, Masten 0 / 22.10, Kragarme 0.20 / 0.30 eingetippt: L 22.60 → 23.00.
+  const w = { typ: 'J90', L: 22.6, xLage: -0.2, kragA: 0.2, kragB: 0.3, kragMasten: true, mastProfil: 'HEB 260',
+              mastVorhanden: true, tragwerksart: 'joch', twId: 'T1', mastH: 7.5, anbauteile: [] };
+  const b = U.jochAufStandardlaenge(w, 'T1', 'B');
+  const kb = C.kragarme(b.werte).map((v) => v.toFixed(2)).join('/');
+  wahr('Ende B gezogen: c_A 0.20 bleibt, c_B 0.30 + 0.40 = 0.70, L 23.00', kb === '0.20/0.70' && b.werte.L === 23, kb);
+  const a = U.jochAufStandardlaenge(w, 'T1', 'A');
+  const ka = C.kragarme(a.werte).map((v) => v.toFixed(2)).join('/');
+  wahr('Ende A gezogen: c_B 0.30 bleibt, c_A 0.60', ka === '0.60/0.30', ka);
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Mastziehen gibt das gezogene Ende weiter', AQ.includes("standardlaengeNachfuehren(r.alsB.t.id, 'B')")
+       && AQ.includes("standardlaengeNachfuehren(r.alsA.t.id, 'A')"));
+}
+
+// ===========================================================================
 titel('369  Skizze als Liniendarstellung; Angriffspunkte greifbar ohne Lasten (26. November)');
 {
   const KR = await import(J('core.reaktionen.js'));

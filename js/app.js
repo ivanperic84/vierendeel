@@ -4573,8 +4573,9 @@ function aendern(key, wert) {
     // Das Joch, dessen Länge der Mast gerade verstellt hat (2. Oktober) -
     // seit dem 3. Oktober auch am Ende A, wenn Ende B gehalten stehen blieb
     // (bei unveränderter Länge tut die Nachführung nichts).
-    if (r.alsB) standardlaengeNachfuehren(r.alsB.t.id);
-    else if (r.alsA) standardlaengeNachfuehren(r.alsA.t.id);
+    // Kragarme bleiben, der Rest geht ans gezogene Ende (27. November).
+    if (r.alsB) standardlaengeNachfuehren(r.alsB.t.id, 'B');
+    else if (r.alsA) standardlaengeNachfuehren(r.alsA.t.id, 'A');
     mastNachfuehren();
     neuRechnen();
     return;
@@ -5052,8 +5053,8 @@ function mastZiehen(ende, { zone, d, laenge = 0 }) {
  * Ein Joch auf seine Standardlänge bringen und es sagen (2. Oktober,
  * Regel bei `jochAufStandardlaenge` in ui.js). Schreibt `werte`.
  */
-function standardlaengeNachfuehren(id) {
-  const { werte: w, info } = ui.jochAufStandardlaenge(werte, id);
+function standardlaengeNachfuehren(id, ende = null) {
+  const { werte: w, info } = ui.jochAufStandardlaenge(werte, id, ende);
   if (!info) return;
   werte = w;
   const t = tragwerkeVon(werte).find((x) => x.id === id);

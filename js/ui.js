@@ -1896,9 +1896,15 @@ export function mastStelleSetzen(werte, r, xZiel) {
  * (Endfeld kürzen, Rückfrage «Beide Joche je halb, Spalt 10 cm» - eigener
  * Schritt).
  *
+ * >>> GEZOGENER MAST: DER REST GEHT ANS GEZOGENE ENDE (27. November). <<<
+ * Weisung «kragarme erhalten bleiben beim ziehen der masten», auf
+ * Rückfrage «Ans gezogene Ende»: mit `ende` ('A' | 'B') bekommt dieses Ende
+ * den ganzen Überschuss, der Kragarm am anderen bleibt genau. Stösst das
+ * gezogene Ende, geht er ans andere.
+ *
  * @returns {{werte:object, info:object|null}}  info: {id, L0, L, dA, dB}
  */
-export function jochAufStandardlaenge(werte, id) {
+export function jochAufStandardlaenge(werte, id, ende = null) {
   const ohne = { werte, info: null };
   const t = tragwerkeVon(werte).find((x) => x.id === id);
   if (!t || tragwerksart(t).key !== 'joch') return ohne;
@@ -1913,7 +1919,8 @@ export function jochAufStandardlaenge(werte, id) {
   if (stossA && stossB) return ohne;
   const r6 = (v) => Math.round(v * 1e6) / 1e6;
   const extra = r6(Lstd - L);
-  const dA = stossA ? 0 : stossB ? extra : r6(extra / 2);
+  const dA = stossA ? 0 : stossB ? extra
+    : ende === 'A' ? extra : ende === 'B' ? 0 : r6(extra / 2);
   const dB = r6(extra - dA);
   const [kA, kB] = kragarme(t);
   const neu = tragwerkAendern(werte, id, (x) => {
