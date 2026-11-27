@@ -309,7 +309,7 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
    */
   const k = ziel?.stab
     ? ` klick" data-kz-stab="${esc(ziel.stab)}" title="${esc(
-        `${ziel.titel ? `${ziel.titel}\n\n` : ''}Klick: massgebenden Stab ${ziel.stab} im Modell zeigen`)}`
+        `${ziel.titel ? `${ziel.titel}\n\n` : ''}Klick: Auswertung auf- / zuklappen · Klick auf die Zahl: Stab ${ziel.stab} im Modell zeigen`)}`
     : ziel && Number.isFinite(ziel.x)
     ? ` klick" data-kz-x="${ziel.x}" data-kz-station="${ziel.station ?? ''}` +
       `" title="Im Modell anfahren: x = ${ziel.x.toFixed(2)} m`

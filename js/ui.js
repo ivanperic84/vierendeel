@@ -7691,6 +7691,10 @@ export function verdrahteStabwerk(node, opt = {}) {
   node.querySelectorAll('[data-kz-auf]').forEach((k) => {
     k.addEventListener('click', (e) => {
       if (e.target.closest('.kz-detail')) return;
+      // Klick auf die Zahl fährt den Masten des Fundaments an (27. November).
+      if (e.target.closest('.kz-w') && typeof opt.beiFundament === 'function') {
+        opt.beiFundament(k.dataset.kzAuf); return;
+      }
       const d = k.querySelector('.kz-detail');
       if (!d) return;
       d.hidden = !d.hidden;
@@ -7699,9 +7703,69 @@ export function verdrahteStabwerk(node, opt = {}) {
     });
   });
   // Kacheln aus dem Stabwerk: Klick zeigt den massgebenden Stab im Modell.
+  /*
+   * >>> AUSWERTUNG BEIM ANKLICKEN, ZAHL FÄHRT HIN (27. November). <<< Mit
+   * Bild der Fundamentauswertung, im Wortlaut: «kannst du solch eine
+   * auswertung auch für die restlichen nachwese machen, die man durch
+   * anklicken einblenden kann. wenn man den wet anklickt dann wird die
+   * stelle im modell angefahren.» Klick auf die Zeile klappt die Kette auf
+   * (massgebender Stab, Kombination, Endkräfte, eingesetzte Formel - dieselbe
+   * Darstellung wie im Nachweisbericht, `stabFormelHtml`); Klick auf die Zahl
+   * zeigt den Stab im Modell. Ohne Kette (z. B. Ersatzbalken) bleibt der Klick
+   * der Sprung ins Modell. Offene Auswertungen bleiben beim Neuzeichnen offen.
+   */
+  /*
+   * Die übrigen Nachweiszeilen (Aufhängung, Längsanker, Knicken, Anker,
+   * Verformung, Hakenschrauben …): ihr Erklärtext ist die Auswertung - ein
+   * Klick klappt ihn auf statt nur beim Überfahren; die Zahl fährt den
+   * Masten an, wenn die Zeile einen nennt (27. November).
+   */
+  node.querySelectorAll('.nw-zeilen .kz:not([data-kz-stab]):not([data-kz-auf])').forEach((k) => {
+    const text = k.getAttribute('title');
+    const t = k.querySelector('.kz-t')?.textContent ?? '';
+    if (!text || !t) return;
+    const mast = (t.match(/\b(M[A-Z]*\d+)\s*$/) ?? [])[1] ?? null;
+    const schluessel = `txt:${t}`;
+    k.classList.add('kz-auf');
+    k.setAttribute('title', `${text}\n\nKlick: Auswertung auf- / zuklappen${mast ? ' · Klick auf die Zahl: Mast im Modell zeigen' : ''}`);
+    const einsetzen = () => {
+      k.insertAdjacentHTML('beforeend', `<div class="kz-detail"><p class="kzd-text">${esc(text)}</p></div>`);
+      k.classList.add('kz-offen');
+    };
+    if (STAB_OFFEN.has(schluessel)) einsetzen();
+    k.addEventListener('click', (e) => {
+      if (e.target.closest('.kz-detail')) return;
+      if (mast && e.target.closest('.kz-w') && typeof opt.beiFundament === 'function') { opt.beiFundament(mast); return; }
+      const d = k.querySelector('.kz-detail');
+      if (!d) { einsetzen(); STAB_OFFEN.add(schluessel); return; }
+      d.hidden = !d.hidden;
+      k.classList.toggle('kz-offen', !d.hidden);
+      if (d.hidden) STAB_OFFEN.delete(schluessel); else STAB_OFFEN.add(schluessel);
+    });
+  });
   if (typeof opt.beiStab === 'function') {
+    const detailEinsetzen = (k) => {
+      const h = opt.stabDetail?.(k.dataset.kzStab);
+      if (!h) return false;
+      k.insertAdjacentHTML('beforeend', `<div class="kz-detail">${h}</div>`);
+      k.classList.add('kz-offen');
+      return true;
+    };
     node.querySelectorAll('[data-kz-stab]').forEach((k) => {
-      k.addEventListener('click', () => opt.beiStab(k.dataset.kzStab));
+      if (STAB_OFFEN.has(k.dataset.kzStab)) detailEinsetzen(k);
+      k.addEventListener('click', (e) => {
+        if (e.target.closest('.kz-detail')) return;
+        const s = k.dataset.kzStab;
+        if (e.target.closest('.kz-w')) { opt.beiStab(s); return; }
+        const d = k.querySelector('.kz-detail');
+        if (!d) {
+          if (detailEinsetzen(k)) STAB_OFFEN.add(s); else opt.beiStab(s);
+          return;
+        }
+        d.hidden = !d.hidden;
+        k.classList.toggle('kz-offen', !d.hidden);
+        if (d.hidden) STAB_OFFEN.delete(s); else STAB_OFFEN.add(s);
+      });
       // Überfahren hebt den Stab im 3D schon vor dem Klick hervor (19. November).
       k.addEventListener('mouseenter', () => opt.beiStabVorschau?.(k.dataset.kzStab));
       k.addEventListener('mouseleave', () => opt.beiStabVorschau?.(null));
@@ -8166,6 +8230,7 @@ function fundamentDetailTabelle(q) {
 
 /** Welche Fundament-Auswertungen aufgeklappt sind (bleibt beim Neuzeichnen). */
 const FUND_OFFEN = new Set();
+const STAB_OFFEN = new Set();
 
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   /*

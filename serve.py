@@ -66,6 +66,10 @@ class Server(socketserver.ThreadingTCPServer):
     erlaubt es nur, einen eben beendeten Port sofort wieder zu nehmen.
     """
     daemon_threads = True
+    # 27. November: die Modulversion fordert rund 120 Dateien zugleich an; mit
+    # der Vorgabe (5) lief die Warteschlange über und die erste Ladung nach
+    # dem Bündeln brach mit «Verbindung abgelehnt» ab.
+    request_queue_size = 256
     allow_reuse_address = os.name != "nt"
 
     def server_bind(self):

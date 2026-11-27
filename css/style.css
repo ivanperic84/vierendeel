@@ -4682,3 +4682,12 @@ button.wz-haupt { padding: 3px 0 4px; }
 .grp-block, .teil-block, .at-gruppe, .nw-block { transition: border-color var(--t-schnell); }
 .grp-block:hover { border-color: color-mix(in srgb, var(--acc) 45%, var(--ol)); }
 .grp-block .teil-block:hover, .grp-block .at-gruppe:hover, .nw-block:hover { border-color: var(--acc); }
+
+/* 27. November: Auswertung beim Anklicken; die Zahl führt ins Modell. */
+.kz.klick .kz-w, .kz.kz-auf .kz-w { cursor: zoom-in; }
+.kz.klick .kz-w:hover, .kz.kz-auf .kz-w:hover { text-decoration: underline dotted; }
+.kz-detail .kzd-formel { font-size: 11px; line-height: 1.45; }
+.kz-detail .kzd-formel p { margin: 4px 0; }
+.kz-detail .kzd-formel .klein { color: var(--dim); }
+.kz-detail .kzd-text { white-space: pre-line; font-size: 11px; line-height: 1.45; margin: 4px 0; }
+.nw-zeilen .kz.kz-auf { cursor: pointer; }

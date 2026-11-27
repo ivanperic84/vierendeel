@@ -33691,7 +33691,8 @@ titel('158  Nachweiskachel zeigt den massgebenden Stab; Grundwerte beim neuen Tr
   wahr('Alle Kacheln aus dem Stabwerk reichen ihren Stab weiter (Joch, Abfangjoch, Ausleger, Mast)',
        (uq.match(/\.\.\.\(s\.wo \? \{ stab: s\.wo \} : \{\}\)/g) ?? []).length === 3
        && /\.\.\.\(sw\.wo \? \{ stab: sw\.wo \} : \{\}\)/.test(uq)
-       && /\[data-kz-stab\][\s\S]{0,120}opt\.beiStab\(k\.dataset\.kzStab\)/.test(uq));
+       // Seit dem 27. November klappt der Klick die Auswertung auf, die Zahl fährt hin.
+       && /e\.target\.closest\('\.kz-w'\)\) \{ opt\.beiStab\(s\); return; \}/.test(uq));
 
   // --- Die Grundwerte -------------------------------------------------------
   const K158 = await import(J('core.constants.js'));
@@ -44437,6 +44438,28 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('375  Auswertung je Nachweis beim Anklicken; Zahl fährt hin; Traverse am Mast (27. November)');
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const AQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Stabkacheln: Klick klappt die Kette auf (stabFormelHtml), die Zahl zeigt den Stab',
+       UQ.includes('const h = opt.stabDetail?.(k.dataset.kzStab);') && AQ.includes('function stabDetailHtml(name)')
+       && AQ.includes("import { stabFormelHtml } from './export.stabbericht.js';"));
+  wahr('Übrige Zeilen: Erklärtext als Auswertung, Zahl fährt den Masten an',
+       UQ.includes(".nw-zeilen .kz:not([data-kz-stab]):not([data-kz-auf])") && AQ.includes('function zeigeFundament(mast)'));
+  wahr('Fundament: Zahl fährt den Mastfuss an', UQ.includes('opt.beiFundament(k.dataset.kzAuf); return;'));
+  const AT = await import(J('data.anbauteile.js'));
+  let v = null;
+  try { v = AT.getVorlage('leiter-traverse'); } catch { v = null; }
+  if (v) {
+    wahr('Vorlage Leiter-Traverse: z 0, Fahrleitung als Auflager (50 %)',
+         v.windAufTraeger === true && (v.module ?? []).every((m) => (m.z ?? 0) === 0), JSON.stringify(v.module?.map((m) => m.z)));
+  }
+  const SQ = readFileSync(join(HIER, 'serve.py'), 'utf8');
+  wahr('Entwicklungsserver mit grosser Warteschlange (erste Ladung nach dem Bündeln)', SQ.includes('request_queue_size = 256'));
 }
 
 // ===========================================================================

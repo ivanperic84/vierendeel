@@ -38,6 +38,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
 import { exportiere, exportiereStabwerk } from './export.bericht.js';
 import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
          stabwerkBerichtDaten, setzeDruckStamm, kurzBericht } from './app.bericht.js';
+import { stabFormelHtml } from './export.stabbericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml, anschlussKurzHtml, anschlussBlattHtml } from './export.reaktionen.js';
 import { bestandBlattHtml, BESTAND_GRUPPEN } from './export.bestand.js';
 import { axisVergleich, istAxisErgebnis } from './core.axisvergleich.js';
@@ -2380,6 +2381,7 @@ function zeichneAuswertung() {
         beiKnick: knickRechnen,
         beiKnickFigur: knickFigurSchalten,
         beiStab: zeigeStab, beiStabVorschau: stabVorschau,
+        stabDetail: stabDetailHtml, beiFundament: zeigeFundament,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
         // Die Referenzhöhe im GZG-Block (30. September).
@@ -2490,6 +2492,7 @@ function zeichneAuswertung() {
                            beiKnick: knickRechnen,
                            beiKnickFigur: knickFigurSchalten,
                            beiStab: zeigeStab, beiStabVorschau: stabVorschau,
+                           stabDetail: stabDetailHtml, beiFundament: zeigeFundament,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
                            // Bügelschrauben (7. Oktober).
@@ -6520,6 +6523,28 @@ function zeigeStab(name) {
   if (!ansicht.zeigeStab(name)) {
     meldeImBalken(`Stab ${name} steht nicht im Bild (Resultatplot aus dem Stabwerk nötig).`, { dauer: 6000 });
   }
+}
+
+/*
+ * Die Auswertung eines Nachweises beim Anklicken (27. November): die Kette
+ * des massgebenden Stabes wie im Nachweisbericht - aus der Hülle bzw. dem
+ * gewählten Fall des Stabwerks, nichts neu gerechnet.
+ */
+function stabDetailHtml(name) {
+  const a = stabwerkAnsicht();
+  const h = a?.h;
+  const fyd = h?.roh?.auswertung?.fyd ?? stabwerk?.roh?.auswertung?.fyd;
+  const t = Object.values(h?.teile ?? {}).find((x) => x?.wo === name && x.detail);
+  if (!t || !(fyd > 0)) return null;
+  return `<div class="kzd-formel">${stabFormelHtml(t, fyd)}</div>`;
+}
+
+/** Klick auf die Zahl des Fundaments: den Mastfuss im Modell zeigen. */
+function zeigeFundament(mast) {
+  const st = (stabwerk?.roh?.dat?.staebe ?? [])
+    .find((s) => new RegExp(`(?:^|_)MAST_${mast}_S1$`).test(String(s.name)));
+  if (st) zeigeStab(st.name);
+  else meldeImBalken(`Mastfuss ${mast} steht nicht im Bild (Stabwerk nötig).`, { dauer: 5000 });
 }
 
 /** Aus der Ergebnisliste auf eine Stelle springen und dort heranzoomen. */
