@@ -349,7 +349,9 @@ small, sub, sup { font-size: max(10px, .83em); }
 }
 .sec-r { font-size: 10px; color: var(--dim); letter-spacing: .04em; text-transform: none; }
 
-.feld { display: grid; gap: 3px; margin-bottom: 9px; }
+/* 27. November: die Spalte darf nicht breiter werden als der Block (eine lange
+   Notiz zog sie auf 273 px, Zahlfeld und Skala liefen über den Rahmen). */
+.feld { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin-bottom: 9px; }
 .feld > label {
   font-size: 12px; color: var(--dim); display: flex; gap: 6px;
   align-items: baseline;
@@ -456,7 +458,8 @@ input[type=range].rng {
   flex: 1; padding: 0; border: none; background: none;
   accent-color: var(--acc); height: 18px; min-width: 60px;
 }
-.zahlfeld input.kurz { width: 74px; flex-shrink: 0; text-align: right; }
+/* 27. November: seit der Schrift 13 px stand «30.3865» am Rand - breiter. */
+.zahlfeld input.kurz { width: 86px; flex-shrink: 0; text-align: right; }
 .rng-skala {
   display: flex; justify-content: space-between;
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);
@@ -4671,3 +4674,11 @@ button.wz-haupt { padding: 3px 0 4px; }
    Mini-Knöpfe), 30 px normal, 36 px Reiter. Die Marken im Lageband und die
    Kacheln sind Bildteile, keine Knöpfe dieser Reihe. */
 .al-chip, .urteil-offen, .wz-s.wz-klapp { box-sizing: border-box; min-height: 22px; height: 22px; }
+
+/* 27. November, Weisung «kann man zudem den rahmen highlighten wenn man sich mit
+   der maus in dem berich bewegt. so sieht man besser das dazugehört, sinngemäss
+   gleich wie bei den anbauteilen»: der Rahmen des Blocks unter der Maus in der
+   Akzentfarbe (leicht), der innerste Block kräftiger. */
+.grp-block, .teil-block, .at-gruppe, .nw-block { transition: border-color var(--t-schnell); }
+.grp-block:hover { border-color: color-mix(in srgb, var(--acc) 45%, var(--ol)); }
+.grp-block .teil-block:hover, .grp-block .at-gruppe:hover, .nw-block:hover { border-color: var(--acc); }

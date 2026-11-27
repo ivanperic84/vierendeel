@@ -44440,6 +44440,16 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('374  Felder im Rahmen; Rahmen leuchtet unter der Maus (27. November)');
+{
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Feldspalte nie breiter als der Block', CQ.includes('.feld { display: grid; grid-template-columns: minmax(0, 1fr);'));
+  wahr('Zahlfeld breit genug für «30.3865»', CQ.includes('.zahlfeld input.kurz { width: 86px;'));
+  wahr('Rahmen unter der Maus in der Akzentfarbe', CQ.includes('.grp-block:hover { border-color:')
+       && CQ.includes('.grp-block .teil-block:hover, .grp-block .at-gruppe:hover, .nw-block:hover { border-color: var(--acc); }'));
+}
+
+// ===========================================================================
 titel('373  Drahtwerke überfahren: nur Leiter des gewählten Tragwerks leuchten (27. November)');
 {
   const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
