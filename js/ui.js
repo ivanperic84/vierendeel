@@ -8666,9 +8666,11 @@ export function nachweisGruppenHtml(gruppen) {
   if (voll.length === 1) {
     return `<div class="kennzahlen nw-zeilen">${voll[0].kacheln.join('')}</div>${voll[0].zusatz ?? ''}`;
   }
-  return voll.map((g) => `<div class="sec-klein">${esc(g.titel)}${
+  // Je Gruppe ein fein gerahmter Block (27. November, «das umranden sollte
+  // durchgängig angesetzt werden»); der Zusatz (Schalter plastisch) gehört hinein.
+  return voll.map((g) => `<section class="nw-block"><div class="sec-klein">${esc(g.titel)}${
     g.rechts ? `<span class="sec-r">${esc(g.rechts)}</span>` : ''}</div>
-    <div class="kennzahlen nw-zeilen">${g.kacheln.join('')}</div>${g.zusatz ?? ''}`).join('');
+    <div class="kennzahlen nw-zeilen">${g.kacheln.join('')}</div>${g.zusatz ?? ''}</section>`).join('');
 }
 
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,

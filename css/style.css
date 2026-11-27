@@ -374,6 +374,9 @@ input[type=number], input[type=text], input[type=search], select, textarea {
   transition: border-color var(--t-schnell), background-color var(--t-schnell);
 }
 select { font-family: var(--f-ui); }
+/* Audit 27. November: Zahlfeld 29 px, Auswahl 33 px nebeneinander in derselben
+   Maske - beide eine Höhe (30 px wie die normalen Knöpfe). */
+input[type=number], input[type=text], input[type=search], select { box-sizing: border-box; height: 30px; padding-top: 0; padding-bottom: 0; }
 input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--acc); background: var(--s3);
 }
@@ -886,7 +889,7 @@ input[type=range].rng {
   display: flex; flex-wrap: wrap; align-items: baseline;
   gap: 2px 8px;
   font-family: var(--f-mono); font-size: 10px; font-weight: 600;
-  letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  letter-spacing: .1em; text-transform: uppercase; color: var(--on2);
   margin: 7px 0 3px;
 }
 /* Die Beischrift darf schrumpfen, die Ueberschrift nicht - sie ist das,
@@ -3686,6 +3689,12 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .at-gkopf .at-kraft { grid-row: 2; grid-column: 2; }
 .at-gkopf .at-auge { margin-left: 0; }
 .at-gruppe.verborgen > .at-gkopf .at-gname { color: var(--dim); }
+/* 27. November («das umranden sollte durchgängig angesetzt werden»): jede
+   Gruppe der Anbauteile ein Block wie die Bauteile der Maske - Rahmen, Kopf
+   ohne Akzentbalken über einer Trennlinie, Name wie `.teil-kopf`. */
+.at-gruppe { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 6px 4px; margin: 8px 0; }
+.at-gruppe > .at-gkopf { border-left: 0; border-radius: 0; margin: 0 -6px 4px; padding: 6px 8px; border-bottom: 1px solid var(--ol); }
+.at-gruppe > .at-gkopf .at-gname { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--on2); }
 /* Gruppe bearbeiten: Feld unter dem Kopf (9. Oktober). */
 .at-gform {
   display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; align-items: end;
@@ -3753,6 +3762,16 @@ details.grp > summary .grp-t::before {
 details.grp[open] > summary .grp-t::before { transform: rotate(90deg); }
 details.grp > summary:hover .grp-t { color: var(--on); }
 details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
+/* 27. November, Weisung «das umranden sollte durchgängig angesetzt werden»:
+   jede Gruppe der Masken ist ein fein gerahmter Block wie die Bauteilkarten;
+   der Kopf steht im Rahmen über einer Trennlinie (der Akzentbalken entfällt,
+   der Rahmen zeigt die Grenze). */
+.grp-block { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 10px 6px; margin: 10px 0; }
+.grp-block > details.grp > summary.grp-kopf,
+.grp-block > .sec:first-child,
+.grp-block > div:first-child > .sec:first-child { margin: 0 -10px 8px; padding: 7px 10px; border-left: 0; border-bottom: 1px solid var(--ol); }
+.grp-block:has(> details.grp:not([open])) { padding-bottom: 0; }
+.grp-block > details.grp:not([open]) > summary.grp-kopf { margin-bottom: 0; border-bottom: 0; }
 @media print { .sprung { display: none; } }
 
 /* --- Lastfaelle: Kurzfassung in der Leiste, Tabelle im Fenster (13. November) --- */
@@ -4638,5 +4657,12 @@ button.wz-haupt { padding: 3px 0 4px; }
 /* 27. November: gerahmte Blöcke wie die Bauteilkarten, Kopf wie eine Kartenzeile
    (kein Akzentbalken, kein Randstrich mehr). */
 .teil-block { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 6px 8px 2px; margin: 10px 0 8px; }
-.teil-kopf { margin: 0 0 6px; padding: 0 0 5px; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+.teil-kopf { margin: 0 0 6px; padding: 0 0 5px; font-family: var(--f-mono); font-size: 10px; font-weight: 600; letter-spacing: .1em;
   text-transform: uppercase; color: var(--on2); border-bottom: 1px solid var(--ol); }
+
+/* 27. November: Rahmen auch in der Auswertung - je Nachweisgruppe ein Block
+   wie die Gruppen der Masken; Zeilen ohne Gruppe (Gebrauchstauglichkeit,
+   einzelne Gruppe) ebenso gerahmt. */
+.nw-block { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 8px 4px; margin: 8px 0; }
+.nw-block > .sec-klein { margin: 0 -8px 4px; padding: 6px 8px; border-bottom: 1px solid var(--ol); }
+#auswertung .kennzahlen.nw-zeilen:not(.nw-block > .nw-zeilen) { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 2px 8px 4px; }

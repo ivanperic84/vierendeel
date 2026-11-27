@@ -44447,6 +44447,10 @@ titel('371  Bauteile der Maske als gerahmte Blöcke, Kopf läuft mit (27. Novemb
   wahr('Der Kopf läuft in aktualisiereMaske mit', UQ.includes("container.querySelectorAll('[data-teilkopf]')"));
   wahr('Rahmen wie die Bauteilkarten, kein Akzentbalken, kein Randstrich',
        /\.teil-block \{ border: 1px solid var\(--ol\)/.test(CQ) && !CQ.includes('.feld.teil-anker'));
+  wahr('Durchgängig gerahmt: Gruppen der Masken, Nachweisgruppen, Gruppen der Anbauteile',
+       /\.grp-block \{ border: 1px solid var\(--ol\)/.test(CQ) && /\.nw-block \{ border: 1px solid var\(--ol\)/.test(CQ)
+       && /\.at-gruppe \{ border: 1px solid var\(--ol\)/.test(CQ) && UQ.includes('<section class="nw-block">'));
+  wahr('Zahlfeld und Auswahl eine Höhe (30 px)', CQ.includes('input[type=search], select { box-sizing: border-box; height: 30px;'));
 }
 
 // ===========================================================================
