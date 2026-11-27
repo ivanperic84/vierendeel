@@ -39429,7 +39429,7 @@ titel('238  Liste vom 6. Oktober: Bedienung im 3D, Kontextmenü, Vorlagen, Havar
   wahr('Nur die linke Taste klickt (Rechtsklick zoomt nicht)', /!griff\.bewegt && !\(e\.button > 0\)/.test(r3));
   wahr('Zoom auf die Mitte des ganzen Teils', /this\._animiere\(\[mitte, 0, zM\], dist, 620, pan0\)/.test(r3));
   // Seit dem 7. Oktober auch die Teile der Drahtwerk-Übersicht (`hervorTeile`).
-  wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = \(this\.auswahlTeil && trifft\(this\.auswahlTeil\)\)/.test(r3)
+  wahr('Das gewählte Teil leuchtet in der Akzentfarbe', /const gewaehlt = !f\.passiv && \(\(this\.auswahlTeil && trifft\(this\.auswahlTeil\)\)/.test(r3)
        && /this\.hervorTeile\?\.size/.test(r3));
   wahr('Kraftpfeile mit Vorzeichen (F_z nach oben)', /pf\.k \* \(pf\.ri\[0\] \+ pf\.ri\[1\] \+ pf\.ri\[2\]\)/.test(r3));
   wahr('Längsanker im 3D ziehbar', /beiLaengsankerZiehen/.test(r3) && /beiLaengsankerZiehen: \(d\) =>/.test(app238));
