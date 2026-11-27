@@ -44440,6 +44440,14 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('373  Drahtwerke überfahren: nur Leiter des gewählten Tragwerks leuchten (27. November)');
+{
+  const RQ = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Flächen der Nachbartragwerke leuchten nicht mit', RQ.includes('const gewaehlt = !f.passiv && ((this.auswahlTeil'));
+  wahr('Leiterstriche der Nachbarn ebenso', RQ.includes("if (mk.art !== 'lastknoten' || mk.modul == null || mk.passiv === true) return;"));
+}
+
+// ===========================================================================
 titel('372  Schriftreihe und Knopfhöhen vereinheitlicht (27. November)');
 {
   const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');

@@ -5448,8 +5448,11 @@ export class Modellansicht {
        */
       // Dazu die Teile der Drahtwerk-Übersicht (7. Oktober, `hervorTeile`).
       const trifft = (k) => typeof f.teil === 'string' && (f.teil === k || f.teil.startsWith(`${k}_`));
-      const gewaehlt = (this.auswahlTeil && trifft(this.auswahlTeil))
-        || (this.hervorTeile?.size && [...this.hervorTeile].some(trifft));
+      // Nur am gewählten Tragwerk (27. November): «hier leuchten 4 leiter wenn
+      // ich über die erste position fahre» - die Schlüssel `AT_<i+1>#<k>`
+      // tragen auch die Abfangjoche nebenan, deren Leiter leuchteten mit.
+      const gewaehlt = !f.passiv && ((this.auswahlTeil && trifft(this.auswahlTeil))
+        || (this.hervorTeile?.size && [...this.hervorTeile].some(trifft)));
       if (gewaehlt) {
         c.globalAlpha = 0.45;
         c.fillStyle = t.acc ?? '#4aa3df';
@@ -6701,7 +6704,7 @@ export class Modellansicht {
     if (this.hervorTeile?.size) {
       const acc = t.acc ?? '#4aa3df';
       this.szene.marken.forEach((mk) => {
-        if (mk.art !== 'lastknoten' || mk.modul == null) return;
+        if (mk.art !== 'lastknoten' || mk.modul == null || mk.passiv === true) return;
         if (!this.hervorTeile.has(`${mk.teil}#${mk.modul}`)) return;
         const p = proj(mk.p);
         const p0 = proj([mk.p[0], mk.p[1] - 3, mk.p[2]]);
