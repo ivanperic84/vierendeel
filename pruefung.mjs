@@ -44439,6 +44439,17 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
 }
 
 // ===========================================================================
+titel('371  Bauteile der Maske als gerahmte Blöcke, Kopf läuft mit (27. November)');
+{
+  const UQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Feld mit teilKopf beginnt einen gerahmten Block', UQ.includes('<section class="teil-block"><div class="teil-kopf" data-teilkopf='));
+  wahr('Der Kopf läuft in aktualisiereMaske mit', UQ.includes("container.querySelectorAll('[data-teilkopf]')"));
+  wahr('Rahmen wie die Bauteilkarten, kein Akzentbalken, kein Randstrich',
+       /\.teil-block \{ border: 1px solid var\(--ol\)/.test(CQ) && !CQ.includes('.feld.teil-anker'));
+}
+
+// ===========================================================================
 titel('370  Mast ziehen: Kragarme bleiben, Rest ans gezogene Ende (27. November)');
 {
   const C = await import(J('core.constants.js'));
@@ -44607,7 +44618,7 @@ titel('359  Anker: Fundament in der Maske, Köpfe je Bauteil; Reaktionsblatt; An
   wahr('Maske: Feld Ankerfundament, Köpfe «Mast», «Unterbau», «Anker» und Randstrich',
        SQ.includes("{ key: 'ankerFund', teil: 'anker', gruppe: 'mast', typ: 'auswahl',")
        && SQ.includes("teilKopf: (w) => `Anker ${") && APP_QUELLE().includes("ankerFund: 'fundament',")
-       && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('<div class="teil-kopf">'));
+       && readFileSync(join(HIER, 'js', 'ui.js'), 'utf8').includes('<div class="teil-kopf" data-teilkopf='));
   wahr('Reaktionsblatt: keine Spalte «massgebender Fall», Aufteilung ständig / veränderlich, Ankerfundament mit Standardlast',
        !EQ.includes('<th rowspan="2">massgebender Fall</th>') && EQ.includes("const teile = aufteilen ?")
        && EQ.includes('if (afZul) {') && readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8').includes('staendig: G ? zeile('));

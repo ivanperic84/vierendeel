@@ -913,8 +913,30 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
      * das Haeufige vom Seltenen; zugeklappt legt die ganze Gruppe beiseite,
      * samt ihrer zweiten Ebene.
      */
-    const inhalt = haupt.map((f) => feldHtml(f, feldWert(f, werte), werte))
-      .join('') + feinBlock + (feinExtra ? '' : zusatz);
+    /*
+     * >>> BAUTEILE ALS GERAHMTE BLÖCKE (27. November). <<< Mit Bild der
+     * Gruppe Masten, im Wortlaut: «warum sind diese überschriften anders als
+     * die restlichen? und vertikalen linien. kann man hier bei den gruppen
+     * ähnlch wie bei den anbauteilen einen feinen rahmen setezen damit man
+     * weiss wo grenzen sind?» Ein Feld mit `teilKopf` beginnt einen Block
+     * (feiner Rahmen wie die Bauteilkarten, Kopf wie eine Kartenzeile), der
+     * bis zum nächsten Kopf reicht; die Feineinstellungen der Gruppe gehören
+     * dem letzten Block. Der Kopf trägt `data-teilkopf` und läuft in
+     * `aktualisiereMaske` mit (vorher blieb «Mast M3» über «Mastprofil M4»
+     * stehen).
+     */
+    let offen = false;
+    let inhaltH = haupt.map((f) => {
+      const tk = typeof f.teilKopf === 'function' ? f.teilKopf(werte) : f.teilKopf;
+      const feld = feldHtml(tk ? { ...f, teilKopf: undefined } : f, feldWert(f, werte), werte);
+      if (!tk) return feld;
+      const auf = `${offen ? '</section>' : ''}<section class="teil-block"><div class="teil-kopf" data-teilkopf="${esc(f.key)}">${esc(tk)}</div>`;
+      offen = true;
+      return auf + feld;
+    }).join('');
+    const inhalt = offen
+      ? inhaltH + feinBlock + '</section>' + (feinExtra ? '' : zusatz)
+      : inhaltH + feinBlock + (feinExtra ? '' : zusatz);
     // Der Titel kann je Tragwerksart ein anderer sein (28. September).
     const titel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
     // Zugeklappte Gruppen sehen aus wie die übrigen (17. November: «warum
@@ -1100,6 +1122,12 @@ export function aktualisiereMaske(container, werte, extras = {}) {
    * Nur die gerechneten Beschriftungen - die festen anzufassen hiesse, bei
    * jedem Tastendruck jeden Text im Formular neu zu setzen.
    */
+  // Köpfe der Bauteilblöcke laufen mit wie die Beschriftungen (27. November).
+  container.querySelectorAll('[data-teilkopf]').forEach((el) => {
+    const f = FELDER.find((x) => x.key === el.dataset.teilkopf);
+    const t = typeof f?.teilKopf === 'function' ? f.teilKopf(werte) : f?.teilKopf;
+    if (t && el.textContent !== t) el.textContent = t;
+  });
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     // Schulung (15. November): die einfache Bezeichnung gilt auch hier.
     const f = feldEinfach(FELDER.find((x) => x.key === inp.dataset.feld));
