@@ -42134,8 +42134,9 @@ titel('276  Durchsicht der Bedienung, Punkte 5 bis 10');
        UQ.includes('aria-label="${esc(label ?? f.key)} (Schieber)"'));
 
   // 10 Lesbarkeit.
-  wahr('Kleinste Lauftexte angehoben (Kachelzeilen 10 px, Hinweise 10.5 px)',
-       CQ.includes('.kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }') && /small\.hinweis[^{]*\{ font-size: 10\.5px; \}/.test(CQ.replace(/\r?\n/g, ' ')));
+  // Seit dem 27. November (Schriftreihe ohne Halbschritte) 11 statt 10.5 px.
+  wahr('Kleinste Lauftexte angehoben (Kachelzeilen 10 px, Hinweise 11 px)',
+       CQ.includes('.kz .kz-e, .kz .kz-t, .kz-e, .kz-t { font-size: 10px; }') && /small\.hinweis[^{]*\{ font-size: 11px; \}/.test(CQ.replace(/\r?\n/g, ' ')));
 }
 
 titel('277  «Bauteil zuweisen» mit Auswahl; Kamera nie näher als 5 m');
@@ -44436,6 +44437,18 @@ titel('344  Knotenbereich: Anschnitt und Schwerachsen in Rechnung und Bild (25. 
   }
   wahr('Schwerachsen liegt am Gurt über dem Anschnitt (Spitze im Knoten)', eta.schwerachsen > eta.anschnitt,
        `${eta.anschnitt.toFixed(4)} → ${eta.schwerachsen.toFixed(4)}`);
+}
+
+// ===========================================================================
+titel('372  Schriftreihe und Knopfhöhen vereinheitlicht (27. November)');
+{
+  const CQ = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const halb = (CQ.match(/font(?:-size)?:[^;}]*/g) ?? []).filter((d) => !/^font: [\d.]+px sans-serif$/.test(d))  // SVG-Anschrift (Bild)
+    .filter((d) => /\b\d+\.\d+px/.test(d));
+  wahr('Keine Halbschritte mehr in den Schriftgrössen des Stilblatts', halb.length === 0, halb.slice(0, 3).join(' | '));
+  wahr('Kleine Knöpfe 22 px, Ansichtsknöpfe 30 px, Pillen ganz rund',
+       CQ.includes('.al-chip, .urteil-offen, .wz-s.wz-klapp { box-sizing: border-box; min-height: 22px; height: 22px; }')
+       && CQ.includes('.v-handlung { height: 30px; }') && !/\.sw-marke \{[^}]*--m-r2/.test(CQ));
 }
 
 // ===========================================================================

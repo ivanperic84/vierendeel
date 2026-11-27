@@ -100,7 +100,7 @@ small, sub, sup { font-size: max(10px, .83em); }
 .tb-proj {
   display: flex; align-items: center; gap: 8px; background: transparent;
   border: none; color: var(--on2); cursor: pointer; padding: 5px 10px;
-  border-radius: var(--m-r1); font-family: var(--f-mono); font-size: 11.5px;
+  border-radius: var(--m-r1); font-family: var(--f-mono); font-size: 12px;
   max-width: min(58vw, 700px); overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -351,10 +351,10 @@ small, sub, sup { font-size: max(10px, .83em); }
 
 .feld { display: grid; gap: 3px; margin-bottom: 9px; }
 .feld > label {
-  font-size: 11.5px; color: var(--dim); display: flex; gap: 6px;
+  font-size: 12px; color: var(--dim); display: flex; gap: 6px;
   align-items: baseline;
 }
-.feld > label em { font-style: normal; color: var(--on2); font-family: var(--f-mono); font-size: 10.5px; }
+.feld > label em { font-style: normal; color: var(--on2); font-family: var(--f-mono); font-size: 11px; }
 .zahlfeld { display: flex; align-items: center; gap: 6px; }
 .zahlfeld .einheit {
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);
@@ -365,7 +365,7 @@ small, sub, sup { font-size: max(10px, .83em); }
    die Darstellung des Browsers zurück - weisser Grund und schwarze Schrift
    mitten in der dunklen Oberfläche. */
 input[type=number], input[type=text], input[type=search], select, textarea {
-  font-family: var(--f-mono); font-size: 12.5px; padding: 6px 8px; width: 100%;
+  font-family: var(--f-mono); font-size: 13px; padding: 6px 8px; width: 100%;
   border: 1px solid var(--ol); border-radius: var(--m-r1);
   background: var(--s2); color: var(--on);
   /* Auch der Grund wird weich gewechselt. Nur die Randfarbe zu führen liess
@@ -421,7 +421,7 @@ body.ohne-erklaertexte .panel .feld > .hinweis-klapp { display: none; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
   margin: 2px 0 4px;
 }
-.wirkung .schalter { font-size: 10.5px; }
+.wirkung .schalter { font-size: 11px; }
 .wirkung .kette-feld { flex: 0 0 auto; width: 110px; }
 .wirkung .kette-feld input { font-size: 11px; }
 
@@ -526,7 +526,7 @@ input[type=range].rng {
   justify-items: center; text-align: center; gap: 1px; padding: 3px 4px 5px; }
 .at-kachel .at-symbol { width: 40px; height: 26px; color: var(--on2); }
 .at-kachel:hover .at-symbol { color: var(--acc); }
-.at-kachel .kachel-name { font-size: 10.5px; display: -webkit-box; -webkit-line-clamp: 2;
+.at-kachel .kachel-name { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden; }
 .kachel-huelle[hidden], .kachel-gruppe[hidden] { display: none; }
 .vl-suchzeile { display: flex; gap: 6px; align-items: center; margin: 0 0 6px; }
@@ -541,7 +541,7 @@ input[type=range].rng {
 /* Bausteinwahl mit Suche in der Bauteilkarte (3. Oktober). */
 .bs-wahl { display: flex; flex: 1 1 auto; min-width: 0; }
 .bs-knopf { flex: 1 1 auto; min-width: 0; text-align: left; padding: 4px 22px 4px 7px;
-  font: inherit; font-size: 11.5px; color: var(--on); background: var(--s1);
+  font: inherit; font-size: 12px; color: var(--on); background: var(--s1);
   border: 1px solid var(--ol); border-radius: var(--m-r1); cursor: pointer; position: relative;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bs-knopf::after { content: '▾'; position: absolute; right: 7px; color: var(--dim); }
@@ -554,7 +554,7 @@ input[type=range].rng {
 .bs-gruppe[hidden], .bs-eintrag[hidden] { display: none; }
 .bs-gruppe .sw-t { font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); margin: 0 0 2px 1px; }
-.bs-eintrag { text-align: left; padding: 4px 7px; font: inherit; font-size: 11.5px;
+.bs-eintrag { text-align: left; padding: 4px 7px; font: inherit; font-size: 12px;
   color: var(--on2); background: transparent; border: 1px solid transparent;
   border-radius: var(--m-r1); cursor: pointer; }
 .bs-eintrag:hover, .bs-eintrag:focus-visible { background: var(--acc-s); color: var(--on); }
@@ -602,7 +602,7 @@ input[type=range].rng {
    wenn der Nachweis eingeschaltet ist; gesetzt in der Akzentfarbe. */
 .at-neu {
   display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
-  font: 600 9.5px var(--f-mono); color: var(--dim); text-transform: uppercase;
+  font: 600 10px var(--f-mono); color: var(--dim); text-transform: uppercase;
   border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 1px 4px;
 }
 .at-neu input { margin: 0; width: 11px; height: 11px; }
@@ -646,7 +646,7 @@ input[type=range].rng {
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);
 }
 .at-name {
-  font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .at-x, .at-kraft {
   font-family: var(--f-mono); font-size: 10px; color: var(--dim); white-space: nowrap;
@@ -662,13 +662,13 @@ input[type=range].rng {
 
 /* Suchfeld über der Liste */
 .vl-suche { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
-.at-suche input { flex: 1; padding: 5px 8px; font-size: 11.5px; }
+.at-suche input { flex: 1; padding: 5px 8px; font-size: 12px; }
 .at-suche-zahl {
   font-family: var(--f-mono); font-size: 10px; color: var(--dim); white-space: nowrap;
 }
 
 .at-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 11.5px; }
+.at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 12px; }
 .at-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 /* Reaktionen: Resultierende oder Einzelgurte (2. Oktober). */
 .rk-gurtwahl { display: flex; border: 1px solid var(--ol); border-radius: var(--m-r1); overflow: hidden; margin: 4px 0 8px; }
@@ -695,7 +695,7 @@ input[type=range].rng {
 .dw-ordnen { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .dw-ordnen .btn.an { color: var(--acc); border-color: var(--acc); }
 .dw-tab td { white-space: nowrap; }
-.dw-tab td:last-child { white-space: normal; min-width: 120px; font-size: 10.5px; color: var(--dim); }
+.dw-tab td:last-child { white-space: normal; min-width: 120px; font-size: 11px; color: var(--dim); }
 .dw-tab tr.klick:hover td { background: var(--s2); }
 .dw-tab tr.aktiv td { background: var(--acc-s); }
 .dw-auswahl select { font-size: 11px; }
@@ -768,7 +768,7 @@ input[type=range].rng {
 .modul-partner {
   display: grid; grid-template-columns: 1fr 20px; column-gap: 5px;
   align-items: center; margin: -2px 0 5px 0;
-  font-size: 10.5px; color: var(--dim);
+  font-size: 11px; color: var(--dim);
 }
 .modul-partner-t {
   grid-column: 1 / -1; font-size: 10px; letter-spacing: .04em;
@@ -781,7 +781,7 @@ input[type=range].rng {
 .modul-abfang {
   display: grid; grid-template-columns: 1fr 1fr 20px; column-gap: 5px;
   align-items: center; margin: -2px 0 5px 0;
-  font-size: 10.5px; color: var(--dim);
+  font-size: 11px; color: var(--dim);
 }
 .modul-abfang select { min-width: 0; }
 /* Die gesperrte Fassung ist am 15. September entfallen - «dynamisch
@@ -852,7 +852,7 @@ input[type=range].rng {
    gestricheltem Rand als Einladung. */
 .btn.btn-zufuegen {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  width: 100%; margin-top: 6px; padding: 7px 8px; font-size: 11.5px;
+  width: 100%; margin-top: 6px; padding: 7px 8px; font-size: 12px;
   border-style: dashed; border-color: var(--ol2); color: var(--on2);
   background: var(--s1);
 }
@@ -955,7 +955,7 @@ input[type=range].rng {
    Laeuft sie, kehrt sie sich um - dann ist sie das, was man als naechstes
    anklickt, um sie zu beenden. Die Hoehe ist die der Lastfallzeile, damit
    beide auf einer Linie stehen. */
-.v-handlung { height: 33px; }
+.v-handlung { height: 30px; }
 .v-handlung.laeuft { background: var(--acc); color: var(--s1); }
 .v-handlung.laeuft svg { stroke: var(--s1); }
 .viewer-tools-r {
@@ -1170,7 +1170,7 @@ button.wz-haupt:hover { color: var(--on); }
 .pillen button.on { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
 .haken { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; }
 .haken label {
-  display: flex; align-items: center; gap: 4px; font-size: 10.5px;
+  display: flex; align-items: center; gap: 4px; font-size: 11px;
   color: var(--on2); cursor: pointer; user-select: none;
 }
 .haken input { accent-color: var(--acc); width: 12px; height: 12px; margin: 0; }
@@ -1276,7 +1276,7 @@ button.wz-haupt:hover { color: var(--on); }
 .zl { display: grid; gap: 6px; margin-top: 6px; min-width: 210px; max-width: 260px; font-size: 11px; }
 .zl-wert { font-variant-numeric: tabular-nums; line-height: 1.35; }
 .zl-wert b { font-size: 13px; }
-.zl-dim { color: var(--dim); font-size: 10.5px; line-height: 1.35; }
+.zl-dim { color: var(--dim); font-size: 11px; line-height: 1.35; }
 .zl-hinweis { color: var(--dim); font-size: 11px; max-width: 240px; margin-top: 4px; }
 .zl-reihe { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; align-items: center; }
 .zl-reihe button { min-width: 0; padding: 3px 4px; font: inherit; font-size: 11px; color: var(--on);
@@ -1353,7 +1353,7 @@ button.wz-haupt:hover { color: var(--on); }
 
 /* Feldweiten als Zahlenkette – umbricht, statt die Seite zu sprengen */
 .kette {
-  font-family: var(--f-mono); font-size: 10.5px; color: var(--on2);
+  font-family: var(--f-mono); font-size: 11px; color: var(--on2);
   line-height: 1.7; margin: 4px 0 8px; word-spacing: .1em;
 }
 
@@ -1636,7 +1636,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .mess-kopf {
   display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px;
 }
-.mess-kopf b { color: var(--acc); font-size: 10.5px; }
+.mess-kopf b { color: var(--acc); font-size: 11px; }
 .mess-hinweis { color: var(--dim); font-size: 10px; }
 .mess-tab { border-collapse: collapse; width: 100%; }
 .mess-tab td { padding: 1px 6px 1px 0; vertical-align: baseline; }
@@ -1777,11 +1777,11 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .hb-text { padding: 14px 20px 30px; max-width: 74ch; }
 .hb-abschnitt { margin-bottom: 26px; scroll-margin-top: 10px; }
 .hb-abschnitt h3 {
-  margin: 0 0 10px; font-size: 13.5px; font-weight: 600; color: var(--on);
+  margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--on);
   padding-bottom: 6px; border-bottom: 1px solid var(--ol);
 }
 .hb-abschnitt h4 {
-  margin: 16px 0 6px; font-size: 11.5px; font-weight: 600; color: var(--on2);
+  margin: 16px 0 6px; font-size: 12px; font-weight: 600; color: var(--on2);
 }
 .hb-abschnitt p { margin: 0 0 9px; font-size: 12px; line-height: 1.62; color: var(--on2); }
 .hb-abschnitt b { color: var(--on); font-weight: 600; }
@@ -1795,7 +1795,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 /* Formelblock: einzige Stelle, an der die Schrift fest ist - eine Formel darf
    nicht umbrechen, wo sie will. */
 .hb-f {
-  font-family: var(--f-mono); font-size: 11.5px; line-height: 1.75;
+  font-family: var(--f-mono); font-size: 12px; line-height: 1.75;
   background: var(--s2); border-left: 2px solid var(--acc);
   padding: 9px 12px; margin: 9px 0 12px; color: var(--on);
   overflow-x: auto; border-radius: 0 var(--m-r1) var(--m-r1) 0;
@@ -1867,7 +1867,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 /* Schrift */
 .skizze text { fill: var(--on2); font-family: var(--f-mono); font-size: 11px; }
 .skizze text.dim { fill: var(--dim); font-size: 10px; }
-.skizze text.acc { fill: var(--acc); font-size: 10.5px; }
+.skizze text.acc { fill: var(--acc); font-size: 11px; }
 
 /* --- Mastenuebersicht -----------------------------------------------------
    Eine Zeile je Mast des aktiven Tragwerks. Der geteilte traegt seine zweite
@@ -1877,7 +1877,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 .mast-zeile {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
   padding: 3px 8px; border-left: 2px solid var(--ol);
-  font-family: var(--f-mono); font-size: 10.5px; color: var(--dim);
+  font-family: var(--f-mono); font-size: 11px; color: var(--dim);
 }
 .mast-zeile.geteilt { border-left-color: var(--acc); }
 .mast-ende { color: var(--on2); font-weight: 500; }
@@ -2087,7 +2087,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
   flex: 0 0 96px; min-width: 0; display: flex; flex-direction: column;
   gap: 0; padding: 2px 3px; cursor: pointer; text-align: left;
   background: none; border: none; font-family: inherit;
-  color: var(--on2); font-size: 10.5px;
+  color: var(--on2); font-size: 11px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .qp-zeile.an .qp-name { color: var(--acc); }
@@ -2471,7 +2471,7 @@ tr.pb-zeile:hover td { background: var(--acc-s); }
 
 /* --- Aufklappfenster der Modellwerkzeuge ---------------------------------- */
 .pop-zeile {
-  display: block; width: 100%; text-align: left; font: inherit; font-size: 11.5px;
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 12px;
   padding: 5px 8px; margin-top: 2px; cursor: pointer; border-radius: var(--m-r1);
   background: var(--s3); border: 1px solid transparent; color: var(--on2);
 }
@@ -2793,7 +2793,7 @@ body.datei-ueber::after {
 .tl-zeile.fest .tl-text { color: var(--dim); }
 .tl-taste, .tl-fest {
   min-width: 34px; text-align: center;
-  font-family: var(--f-mono); font-size: 10.5px;
+  font-family: var(--f-mono); font-size: 11px;
   padding: 2px 6px; border-radius: var(--m-r1);
   border: 1px solid var(--ol2); background: var(--s2); color: var(--on2);
 }
@@ -2803,7 +2803,7 @@ body.datei-ueber::after {
 .tl-taste.wartet { border-color: var(--acc); background: var(--acc-s); color: var(--acc); }
 /* Was das System belegt, ist nicht zu vergeben. */
 .tl-fest { opacity: .55; }
-.tl-meldung { margin: 0 0 6px; font-size: 10.5px; color: var(--warn); }
+.tl-meldung { margin: 0 0 6px; font-size: 11px; color: var(--warn); }
 
 /* Ein Kontextmenue nimmt auch Angaben entgegen - Typ, Lage, Ausrichtung
    direkt am Bauteil, statt eines Weges in die Seitenleiste. */
@@ -2813,7 +2813,7 @@ body.datei-ueber::after {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .kontext-info {
-  font: 10.5px var(--f-mono); color: var(--on2); padding: 2px 8px; max-width: 340px;
+  font: 11px var(--f-mono); color: var(--on2); padding: 2px 8px; max-width: 340px;
   white-space: normal; line-height: 1.35;
 }
 .kontext-info.warn { color: var(--warn, #d9a441); }
@@ -2822,14 +2822,14 @@ body.datei-ueber::after {
      Feld, Einheit - alle Felder gleich breit, die Einheit hat immer Platz. */
   display: grid; grid-template-columns: 104px 132px 18px;
   align-items: center; gap: 6px; padding: 3px 8px;
-  font-size: 10.5px; color: var(--dim);
+  font-size: 11px; color: var(--dim);
 }
 .kontext-feld > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kontext-feld select, .kontext-feld input {
   width: 100%; min-width: 0; box-sizing: border-box;
   background: var(--s2); border: 1px solid var(--ol);
   border-radius: var(--m-r1); color: var(--on2);
-  font-family: inherit; font-size: 10.5px; padding: 2px 4px;
+  font-family: inherit; font-size: 11px; padding: 2px 4px;
 }
 .kontext-feld input { font-family: var(--f-mono); text-align: right; }
 .kontext-feld i { font-style: normal; color: var(--dim); }
@@ -2837,7 +2837,7 @@ body.datei-ueber::after {
 .kontext-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 8px 5px; max-width: 260px; }
 .kontext-chip {
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
-  color: var(--dim); font: inherit; font-size: 10.5px; padding: 2px 7px; cursor: pointer;
+  color: var(--dim); font: inherit; font-size: 11px; padding: 2px 7px; cursor: pointer;
 }
 .kontext-chip.an { border-color: var(--acc); color: var(--acc); background: var(--acc-s); }
 .kontext-chip:hover { border-color: var(--acc); }
@@ -2920,7 +2920,7 @@ body.datei-ueber::after {
  */
 /* Der massgebende Fall neben dem Urteil - eine Angabe, kein Schmuck. */
 .urteil-fall {
-  font-size: 10.5px; color: var(--dim); font-family: var(--f-mono);
+  font-size: 11px; color: var(--dim); font-family: var(--f-mono);
   padding: 1px 6px; border: 1px solid var(--ol); border-radius: 999px;
   white-space: nowrap;
 }
@@ -2975,14 +2975,14 @@ body.datei-ueber::after {
 .al-labil {
   margin: 0; padding: 5px 8px; border-left: 3px solid var(--fail);
   background: var(--fail-s, var(--warn-s)); color: var(--fail);
-  border-radius: var(--m-r1); font-size: 10.5px; line-height: 1.5;
+  border-radius: var(--m-r1); font-size: 11px; line-height: 1.5;
 }
 
 /* K_XX wirkt nur im FEM - ein Hinweis, keine Warnung (16. September). */
 .al-fem-hinweis {
   margin: 6px 0 0; padding: 5px 8px; border-left: 3px solid var(--warn);
   background: var(--warn-s); border-radius: var(--m-r1);
-  font-size: 10.5px; line-height: 1.5;
+  font-size: 11px; line-height: 1.5;
 }
 
 /*
@@ -3009,7 +3009,7 @@ body.datei-ueber::after {
   color: var(--dim); letter-spacing: .08em;
 }
 .al-mzeile {
-  font-size: 10.5px; color: var(--dim); white-space: nowrap;
+  font-size: 11px; color: var(--dim); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .al-mzeile.stumm { opacity: 0.45; }
@@ -3017,7 +3017,7 @@ body.datei-ueber::after {
   padding: 3px 2px; cursor: pointer; text-align: center; white-space: nowrap;
   background: var(--flaeche2, #0002); border: 1px solid var(--rand, #3334);
   border-radius: var(--m-r1); color: var(--dim, #7a8699);
-  font: inherit; font-size: 10.5px; font-family: var(--f-mono);
+  font: inherit; font-size: 11px; font-family: var(--f-mono);
   overflow: hidden; text-overflow: ellipsis;
 }
 .al-chip:hover { border-color: var(--acc, #6ea8fe); }
@@ -3046,7 +3046,7 @@ body.datei-ueber::after {
   margin: 0; padding: 3px 0 3px 9px; border-left: 2px solid var(--ol);
   color: var(--dim); display: grid; gap: 1px;
 }
-.al-e-wert { font-size: 11.5px; font-weight: 600; font-family: var(--f-mono);
+.al-e-wert { font-size: 12px; font-weight: 600; font-family: var(--f-mono);
              white-space: nowrap; }
 .al-e-text { font-size: 10px; line-height: 1.45; color: var(--dim); }
 .al-einspannung.al-e-starr { border-left-color: var(--ok); color: var(--ok); }
@@ -3056,7 +3056,7 @@ body.datei-ueber::after {
 /* Wird mit dieser Zahl gerechnet, steht sie kraeftiger da - sie ist dann
    keine Nebenangabe mehr, sondern die Feder des Nachweises. */
 .al-einspannung.gilt { border-left-width: 3px; background: var(--s3); }
-.al-einspannung.gilt .al-e-wert { font-size: 12.5px; }
+.al-einspannung.gilt .al-e-wert { font-size: 13px; }
 
 .al-federn { display: grid; gap: 3px; margin-bottom: 8px; }
 .al-federn > b { font-size: 11px; color: var(--dim, #7a8699); }
@@ -3243,7 +3243,7 @@ body.datei-ueber::after {
 .at-leiste { display: flex; justify-content: flex-end; gap: 6px; margin: 4px 0 6px; }
 /* Der gespiegelte Schalter «Bestandesschutz» (4. Oktober) links, die Knöpfe
    rechts - er gehört zum Kennzeichen «neu» der Karten darunter. */
-.at-leiste .at-bestand { margin-right: auto; font-size: 11.5px; }
+.at-leiste .at-bestand { margin-right: auto; font-size: 12px; }
 
 /* ===========================================================================
    BAUM MIT LAGEBAND (Weisung vom 19. September, «A mit dem Band»)
@@ -3326,7 +3326,7 @@ body.datei-ueber::after {
 .at-skizze .sk-profil rect { fill: var(--dim); }
 .at-skizze .sk-trenn { stroke: var(--ol); stroke-width: 1; stroke-dasharray: 2 3; }
 /* Havarie-Uebersicht (19. September): je Leiter «reisst» und der Zug in ±y */
-.hav-an { display: flex; align-items: center; gap: 6px; font-size: 11.5px; margin: 2px 0 6px; cursor: pointer; }
+.hav-an { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 2px 0 6px; cursor: pointer; }
 .hav-tab { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
 .hav-tab th { font-size: 10px; color: var(--dim); font-weight: 500; text-align: left; padding: 2px 4px; }
 .hav-tab td { padding: 3px 4px; border-top: 1px solid var(--ol); vertical-align: middle; }
@@ -3376,7 +3376,7 @@ body.datei-ueber::after {
 /* Die Marke sagt in einem Wort, worauf die Zahlen daneben stehen. */
 .sw-marke {
   font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase;
-  padding: 2px 7px; border-radius: var(--m-r2);
+  padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
 }
 .sw-marke.warn { border-color: var(--warn); color: var(--warn); }
@@ -3415,7 +3415,7 @@ body.datei-ueber::after {
   margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--ol);
 }
 .sw-bauteil {
-  font-size: 11px; padding: 2px 7px; border-radius: var(--m-r2);
+  font-size: 11px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
 }
 .sw-bauteil b { font-weight: 600; }
@@ -3454,7 +3454,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .sig-tab input { width: 64px; }
 .sig-tab tr.an td { color: var(--acc); }
 .sig-summe { border-top: 1px solid var(--ol); padding-top: 8px; color: var(--on); }
-.signal-liste { margin: 2px 0 6px 16px; padding: 0; font-size: 11.5px; color: var(--on2); }
+.signal-liste { margin: 2px 0 6px 16px; padding: 0; font-size: 12px; color: var(--on2); }
 /* Signale als Bildkacheln (4. Oktober). Die Bilder der Mappe sind schwarz
    auf Weiss gezeichnet - sie stehen auf einem hellen Feld, auch im dunklen
    Design, sonst verschwinden schwarze Tafeln im Hintergrund. */
@@ -3468,7 +3468,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
   background: #fff; border: 0; border-radius: var(--m-r1); cursor: pointer; padding: 3px; }
 .sig-bild img { max-width: 100%; max-height: 58px; object-fit: contain; }
 .sig-ohne { font: 600 18px/1 var(--mono, monospace); color: #333; }
-.sig-name { font-size: 10.5px; line-height: 1.2; text-align: center; color: var(--on2);
+.sig-name { font-size: 11px; line-height: 1.2; text-align: center; color: var(--on2);
   min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; }
 .sig-kachel.an .sig-name { color: var(--acc); }
@@ -3478,7 +3478,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
   font-variant-numeric: tabular-nums; border-top: 1px solid var(--ol); padding-top: 2px;
   width: 100%; display: flex; flex-direction: column; }
 .sig-gewaehlt { display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; align-items: center;
-  padding: 4px 0 6px; border-bottom: 1px solid var(--ol); margin-bottom: 4px; font-size: 11.5px; }
+  padding: 4px 0 6px; border-bottom: 1px solid var(--ol); margin-bottom: 4px; font-size: 12px; }
 .sig-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--acc);
   border-radius: var(--m-r2); padding: 1px 8px 1px 2px; color: var(--on); }
 .sig-chip img { height: 20px; width: 20px; object-fit: contain; background: #fff; border-radius: var(--m-r1); }
@@ -3582,7 +3582,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .ab-vorschau line.vs-neu { stroke: var(--fail); stroke-width: 1.8; }
 .ab-vorschau circle.vs-neu, .ab-vorschau rect.vs-neu { fill: var(--fail); stroke: none; }
 .ab-vs-bild text.vs-zahl { fill: var(--acc); }
-.ab-vs-legende { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0 0 4px; color: var(--on2); font-size: 10.5px; }
+.ab-vs-legende { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0 0 4px; color: var(--on2); font-size: 11px; }
 .ab-vs-legende span { display: inline-flex; align-items: center; gap: 3px; }
 .ab-vs-bild .vs-seil { stroke: var(--on2); stroke-width: 1; stroke-dasharray: 4 3; }
 .ab-vs-bild text { font: 8.5px sans-serif; fill: var(--on2); }
@@ -3682,7 +3682,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 }
 .at-gname {
   grid-row: 1; grid-column: 1 / 3; margin-right: 96px;
-  font: 600 10.5px var(--f-mono); letter-spacing: .06em; color: var(--acc);
+  font: 600 11px var(--f-mono); letter-spacing: .06em; color: var(--acc);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .at-gkopf .at-x { grid-row: 2; grid-column: 1; }
@@ -3710,7 +3710,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 }
 .at-gfarbe.auto {
   width: auto; padding: 0 6px; background: transparent; color: var(--on2);
-  font: 600 9.5px var(--f-mono);
+  font: 600 10px var(--f-mono);
 }
 .at-gfarbe.an { outline: 2px solid var(--on); outline-offset: 1px; }
 .at-gknoepfe { display: flex; gap: 6px; justify-content: flex-end; }
@@ -3734,9 +3734,9 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 
 /* Rückhaltekraft: Info, wenn sie das Joch höher belastet (10. Oktober). */
 .rh-info { margin: 8px 0; padding: 7px 9px; border: 1px solid var(--warn); border-left-width: 3px; border-radius: var(--m-r1);
-  background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 11.5px; color: var(--on); }
+  background: color-mix(in srgb, var(--warn) 9%, transparent); font-size: 12px; color: var(--on); }
 .rh-info.nok { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 9%, transparent); }
-.rh-info ul { margin: 3px 0 3px 16px; padding: 0; } .rh-info span { color: var(--on2); font-size: 10.5px; }
+.rh-info ul { margin: 3px 0 3px 16px; padding: 0; } .rh-info span { color: var(--on2); font-size: 11px; }
 
 /* --- Sprungleiste und einklappbare Gruppen der Eingabemaske (13. November) --- */
 .sprung {
@@ -3820,7 +3820,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
 
 /* Hauptkachel: «nicht geführt» als eigene Marke in der Warnfarbe (14. November). */
 .urteil-offen {
-  font: 600 10.5px var(--f-ui); color: var(--warn); background: transparent;
+  font: 600 11px var(--f-ui); color: var(--warn); background: transparent;
   border: 1px solid var(--warn); border-radius: 999px; padding: 2px 9px; cursor: pointer;
   align-self: flex-start;
 }
@@ -3838,7 +3838,7 @@ details.grp:not([open]) > summary { margin-bottom: 4px; opacity: .85; }
 .kz .kz-f, .kz-f { font-size: 10px; }
 .sec .sec-r, .sec-r, .klapp > summary .klapp-r, .klapp-r { font-size: 10px; }
 .ablage-meta, figcaption, .legende-fuss, small.hinweis, .hinweis small,
-.rk-fallspalte, .at-kraft { font-size: 10.5px; }
+.rk-fallspalte, .at-kraft { font-size: 11px; }
 
 /* =========================================================================
  * VIEWER UND SCHULUNG (15. November)
@@ -3877,7 +3877,7 @@ html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !
 .ef-zeile { display: grid; grid-template-columns: 1fr auto;
   grid-template-areas: "name wert" "bahn bahn" "wer wer";
   gap: 2px 8px; align-items: center; }
-.ef-zeile .ef-name { grid-area: name; font-size: 11.5px; color: var(--on2); }
+.ef-zeile .ef-name { grid-area: name; font-size: 12px; color: var(--on2); }
 .ef-zeile .ef-wert { grid-area: wert; }
 .ef-zeile .ef-bahn { grid-area: bahn; }
 .ef-zeile .ef-wer { grid-area: wer; }
@@ -3891,7 +3891,7 @@ html[data-stufe="schulung"]:not([data-mehr]) [data-at-vorlage] { display: none !
 .ef-wert { font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-align: right; }
 .ef-wert.warn { color: var(--warn); } .ef-wert.fail { color: var(--fail); }
 .ef-wer { font-family: var(--f-mono); font-size: 10px; color: var(--dim); }
-.ef-leg { font-size: 10.5px; color: var(--dim); margin: 8px 0 0; }
+.ef-leg { font-size: 11px; color: var(--dim); margin: 8px 0 0; }
 /* Gruppe mit Nachweis in Worten (17. November): Klick klappt ihn auf. */
 .ef-det > summary { list-style: none; cursor: pointer; }
 .ef-det > summary::-webkit-details-marker { display: none; }
@@ -3984,7 +3984,7 @@ html[data-stufe="schulung"] .legende-bar { background-size: 125% 100%; backgroun
 .leg-zeile input[type=color] { width: 100%; height: 22px; padding: 0; border: 1px solid var(--ol); border-radius: var(--m-r1); background: none; }
 /* Schulung: «Was gerechnet wird» - je Fall eine Zeile, Klick zeigt ihn im 3D. */
 .lf-einfach { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
-  padding: 4px 6px; border-radius: var(--m-r1); font-size: 11.5px; color: var(--on2); cursor: pointer; }
+  padding: 4px 6px; border-radius: var(--m-r1); font-size: 12px; color: var(--on2); cursor: pointer; }
 .lf-einfach:hover { background: var(--acc-s); }
 .lf-einfach.gewaehlt { background: var(--acc-s); color: var(--on); box-shadow: inset 2px 0 0 var(--acc); }
 /* Lastfallliste (24. November): Nummer als Spalte, Name kurz, Prozent nie umbrechen. */
@@ -4099,7 +4099,7 @@ body.sw-rechnet .kz { opacity: .6; transition: opacity var(--t-schnell); }
 .nw-zeilen .kz.ok, .nw-zeilen .kz.warn, .nw-zeilen .kz.fail { background: none; }
 .nw-zeilen .kz.klick:hover { background: var(--s2); }
 .nw-zeilen .kz.klick::after { display: none; }
-.nw-zeilen .kz-t { grid-area: t; font-size: 12.5px; color: var(--on); letter-spacing: 0; align-self: baseline; }
+.nw-zeilen .kz-t { grid-area: t; font-size: 13px; color: var(--on); letter-spacing: 0; align-self: baseline; }
 .nw-zeilen .kz-w { grid-area: w; font-size: 13px; margin: 0; text-align: right; align-self: baseline; }
 .nw-zeilen .kz.warn .kz-w { color: var(--warn); }
 .nw-zeilen .kz.fail .kz-w { color: var(--fail); }
@@ -4147,7 +4147,7 @@ body.setzen-an #legende { display: none; }
 .kz .kz-detail p { margin: 0 0 4px; line-height: 1.4; }
 .kz .kz-detail .warn { color: var(--warn); }
 .kzd-ablauf { margin: 2px 0; }
-.kzd-tab { width: 100%; border-collapse: collapse; margin: 4px 0; font-family: var(--f-mono); font-size: 10.5px; }
+.kzd-tab { width: 100%; border-collapse: collapse; margin: 4px 0; font-family: var(--f-mono); font-size: 11px; }
 .kzd-tab td { padding: 1px 4px 1px 0; border-bottom: 1px solid var(--ol); }
 .kzd-tab td.num { text-align: right; white-space: nowrap; }
 .kzd-tab tr.lenkt td { color: var(--dim); }
@@ -4158,10 +4158,10 @@ body.setzen-an #legende { display: none; }
 .kzd-kopf.ok { border-left-color: var(--ok); }
 .kzd-kopf.ausgl { border-left-color: var(--warn); }
 .kzd-kopf.nok { border-left-color: var(--fail); }
-.kzd-pruef { display: block; font-family: var(--f-mono); font-size: 10.5px; color: var(--dim); }
+.kzd-pruef { display: block; font-family: var(--f-mono); font-size: 11px; color: var(--dim); }
 .kzd-tab tr.mass td { font-weight: 600; }
 .kzd-tab tr.ausgl td { color: var(--warn); }
-.kzd-anteile > summary { cursor: pointer; color: var(--dim); font-size: 10.5px; margin-top: 2px; }
+.kzd-anteile > summary { cursor: pointer; color: var(--dim); font-size: 11px; margin-top: 2px; }
 
 /* Dimensionieren: Vergleich der angekreuzten Varianten (19. November). */
 .dm-vergleich td.dm-bestwert { font-weight: 700; color: var(--ok); }
@@ -4554,7 +4554,7 @@ details.oeffnet[open] > :not(summary) { animation: klapp-auf var(--d-mittel) var
   background: var(--glas, var(--s1)); backdrop-filter: blur(14px);
   border: 1px solid var(--ol2); border-radius: var(--m-r1);
   box-shadow: 0 8px 26px rgba(0,0,0,.35); padding: 7px 9px;
-  font-size: 10.5px; color: var(--on2);
+  font-size: 11px; color: var(--on2);
   animation: lf-tip-ein var(--d-schnell) ease-out;
 }
 @keyframes lf-tip-ein { from { opacity: 0; } to { opacity: 1; } }
@@ -4666,3 +4666,8 @@ button.wz-haupt { padding: 3px 0 4px; }
 .nw-block { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 0 8px 4px; margin: 8px 0; }
 .nw-block > .sec-klein { margin: 0 -8px 4px; padding: 6px 8px; border-bottom: 1px solid var(--ol); }
 #auswertung .kennzahlen.nw-zeilen:not(.nw-block > .nw-zeilen) { border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 2px 8px 4px; }
+
+/* Audit 27. November, Knopfhöhen: drei Stufen - 22 px klein (Pillen, Chips,
+   Mini-Knöpfe), 30 px normal, 36 px Reiter. Die Marken im Lageband und die
+   Kacheln sind Bildteile, keine Knöpfe dieser Reihe. */
+.al-chip, .urteil-offen, .wz-s.wz-klapp { box-sizing: border-box; min-height: 22px; height: 22px; }
