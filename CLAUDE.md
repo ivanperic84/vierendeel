@@ -626,7 +626,12 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**23. November 2026** · Alles gepusht bis `8435441` (Weisung «Ja, pushen»), Arbeitsbaum sauber, bereit fuer
+**27. November 2026** · Alles gepusht (Weisung «pushen und daten nachtragen»), Arbeitsbaum sauber;
+`Versand/` mit Einzeldatei, Schulung und Datenpaket vom 27. November, COM_Bruecke gleich `com/`. Prüfstand
+**7856** grün. Seit dem 24. November die Zeilen oben in *Entschieden* (Strichbild, Skizzen, Mastspitze RTE 27200,
+Kragarme beim Mastziehen …).
+
+Davor: **23. November 2026** · Alles gepusht bis `8435441` (Weisung «Ja, pushen»), Arbeitsbaum sauber, bereit fuer
 einen Kontowechsel. Seit dem 22. November: Testlauf mit fuenf Tragwerken (Stabwerk ueber das ganze Blatt,
 Auswertung global, Abfangjoch Laengshalt an Mast A), Fahrdrahtabzug am Joch, **Projektauswertung**
 (`js/app.projekt.js`), **Aenderungsprotokoll der Bauteiltypen** (`js/core.protokoll.js`), **Ankerfundament nach

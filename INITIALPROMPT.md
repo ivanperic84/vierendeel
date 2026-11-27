@@ -5,7 +5,17 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-## Stand 23. November 2026 - hier weitermachen
+## Stand 27. November 2026 - hier weitermachen
+
+**Alles gepusht** (Weisung «pushen und daten nachtragen», 27. November), Arbeitsbaum sauber, Pruefstand **7856**
+gruen. `Versand/`: Einzeldatei und Schulung `…_2026-11-27.html`, Datenpaket `Vierendeel_Datenpaket_2026-11-27.json`,
+COM_Bruecke gleich `com/`. Gebaut seit dem 24. November (Wortlaut in CLAUDE.md, *Entschieden*, oberste Zeilen):
+Strichbild (hell/dunkel), Skizzen der Blaetter schraeg und als Liniendarstellung, Ansichten mit Miniatur,
+Bildsammlung, Mastspitze nach RTE 27200 (L/100 staendig, L/50 staendig + Betriebswind), EK als eigene Gruppe,
+Doppel-Abfangjoch, Mass L zwischen den Mastachsen, Fahrdraht greifbar ohne Lasten, Kragarme bleiben beim
+Mastziehen (Rest ans gezogene Ende). Naechster Schritt: neue Weisung abwarten; offene Punkte in CLAUDE.md.
+
+## Stand 23. November 2026 (davor)
 
 **Alles gepusht bis `8435441`** (Weisung «Ja, pushen», 23. November), Arbeitsbaum sauber, Pruefstand **7707** gruen,
 `durchlauf.mjs` ohne Bruch. `Versand/`: Einzeldatei und Schulung `…_2026-11-23.html`, Datenpaket
